@@ -1,0 +1,38 @@
+//获取操作系统信息
+import console;
+import process;
+import sys.info;
+
+console.log( "是否64位", process().isWow64(),sys.info().isX64() );
+console.more(1)
+
+import win.versionEx;
+console.dump(win.versionEx);
+
+if( win.versionEx.majorVersion >= 6 ){
+	var result = {int type}
+	var ret = Kernel32.GetProductInfo(win.versionEx.majorVersion,..win.versionEx.minorVersion,0,0,result);
+	console.dump(result);//请自行搜索相关资料
+}
+
+console.log(win.versionEx.name)
+if(win.versionEx.isWin10ReleaseLater(1703)){
+	console.log("当前系统版本大于或等于 Win 10 1703")
+	console.printf("%s %s(OS Build %d,%d)"
+		,win.versionEx.productName
+		,win.versionEx.releaseId
+		,win.versionEx.buildNumber
+		,win.versionEx.updateBuildRevision 
+		)
+}
+
+if( 1 == ::Kernel32.GetFirmwareEnvironmentVariableW(
+	"","{00000000-0000-0000-0000-000000000000}",null,0) 
+	){
+	console.log("系统使用传统BIOS启动")
+}
+else {
+	console.log("系统使用UEFI启动")
+}
+
+console.pause();

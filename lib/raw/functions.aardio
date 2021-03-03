@@ -1,0 +1,78 @@
+﻿//functions 函数接口
+namespace raw;
+ 
+var convert = ..raw.convert;
+class functions{
+	ctor( inObject,itface,cal="stdcall" ){   
+		if(!inObject) error("无效的接口(参数@1)",2);
+		var inObjectType = type(inObject);
+		if( inObjectType == "number" ) inObject = topointer(inObject);
+		
+		var outStruct;
+		var itfaceType = type(itface);	
+		if( itfaceType == "string" ) {
+			var s = {}; 
+			outStruct = {}
+			for r,f,a in ..string.gmatch(itface ,"(\S+)\s+(\S+)(%())") { 
+				..table.push(s,"ptr " + f);
+				outStruct[f] = r ++ a;
+			}
+			outStruct._struct = ..string.join(s,';' );
+		}
+		elseif( itfaceType == "class" ) {
+			outStruct = itface();
+		}
+		else {
+			error("参数@2类型错误",2);
+		}
+		
+		var outObjectFuncProto = {};
+		for( k,proto in outStruct){  
+			if( type(proto) != "string" ) continue;
+			outObjectFuncProto[k] = proto;
+		}
+		
+		if( (inObjectType == "table") && (!inObjectType@) ){
+			var createCallback = ..raw["to"+cal];
+			if( !createCallback ) error("实现接口仅支持stdcall,cdecl,fastcall调用约定!",2);
+			 
+			for( k,proto in outObjectFuncProto){  
+				ptr = inObject[k];
+				if( (!proto) || ( type(ptr) != "function" )   ){ 
+					continue; 
+				} 
+				outStruct[k] = createCallback(inObject[k],proto,this);
+				this[k] = inObject[k];
+			} 
+			
+			this.__thisPointer = ..raw.buffer(outStruct);
+		}
+		else {
+			outStruct = convert( inObject ,outStruct ) ;
+			
+			var app = ..raw.module(cal); 
+			var proto; 
+			for(k,ptr in outStruct){
+				if(( type(ptr) != "pointer" ) || ( type(k) != "string" ) ){
+					if(k!="_struct") this[k] = ptr;
+					continue;
+				}
+				proto = outObjectFuncProto[k];
+				if( !#proto ){
+					this[k] = app[ptr];
+					continue; 
+				}
+				
+				this[k] = app.api(ptr,proto,cal);
+			}
+			
+			this.__thisPointer = inObject;
+		}
+	}
+	@{_topointer = this.__thisPointer}
+} 
+
+/**intellisense()
+raw.functions = 用于将结构体指针绑定到静态类型接口\n与raw.interface的区别是结构体中的函数指针不使用虚表,不使用this指针参数,其他用法相同,\n添加不属于接口的aardio自定义函数，必须用owner代替this访问当前接口对象
+raw.functions() = @.functions( __/*结构体指针*/,"\n	void getName(string &buffer,int len);\n	bool getInfo(struct &pInfo); \n	","stdcall"\n)
+end intellisense**/

@@ -1,0 +1,18 @@
+//剪贴板监视窗口
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";left=-2;right=316;bottom=211;parent=...;topmost=1)
+winform.add(
+edit={cls="edit";text="剪贴板变化会即时显示在这里";left=7;top=5;right=312;bottom=206;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+import win.clip.viewer;
+viewer = win.clip.viewer(winform);
+viewer.onDrawClipboard=function(){
+	var str = win.clip.read();	
+	winform.edit.text = str;
+}
+
+winform.show() 
+win.loopMessage();

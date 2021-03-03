@@ -1,0 +1,82 @@
+//运行时编译C# 
+import console;
+console.open()
+
+import dotNet; 
+var clr = dotNet.clr( "v4.0","v2.0" ); 
+if( !clr ){
+    console.log("当前系统未安装.Net Framework 2.0 以上版本")
+    console.pause();
+    return;
+}
+
+//创建应用程序域
+var appDomain = clr.createAppDomain();
+
+//创建C#语言编译器
+var compile = appDomain.createCompiler("C#");
+compile.Reference("System.dll")
+
+//设置待编译C#源码
+compile.Source = /****** 
+using System;
+using System.Reflection; 
+using System.Collections;
+
+namespace CSharpLibrary  
+{ 
+    public class AardioTable  
+    { 
+    	private object tObject;
+    	public AardioTable(object obj){
+    		tObject = obj;
+    	}
+    	public object GetProperty(string k){
+    		return  tObject.GetType().InvokeMember(k, BindingFlags.GetProperty, null, tObject, null);
+    	}
+    	public void SetProperty(string k,object v){
+    		tObject.GetType().InvokeMember(k, BindingFlags.SetProperty, null, tObject, new object[] { v });
+    	}
+    	public object InvokeMember(string k,params/*不定个数参数*/ object[] arg ){ 
+    		return  tObject.GetType().InvokeMember(k, BindingFlags.InvokeMethod, null, tObject, arg );
+    	}
+    } 
+    
+    public class CSharpObject  
+    {   
+        public object Hello( object comObject ){   
+        
+            AardioTable tab = new AardioTable( comObject );
+         
+        	tab.SetProperty( "属性名",456 ) ; 
+              
+            tab.InvokeMember( "执行aardio",  " console.log('在C#中执行aardio代码') "   );
+            
+            IEnumerator enumerator = (comObject as IEnumerable).GetEnumerator();  
+            while (enumerator.MoveNext())
+            { 
+                Console.WriteLine( "C#中遍历aardio对象键名：" + enumerator.Current ); 
+            }
+             
+            return tab.GetProperty("属性名"); 
+        }
+    }   
+} 
+******/
+
+//编译并返回程序集  
+var assembly = compile.Compile()  
+console.log(compile.getLastError())
+ 
+//调用程序集创建类对象
+var cSharpObject = assembly.new("CSharpLibrary.CSharpObject")  
+
+//调用实时编译的C#函数
+var ret = cSharpObject.Hello( { 
+    属性名 = 123;
+    执行aardio = function( code ){ 
+        loadcode(code)(); 
+    } 
+} ); 
+
+console.pause()

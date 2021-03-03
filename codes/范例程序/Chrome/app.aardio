@@ -1,0 +1,51 @@
+ 
+import chrome.app;
+var theApp  = chrome.app();
+
+//指定允许chrome中使用JS直接调用的函数
+theApp.external = {
+    
+    test = function(){
+       theApp.msgbox("页面js调用了aardio函数");
+    } 
+    
+    //如果函数名第一个字符是$，则第一个回调参数$用于表示当前客户端,可作为xcall的参数使用
+    $test = function($){
+    	theApp.xcall($,"js函数")
+    }
+}
+
+//虚拟一个服务端页面，如果在﻿工程里直接添加一个文件到﻿工程就可以了
+theApp.httpHandler["/res/index.aardio" ] = function(response,request){
+	response.write(`
+	<script src="/aardio.js"></script>
+	<title>aardio调用chrome</title>
+	<body>
+		<button onclick="aardio.test()">调用aardio函数</button>
+		
+		<pre>
+		如果使用webpack等构建前端项目。
+		前端﻿工程中直接执行 npm i aardio 安装aardio.js即可。
+		然后JS中直接调用 import aardio from 'aardio' 引入aardi.js
+		即可使用aardio对象( 已经做好了智能提示，可在d.ts中添加更多external接口函数 )
+		
+		chrome.app支持系统已安装的Chrome、或其他兼容Chrome启动参数的浏览器，
+		并且可以支持即将成为WIN7,WIN10默认系统浏览器的Edge(Chromium版)
+		</pre>
+	<body>
+	`)
+}
+
+//调整窗口大小
+theApp.indexReady(
+	function(){
+		//为避免Chrome黑屏闪烁(Electron也有这问题)，建议在这里显示窗口
+		mainForm.show()
+	} 
+)
+
+//正式的启动chrome进程
+theApp.start("/res/index.aardio")
+
+//网页中可以调用 aardio.quit() 退出,也可以直接关闭chrome窗口退出
+win.loopMessage();

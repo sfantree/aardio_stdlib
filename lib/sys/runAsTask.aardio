@@ -1,0 +1,74 @@
+﻿//runAsTask 启动任务
+import process;
+import com;
+
+namespace sys;
+
+class runAsTask{
+	ctor(taskName,description,author){
+		this.taskName = taskName || ..io._exefile;
+		
+		var schedule = ..com.CreateObject("Schedule.Service");
+		schedule.Connect();
+				
+		//https://docs.microsoft.com/en-us/windows/win32/taskschd/taskdefinition	
+		var definition = schedule.NewTask(0); 
+		definition.registrationInfo.Author = author : "Administrator";
+		definition.registrationInfo.Description = description : "";
+		definition.principal.LogonType = schedule.TASK_LOGON_GROUP;
+		definition.principal.GroupId = "Builtin\Administrators"
+		definition.principal.RunLevel = schedule.TASK_RUNLEVEL_HIGHEST; 
+		
+		//https://docs.microsoft.com/en-us/windows/win32/taskschd/tasksettings
+		definition.settings.StartWhenAvailable = true;
+		definition.settings.Enabled = true 
+		definition.settings.Hidden = false
+		definition.settings.DisallowStartIfOnBatteries = false;
+		definition.settings.StopIfGoingOnBatteries = false;
+		definition.settings.MultipleInstances = schedule.TASK_INSTANCES_PARALLEL;
+		definition.settings.AllowHardTerminate = false;
+							
+		definition.settings.RunOnlyIfNetworkAvailable = false;
+		definition.settings.RunOnlyIfIdle = false;
+		definition.settings.AllowDemandStart = true;
+		definition.settings.RestartInterval = "PT1M";
+		definition.settings.RestartCount = 3;
+		definition.settings.ExecutionTimeLimit = "PT0S";
+		
+		var trigger = definition.triggers.Create(schedule.TASK_TRIGGER_LOGON);
+		trigger.Enabled = true;                    
+		trigger.Repetition.StopAtDurationEnd = false;
+		trigger.ExecutionTimeLimit = "PT0S"; 
+		
+		this.definition = definition;
+		this.trigger = trigger;
+		this.schedule = schedule;
+	};
+	delete = function(){
+		if(_STUDIO_INVOKED){return}
+		var root = this.schedule.GetFolder("\") 
+		try{ root.DeleteTask( taskName ); }
+	};
+	register = function(arguments,path,workdir){
+		if(_STUDIO_INVOKED){return}
+		this.delete();
+		
+		var path = ..io.fullpath(path : ..io._exepath);
+		var act = definition.actions.Create( this.schedule.TASK_ACTION_EXEC );
+		act.Path = path;
+		act.Arguments = ..process.joinArguments(arguments);
+		act.WorkingDirectory = workdir || ..io.splitpath(path).dir;
+			
+		var root = this.schedule.GetFolder("\") 
+		return root.RegisterTaskDefinition(this.taskName, this.definition
+			, this.schedule.TASK_CREATE_OR_UPDATE, , , this.schedule.TASK_LOGON_GROUP); 
+	}; 
+}
+
+/**intellisense()
+sys.runAsTask = 创建开机启动任务，以管理员权限启动 - 不会出现警告窗口
+sys.runAsTask(.(taskName,description,author) = 创建开机启动任务，\n@taskName：计划任务名称\n@description: 计划任务描述\n@author: 创建者名称，可选参数
+sys.runAsTask() = !stdSysRunAsTask.
+!stdSysRunAsTask.delete() = 删除计划任务
+!stdSysRunAsTask.register(.(arguments,path,workdir) = 添加计划任务\n@arguments：启动命令行参数\n@path：启动的应用程序路径,省略则为当前应用程序路径\n@workdir：启动程序工作目录，可选参数
+end intellisense**/

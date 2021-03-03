@@ -1,0 +1,142 @@
+//扩展库发布工具
+import ide;
+import win.ui;
+import win.ui.atom;
+/*DSG{{*/
+var winform = win.form(text="扩展库打包发布工具";right=596;bottom=440;border="dialog frame";clipch=1;max=false;min=false;topmost=1)
+winform.add(
+btnPub={cls="button";text="发布扩展库";left=367;top=20;right=568;bottom=54;font=LOGFONT(h=-16);z=1};
+edit={cls="edit";left=28;top=67;right=568;bottom=419;edge=1;font=LOGFONT(h=-16);hscroll=1;multiline=1;vscroll=1;z=3};
+editLibName={cls="edit";text="process.command";left=28;top=22;right=355;bottom=54;edge=1;font=LOGFONT(h=-16);multiline=1;z=2}
+)
+/*}}*/
+
+var atom = winform.atom("{6A8DE24F-E4BE-4B4A-A629-C4F2792FED9F}");
+if(!atom){ 
+    win.quitMessage();	return;
+}
+
+setupCode = /*
+import fsys; 
+fsys.createDir("~\lib\${LIBDIR}");
+fsys.copy( "\${FILENAME}","~\lib\${LIBDIR}" ); 
+${LOADPRIVATEFONT}
+
+import ide;
+ide.refreshStdLib();
+
+import win;
+win.msgboxTimeout("${LIBNAME}扩展库已安装成功!","aardio- ${LIBNAME}扩展库安装程序")
+*/
+
+import fsys;
+import string.template;
+import fsys.tar;
+import sevenZip.lzma;
+
+winform.btnPub.oncommand = function(id,event){ 
+	winform.btnPub.disabled = true;
+	
+	var fb = fiber.create( 
+		function(){ 
+    		var libname = winform.editLibName.text;
+    		if(!#libname){
+        		winform.msgboxErr("请输入扩展库名字")
+        		return;
+    		}
+
+    		var libpath,libdir = io.libpath(libname)
+    		if(!libpath){
+        		winform.msgboxErr("扩展库名字错误")
+        		return;
+    		}
+
+ 			var setupFile;
+    		var libfilename = fsys.getFileName(libpath);
+    		
+    		if( libfilename == "_.aardio" ){ 
+        		libfilename = fsys.getFileName(libdir)
+        		libpath = libdir;
+        		libdir = fsys.getParentDir(libdir);..io.print(libpath)
+        		setupFile = ..io.exist( ..fsys.joinpath(libpath,"setup.dl.aardio") );
+    		} 
+
+    		libdir = fsys.path.relative(libdir,"~/lib/",false) || fsys.path.relative(libdir,"/lib/",false)
+    		if(!libdir){
+        		inform.msgboxErr("扩展库名字错误")
+        		return;
+    		}
+    		if( libdir == ".") libdir = ""; 
+    		
+    		fsys.delete("~/tools/开发环境/.pub-lib/temp/")
+    		fsys.createDir("~/tools/开发环境/.pub-lib/temp/") 
+    		fsys.copy(libpath,"~/tools/开发环境/.pub-lib/temp/")
+    		
+    		var loadPrivateFont = "";
+    		if(..string.startWith(libname,"fonts.") ){
+    			if(..string.endWith(libpath,".aardio") ){
+    				var code = string.load(libpath)
+    				var fontpath = string.match(code,`\$\"(\~/lib/fonts/.res/.+?\.ttf)\"`);
+    				fsys.copy(fontpath,"~/tools/开发环境/.pub-lib/temp/");
+    				loadPrivateFont = `fsys.copy("\`+io.splitpath(fontpath).file+`","`+fontpath+`");ide.loadPrivateFont("`+fontpath+`")`;
+    			}
+    		}
+
+    		if( ! setupFile ){
+    			var tmp = string.template(setupCode)
+    			var setupCode = tmp.format(
+        			LIBNAME = libname;
+        			LIBDIR = libdir;
+        			FILENAME = libfilename;
+        			LOADPRIVATEFONT = loadPrivateFont;
+    			)
+    			string.save("~/tools/开发环境/.pub-lib/temp/setup.dl.aardio",setupCode )
+    		}
+    		
+    		winform.edit.text = "";
+    		..fsys.delete( "~/tools/开发环境/.pub-lib/"+ libname + ".tar" )
+    		var tarFile = fsys.tar("~/tools/开发环境/.pub-lib/"+ libname + ".tar");
+    		
+    		var msg = MSG();
+    		tarFile.onWriteFile = function( filename ){
+        		winform.edit.log( "已打包" + filename , '\r\n')
+        		win.peekPumpMessage( msg );
+    		}
+    		tarFile.pack("~/tools/开发环境/.pub-lib/temp/",,false)
+    		tarFile.close();
+		
+			var msg = MSG();
+    		sevenZip.lzma.encodeFile("~/tools/开发环境/.pub-lib/"+ libname + ".tar"
+        		,"~/tools/开发环境/.pub-lib/"+ libname + ".tar.lzma",function(inSize,outSize){
+            		winform.edit.log("输入大小"+ fsys.formatSize(inSize)," 压缩大小:",fsys.formatSize(outSize),'\r\n');
+            		win.peekPumpMessage( msg );
+        		}
+    		)
+    		fsys.delete("~/tools/开发环境/.pub-lib/temp/")
+    		fsys.delete("~/tools/开发环境/.pub-lib/"+ libname + ".tar")
+    		
+    		import process;
+    		process.explore_select("~/tools/开发环境/.pub-lib/"+ libname + ".tar.lzma")
+    		winform.edit.log("全部操作已完成" , '\r\n\r\n')
+			
+    		winform.edit.log("在aardio引用远程扩展库示例：",'\r\n');
+			winform.edit.log(`_IMPORTURL["`+libname+`"] = "https://github.com/.../releases/latest/download/`+libname+`.tar.lzma"`,'\r\n');
+			winform.edit.log(`import `+libname,'\r\n\r\n');
+			
+			winform.edit.log("也可以在aardio中单独运行以下代码安装扩展库：",'\r\n');
+			winform.edit.log('import ide\r\n');
+			winform.edit.log(`ide.installLib("`+libname+`","https://github.com/.../releases/latest/download/`
+				+libname+`.tar.lzma")`,'\r\n');
+			
+    		
+    	}, ..io.exist( ide.getProjectDir() )
+	)
+	assert(fiber.resume (fb));
+	
+	winform.btnPub.disabled = false
+} 
+winform.editLibName.setFocus(0,-1)
+
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();

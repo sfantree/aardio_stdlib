@@ -1,0 +1,116 @@
+//temp 自删进程
+import fsys;
+import process; 
+import thread.event;
+import fsys.mmap;
+import fsys.fileInfo;
+
+namespace process.temp;
+
+run = function(main){ 
+ 	if( _STUDIO_INVOKED ) error("请先生成EXE文件才能创建临时进程!");
+	if( type(main) != type.function )error("参数@1必须是回调函数",2);
+	
+	var appId;
+	var isTempProcess =  ..fsys.fileInfo.same( 
+		..fsys.getParentDir( ..io.tmpname()), 
+		..fsys.getParentDir( ..io._exedir)
+		);
+		
+	if( isTempProcess ){
+		var parentId = ..process.getParentId();
+		if(!parentId) return false,"自删进程获取父进程ID失败";
+		
+		var prcsParent = ..process(parentId);
+		var parentPath = prcsParent.getPath();
+		prcsParent.free();
+		if(!parentPath) return false,"自删进程获取父进程路径失败";
+		
+		var appid = ..  fsys.fileInfo(parentPath).id;
+		if(!appid) return false,"自删进程获取父进程唯一标识失败";
+		
+		appId = "aardio.process.temp@" +  appid;
+	}
+	else{
+		var appid = ..fsys.fileInfo(..io._exepath).id;
+		if(!appid) return false,"自删进程获取进程唯一标识失败";
+		appId = "aardio.process.temp@" +  appid;
+	}
+		
+	var mmapStartTemp = ..fsys.mmap(,appId+".tempProcessStartInfo",1024 ); 
+	var evtStartTemp =  ..thread.event( appId+".boot" ); 
+	if( !isTempProcess ){
+		if( evtStartTemp.conflict ) return false,"重复创建自删进程";; 
+		
+		var tmpUnisDir = ..io.tmpname();
+		tmpUnistPath = ..fsys.joinpath(tmpUnisDir,..io._exefile);
+		..fsys.copy( ..io._exepath, tmpUnistPath ); 
+		
+		mmapStartTemp.writeTable({  
+			pidParent = ..process.getId();
+			argv=_ARGV;
+			srcExe = ..io._exepath;
+			srcDir = ..io._exedir  
+			} ) ;
+			
+		var prcs,err =	..process( tmpUnistPath
+			,_CMDLINE,{ waitInputTimeout = 0;creationFlag = 0x8/*_DETACHED_PROCESS*/; }
+			);  
+		 
+		if(!prcs) error(..string.concat("创建临时进程失败 ",err),2);
+		prcs.free(); 
+		
+		evtStartTemp.wait();//等待临时进程启动
+		return ; 
+	}else { 
+		self.singletonTemp =  ..thread.event(appId+".singletonTemp");
+		if( singletonTemp.conflict ) {
+			return false,"重复启动自删进程",appId+".singletonTemp";
+		} 
+	} 
+	
+	var startInfo = mmapStartTemp.readTable(); 
+	var prcsParent = startInfo.pidParent ? ..process(startInfo.pidParent); 
+	
+	//再次确认启动父进程是否正确
+	if( ..process.getParentId() != startInfo.pidParent ) {
+		return false;
+	}
+	
+	evtStartTemp.set();//通知父进程自己已打开
+	if( prcsParent ){  
+		prcsParent.wait(); //等待父进程关闭
+		prcsParent.free(); //释放父进程句柄
+		sleep(10); //等待进程资源彻底释放
+	} 
+	
+	..subscribe("beforeUnload",function(){
+		var bat  =/*@echo off
+:loop
+del /q "%s"
+if exist "%s" goto loop
+rd /s /q "%s"
+	*/
+		..string.save(..io._exedir + "\del.bat", ..string.fromto( ..string.format(bat,..io._exepath,..io._exepath,..io._exedir),65001,0) );
+		..process.execute(..io._exedir + "\del.bat",,,0x0/*_SW_HIDE*/);
+		
+		::Kernel32.MoveFileEx(..io._exedir,null,0x4/*_MOVEFILE_DELAY_UNTIL_REBOOT*/)
+
+	} ); 
+	  
+	..fsys.setCurDir(startInfo.srcDir);
+	var ok,err = ..fiber.resume ( ..fiber.create(main,startInfo.srcDir/*启动目录设为应用程序根目录*/)
+		,startInfo.srcExe, startInfo.argv );
+	if(!ok) errput(err);
+	return true;
+}
+
+create = function(name,main){
+	return run(main);
+}
+
+/**intellisense()
+process.temp = 创建可删除EXE文件自身的临时进程\n可用于卸载更新等辅助程序\n\n同一路径同一文件自动阻止重复启动自删进程
+process.temp.run( = 创建可删除EXE文件自身的临时进程\n注意同一EXE文件，并且是同一文件名，同一时间只能运行一个实例，\n启动多个实例会忽略不执行并返回false,\n此函数执行成功返回true
+process.temp.run( 启动应用程序的函数 ) = @.run( \n    function( exePath,argv ){\n        io.remove(exePath); \n        __/*exePath为原EXE文件，可如上直接删除\n当前目录,应用程序目录已设置为exePath的父目录,一般也是你的软件所在目录\n自删进程会保持"/"指向的路径不变,启动原EXE的命令行参数不变*/\n        io.print( "原EXE文件所在目录:",io.fullpath("/") );\n        io.print( "自删进程EXE文件所在目录:",io.fullpath("~/") );\n    }\n)
+end intellisense**/

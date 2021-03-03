@@ -1,0 +1,291 @@
+import web.form.menu;
+import win.region.round;
+namespace web; 
+
+class ui{
+	ctor( wb,min_cx,min_cy,wEllipse,hEllipse ){  
+	
+		//创建圆角无边框窗口
+		var round;
+		if( wEllipse !== 0 ){ 
+			round = ..win.region.round( wb._form,,,wEllipse,hEllipse ) 
+			if( min_cx && min_cy ){
+				round.setMinTrackSize(min_cx,min_cy)
+			}
+		}
+		else {
+			if( min_cx !== false ){
+				..win.ui.minmax(wb._form,min_cx,min_cy);
+			}
+		}
+		
+		wb._form.defaultTranslateAccelerator = function(msg){
+			if (   (msg.message == 0x100/*_WM_KEYDOWN*/) || (msg.message == 0x101/*_WM_KEYUP*/) ) {
+				var vk = msg.wParam;
+				if( ( vk == 0x74/*_VK_F5*/ )
+					|| ( ( vk == 'N'# ) && ( ( ::GetKeyState(0x11/*_VK_CTRL*/) & 0x8000 ) == 0x8000 ) ) ) 
+				{
+					return true;   
+				} 
+			}  
+			return wb._host.tranacc(msg)
+		}  
+		
+		//等待出现caption_button_close节点,或者页面加载完成
+		wb.waitEle("caption_button_close", , ,true,true);
+		
+		var hideEle = function(...){
+			var ele = wb.getEle(...)
+			if( ele ) ele.style.display = "none";
+		}
+		
+		var maxbox = ..win.getStyle(wb._form.hwnd,0x10000/*_WS_MAXIMIZEBOX*/) 
+		var minbox = ..win.getStyle(wb._form.hwnd,0x20000/*_WS_MINIMIZEBOX*/) 
+		var sysmenu = ..win.getStyle(wb._form.hwnd,0x80000/*_WS_SYSMENU*/)
+		if( sysmenu ){
+			var popmenu = ..win.ui.popmenu(wb._form);
+			if(maxbox){
+				popmenu.add(
+					'最大化',
+					function(id){
+						wb._form.hitMax();
+					}, ,777
+				);
+			}
+			if(minbox){
+				popmenu.add(
+					'最小化',
+					function(id){
+						wb._form.hitMin()
+					}
+				);
+			}
+			if( maxbox || minbox )
+				popmenu.add();//分隔线
+				
+			popmenu.add(
+				'关闭\tAlt+F4',
+				function(id){
+					wb._form.close()
+				}
+			); 
+			this.sysmenu = popmenu;
+			
+			wb.attach(
+				function(event){
+					var ele = event.srcElement;   
+					x,y,cx,cy = wb.getPos(ele)
+					this.sysmenu.popup(x,y+cy)
+					return true;
+				} 
+				,"onclick","caption_sysmenu"
+			)   
+		} 
+		else {
+			hideEle("caption_sysmenu") ;
+		} 
+		
+		var ele = wb.getEle("caption_text");
+		if(ele){
+			ele.innerHTML = wb._form.text;
+			wb.document.title = wb._form.text
+		}
+		ele = null; 
+			
+		var tEvents = {
+			caption_button_close = {
+				onclick = function(event){
+			 		wb._form.close();	
+				}
+				ondragstart = function(event){
+					event.returnValue = false;
+				} 
+				onmousedown = function(event){
+					event.cancelBubble = true; 
+				}
+				onmouseout = function(event){
+					event.srcElement.blur();
+				}
+			} 
+			caption_button_website = {
+				ondragstart = function(event){
+					event.returnValue = false;
+				} 
+				onmousedown = function(event){
+					event.cancelBubble = true; 
+				}
+				onmouseout = function(event){
+					event.srcElement.blur();
+				}
+			} 
+			caption_bar = { 
+				onmousemove = function(event){
+					if( event.button !=1 ) return;
+					
+					var x = event.clientX;  
+					var y = event.clientY; 
+					if( event.srcElement.id = "caption_sysmenu" ) //for system icon
+						return true;
+						 
+					if( event.button==1){
+						if( ..win.ptInBorder( wb._form.getClientRect() ,x,y,7) ) return true;
+						..win.setActive( wb._form.hwnd )
+						wb._form.hitCaption();
+					}
+					elseif( event.button==2 && this.sysmenu){ 
+						this.sysmenu.popup(x,y) 
+					} 
+					return true;
+				} 
+				ondblclick = function(){
+					wb._form.hitMax();
+				}
+				
+			}   
+		}
+		if(maxbox){
+			tEvents.caption_button_max = {
+				onclick = function(event){ 
+			 		wb._form.hitMax();
+			 		return true;
+				} 
+				ondragstart = function(event){
+					event.returnValue = false;
+				} 
+				onmousedown = function(event){
+					event.cancelBubble = true;
+				}
+				onmouseout = function(event){
+					event.srcElement.blur()
+				}
+			} 
+			tEvents.caption_bar.ondblclick = function(event){
+				if( (!maxbox) || event.srcElement.id = "caption_sysmenu" ) //for system icon
+					return true;
+					
+			 	wb._form.hitMax();
+			} 
+		}
+		else {
+			hideEle("caption_button_max") ;
+		}
+		
+		if(minbox){
+			tEvents.caption_button_min = {
+				onclick = function(event){
+			 		wb._form.hitMin();	
+				} 
+				ondragstart = function(event){
+					event.returnValue = false;
+				}
+				onmousedown = function(event){
+					event.cancelBubble = true;
+				}
+				onmouseup = function(event){ 
+					event.srcElement.blur()
+				} 
+				onmouseout = function(event){
+					event.srcElement.blur()
+				} 
+			} 
+		}
+		else {
+			hideEle("caption_button_min") ;
+		}
+		wb.attachAll( tEvents );
+		
+		var restoreButton = function(max){
+			var ele = wb.getEle("caption_button_max")
+			if(!ele) return;
+			 
+			ele.title = max?"还原":"最大化"
+			ele.className = max?"restore":"max"
+			this.sysmenu.setString(777,max? "还原" : "最大化" ,0x0/*_MF_BYCOMMAND*/)
+			
+			var body = wb.body;
+			if( body ){
+				var cls = body.getClassName() : "";
+				cls = ..string.replace(cls,"\s*maximize","");
+				if( max ) {
+					body.className = (#cls) ? ( cls + " maximize" ) : "maximize" ;
+				}
+				else {
+					body.className = cls;
+				} 
+			}
+		};
+		wb._form.adjust = function( cx,cy,wParam ) {	 
+			wb._host.adjust();
+			
+			if( wParam == 0x2/*_SIZE_MAXIMIZED*/ ){
+		 		restoreButton( 	true );
+		 	}
+		 	elseif( wParam == 0x0/*_SIZE_RESTORED*/ ){
+		 		restoreButton( 	false ); 
+		 	} 
+		};
+		
+		if(min_cx===false)
+			return; //如果参数2恒等为false,不设置边框
+ 
+		// 边框
+		wb.attach(
+			function (event) {
+				var ele = event.srcElement; 
+				var oldCur = ele.style.cursor;
+				sizeCur = oldCur ? ..string.endWith(oldCur,"-resize",true); 
+				
+				if( ..win.isZoomed( wb._form.hwnd ) ){ 
+					if( sizeCur  )
+						ele.style.cursor = "default";  
+						
+					return;
+				} 
+				
+				var l,t,w,h = wb._form.getPos() 
+     	 		var x = event.clientX;  
+     	 		var y = event.clientY; 
+     	 		 
+     	 		 var border = ..win.ptInBorder( wb._form.getClientRect() ,x,y,7); 
+				if( border ){  
+					ele.style.cursor = ({ left="e-resize";right="e-resize";top="n-resize";topleft="nw-resize";
+						topright="ne-resize";bottom="n-resize";bottomleft="ne-resize";bottomright="nw-resize"})[border]; 
+				 }  
+				 else if(sizeCur)
+					ele.style.cursor = "default"; 	 
+			}, 
+			"onmousemove" 
+		); 
+		
+		wb.attach(
+			function (event) {
+				if( event.button !=1 )
+						return true;
+					
+				if( ..win.isZoomed( wb._form.hwnd ) )
+						return true;
+						
+				var ele = event.srcElement; 
+				var l,t,w,h = wb._form.getPos() 
+     	 		var x = event.clientX;  
+     	 		var y = event.clientY;  
+     	 		 
+				var border = ..win.ptInBorder( wb._form.getClientRect() ,x,y,7); 
+				if( border ){ wb._form.hit(border); event.cancelBubble = true; }  
+					
+				return true;
+			}
+			,"onmousedown"
+		); 
+	}; 
+	
+	setMinTrackSize = function(cx,cy){
+    	round.setMinTrackSize(cx,cy)
+    } 
+}
+
+/**intellisense()
+web.ui(.(web窗体,最小宽度,最小高度,圆角宽度,圆角高度) = 创建Web UI窗口(无边框圆角窗口)\n如果最小宽度为false则禁止改变窗体大小\n如果圆角宽度为0则不创建圆角窗口
+web.ui().setMinTrackSize(cx,cy__) = 设定窗口最小宽度、高度
+web.ui().sysmenu = !popmenu.
+end intellisense**/

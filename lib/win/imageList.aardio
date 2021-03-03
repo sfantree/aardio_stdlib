@@ -1,0 +1,153 @@
+//imageList 图像列表
+import win.image;
+import com.picture;
+
+namespace win {
+    
+    if( imagelist || imageList){
+		error('当前已导入 win.imageList，请不要使用废弃的小写版本 win.imagelist',2)
+	}
+	
+	class imageList {
+		ctor ( v1, v2 ) {
+			if (v2 === null ) {
+				if( type(v1) != type.pointer ) error("无效的图标句柄",2);
+				
+				this.handle = v1;
+				var re, cx, cy = ::ImageList_GetIconSize(this.handle, 0, 0);
+				this.width = cx;
+				this.height = cy;
+			}
+			else {
+				this.handle = topointer( ::Comctl32.ImageList_Create(v1 : 0, v2 : 0, 0x00000020 | 0x1/*_ILC_MASK*/, 0, 1) );
+				this.width = v1;
+				this.height = v2;
+			}
+		};
+		addBitmap = function(hbmp,color=0xff00ff){
+			var idx = ::Comctl32.ImageList_AddMasked(this.handle,hbmp, color); 
+			if( idx > -1 ) return this,idx;
+			error("加载图像失败",2);
+		};
+		add = function (pic, color=0xff00ff) { 
+			var iPic = ..com.picture.load(pic);
+			if(!iPic) error("加载图像失败",2);
+				
+			var idx = ::Comctl32.ImageList_AddMasked(this.handle, iPic.Handle, color);
+			..com.Release(iPic)
+			
+			if( idx > -1 ) return this,idx;
+			error("加载图像失败",2);
+		};
+		addIcon = function (iconData) {
+			var hIcon = ..win.image.createIcon(iconData,true,this.width);
+			if(!hIcon) return;
+			
+			var idx = ::ImageList_ReplaceIcon(this.handle, -1, hIcon);
+			if( idx > -1 ) return this,idx;
+		};
+		getIcon = function(i,flags){
+			return ::ImageList_GetIcon(this.handle,i : 0 ,flags : 0 );
+		}; 
+		draw = function(i,hdc,x,y,fStyle){
+			if( fStyle === null ) fStyle = 1/*_ILD_TRANSPARENT*/;
+			::ImageList_Draw(this.handle,i,hdc,x,y,fStyle)
+		}; 
+		destroy = function(){
+			if( this.handle ){
+				::Comctl32.ImageList_Destroy(this.handle)
+				this.handle = null;
+			}
+		}; 
+		@_meta
+	}
+	
+	imagelist = imageList;
+}
+
+namespace win.imageList {
+	_meta = {
+		_topointer = function(){ 
+			return owner.handle;
+		} 
+	}
+	
+	/*intellisense(::)*/
+	::Comctl32 := ..raw.loadDll("Comctl32.dll"); 
+	::ImageList_GetIcon = ::Comctl32.api("ImageList_GetIcon","ptr(POINTER himl, int i,INT flags)");
+	::ImageList_GetIconSize = ::Comctl32.api("ImageList_GetIconSize","int(POINTER himl, int &cx, int &cy)");
+	::ImageList_ReplaceIcon = ::Comctl32.api("ImageList_ReplaceIcon","int(POINTER himl, int i, pointer hicon)");
+	::ImageList_Draw = ::Comctl32.api("ImageList_Draw","int(POINTER himl, int i, POINTER hdcDst,int x,int y,INT fStyle)");  
+	/*end intellisense*/ 
+	
+	var shGetImageListA = ::Shell32.api("SHGetImageList","int( int iImageList,struct riid,pointer &ppv)" );
+	IID_IImageList = {BYTE iid[]='\x26\x59\xEB\x46\x2E\x58\x17\x40\x9F\xDF\xE8\x99\x8D\xAA\x09\x50'};
+	shell = function(size){
+		var hr,hList = shGetImageListA( size,IID_IImageList);
+		if( !hList && shilImg == 4/*_SHIL_JUMBO*/){
+			hr,hList = SHGetImageList( 2/*_SHIL_EXTRALARGE*/,IID_IImageList)
+		}
+		if(  hr>=0/*_SUCCEEDED*/ ) return ..win.imageList(hList);
+	}
+} 
+
+//感谢lujjjh贡献最初的源代码 2010.9
+
+/**intellisense(win)
+imageList = 图像列表\n用于工具条、树形控件等
+imageList(__/*句柄*/)  = 通过句柄创建一个 imageList
+imageList(.(宽度,高度)  = 创建一个 imageList
+end intellisense**/
+
+/**intellisense() 
+win.imageList.shell( _SHIL___ ) = 调用SHGetImageList获取系统图像列表
+win.imageList.shell() = !imageList.
+win.imageList() = !imageList.
+!imagelist.addIcon( = 添加图标
+!imagelist.addIcon(.(图标数据) = 参数可指定图标数据或路径\n成功返回自身,失败返回null
+!imagelist.addBitmap( = 添加位图
+!imagelist.addBitmap(.(位图句柄,透明色) = 添加位图,\n成功返回自身,失败抛出异常,\n该函数会复制位图,不会接管或销毁传入的位图\n如果传入的位图句柄不再使用,应使用::DeleteObject销毁
+!imagelist.add( = 添加图像
+!imagelist.add(.(图像路径,透明色) = 添加图像,\n成功返回自身,失败抛出异常
+!imagelist.draw(.(索引,hDC,x,y,fStyle) = 绘图
+!imagelist.getIcon(.(索引,1/*_ILD_TRANSPARENT*/) = 返回图标句柄\n该句柄应使用 ::DestroyIcon 函数释放
+!imagelist.width = 宽度
+!imagelist.height = 高度
+!imagelist.destroy() = 删除对象\n这个函数不会被在对象释放时被自动调用,\n应用程序应在图像列表不再使用时调用此函数销毁对象，\n注意treeview控件不负责自动销毁图像列表，\n而listview控件在销毁时负责自动销毁正在使用的图像列表.\n
+end intellisense**/
+
+ /**intellisense() 
+_SHIL_LARGE=@0/*_SHIL_LARGE*/
+_SHIL_SMALL=@1/*_SHIL_SMALL*/
+_SHIL_EXTRALARGE=@2/*_SHIL_EXTRALARGE*/
+_SHIL_SYSSMALL=@3/*_SHIL_SYSSMALL*/
+_SHIL_JUMBO=@4/*_SHIL_JUMBO*/
+_ILD_NORMAL=@0/*_ILD_NORMAL*/
+_ILD_TRANSPARENT=@1/*_ILD_TRANSPARENT*/
+_ILD_MASK=@0x10/*_ILD_MASK*/
+_ILD_IMAGE=@0x20/*_ILD_IMAGE*/
+_ILD_ROP=@0x40/*_ILD_ROP*/
+_ILD_BLEND25=@2/*_ILD_BLEND25*/
+_ILD_BLEND50=@4/*_ILD_BLEND50*/
+_ILD_OVERLAYMASK=@0xF00/*_ILD_OVERLAYMASK*/
+_ILD_PRESERVEALPHA=@0x1000/*_ILD_PRESERVEALPHA*/
+_ILD_SCALE=@0x2000/*_ILD_SCALE*/
+_ILD_DPISCALE=@0x4000/*_ILD_DPISCALE*/
+_ILD_ASYNC=@0x8000/*_ILD_ASYNC*/
+_ILS_NORMAL=@0/*_ILS_NORMAL*/
+_ILS_GLOW=@1/*_ILS_GLOW*/
+_ILS_SHADOW=@2/*_ILS_SHADOW*/
+_ILS_SATURATE=@4/*_ILS_SATURATE*/
+_ILS_ALPHA=@8/*_ILS_ALPHA*/
+_ILC_MASK=@1/*_ILC_MASK*/
+_ILC_COLOR=@0/*_ILC_COLOR*/
+_ILC_COLORDDB=@0xFE/*_ILC_COLORDDB*/
+_ILC_COLOR4=@4/*_ILC_COLOR4*/
+_ILC_COLOR8=@8/*_ILC_COLOR8*/
+_ILC_COLOR16=@0x10/*_ILC_COLOR16*/
+_ILC_COLOR24=@0x18/*_ILC_COLOR24*/
+_ILC_COLOR32=@0x20/*_ILC_COLOR32*/
+_ILC_PALETTE=@0x800/*_ILC_PALETTE*/
+_ILC_MIRROR=@0x2000/*_ILC_MIRROR*/
+_ILC_PERITEMMIRROR=@0x8000/*_ILC_PERITEMMIRROR*/
+end intellisense**/

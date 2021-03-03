@@ -1,0 +1,85 @@
+//table 配置表
+import fsys;
+import util.metaProperty
+namespace fsys;
+
+class table{ 
+	ctor( file,dt ){
+		this@ = ( 
+			..util.metaProperty( 
+				load = function(){
+					for(k,v in this){ 
+						if( ( (type(k)!="string") || (k[1]!='_'#) )  && type(v) != type.function )   
+							this[k] = null;
+					}
+					var s = ..string.load(file);
+					
+					if(#s){
+						if(  ! ( s[1] == 0xEF  && s[2] == 0xBB && s[3] == 0xBF )  ) {
+							s = ..string.fromto(s,0,65001);
+						} 
+		
+						var ok,t = call(eval,,s);
+						if(! (ok && t) ) {
+							error(t,2)
+						}
+						..table.assign(this,t );
+					} 
+					if( type(this.afterLoad) == type.function ) this.afterLoad();
+					return this;
+				};
+				save  = function(){
+					if( type( this.beforeSave ) == "function"  ){
+						this.beforeSave();
+					}
+					
+					var str = ..table.tostring(this)
+					if( !..io.exist(file) )
+						..fsys.createParentDir(file);
+					
+					..string.save(file,'\xEF\xBB\xBF' )
+					..string.save(file, str,true);
+					
+					return this;
+				};
+				mixin = function(...){
+					..table.assign(this,...);
+					this.save();
+					return this;
+				};
+				mix = function(...){
+					..table.mix(this,...);
+					return this;
+				};  
+				update = function(){ };
+				_tostring = function(){
+					return ..table.tostring(this)
+				} 	
+			) 
+		);
+		
+		var s = ..string.load(file);
+		if( s ) {
+			..table.assign(this,eval( s ) )	
+		};
+		if( dt ) {
+			..table.mix(this,dt);
+		};	
+		..table.gc( this,"save" );
+	}; 
+} 
+ 
+/**intellisense()
+fsys.table = 支持将table对象序列化为硬盘文件
+fsys.table(.("/config/setting->table",默认配置表 ) = 创建可持久化table对象,\n可选使用参数2指定一个table对象指定字段的默认值,\n创建的对象可作为普通table对象使用,\n在线程退出时将会同步存储到文件中
+fsys.table() = !fsys_table.
+!fsys_table.load() = 从文件载入\n加载成功返回对象,加载失败返回null空值\n!fsys_table.
+!fsys_table.save() = 存储到文件\n在线程退出时也会自动调用该函数\n!fsys_table.
+!fsys_table.afterLoad = 指定一个函数,在下次重新加载配置文件时调用
+!fsys_table.beforeSave = 指定一个函数,在保存配置以前自动调用 
+!fsys_table.assign(混入表) = @.mixin(\n   键名 = 值__;\n   键名2 = 值;\n);//该数会自动调用save函数保存配置到文件
+!fsys_table.mix(混入默认值表) = @.mix(\n   键名 = 默认值__;\n   键名2 = 默认值;\n);//该函数用于设定默认值,但不会修改已存在的值
+!fsys_table.assign() = !fsys_table.
+!fsys_table.mix() = !fsys_table.
+!fsys_table.? = 自配置文件读写属性\n属性值可以是支持序列化的普通变量,支持table对象.\n配置文件在首次使用时自动加载,退出程序时自动保存.
+end intellisense**/

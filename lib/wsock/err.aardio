@@ -1,0 +1,65 @@
+//err 错误信息列表
+namespace wsock.err;
+  
+//中文参考 http://support.microsoft.com/kb/819124
+message ={
+[10004 ]="The (blocking) call was canceled via WSACancelBlockingCall()."; 
+[10009 ]="No additional information provided."; 
+[10013 ]="The requested address is a broadcast address, but the appropriate flag was not set."; 
+[10014 ]="The length argument is not correct."; 
+[10022 ]="One of the specified parameters was invalid."; 
+[10024 ]="No more file descriptor are available."; 
+[10035 ]="The asynchronous operation cannot be scheduled at this time due to resource or other constraints."; 
+[10036 ]="A blocking operation is in progress."; 
+[10037 ]="The asynchronous routine being canceled has already completed."; 
+[10038 ]="The descriptor is a file, not a socket."; 
+[10039 ]="A destination address is required."; 
+[10040 ]="The datagram was too large to fit into the specified buffer and was truncated."; 
+[10041 ]="The specified protocol is the wrong type for this socket."; 
+[10042 ]="The option is unknown or unsupported."; 
+[10043 ]="The specified protocol is not supported."; 
+[10044 ]="The specified socket type is not supported in this address family."; 
+[10045 ]="The referenced socket is not a type that supports connection-oriented service."; 
+[10046 ]="No additional information is provided."; 
+[10047 ]="Addresses in the specified family cannot be used with this socket."; 
+[10048 ]="The specified address is already in use."; 
+[10049 ]="The specified address is not available from the local machine."; 
+[10050 ]="The network subsystem has failed."; 
+[10051 ]="The network cannot be reached from this host at this time."; 
+[10052 ]="The connection must be reset because the connection was dropped."; 
+[10053 ]="The connection was aborted due to timeout or other failure."; 
+[10054 ]="The connection was reset by the remote side."; 
+[10055 ]="No/Insufficient buffer space is available."; 
+[10056 ]="The socket is already connected."; 
+[10057 ]="The socket is not connected."; 
+[10058 ]="The socket has been shutdown."; 
+[10059 ]="No additional information is provided."; 
+[10060 ]="Attempt to connect timed out without establishing a connection."; 
+[10061 ]="The attempt to connect was forcefully rejected."; 
+[10062 ]="No additional information is provided."; 
+[10063 ]="No additional information is provided."; 
+[10064 ]="No additional information is provided."; 
+[10065 ]="No additional information is provided."; 
+[10091 ]="The Network subsystem is unusable."; 
+[10092 ]="The TCP/IP Stack on this system will not support this application."; 
+[10093 ]="A successful WSAStartup() has not yet occurred."; 
+[11001 ]="Host not found (Authoritative Answer)"; 
+[11002 ]="Host not found or SERVERFAIL (Non-Authoritative Answer)"; 
+[11003 ]="Non-Recoverable Error."; 
+[11004 ]="No data record for the requested host."; 
+}
+	
+function lasterr(err) {
+	if(err === null) err = ::Ws2_32.WSAGetLastError()
+	if(!err)return;
+		
+	var msg = message[err] 
+	if(!msg) return ..lasterr(err);
+	else msg = msg + " #" + err;
+	
+	return msg,err;
+}
+
+/*intellisense(wsock.err)
+lasterr() = 可选在参数中指定错误代码,\n返回值为错误信息,错误码,\n没有错误则返回null
+end intellisense*/

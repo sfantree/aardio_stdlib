@@ -1,0 +1,312 @@
+//sniff 抓包
+//使用原始套接字抓包,这种抓包方式虽然使用简单、但可能丢包或在某些环境下抓不到包
+import wsock; 
+namespace wsock
+ 
+ipproto_text = { 
+    [0x0/*_IPPROTO_IP*/] = "IP";
+    [0x1/*_IPPROTO_ICMP*/] = "ICMP";
+    [0x2/*_IPPROTO_IGMP*/] = "IGMP";
+    [0x3/*_IPPROTO_GGP*/] = "GGP";
+    [0x4/*_IPPROTO_IPV4*/] = "IPV4";
+    [0x6/*_IPPROTO_TCP*/] = "TCP";
+    [0xC/*_IPPROTO_PUP*/] = "PUP";
+    [0x11/*_IPPROTO_UDP*/] = "UDP";
+    [0x16/*_IPPROTO_IDP*/] = "IDP";
+    [0x29/*_IPPROTO_IPV6*/ ] = "IPV6";
+    [0x2B/*_IPPROTO_ROUTING*/] = "ROUTING";
+    [0x2C/*_IPPROTO_FRAGMENT*/] = "FRAGMENT";
+    [0x32/*_IPPROTO_ESP*/] = "ESP";
+    [0x33/*_IPPROTO_AH*/] = "AH";
+    [0x3A/*_IPPROTO_ICMPV6*/] = "ICMPV6";
+    [0x3B/*_IPPROTO_NONE*/] = "NONE";
+    [0x3C/*_IPPROTO_DSTOPTS*/] = "DSTOPTS";
+    [0x4D/*_IPPROTO_ND*/] = "ND";
+    [0x4E/*_IPPROTO_ICLFXBM*/] = "ICLFXBM";
+    [0xFF/*_IPPROTO_RAW*/] = "RAW";
+    [0x100/*_IPPROTO_MAX*/] = "MAX";
+};
+
+class TCP_HEADER { 
+    WORD th_sport; 
+    WORD th_dport;
+    INT th_seq;
+    INT th_ack;
+    BYTE th_lenres;//4位首部长度 + 4位保留字
+    BYTE th_flag;//2位保留字 + 6位标志位
+    WORD th_win; 
+    WORD th_sum;
+    WORD th_urp;
+};
+ 
+//定义UDP首部
+class UDP_HEADER {  
+    WORD uh_sport;
+    WORD uh_dport;
+    WORD uh_len;
+    WORD uh_sum;
+};  
+
+class ICMP_HEADER {  
+    BYTE i_type;
+    BYTE i_code;
+    WORD i_cksum;
+    WORD i_id; 
+    WORD i_seq;
+    INT timestamp;
+};
+
+class IP_HEADER {
+    BYTE h_lenver;
+    BYTE tos;
+    WORD total_len;
+    WORD ident;
+    WORD frag_and_flags;
+    BYTE ttl;
+    BYTE proto;
+    WORD checksum;
+    INT sourceIP;
+    INT destIP;
+};
+ 
+class sniff { 
+	ctor( domain ) { 
+	
+		..wsock.open(); //初始化SOCK
+    	var sock = ..wsock.socket( 0x2/*_AF_INET*/, 0x3/*_SOCK_RAW*/, 0x0/*_IPPROTO_IP*/ ); 
+    	assert( 0xFFFFFFFF/*_INVALID_SOCKET*/ != sock  , "socket() error. " ) ; 
+	
+    	//获取本机IP地址 
+    	var iErrorCode,szHostName =  ..wsock.gethostname( 200, 200 ); 
+    	assert( 0xFFFFFFFF/*_SOCKET_ERROR*/ != iErrorCode , "gethostname() error. " ) ;  
+	
+    	//设置网卡信息
+		var sa = ..wsock.sockaddr_in();
+		sa.sin_family = 0x2/*_AF_INET*/;
+		sa.sin_port = ..wsock.htons( 60000 );
+		
+		//取网卡IP 
+		begin
+			//取主机名
+			var pHostent = ..wsock.gethostbyname(szHostName); 
+			var entity = ..raw.convert(pHostent,..wsock.hostent());
+			
+			//创建静态数组 
+			var addrlist = ..raw.toarray( entity.h_length,"pointer" )   
+			..raw.convert(entity.h_addr_list,addrlist); //将指针转换为数组值
+			
+			var int_addr_ptr = addrlist.array[1];
+			assert( int_addr_ptr , "空指针 " ) ;   
+			sa.sin_addr = ..raw.convert( int_addr_ptr, {addr addr} ) //将指针转换为地址数值
+		end;
+	 	
+    	iErrorCode =  ..wsock.bind( sock,  sa, ..raw.sizeof(sa) );
+    	assert( 0xFFFFFFFF/*_SOCKET_ERROR*/ != iErrorCode  , "bind() error. " ) ; 
+    	
+    	// 设置 0x3/*_SOCK_RAW*/ 为 _SIO_RCVALL,将网卡置为混杂模式以接收所有的 IP 包
+    	iErrorCode =  ..wsock.WSAIoctl( sock, 0x98000001/*_SIO_RCVALL*/, {INT bufferIn = 1}, 4,  {INT buffer[10] ={} } ,
+       	40,0, null, null );
+          	
+    	assert( 0xFFFFFFFF/*_SOCKET_ERROR*/ != iErrorCode , "Ioctl() error. "  ) ; 
+     	
+     	this.close = function(){
+     		if(!this.isterminating){
+     			this.isterminating = true;
+     			..wsock.close();
+     		}
+     	}
+     	this.count = 0;
+     	
+		return function(pack) {  
+			if( this.isterminating){ 
+				return null;
+			}
+			
+			this.count++;//抓包次数
+	    	var sockdata = {};
+        		
+        	//侦听IP报文
+        	var iErrorCode,package =  ..wsock.recv( owner,  8 * 1024,  8 * 1024, 0 );
+        	if( 0xFFFFFFFF/*_SOCKET_ERROR*/ == iErrorCode) {
+           		return sockdata ,this; 
+           	}
+           	
+        	..wsock.decodeIpPack( package, iErrorCode,sockdata)   
+        	sockdata.sniff = this
+        	return sockdata,this
+		} ,sock;
+    } 
+}
+
+ 
+decodeIpPack = function(pbuf, iBufSize,sockdata){
+
+    if(!iBufSize ){ 
+         return;
+    }
+         
+    var pIpheader = ..raw.convert(pbuf,IP_HEADER () );    
+ 
+    pIpheader.strProtocol =  ipproto_text[pIpheader.proto]   ; 
+    pIpheader.strSourceIP = inet_ntoa(pIpheader.sourceIP) ; 
+    pIpheader.strDestIP = inet_ntoa(pIpheader.destIP) ;
+    iIphLen = ..raw.sizeof("INT") * ( pIpheader.h_lenver & 0x0f ); 
+    var strbuf =  ..string.slice( pbuf,iIphLen + 1,iBufSize); 
+    sockdata.ipheader = pIpheader;
+    
+	select( pIpheader.proto ) {  
+		case 0x6/*_IPPROTO_TCP*/ {
+			decodeTcpPack( strbuf,sockdata );   
+		} 
+		case 0x11/*_IPPROTO_UDP*/ {
+			decodeUdpPack( strbuf,sockdata ); 
+		}
+		case 0x1/*_IPPROTO_ICMP*/ {
+			//decodeIcmpPack( strbuf,sockdata ); 
+		} 
+	} 
+ 
+    sockdata.ok = true;
+    return true;  
+} 
+
+decodeUdpPack = function(UdpBuf,sockdata) {  
+    var pUdpHeader = ..raw.convert(UdpBuf,UDP_HEADER());
+    pUdpHeader.strSport = ntohs(pUdpHeader.uh_sport)
+    pUdpHeader.strDport = ntohs(pUdpHeader.uh_dport)
+    
+    sockdata.udpheader = pUdpHeader;
+    return true;
+} 
+ 
+decodeIcmpPack = function(IcmpBuf,sockdata) {  
+
+    pIcmpHeader = ..raw.convert(IcmpBuf,ICMP_HEADER());
+    sockdata.icmpheader = pIcmpHeader; 
+ 
+ 	return true;
+}
+
+decodeTcpPack = function(TcpBuf,sockdata) {  
+	
+	var tcpHeader = ..raw.convert(TcpBuf,TCP_HEADER()) ; 
+	sockdata.tcpheader = tcpHeader;
+	
+	tcpHeader.strSport = ntohs(tcpHeader.th_sport)
+	tcpHeader.strDport = ntohs(tcpHeader.th_dport) 
+	
+	//4bit以4字节为单位表示头部长度
+	var lenres = ( (tcpHeader.th_lenres >> 4) & 0x0f) * 4; 
+	sockdata.tcpdata  = ..string.slice( TcpBuf, lenres + 1 ); 
+	
+	var lenheader = ..raw.sizeof(tcpHeader);
+	if( lenheader == lenres ) return true;
+	
+	tcpHeader.options = ..string.slice(  TcpBuf,lenheader +1,lenres );
+	return true;  
+}  
+
+decodeHttpPack = function(tcpdata){
+	var tinfo = {} 
+	
+	//请求或响应行、HTTP头标、空行、请求或响应数据
+	var strFirst,strHeader,strBody = ..string.match(tcpdata,"([^\r\n]+)\r\n(.+?)\r\n\r\n(.*)");
+	if( !strFirst ){
+		tinfo.data = tcpdata;
+		return tinfo;
+	}
+	
+	var tFirst = ..string.split( strFirst,' ');
+	tinfo.first = strFirst; 
+	if( #tFirst < 3 ) return tinfo;
+	
+	var headers  = ..string.split(strHeader,'<\r\n>');
+	for(k,line in headers){  
+  		var name,value = ..string.match(line,"([^\:]+)\:(.+)");
+  		if( name && value){ 
+  			tinfo[ ..string.lower( ..string.trim( name ) ) ] = ..string.trim(value); 
+  		} 
+	} 
+	
+	if( ..string.startWith( strFirst,"HTTP" ) ){
+  		tinfo.http = tFirst[1];
+  		tinfo.statusCode = tFirst[2];
+  		tinfo.reasonPhrase = tFirst[3];
+  		tinfo.data = strBody;
+  	}
+  	else { 
+  		var len = #tFirst; 
+  		tinfo.method =  ..string.upper( tFirst[1] );
+  		tinfo.path = tFirst[2];
+  		tinfo.http = tFirst[3] ; 
+  		tinfo.postdata = strBody;
+  	} 
+	
+	if( tinfo.host && tinfo.path ){
+	    tinfo.host = ..string.trim( tinfo.host )
+	    tinfo.url = ..string.format("http://%s%s", tinfo.host, tinfo.path:""  )
+	}
+	
+	return tinfo;
+}
+
+/*intellisense(!sockdata) 
+ipheader.strProtocol =  IP协议  ; 
+ipheader.strSourceIP = 源IP ; 
+ipheader.strDestIP = 目标IP ;
+tcpheader.strSport = 源端口
+tcpheader.strDport = 目标端口    
+tcpheader.th_sport = 源端口口
+tcpheader.th_dport = 目的端口号  
+tcpheader.th_seq = SYN序列号
+tcpheader.th_ack = 确认号
+tcpheader.th_lenres = 4bit为头部长度
+tcpheader.th_flag = 标志位
+tcpheader.th_win = 窗口 
+tcpheader.th_sum = 校验码  
+tcpheader.th_urp =  紧急数据指针 
+tcpheader.options  = 选项和填充
+udpheader.strSport = 源端口
+udpheader.strDport = 目标端口 
+udpheader.uh_sport = 源端口口
+udpheader.uh_dport = 目的端口号
+udpheader.uh_len = 长度
+udpheader.uh_sum = 校验码
+icmpheader.i_type =  8位类型
+icmpheader.i_code =  8位代码
+icmpheader.i_cksum =  16位校验和
+icmpheader.i_id =  识别号(一般用进程号作为识别号)
+icmpheader.i_seq = 报文序列号
+icmpheader.timestamp = 时间戳
+tcpoption = TCP选项域
+tcpdata = TCP数据 
+end intellisense*/
+
+/**intellisense() 
+!httpinfo.postdata = postdata
+!httpinfo.method = GET/POST等,接收数据该值为空
+!httpinfo.statusCode = 接收数据的状态码
+!httpinfo.reasonPhrase = 响应描述
+!httpinfo.path = 请求路径
+!httpinfo.host = 域名
+!httpinfo.http = HTTP协议版本
+!httpinfo.data = 响应数据
+!httpinfo.postdata = 请求数据 
+wsock.decodeHttpPack(.(tcpdata) = 解析HTTP数据包
+wsock.decodeHttpPack()  = !httpinfo.
+
+wsock.sniff = 使用原始套接字抓包\n这种抓包方式使用简单、但可能丢包或在某些环境下抓不到包
+wsock.sniff() = @for sockdata in wsock.sniff() {
+  if ( sockdata.ok ){
+  	if( sockdata.tcpheader )
+   		io.print( sockdata.tcpdata,sockdata.tcpheader.th_dport )
+ 
+  	if( sockdata.sniff.count>100) 
+  		sockdata.sniff.close() ;/*关闭监控*/ 
+  }  
+}
+
+?wsock.sniff = !sockdata.
+!sockdata.sniff.close() = 关闭监控
+!sockdata.sniff.count = 抓包次数 
+end intellisense**/

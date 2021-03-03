@@ -1,0 +1,17 @@
+
+import  key
+import console;
+
+while( ! key.getStateX( 0x1B/*_VK_ESCAPE*/ ) ){
+	sleep(100)
+	
+	if( key.getStateX("SPACE") ){
+        console.log("暂停,按空格键继续"); 
+   		key.wait( "SPACE" );
+	}
+	
+	console.log("我在运行,按空格键暂停运行,按“ESC”退出") 
+}
+
+console.pause();
+

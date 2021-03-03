@@ -1,0 +1,62 @@
+ 	
+import com.interface; 
+namespace com.interface;
+
+class ITaskbarList3{
+	ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer HrInit = "int()";
+	pointer AddTab = "int(addr hwnd)";
+	pointer DeleteTab = "int(addr hwnd)";
+	pointer ActivateTab = "int(addr hwnd)";
+	pointer SetActiveAlt = "int(addr hwnd)"; 
+ 	pointer MarkFullscreenWindow = "int(addr hwnd,bool fFullscreen)"; 
+ 	pointer SetProgressValue = "int(addr hwnd, LONG ullCompleted, LONG ullTotal)"; 
+ 	pointer SetProgressState = "int(addr hwnd, int flags)"; 
+ 	pointer RegisterTab = "int(addr hwndTab,addr hwndMDI)"; 
+ 	pointer UnregisterTab = "int(addr hwndTab)"; 
+ 	pointer SetTabOrder = "int(addr hwndTab, addr hwndInsertBefore)"; 
+ 	pointer SetTabActive = "int(addr hwndTab, addr hwndMDI, INT dwReserved)"; 
+ 	pointer ThumbBarAddButtons = "int(addr hwnd, INT cButtons,struct pButton)"; 
+ 	pointer ThumbBarUpdateButtons = "int(addr hwnd, INT cButtons,struct pButton)"; 
+ 	pointer ThumbBarSetImageList = "int(addr hwnd, pointer himl)"; 
+ 	pointer SetOverlayIcon = "in(addr hwnd, pointer hIcon,ustring pszDescription)"; 
+ 	pointer SetThumbnailTooltip = "int(addr hwnd, ustring pszTip)"; 
+ 	pointer SetThumbnailClip = "int(addr hwnd, struct prcClip)";  
+}
+ITaskbarList3.IID = "{EA1AFB91-9E28-4B86-90E9-9E9F8A5EEFAF}";
+ 
+ITaskbarList3.Create = function(obj){
+	var taskbar =  ..com.interface.create( ..win.guid(0x56fdf344, 0xfd6d, 0x11d0, 0x95, 0x8a, 0x0, 0x60, 0x97, 0xc9, 0xa0, 0x90)
+		, ITaskbarList3 );
+	if(taskbar){
+		taskbar.HrInit();
+		return taskbar;
+	}
+} 
+
+_WM_TASKBARBUTTONCREATED = ::User32.RegisterWindowMessage("TaskbarButtonCreated");  
+var changeWindowMessageFilter = ::User32.ChangeWindowMessageFilter;
+if( changeWindowMessageFilter ){
+	changeWindowMessageFilter(_WM_TASKBARBUTTONCREATED,1/*_MSGFLT_ADD*/)
+	changeWindowMessageFilter(0x111/*_WM_COMMAND*/,1/*_MSGFLT_ADD*/)
+}
+            
+/**intellisense()
+com.interface.ITaskbarList3.Create() = 创建ITaskbarList3接口\n!ITaskbarList3.
+!ITaskbarList3.AddRef() = 引用计数加一,返回引用计数
+!ITaskbarList3.Release() = 引用计数减一,返回引用计数
+!ITaskbarList3.QueryInterface(__/*接口数*/) = 参数是接口类,参考com.interface.IUnknown源码
+!ITaskbarList3.SetProgressValue(.(窗口句柄,进度值,最大值) =  
+!ITaskbarList3.SetProgressState(.(窗口句柄,状态值) =  状态值使用 _TBPF_ 前缀常量
+!ITaskbarList3.SetOverlayIcon(.(窗口句柄,覆盖图标,提示文本) = 设置进度条覆盖图标
+_WM_TASKBARBUTTONCREATED = 收到此消息时创建ITaskbarList3
+com.interface.ITaskbarList3.Query() = !ITaskbarList3.
+
+_TBPF_NOPROGRESS=@0/*_TBPF_NOPROGRESS*/
+_TBPF_INDETERMINATE=@1/*_TBPF_INDETERMINATE*/
+_TBPF_NORMAL=@2/*_TBPF_NORMAL*/
+_TBPF_ERROR=@4/*_TBPF_ERROR*/
+_TBPF_PAUSED=@8/*_TBPF_PAUSED*/
+end intellisense**/

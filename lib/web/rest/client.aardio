@@ -1,0 +1,462 @@
+import inet.http;
+import inet.http.tls;
+import string.encoding;
+import web.multipartFormData;
+import inet.httpStatusCode;
+
+namespace web.rest; 
+
+class client{
+
+	ctor(...) { 
+		this._http = ..inet.http(...)
+		this._http.disableCache();	
+		this._userAgent = this._http._userAgent;
+		this.stringifyRequestParameters = ..inet.url.stringifyParameters;
+		this.parseResponseResult = parseResponseResult; 
+		this.charset = "UTF-8"; 
+		this.contentType = "application/x-www-form-urlencoded"; 
+		this.defaultContentType = "application/x-www-form-urlencoded"; 
+		var fileSend,fileReceive;
+	}; 
+	setAuth = function(user,pwd){
+		this._http.username = user;
+		this._http.password = pwd;
+	};
+	setHeaders = function(headers){
+		if( type(this.addHeaders) != type.table ) this.addHeaders = null;
+		this.addHeaders = ..table.assign(this.addHeaders,headers);
+	};
+	request = function(url,params,httpMethod,urlParams,receiveCallback){
+		this.lastRequestUrl = url;  
+		httpMethod = !httpMethod ? owner._httpMethod  : httpMethod;
+		this.lastRequestMethod = httpMethod;
+		
+		var utf8 = ..string.cmp("UTF-8",this.charset ) == 0;
+		var codepage = charset2Codepage(this.charset):0;
+		
+		if( this.extraUrlParameters ) {
+			this.lastRequestUrl = ..inet.url.appendExtraInfo(
+				this.lastRequestUrl, ..inet.url.stringifyParameters(this.extraUrlParameters,codepage) 
+			);
+		};
+		
+		if(urlParams){
+			this.lastRequestUrl = ..inet.url.appendExtraInfo(
+				this.lastRequestUrl, ..inet.url.stringifyParameters(urlParams,codepage) 
+			);	
+		}
+		
+		if( this.extraParameters ) {
+			if( (params === null) || (type(params)==type.table) ){
+				params = ..table.mix( params,this.extraParameters );
+			}
+		};
+		
+		var headers;
+		if(this.beforeRequestHeaders){
+			headers = this.beforeRequestHeaders(params);
+		}
+		
+		if( this.beforeStringifyRequestParameters ){
+			params = this.beforeStringifyRequestParameters(params,codepage);
+		}
+		
+		if(params && (type(params)!=type.string)  ){ 
+			if( httpMethod == "GET" ){
+				params = ..inet.url.stringifyParameters(params,codepage);
+			}
+			else{
+				params = this.stringifyRequestParameters( params,codepage);  
+			}
+		}; 
+		
+		if( this.afterStringifyRequestParameters  ){
+			params = this.afterStringifyRequestParameters(params,codepage);
+		}
+
+		this.lastResponseData = null;
+		this.lastStatusCode = null;
+		this._http.beforeSend = this.beforeSend;
+		this._http.afterSend = this.afterSend;
+		this._http.addHeaders = this.addHeaders;
+
+		var contentType = this.contentType || this.defaultContentType ;
+		if( contentType ==  this.defaultContentType ) contentType = contentType + '; charset=' + this.charset; 
+		
+		if(receiveCallback){
+			if( fileReceive ){
+				error("调用 receiveFile 函数后的下一个请求不能指定 receiveCallback 回调参数",2)
+			}
+			this._http.onReceiveBegin = null;
+			this._http.onReceive = receiveCallback;
+		}
+		
+		var ret,errMsg,errCode = this._http.down(this.lastRequestUrl,params
+			,..web.joinHeaders('\r\nContent-Type:' + contentType,headers) 
+			,this.referer,this.acceptType,this.lastRequestMethod,owner[["_httpFlags"]]); 
+		this.contentType = this.defaultContentType;
+		
+		if(receiveCallback){
+			this._http.onReceive = null;
+		}
+		
+		//关闭上传下载文件	
+		if( fileSend ){
+			fileSend.close(); //兼容 io.file,web.multipartFormData
+			fileSend = null;
+			
+			this._http.onSendBegin = null;
+			this._http.onSend = null;
+		}
+		if( fileReceive ){
+			fileReceive.close();
+			fileReceive = null;
+			
+			this._http.onReceiveBegin = null;
+			this._http.onReceive = null;
+		}
+
+		this.lastStatusCode = this._http.statusCode;  
+		if( ret ) {
+			if( this._http.responseContentType ){
+				var charset = ..string.match(this._http.responseContentType,";\s*charset\s*=\s*([^;\s]+)");
+				if( charset ) {
+					this.charset = charset;
+					utf8 = ..string.cmp("UTF-8",this.charset ) == 0;
+				}
+			}
+			
+			if( ret === true ) return ret; 
+			if(  ret[1] == 0xEF  && ret[2] == 0xBB && ret[3] == 0xBF ){
+				ret = ..string.right(ret,-4) ;
+				utf8 = true;
+			};
+			
+			if( !utf8 ){ 
+				var codepage = charset2Codepage(this.charset);
+				if( codepage !== null ) ret = ..string.fromto( ret,codepage,65001); 
+			}
+			this.lastResponseData = ret;
+			
+			if( this._http.lastReadErrCode ) {
+				return null,..lasterr(this._http.lastReadErrCode);
+			}
+			
+			if( owner[["_partten"]] && ret ){
+				
+				var tp = type( owner._partten);
+				
+				if( tp == "table"){
+					return ..string.map(ret,owner._partten);
+				}
+				elseif( tp == "function"){
+					return owner._partten(ret);
+				}
+				
+				ret = ..string.match(ret,owner._partten);
+				if(!ret) return null,"服务器返回的数据中未找到匹配的部分"
+			}
+			return this.parseResponseResult(ret);
+		}
+		else {
+			if( type(errMsg) == type.string ) {
+				if( !utf8 )errMsg = ..string.fromto( errMsg,codepage,65001); 
+				this.lastResponseData = errMsg;
+			}
+			return null,errMsg,errCode;
+		}
+	};
+	head = function(url,params){
+		return this.request(url,params,"HEAD");	
+	};
+	get = function(url,params){
+		return this.request(url,params,"GET");
+	};
+	post = function(url,params){
+		return this.request(url,params,"POST");	
+	};
+	put = function(url,params){
+		return this.request(url,params,"PUT");	
+	};
+	delete = function(url,params){
+		return this.request(url,params,"DELETE");	
+	};
+	patch = function(url,params){
+		return this.request(url,params,"PATCH");	
+	};
+	ok = function(){
+		var statusCode = this._http.statusCode;
+		return statusCode ? ( statusCode >= 200 ) ? statusCode < 300
+	};
+	lastStatusMessage = function(){
+		if(this.lastStatusCode)return ..inet.httpStatusCode[this.lastStatusCode],this.lastStatusCode;
+	};
+	lastResponseString = function(){
+		return this.lastResponseData;
+	};
+	lastResponse = function(){
+		var s = this.lastResponseData;
+		if( ..console && _STUDIO_INVOKED ) ..console.log(s) else ..io.print(s);
+		return s;
+	};
+	lastResponseHeaders = function(name){
+		return this._http.responseHeaders; 
+	};
+	api = function(urlTemplate,httpMethod="POST",partten,httpFlags ){
+		return { 
+			_httpFlags = httpFlags;
+			_httpMethod = ..string.upper( httpMethod );
+			_urlTemplate = urlTemplate;
+			_urlReal = ..string.replace( urlTemplate ,"%{}", "");  
+			_request = this.request;
+			_partten = partten;
+			@_meta;
+		}
+	}; 
+	declareApi = function(...){
+		return this.api(...);
+	};
+	sendMultipartForm = function(fields,stepProc,blockSize = 0x2000 ){
+		if(!fields) error("请指定上传表单字段参数",2);
+		
+		//这个对象需要在request函数中检测关闭
+		fileSend = ..web.multipartFormData();
+		if( ..string.cmp("UTF-8",this.charset ) != 0 ) fileSend.codePage = charset2Codepage(this.charset);
+		
+		for(k,v in fields){
+			fileSend.add(k,v);
+		} 
+		
+		var contentLength;
+		this._http.onSendBegin = function(){
+			contentLength = fileSend.size(); 
+			return contentLength;
+		}
+		this._http.onSend = function(remainSize){  
+			var str = fileSend.read(blockSize); 
+			if( stepProc ) stepProc(str,#str,contentLength,remainSize);
+			return str; 
+		}
+		
+		this.contentType = fileSend.contentType();
+		return true;
+		
+	};
+	sendFile = function(path,stepProc,mime,blockSize = 0x2000 ){
+		if(!path) error("请指定路径参数",2);
+		
+		var err;
+		fileSend,err =  ..io.open(path,"rb");
+		if( !fileSend ) return null,err;
+		
+		var contentLength;
+		this._http.onSendBegin = function(){
+			contentLength = fileSend.size(1); 
+			return contentLength;
+		}
+		this._http.onSend = function(remainSize){  
+			var str = fileSend.read(blockSize); 
+			if( stepProc ) if( stepProc(str,#str,contentLength,remainSize) === false ) return;
+			return str; 
+		}
+		
+		this.contentType = mime or ..fsys.mime.fromFile(path);
+		return true;
+	}; 
+	receiveFile = function(path,stepProc){
+		if(!path) error("请指定路径参数",2);
+		
+		var err;
+		fileReceive,err =  ..io.open(path,"w+b");
+		if( !fileReceive ) return null,err;
+		
+		this._http.onReceive = function(str,receiveSize,contentLength){
+			fileReceive.write(str);
+			if( stepProc ) return stepProc(str,receiveSize,contentLength);
+		}
+		return true;
+	}; 
+	endRequest = function(){
+		this._http.endRequest();
+	};
+	notify = function(func,...){
+		var afterSend = this.afterSend;
+		this.afterSend = function(){
+			if(afterSend) invoke(afterSend,this);
+			this._http.endRequest();
+		}
+		func(...);
+		this.afterSend = afterSend;
+	};
+	getUserAgent = function(){
+		return this._userAgent; 
+	};
+	close = function(){
+		this._http.close();
+	};
+}
+
+namespace client { 
+ 	charset2Codepage = ..string.encoding.getCodepage;
+ 	
+	parseResponseResult = function(ret){
+		return ret; 
+	} 
+	 
+	_httpStatusCode = ..inet.httpStatusCode;
+	_defaultMethod = { head = "HEAD";get = "GET"; post = "POST"; put = "PUT"; delete = "DELETE"; patch ="PATCH"} ;
+	
+	_meta = {
+		_get = function( k ){
+
+			if( _defaultMethod[k] ){ 
+				var api = {
+					_httpMethod = _defaultMethod[k];
+					_urlReal = owner[["_urlReal"]];
+					_urlTemplate = owner[["_urlTemplate"]];
+					_httpFlags = owner[["_httpFlags"]];
+					_request = owner[["_request"]];
+					_partten = owner[["_partten"]]; 
+					@_meta;
+				} 
+				owner[[k]] = api;
+				return api;
+			}
+			else { 
+				var tk = type(k);
+				var urlTemplate,count;
+				
+				if( tk == "string" && k[1]=='_'# ) return; 
+				elseif( tk == "table") {
+					urlTemplate,count = ..string.replace(owner[["_urlTemplate"]],"\{\s*(\w+)\s*\}",k);
+				}
+				else {
+					k = tostring(k); 
+					if(!k) return;
+					
+					var repk = ..string.replace(k,"@\","\\");
+					repk = ..inet.url.encodeMbcs(repk,65001);
+					
+					urlTemplate,count = ..string.replace(owner[["_urlTemplate"]],"\{(/?)\s*\w+\s*\}", "\1"+repk,1);
+					if(!count){
+						urlTemplate,count = ..string.replace(owner[["_urlTemplate"]],"\{\s*\.\.\.\s*\}",  repk + "/{...}",1); 
+ 	
+						if( !count ){
+							urlTemplate = owner[["_urlTemplate"]]
+							if( urlTemplate[#urlTemplate] != '/'# && (k[1] != '/'#) ){
+								urlTemplate = urlTemplate + "/";
+							}
+							urlTemplate = urlTemplate ++ repk;
+						}
+					}
+				}
+				
+				var urlRequest = urlTemplate; 
+				urlRequest = ..string.replace(urlRequest,"/\{\s*\.\.\.\s*\}","",1);  
+				urlRequest = ..string.replace(urlRequest ,"%{}", "");
+				
+				var api = {
+					_urlReal =  urlRequest; 
+					_urlTemplate = urlTemplate;
+					_httpFlags = owner[["_httpFlags"]];
+					_httpMethod = owner[["_httpMethod"]];
+					_request = owner[["_request"]];
+					_partten = owner[["_partten"]];
+					@_meta;
+				} 
+				
+				owner[[k]] = api;
+				return api;
+			}   
+		}; 
+		_call = function(params,urlParams,receiveCallback){
+			return owner._request(owner._urlReal,params,,urlParams,receiveCallback) ;
+		};
+		_keys = {};
+		_type = "object";
+	} 
+}
+
+/*
+如果URL模板中的变量出现在URL路径中,因为web.rest调用inet.http,
+而inet.http请求URL的路径中的中文字符默认会自动以UTF8编码并URLEncode编码发送,这是比较通用的实现方式,与具体的页面编码无关。
+如果服务器设置或其他原因不接受UTF8编码的URL,请事先调用URL编码URL中的中文字即可( 也就是rest中的资源名 )
+
+如果模板变量出现在附加参数中,web.rest不处理任何编码。
+对于调用方法时的提交参数,则一律URLEncode,如果指定页面编码为UTF8,则UTF8编码后URLEncode
+*/
+
+/**intellisense()
+web.rest.client = REST客户端
+web.rest.client() = !web_restClient.
+web.rest.client(.("UserAgent","代理服务器","绕过代理的主机",连接选项) = 创建REST客户端,所有参数可选,例：\nweb.rest.client("Mozilla/4.0", "HTTP=HTTP://proxyserver:port","localhost,127.0.0.*")\n代理参数语法请参考inet.setProxy函数说明
+!web_restClient.stringifyRequestParameters(提交参数表,代码页) = @.stringifyRequestParameters = function(params,codepage){
+	__/*参数是表对象时调用此函数转换为字符串\n此函数一般由库文件定义，一般调用不应修改此函数\n注意返回的文本格式应与 owner.contentType 一致\n在该函数中可获取或修改对象的 lastRequestUrl, lastRequestMethod 属性*/
+	return params;
+} 
+!web_restClient.beforeStringifyRequestParameters(提交参数,代码页) = @.beforeStringifyRequestParameters = function(params,codepage){
+	__/*可以在该函数中修改提交提交参数表,或在此添加默认参数\n此函数在stringifyRequestParameters之前调用\n参数可能是字符串或者表*/
+	return params; 
+}
+!web_restClient.beforeRequestHeaders(提交参数) = @.beforeRequestHeaders = function(params){
+	__/*每次请求前触发此函数,\nparams参数为本次请求的提交参数,\n可选返回字符串、数组、键值等web.joinHeaders函数支持的HTTP头\n*/
+	return {}; 
+}
+!web_restClient.afterStringifyRequestParameters(提交参数,代码页) = @.afterStringifyRequestParameters = function(params,codepage){
+	__/*此时参数已转换为字符串并准备提交到服务器*/
+	return params; 
+}
+!web_restClient.extraParameters = 指定附加到所有请求参数中的默认参数\n该值应当是一个表,请求参数指定表对象时或为null才会附加extraParameters
+!web_restClient.extraUrlParameters  = 指定附加到所有请求URL的默认参数\n该值可以是一个表或字符串
+!web_restClient.acceptType = 期望返回的MIME内容类型,多个类型用逗号分隔
+!web_restClient.contentType = 写入HTTP头ContentType属性的内容类型\n设为null空值,或每次请求完成将自动重置为defaultContentType
+!web_restClient.defaultContentType = 默认内容类型
+!web_restClient.setHeaders( = 设置所有请求默认添加的HTTP头
+!web_restClient.setHeaders(.(headers) = 参数 @headers 必须指定一个表中,\n用该表中的键值对更新 addHeaders 属性中的键值\n如果addHeaders的原属性值不是一个表,则先清空该属性
+!web_restClient.addHeaders = 替换所有请求默认添加的HTTP头\n请求结束时不会清空此属性\n该值可以是一个字符串,也可以是键值对组成的table对象
+!web_restClient.referer = 引用页地址\n如果此属性指定了一个值，则每次请求都会使用该引用页\n如果不指定，每次请求都会自动设置上次请求的网址为引用页\n这个属性不像inet.http对象的referer属性那样每次请求结束都会清空
+!web_restClient.charset = 指定服务端使用的编码,默认为"UTF-8",\n服务端HTTP响应头里如果显式指定了编码，会自动修改此属性\n对于服务端返回的数据,会根据charset自动转换为aardio默认的UTF8编码\n对于请求参数,如果使用JSON编码统一转换为Unicode编码格式,不需要考虑编码转换,\n如果使用UrlEncode编码与浏览器的规则一致，根据charset转换为对应编码后提交，\n开发服务端接口应统一使用UTF8编码,可避免任何乱码问题
+!web_restClient.getUserAgent() = 返回HTTP客户端请求HTTP头中用户代理头的值,\n该值可在创建HTTP客户端的构造参数中指定
+!web_restClient.setAuth(.("登录名","密码") = 设置登录名,密码,默认用于HTTP登录认证
+!web_restClient.ok() = 最后一次请求是否成功\n服务器应答并且状态码为2XX该函数返回真
+!web_restClient.lastStatusCode = 获取最近一次请求返回的HTTP状态码\n100 ~ 101 为信息提示\n200 ~ 206 表示请求成功\n300 ~ 305 表示重定向\n400 ~ 415 表求客户端请求出错\n500 ~ 505 表示服务端错误
+!web_restClient.lastStatusMessage() = 获取最近返回的HTTP状态码文本描述\n第二个返回值为状态码
+!web_restClient.lastResponseHeaders() = 如果调用了head方法\n该函数返回所有应答HTTP头,文本格式,每行以冒号分隔的名值对
+!web_restClient.lastResponse() = 获取最后一次服务器返回的数据,\n如果控制台已打开或在开发环境中导入console库则在控制台输出数据\n下载文件时该值为空
+!web_restClient.lastResponseString() =  获取最后一次服务器返回的原始数据,\n下载文件时该值为空
+!web_restClient.lastRequestUrl = 获取最后一次请求的URL
+!web_restClient.lastRequestMethod = 最后一次请示使用的HTTP方法
+!web_restClient._http = inet.http客户端，用于执行http请求\n!inet_http.
+!web_restClient.close() = 关闭对象释放资源
+!web_restClient.beforeSend = @.beforeSend = function(){
+	__/*已准备向服务器发送数据触发此回调函数*/ 
+}
+!web_restClient.afterSend = @.afterSend = function(statusCode,contentLength){
+	__/*向服务器发送数据结束触发此回调函数*/ 
+}
+!web_restClient.endRequest() = 可用于afterSend事件提前结束当前请求
+!web_restClient.notify(回调函数) = @.notify(\n	function(){\n		__/*在此回调函数中所有请求在发送数据后立即关闭连接*/\n	} \n)
+!web_restClient.sendMultipartForm(上传表单,上传进度回调函数) = @.sendMultipartForm( {\n		file = "@__/*上传文件路径字段首字符为@*/"\n	},function(str,sendSize,contentLength){\n        ..io.print("正在上传",sendSize,contentLength);\n    }\n); 
+!web_restClient.sendFile("上传文件路径",上传进度回调函数) = @.sendFile( "上传文件路径" \n    ,function(str,sendSize,contentLength){\n        ..io.print("正在上传",sendSize,contentLength);__\n    }\n); 
+!web_restClient.receiveFile("下载文件路径",下载进度回调函数) = @.receiveFile( "下载文件路径" \n    ,function(str,receiveSize,contentLength){\n        ..io.print("正在下载",receiveSize,contentLength);__\n    }\n); 
+!web_restClient.request( = 发送请求,\n该函数不会解析URL中的模板参数
+!web_restClient.request(.(网址,参数表,"HTTP动词",URL参数表) = 除参数@1以外，其他所有参数都可以省略,\n省略参数@3则使用默认的调用方法\n成功返回数据,失败返回空值,错误信息,错误代码
+!web_restClient.head(.(网址,参数表) = 使用该HEAD方法提交请求\n如果该函数返回非null值为成功,请使用lastResponseHeaders获取应答HTTP头\n成功返回数据,失败返回空值,错误信息,错误代码
+!web_restClient.get(.(网址,参数表) = 使用该GET方法提交请求,获取资源\n请求参数将会自动转换为URL附加参数,\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n成功返回数据,失败返回空值,错误信息,错误代码
+!web_restClient.post(.(网址,参数表) = 使用该POST方法提交请求,新增或修改资源\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n成功返回数据,失败返回空值,错误信息,错误代码
+!web_restClient.delete(.(网址,参数表) = 使用该DELETE方法提交请求,删除资源\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n成功返回数据,失败返回空值,错误信息,错误代码
+!web_restClient.put(.(网址,参数表) = 使用该PUT方法提交请求,替换或更新资源\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n成功返回数据,失败返回空值,错误信息,错误代码
+!web_restClient.patch(.(网址,参数表) = 使用该PATCH方法提交请求,更新资源\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n成功返回数据,失败返回空值,错误信息,错误代码
+!web_restClient.api( = 定义API对象，使用成员操作符或下标获取API对象的成员时将会自动转换为新的API对象
+!web_restClient.api(.("网址模板","HTTP动词","模式串") = 网址模板可使用 {name}、{/name}、或 {...} 指定模板参数,\n大括号内的参数名可使用英文字符或数字,\n模板参数名首字符为斜杠（例如{/name}）表示使用实参替换后保留斜杠，\n {...} 表示不定个数的模板参数,如使用多个实参替换则自动使用斜杠拼接，\n默认在网址模板尾部自动添加 {...}\n\n返回API对象使用下标指定模板实参，\n如果下标是字符串，按下标出现的前后顺序替换模板参数，\n如果下标是表对象，则表中的键值对用于替换与键同名的模板参数,\n\n可选用参数@2指定HTTP动词,默认值为"POST"\n\n参数@3如果为模式串，则使用模式匹配转换响应数据并返回。\n参数@3如果为函数，则调用该函数转换转换响应数据并返回。\n参数@3如果为数组，则作为string.map的模式参数@2转换响应数据并返回
+!web_restClient.api(.("网址模板","HTTP动词","模式串",HTTP选项) = 可选在参数@4用 _INTERNET_FLAG_ 前缀常量自定义http请求选项\n其他参数用法同上
+!web_restClient.api() = !web_rest_api.
+!web_rest_api.? = 可输入任意API资源名\n返回一个API调用对象,\n返回对象可以使用成员操作符继续获取下级资源，\n也可以作为函数直接调用并发送请求,\n作为函数使用时,\n可选用参数@1指定请求数据参表，也可直接指定请求字符串,\n可选用参数@2指定URL参数表,\n可选用参数@3指定inet.http对象的onReceive回调函数\n!web_rest_api.
+!web_rest_api.head() = HEAD方法提交请求\n如果该函数返回非null值为成功,请使用lastResponseHeaders获取应答HTTP头\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串
+!web_rest_api.get() = GET方法提交请求,获取资源,\n请求参数@1可以指定表或字符串、缓冲区,如果是表请求前会转换为字符串
+!web_rest_api.post(__) = POST方法提交请求,新增或修改资源,\n请求参数@1可以指定表或字符串、缓冲区,如果是表请求前会转换为字符串\n可选用参数@2指定URL参数表,\n可选用参数@3指定inet.http对象的onReceive回调函数
+!web_rest_api.delete(__) = DELETE方法提交请求,删除资源,\n请求参数@1可以指定表或字符串、缓冲区,如果是表请求前会转换为字符串\n可选用参数@2指定URL参数表,\n可选用参数@3指定inet.http对象的onReceive回调函数
+!web_rest_api.put(__) = PUT方法提交请求,替换或更新资源,\n请求参数@1可以指定表或字符串、缓冲区,如果是表请求前会转换为字符串\n可选用参数@2指定URL参数表,\n可选用参数@3指定inet.http对象的onReceive回调函数
+!web_rest_api.patch(__) = PATCH方法提交请求,更新资源,\n请求参数@1可以指定表或字符串、缓冲区,如果是表请求前会转换为字符串\n可选用参数@2指定URL参数表,\n可选用参数@3指定inet.http对象的onReceive回调函数
+end intellisense**/

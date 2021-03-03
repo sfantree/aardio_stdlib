@@ -1,0 +1,21 @@
+//遍历目录
+import console;
+import fsys;
+ 
+//批量处理文件
+fsys.enum(  "~\lib\fsys", //指定要遍历的目录
+			"*.*", //指定查询文件名,支持windows掩码
+			function(dir,filename,fullpath,findData){ //指定触发器
+				if(filename){ 
+           			console.log("发现文件：",fullpath )
+				}
+				else{
+					console.log("发现目录：",dir)
+				}
+			} 
+		  ); 
+ 
+console.log( "临时目录",fsys.getTempDir() );
+console.log( "桌面目录",fsys.getSpecial( 0x0000 /*_CSIDL_DESKTOP*/  ) );
+execute("pause")
+ 

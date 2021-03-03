@@ -1,0 +1,60 @@
+//aardio文件编译工具
+//将aardio代码文件编译为二进制文件 
+import win.ui;
+/*DSG{{*/
+var winform = win.form(cls="AFORM";text="aardio编译工具";right=522;bottom=134;acceptfiles=1;border="dialog frame";max=false;parent=...;style=0)
+winform.add(
+btnbuild={cls="button";text="编 译";left=372;top=57;right=478;bottom=84;acceptfiles=1;autosize=false;bgcolor=16496028;tabstop=1;visible=true;z=1};
+btndlg={cls="button";text="浏览...";left=428;top=17;right=488;bottom=41;acceptfiles=1;autosize=false;bgcolor=16496028;tabstop=1;visible=true;z=5};
+editpath={cls="edit";left=40;top=17;right=426;bottom=41;autosize=false;bgcolor=16777215;border=1;tabstop=1;visible=true;z=4};
+progress={cls="progress";left=37;top=95;right=489;bottom=115;acceptfiles=1;autosize=false;db=1;disabled=1;edge=1;max=100;min=0;tabstop=1;visible=true;z=2};
+static={cls="static";text="aardio代码编译为二进制指令码可以有效保护您的源码
+编译以后无法还原、编辑,请谨慎操作";left=41;top=54;right=348;bottom=95;acceptfiles=1;autosize=false;bgcolor=0;tabstop=1;transparent=1;visible=true;z=3}
+)
+/*}}*/
+
+winform.wndproc = function(hwnd,message,wParam,lParam){
+	select(message) {//判断消息类型
+		case 0x233/*_WM_DROPFILES*/ { 
+			winform.editpath.text = win.getDropFile(wParam )[1];   
+		} 
+	}
+} 
+
+import fsys.dlg 
+winform.btnbuild.oncommand = function(hwnd,event){
+	if( winform.editpath.text == ""){
+		winform.static.text = "注意,请选中或输入要编译的文件路径!"
+		winform.redraw();
+		return ;
+	}
+
+	var str = dumpcode( assert( loadcode( winform.editpath.text  ) ) )
+	
+	//保存编译后的文件
+	var path = fsys.dlg.save("aardio文件|*.aardio||","保存编译后的二进制aardio文件")
+	if(!path) return;
+	
+	string.save( path,str )
+ 
+    winform.progress.visible = true;//显示进度条
+	for(i=1;10;1){ //循还从1到10
+	    winform.progress.pos += 10 //增加进度
+	    win.delay(100)
+	}
+	winform.progress.visible = false;//隐藏进度条
+	winform.static.text = "编译完成!"
+	winform.redraw(); 
+} 
+	
+winform.btndlg.oncommand = function(hwnd,event){ 
+	var str  = fsys.dlg.open("aardio文件|*.aardio||","请选择aardio代码文件")
+	if( str)
+		winform.editpath.text = str;
+} 
+
+winform.enableDpiScaling();
+winform.show(true) 
+win.loopMessage( winform );
+
+

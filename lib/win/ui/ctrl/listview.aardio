@@ -1,0 +1,1353 @@
+//listview 列表视图
+import win.ui.ctrl.metaProperty;//导入控件属性元表支持 
+namespace win.ui.ctrl;  
+
+class listview{
+    ctor(parent,tParam){ 
+    	if(tParam){
+    		tParam.cls = "SysListView32";  
+    		
+   			if(tParam.edge)   
+					tParam.exstyle |= 0x200/*_WS_EX_CLIENTEDGE*/;  
+					
+   			select(tParam.mode){
+				case "icon" 
+					tParam.style |= 0x0/*_LVS_ICON*/
+				case "list"  
+					tParam.style |= 0x3/*_LVS_LIST*/
+				case "smallicon" 
+					tParam.style |= 0x2/*_LVS_SMALLICON*/            
+				else {
+					tParam.style |= 0x1/*_LVS_REPORT*/
+				} 					
+			}  
+			
+			if( tParam.editable )
+				tParam.style |= 0x200/*_LVS_EDITLABELS*/
+				
+			if(tParam.hscroll)
+				tParam.style |= 0x800/*_LVS_ALIGNLEFT*/ 
+			if(tParam.vscroll)
+				tParam.style |= 0x0/*_LVS_ALIGNTOP*/
+				
+			if(tParam.msel===false)
+    			tParam.style |= 0x4/*_LVS_SINGLESEL*/
+    			
+    		if(tParam.asel===null || tParam.asel ) 
+    			tParam.style |= 0x8/*_LVS_SHOWSELALWAYS*/
+		}  
+    }; 
+    @_metaProperty;
+}
+
+namespace listview{ 
+
+	_LPSTR_TEXTCALLBACK = topointer(-1)/*_LPSTR_TEXTCALLBACK*/;
+	
+	LVCOLUMN = class {
+		INT mask = 0;
+		int fmt; 
+		int cx; 
+		ptr	text; 
+		int cchTextMax; 
+		int iSubItem = 1; 
+		int iImage;
+		int iOrder;
+	}
+	
+	LVITEM = class {
+		INT mask = 0; 
+		int iItem = 1; 
+		int iSubItem = 1; 
+		INT state; 
+		INT stateMask; 
+		ptr text; 
+		int cchTextMax; 
+		int iImage; 
+		int lParam;
+		int iIndent;
+		int iGroupId;
+		INT cColumns;
+		struct puColumns = ::POINT();
+	}
+	
+	var LVITEM = LVITEM;
+	lvItemCheckMask = function(item){
+		if( (item.mask & 0x1/*_LVIF_TEXT*/) && (item.text) ) {
+			if( item.text != _LPSTR_TEXTCALLBACK) 
+				item.text = ..string.fromUnicode(item.text,,-1);
+		}
+		else 
+			item.text = null;
+			
+		if(!(item.mask & 0x10/*_LVIF_INDENT*/)){
+			item.iIndent = null;
+		}
+		
+		if(!(item.mask & 8/*_LVIF_STATE*/  )){
+			item.state = null;
+		}
+		
+		if(!(item.mask & 2/*_LVIF_IMAGE*/ )){
+			item.iImage = null;
+		}
+		
+		if(!(item.mask & 0x200/*_LVIF_COLUMNS*/)){
+			item.cColumns = null;
+		}
+		
+		if(!(item.mask & 4/*_LVIF_PARAM*/ )){
+			item.lParam = null;
+		}
+	}
+	lvItemPtr2Text = lvItemCheckMask; // @Deprecated
+	
+	lvItemUpdateMask = function(item){ 
+		if( item.text !== null ){
+			var tt = type( item.text );
+			if( tt!="pointer" ) {
+				if(  tt != "buffer" )
+					item.text = ..string.toUnicode( (tostring(item.text)) );
+				
+				item.cchTextMax = #item.text/2;
+			}
+		}
+		
+		if( item.cchTextMax ){
+			item.mask |= 0x1/*_LVIF_TEXT*/
+			if( ! item.text ) item.text = ..raw.buffer(item.cchTextMax*2);
+		}
+		if( item.iIndent !==null ){
+			item.mask |= 0x10/*_LVIF_INDENT*/
+		}
+		if( item.state !==null ){
+			item.mask |= 8/*_LVIF_STATE*/  
+		} 
+		if( item.iImage !==null ){
+			item.mask |= 2/*_LVIF_IMAGE*/ 
+		}
+		if( item.cColumns !==null ){
+			item.mask |= 0x200/*_LVIF_COLUMNS*/
+		}
+		if( item.lParam !==null ){
+			item.mask |= 4/*_LVIF_PARAM*/
+		} 
+	}; 
+	lvItemText2PtrAndMask = lvItemUpdateMask; // @Deprecated 
+	
+	lvItemUpdateText = function(item){
+		if( item.text === null ) return item;
+		var tt = type( item.text );
+		if( ( tt!="pointer" )  && ( tt != "buffer" ) ) {
+			item.text = ..string.toUnicode( tostring(item.text) );
+		}
+		return item;
+	};
+	lvColumnPtr2Text = lvItemUpdateText; // @Deprecated 
+	
+	lvColumnUpdateMask = function(col){ 
+		var tt = type( col.text );
+		if( tt == "string" || tt == "buffer" ){
+			if( tt == "string" ) col.text = ..string.toUnicode(tostring(col.text));
+			col.cchTextMax = #col.text/2;
+		}
+		if( col.cchTextMax ){
+			col.mask |= 0x4/*_LVCF_TEXT*/; 
+			if( ! col.text ) item.text = ..raw.buffer(col.cchTextMax*2);
+		}
+		if( col.iImage!==null ){ 
+			col.mask |= 0x10/*_LVCF_IMAGE*/;
+		}  
+		if(col.cx!==null){
+			col.mask |= 2/*_LVCF_WIDTH*/  
+		}
+		if(col.fmt!==null){
+			col.mask |= 1/*_LVCF_FMT*/ 
+		}
+	}; 	 
+	lvColumnText2PtrAndMask = lvColumnUpdateMask; // @Deprecated 
+	
+	class LVTILEVIEWINFO {
+		INT cbSize = 40;
+		INT dwMask;
+		INT dwFlags;
+		struct  sizeTile = ::SIZE();
+		int   cLines;
+		struct  rcLabelMargin = ::RECT();
+	};
+	class NMLISTVIEW {
+    	struct hdr = ::NMHDR();
+ 		int iItem = 1;
+    	int iSubItem = 1;
+    	INT uNewState;
+    	INT uOldState;
+    	INT uChanged;
+    	struct ptAction = ::POINT();
+    	int lParam;
+	} 
+	class LVFINDINFO{
+  		INT flags ;
+  		ustring psz;
+  		int lParam;
+  		struct pt = ::POINT();
+  		INT vkDirection;
+	} 
+	 
+	namespace NMLISTVIEW{
+		CODES = {
+			[0xFFFFFF93/*_LVN_BEGINDRAG*/] = 1;
+			[0xFFFFFF91/*_LVN_BEGINRDRAG*/] = 1;
+			[0xFFFFFF94/*_LVN_COLUMNCLICK*/] = 1;
+			[0xFFFFFF5C/*_LVN_COLUMNDROPDOWN*/] = 1;
+			[0xFFFFFF5A/*_LVN_COLUMNOVERFLOWCLICK*/] = 1;
+			[0xFFFFFF64/*_LVN_MARQUEEBEGIN*/] = 1;
+			[0xFFFFFF98/*_LVN_DELETEALLITEMS*/] = 1;
+			[0xFFFFFF99/*_LVN_DELETEITEM*/] = 1;
+			[0xFFFFFF87/*_LVN_HOTTRACK*/] = 1;
+			[0xFFFFFF9A/*_LVN_INSERTITEM*/] = 1;
+			[0xFFFFFF9B/*_LVN_ITEMCHANGED*/] = 1;
+			[0xFFFFFF9C/*_LVN_ITEMCHANGING*/] = 1;
+			[0xFFFFFFFE/*_NM_CLICK*/] = 1;
+			[0xFFFFFFFD/*_NM_DBLCLK*/] = 1;
+			[0xFFFFFFFB/*_NM_RCLICK*/] = 1;
+			[0xFFFFFFFA/*_NM_RDBLCLK*/] = 1;
+		}
+	};
+	
+	class LVHITTESTINFO{
+    	struct pt = ::POINT();
+    	INT flags;
+    	int iItem; 
+    	int iSubItem;   
+    	int iGroup;  
+	}  ;
+
+	class LV_DISPINFO { 
+		struct hdr = ::NMHDR(); 
+		struct item =  LVITEM();
+  	}
+ 
+ 	var listview ={
+		bgcolor = {
+			_get = function(){
+				::SendMessage(owner.hwnd,0x1000/*_LVM_GETBKCOLOR*/);
+			}
+			_set = function(v){
+				::SendMessageInt(owner.hwnd,0x1001/*_LVM_SETBKCOLOR*/,0,v);
+			} 
+		};
+		count = {
+			_get = function(){  
+				return ::SendMessage(owner.hwnd, 0x1004/*_LVM_GETITEMCOUNT*/ )  
+			} 
+		};
+		findItem = function(str,start=-1,sub=true,wrap=true){
+			var info = LVFINDINFO()
+			info.psz = str;
+			info.flags  = 2/*_LVFI_STRING*/ 
+			if(sub) info.flags |= 4/*_LVFI_SUBSTRING*/ 
+			if(wrap) info.flags |= 0x20/*_LVFI_WRAP*/
+			return ::SendMessageByStruct(owner.hwnd,0x1053/*_LVM_FINDITEM*/,start,info) + 1;
+		};
+		findItemEx = function(str,start=1){
+			for(i=start;owner.count ){ 
+   				if( owner.getItemText(i) == str) {
+       				return i;
+   				}
+			}
+		};
+		getItem = function(item,iSubItem){
+			if(type(item)!=type.table){
+				item = ..table.assign( LVITEM(), { iItem = item;iSubItem=iSubItem} )
+				item.mask = 0x1/*_LVIF_TEXT*/
+			}
+			elseif(!item._struct)
+				item = ..table.assign( LVITEM(), item )
+				
+			if(item.mask & 0x1/*_LVIF_TEXT*/ ){
+				if( ! item.cchTextMax ) item.cchTextMax = 260;
+				item.text = ..raw.buffer(item.cchTextMax*2)
+			} 
+			if(!item.iItem){
+				item.iItem = owner.getFocused();
+				if(!item.iItem)
+					return;
+			}
+			item.iItem--;
+			item.iSubItem--;
+			
+			if( ::SendMessageByStruct(owner.hwnd,0x104B/*_LVM_GETITEMW*/,0,item) ){ 
+				item.iItem++;
+				item.iSubItem++;
+				lvItemCheckMask(item);
+				return item;
+			}
+		}; 
+		setItem = function(item,iItem,iSubItem){
+			if(!item._struct)
+				item = ..table.assign( LVITEM(), item , { iItem = iItem;iSubItem=iSubItem : 1} )
+			 
+			if(item.iItem===null){
+				item.iItem = owner.getFocused();
+				if(item.iItem===null) return;
+			}
+			item.iItem--;
+			item.iSubItem--;
+				
+			lvItemUpdateMask(item);
+			var ret = !!( ::SendMessageByStruct(owner.hwnd,0x104C/*_LVM_SETITEMW*/,0,item) ) 
+			item.iItem++;
+			item.iSubItem++;
+			return ret;
+		};
+		each = function(i=0,flags,col){
+			var hwnd = owner.hwnd;
+			return function(){ 
+				var iItem = ::User32.SendMessage(hwnd,0x100C/*_LVM_GETNEXTITEM*/,i-1,flags: 0/*_LVNI_ALL*/) + 1;
+				i++;
+				if(iItem) return iItem,owner.getItemText(iItem,col);
+			},owner
+		};
+		eachSelected = function(col){
+			var i = 0;
+			var hwnd = owner.hwnd;
+			return function(){ 
+				var iItem = ::User32.SendMessage(hwnd,0x100C/*_LVM_GETNEXTITEM*/,i-1,2/*_LVNI_SELECTED*/) + 1;
+				i++; 
+				if(iItem){
+					 return iItem,owner.getItemText(iItem,col);
+				}
+			},owner
+		};
+		getNextItem = function(i=0,flags=0x0/*_LVNI_ALL*/){ 
+			return ::SendMessageInt(owner.hwnd,0x100C/*_LVM_GETNEXTITEM*/,i-1,flags) + 1;
+		};   
+		getFocused  = function(col){  
+			var item = owner.getNextItem(-1 ,1/*_LVNI_FOCUSED*/)
+			if(item) return item,owner.getItemText(item,col);
+			return 0;
+		}; 
+		getSelection  = function(i,col){
+			var item = owner.getNextItem(i,2/*_LVNI_SELECTED*/)
+			if(item) return item,owner.getItemText(item,col);
+			return 0;
+		};
+		hitTest = function(x,y,screen=false){
+			if( !(x && y) ){
+				x,y = ..win.getMessagePos();
+				screen = true;
+			}
+			var hinfo = LVHITTESTINFO();
+			if(screen) x,y = ..win.toClient(owner.hwnd,x,y)
+			hinfo.pt.x = x; hinfo.pt.y = y; 
+			if( ::SendMessageByStruct(owner.hwnd,0x1039/*_LVM_SUBITEMHITTEST*/,0,hinfo) > -1 )
+				return hinfo.iItem + 1,hinfo.iSubItem+1,hinfo.flags;
+		};
+		getNotifyMessage = function(code,ptr){
+			if(type(ptr)!=type.pointer)
+				error("请指定有效NMLISTVIEW指针",2) 
+				
+			if( NMLISTVIEW.CODES[code] ){ 
+				var nm =  ..raw.convert(ptr,NMLISTVIEW() ); 
+				nm.iItem++;
+				nm.iSubItem++;
+				return nm;
+			}   
+		};
+		setNotifyDispInfo = function(ptr,nm){ 
+			if( ! ( ptr ? nm.item ) ){
+				error("参数类型错误",2)
+			}
+			with nm.item {
+				if( mask & 0x1/*_LVIF_TEXT*/ ){
+					if( text && __pszText__ && cchTextMax ){
+						text = ..string.toUnicode(tostring(text));
+						::CopyMemory(__pszText__,text,..math.min(cchTextMax * 2 ,#text));
+					}
+					iItem--;
+					iSubItem--;
+				}
+			}
+			..raw.mixin(ptr, nm);
+		};
+		getNotifyDispInfo = function(code,ptr){
+			if(type(ptr)!="pointer") error("请指定有效NMLISTVIEW指针",2)  
+			if(code==0xFFFFFF4F/*_LVN_GETDISPINFOW*/ || ( code == 0xFFFFFF50/*_LVN_ENDLABELEDITW*/) ){ 
+				var nm =  ..raw.convert(ptr,LV_DISPINFO() );  
+				with nm.item{
+					iItem++;
+					iSubItem++;
+					__pszText__ = text; 
+				}
+				return nm;
+			} 
+		} ; 
+		editLabel = function(i){
+			owner.setFocus()
+			return ::SendMessageInt(owner.hwnd,0x1017/*_LVM_EDITLABEL*/,( i : owner.getFocused()) -1,0);
+		};
+		getEditControl = function(){
+			var hwnd = ::SendMessage(owner.hwnd, 0x1018/*_LVM_GETEDITCONTROL*/ )
+			if( hwnd ){
+				var ctrl = ..win.ui.ctrl.edit();
+				ctrl.hwnd = hwnd;
+				return ctrl;
+			} 
+		} 
+		setTileViewInfo = function(inf){
+			if(! inf[["rcLabelMargin"]])
+				error("参数不是合法的LVTILEVIEWINFO()结构体",2)
+				
+			::SendMessageByStruct(owner.hwnd,0x10A2/*_LVM_SETTILEVIEWINFO*/,0,inf);
+		}
+		getTileViewInfo = function(){
+			var inf = LVTILEVIEWINFO();
+			::SendMessageByStruct(owner.hwnd,0x10A3/*_LVM_GETTILEVIEWINFO*/,0,inf);
+			return inf;
+		};
+		getColumn = function(col,idx){
+			if(type(col)!=type.table){
+				col = LVCOLUMN(); 
+			}
+			elseif(!col._struct)
+				col = ..table.assign( LVCOLUMN(), col )
+			 
+			if(col.mask===null){
+				col.mask = 0x2/*_LVCF_WIDTH*/ | 0x10/*_LVCF_IMAGE*/ | 0x1/*_LVCF_FMT*/
+			}
+			if( col.cchTextMax ){
+				col.mask |= 0x4/*_LVCF_TEXT*/ 
+			} 
+			if(col.mask & 0x4/*_LVCF_TEXT*/ ){
+				if( ! col.cchTextMax ) col.cchTextMax = 100; 
+				col.text = ..raw.buffer(col.cchTextMax * 2 );
+			}    
+
+			if( ::SendMessageByStruct(owner.hwnd, 0x105F/*_LVM_GETCOLUMNW*/, idx - 1, col) ){
+ 
+				if(!( col.mask & 0x10/*_LVCF_IMAGE*/ ) ){ 
+					col.iImage = null;
+				}  
+				
+				if(!( col.mask &  1/*_LVCF_FMT*/) ){ 
+					col.fmt = null;
+				} 
+				
+				if(!( col.mask & 2/*_LVCF_WIDTH*/  ) ){ 
+					col.cx = null;
+				} 
+				return col;
+			}
+		}; 
+		setColumn = function(col,idx){
+			if(!col._struct)
+				col = ..table.assign( LVCOLUMN(), col  )
+			 
+			col.iSubItem = idx
+			if( !col.iSubItem ){
+				col.iSubItem = owner.columnCount; 
+			} 
+			
+			col.iSubItem--; 
+			lvColumnUpdateMask(col);
+			if(!col.mask)return;
+			var ret = ::SendMessageByStruct(owner.hwnd, 0x1060/*_LVM_SETCOLUMNW*/, col.iSubItem, col); 
+			return ret;
+		};
+		insertColumn = function (text /* 文本 */,width /* 列宽 */, ind /* 插入位置 */,fmt){
+			ind := owner.columnCount + 1;
+			var col = LVCOLUMN();
+			col.mask = 0x8/*_LVCF_SUBITEM*/;  
+			col.iSubItem = ind - 1;
+			col.cx	= width;
+			col.fmt	= fmt;
+			if(owner.dpiScaleX){
+				col.cx	= col.cx * owner.dpiScaleX;
+			}
+			
+			var t = type(text);
+			if( t=="string" ){
+				col.text = text; 
+			}
+			elseif( t=="number" ){
+				col.iImage = text; 
+			}
+			elseif( t=="table" ){
+				..table.assign(col,text); 
+			}
+			lvColumnUpdateMask(col); 
+			var ret = ::SendMessageByStruct(owner.hwnd, 0x1061/*_LVM_INSERTCOLUMNW*/,ind - 1, col);
+			if( width <= 0 ){
+				owner.fillParent(ind);
+			}
+		};
+		delColumn = function (idx) {
+			return ::SendMessageInt(owner.hwnd, 0x101C/*_LVM_DELETECOLUMN*/, idx - 1, 0);
+		};
+		setColumnText = function (idx, text) {
+			return owner.setColumn( {text = tostring(text)} ,idx ); 
+		};
+		getColumnText = function (idx,max) { 
+			var col = owner.getColumn({
+				cchTextMax = max : 100;
+			},idx);
+			if( col[["text"]] ) return ..string.fromUnicode( col[["text"]],,-1 );
+		};
+		getColumnImage = function (idx) {
+    		var col = owner.getColumn({mask=1/*_LVCF_FMT*/ | 0x10/*_LVCF_IMAGE*/},idx) 
+    		if (col.fmt & 0x800/*_LVCFMT_IMAGE*/) return col.iImage;
+		}; 
+		setColumnImage = function (idx,img,fmt) { 
+			if( fmt === null ) fmt =  img !== null 
+				? 0x800/*_LVCFMT_IMAGE*/ | 0x1000/*_LVCFMT_BITMAP_ON_RIGHT*/ : 0;
+    		return owner.setColumn({iImage = img;fmt=fmt} ,idx );  
+		}; 
+		clearColumnImage = function(){
+			for (i = 1; owner.columnCount) owner.setColumnImage(i, null ); 
+		};
+		setColumnImageList = function (imgList) {  
+			::SendMessage(owner.getHeader(), 0x1208/*_HDM_SETIMAGELIST*/, ,imgList[["handle"]]:imgList); 
+		};
+		setImageList = function (imgList,wParam=0/*_LVSIL_NORMAL*/) { 
+			::User32.SendMessageP(owner.hwnd, 0x1003/*_LVM_SETIMAGELIST*/,wParam, imgList[["handle"]]:imgList);
+		};
+		getImageList = function (wParam=0/*_LVSIL_NORMAL*/) {
+			return topointer( ::SendMessageInt(owner.hwnd, 0x1002/*_LVM_GETIMAGELIST*/, wParam, 0) ); 
+		};
+		getHeader = function(){
+			return ::SendMessage(owner.hwnd, 0x101F/*_LVM_GETHEADER*/);
+		};
+		columnCount = {
+			_get = function () { 
+				return ::SendMessageInt(owner.getHeader(), 0x1200, 0, 0);
+			}
+		};
+		getItemRect = function(row,col,rc,code=0/*_LVIR_BOUNDS*/){ 
+			rc := ::RECT();
+			if(col){ rc.top = col-1; }
+			rc.left = code;  
+			var ret = ::SendMessageByStruct(owner.hwnd,(col!==null)?0x1038/*_LVM_GETSUBITEMRECT*/ : 0x100E/*_LVM_GETITEMRECT*/,(row : owner.selIndex)-1,rc); 
+			return rc;
+		};
+		fillParent = function(ind,width){ 
+			var c = owner.columnCount; 
+			if(!ind){ ind = owner.filledParentIndex : c }
+		
+			//::SendMessageInt(owner.hwnd,0x101E/*_LVM_SETCOLUMNWIDTH*/,owner.filledParentIndex-1,width:-2/*_LVSCW_AUTOSIZE_USEHEADER*/);
+			var rc = owner.clientRect;
+			var width = rc.right - rc.left;
+			
+			var col = LVCOLUMN();
+			for(i=1;c;1){
+				if( i != ind){
+					col.mask = 0x2/*_LVCF_WIDTH*/; 
+					if( !owner.getColumn(col,i) )
+						return false;;
+						
+					width -= col.cx;
+				} 
+			} 
+			
+			if( width > 0 ){
+				owner.filledParentIndex = ind;
+				owner.setColumn( {cx=width} ,ind); 
+			}
+		};
+		addItem = function(text, ind, image = -1, state = -1, indent = 0, lParam = 0) {
+			ind := owner.count + 1; 
+			var item = LVITEM();
+			item.iItem = ind-1; 
+			item.iSubItem = 0
+			item.iImage = image;
+			item.state = (state + 1) * 4096;
+			item.stateMask = 0xF000/*_LVIS_STATEIMAGEMASK*/;
+			item.iIndent = indent;
+			item.lParam	 = lParam;
+			
+			var textList;
+			if( type(text) == "table" ){ 
+				if(#text){
+					textList = text
+					item.text = textList[1]; 
+				}
+				else {
+					..table.assign(item,text); 
+					if(type(item.text) == "table" ){
+						textList = item.text;
+						item.text = textList[1];
+					}
+				};
+			}
+			else {
+				item.text = text;
+			}
+			 
+			lvItemUpdateMask(item);
+			var rowIndex = ::SendMessageByStruct(owner.hwnd, 0x104D/*_LVM_INSERTITEM*/, 0, item);
+			if ( textList ) { 
+				item.mask = 0x1/*_LVIF_TEXT*/;
+				for (i = 2; #textList) {
+					item.iSubItem = i - 1;
+					item.text = textList[i]; 
+					::SendMessageByStruct(owner.hwnd, 0x1074/*_LVM_SETITEMTEXT*/, rowIndex, lvItemUpdateText(item) );
+				}
+			}
+			return rowIndex+1;
+		}
+		delItem = function(ind){
+			ind := owner.count;
+			return ::SendMessageInt(owner.hwnd, 0x1008/*_LVM_DELETEITEM*/,ind-1,0); 
+		}
+		clear = function(cols){
+			if( cols ){
+				owner.setColumns(null);
+			}
+			return ::SendMessage(owner.hwnd, 0x1009/*_LVM_DELETEALLITEMS*/); 
+		}
+		setItemText = function (text,row=1,col=1 ) {
+			var item = LVITEM();
+			item.mask = 0x1/*_LVIF_TEXT*/;
+			row--;
+			var tt = type(text);
+			if( tt!="table" ){ 
+				item.iSubItem = col - 1;
+				item.text = text;
+				return ::SendMessageByStruct(owner.hwnd, 0x1074/*_LVM_SETITEMTEXT*/, row, lvItemUpdateText(item) );
+			}
+			else{
+				for (i = 1; #text) {
+					item.iSubItem = i-1;
+					item.text = text[i]; 
+					::SendMessageByStruct(owner.hwnd, 0x1074/*_LVM_SETITEMTEXT*/, row, lvItemUpdateText(item) );
+				}
+			} 
+		}
+		getItemText = function ( row,col=1,len=0x208/*_MAX_PATH_U16*/ ) {
+			var item = LVITEM();
+			item.mask = 0x1/*_LVIF_TEXT*/;
+			item.iSubItem = col-1;
+			item.text = ..raw.buffer(len);
+			item.cchTextMax = len /2;
+			if(col==-1){
+				var ret = {}
+				for(i=1;owner.columnCount) {
+					item.iSubItem = i-1;
+					var len = ::SendMessageByStruct(owner.hwnd, 0x1073/*_LVM_GETITEMTEXT*/,row-1, item); 
+					if( len && ( item.text != _LPSTR_TEXTCALLBACK)  ){
+						ret[i] = ..string.fromUnicode(item.text,,len); 
+					} 
+				}
+				return ret;	
+			}
+			
+			var len = ::SendMessageByStruct(owner.hwnd, 0x1073/*_LVM_GETITEMTEXT*/, row-1, item); 
+			if( len && ( item.text != _LPSTR_TEXTCALLBACK)  ) return ..string.fromUnicode( item.text,,len);
+			return "";
+		};
+		items = {
+			_get = function(){
+				var upk = ..table.unpack;
+				var push = ..table.push;
+				var fromUnicode = ..string.fromUnicode;
+				
+				var item = LVITEM();
+				item.mask = 0x1/*_LVIF_TEXT*/; 
+				item.text = ..raw.buffer(0x208/*_MAX_PATH_U16*/);
+				item.cchTextMax = 0x208/2;
+				
+				var t = {};
+				var columns = owner.columnCount; 
+				for(r=1;owner.count ){ 
+					var row = {}
+					for(i=1;columns) {
+						item.iSubItem = i-1;
+						var len = ::SendMessageByStruct(owner.hwnd, 0x1073/*_LVM_GETITEMTEXT*/, r-1, item); 
+						if( len && ( item.text != _LPSTR_TEXTCALLBACK)  ){
+							row[i] = fromUnicode( item.text,,len); 
+						} 
+					}
+					push(t,row) ; 
+				} 
+				 
+               	if(owner.getExtended(0x4/*_LVS_EX_CHECKBOXES*/)){
+               		var c = {};
+               		for(i=1;owner.count) if(owner.getChecked(i))push(c,i);
+                	t.checked = c;
+               	}
+              
+				return t; 
+			}
+			_set = function( t ){ 
+				owner.clear();
+				if( type(t[1])== type.string ){
+					t = ..table.map(t,lambda(v){v});
+				}
+				
+				var item = LVITEM();
+				item.stateMask = 0xF000/*_LVIS_STATEIMAGEMASK*/; 
+				item.mask = 1/*_LVIF_TEXT*/;
+				
+				toUnicode = ..string.toUnicode;
+				for(r=1;#t ){
+					var row = t[r];
+					item.text = toUnicode( tostring(row[1]) );
+					item.iItem = r - 1;
+					item.iSubItem = 0;
+					::SendMessageByStruct(owner.hwnd, 0x104D/*_LVM_INSERTITEM*/, 0, item);
+					
+					item.mask = 0x1/*_LVIF_TEXT*/;
+					for (c = 2; #row) {
+						item.iSubItem = c - 1;
+						item.text = toUnicode( tostring(row[c]) );
+						::SendMessageByStruct(owner.hwnd, 0x1074/*_LVM_SETITEMTEXT*/, r-1, item);
+					}
+				}
+		    	
+				var c = t.checked;	
+				if(c) for(i=1;#c) owner.setChecked(c[i],true);
+			} 	
+		};
+		setTable = function(t){
+			var row;
+			var fields = t.fields;
+			if( owner.columnCount == 0){ owner.setColumns(fields); };
+			
+			owner.clear();
+			
+			var item = LVITEM(); 	
+			item.stateMask = 0xF000/*_LVIS_STATEIMAGEMASK*/; 
+			item.mask = 0x1/*_LVIF_TEXT*/;
+			toUnicode = ..string.toUnicode;
+			
+			var itemText;
+			for(r=1;#t ){
+				var row = t[r];
+				var col = row[ fields[1] ];
+				item.text = col !== null ? toUnicode( tostring(col) ) : "";
+				item.iItem = r - 1; 
+				item.iSubItem = 0; 
+				::SendMessageByStruct(owner.hwnd, 0x104D/*_LVM_INSERTITEM*/, 0, item);
+				
+				item.mask = 0x1/*_LVIF_TEXT*/;
+				for (c = 2; #fields) {
+					item.iSubItem = c - 1;
+					itemText = row[ fields[c] ];
+					item.text = itemText!==null ? toUnicode( tostring(itemText) ) : "";
+					::SendMessageByStruct(owner.hwnd, 0x1074/*_LVM_SETITEMTEXT*/, r-1, item);
+				}
+			} 
+		};
+		setColumns = function(fields){
+			for(i=owner.columnCount-1;0;-1){
+				::SendMessageInt(owner.hwnd, 0x101C/*_LVM_DELETECOLUMN*/, i, 0);
+			}
+			
+			if !(fields && #fields) return;
+			var str = ..string.join(fields);
+			var rc = owner.clientRect;
+			var width = rc.right - rc.left;
+			var col = width/ #str;
+			
+			for(i=1;#fields;1) owner.insertColumn(fields[i],col*#fields[i]);
+		};
+		checked = {
+			_get = function(){  
+               	var c = {};
+               	for(i=1;owner.count) if(owner.getChecked(i))..table.push(c,i);
+				return c;
+			}
+			_set = function(c){ 
+				for(i=1;owner.count) owner.setChecked(i,false);
+				for(i=1;#c) owner.setChecked(c[i],true);
+			} 	
+		};
+		selected = {
+			_get = function(){  
+               	var c = {};
+               	for(i=1;owner.count) if(owner.getSelected(i))..table.push(c,i);
+				return c;
+			}
+			_set = function(c){ 
+				for(i=1;owner.count) owner.setSelected(i,false);
+				for(i=1;#c) owner.setSelected(c[i],true);
+			} 	
+		};
+		setItemPos = function ( ind,x,y ) { 
+			return ::SendMessageInt(owner.hwnd,0x100F/*_LVM_SETITEMPOSITION*/,ind-1,y*65536+x);  
+		};  
+		setItemState = function(row,state=0,mask){
+			var item = LVITEM();
+			item.mask = 0x8/*_LVIF_STATE*/; 
+			item.stateMask = mask===null?state:mask;
+			item.state = state
+			return ::SendMessageByStruct(owner.hwnd, 0x102B/*_LVM_SETITEMSTATE*/, row-1, item); 
+		};
+		getItemState = function(row,mask=0){
+			return ::SendMessageInt(owner.hwnd, 0x102c/*LVM_GETITEMSTATE*/, row-1,mask)  
+		};
+		ensureVisible = function (row) {
+			::SendMessageInt(owner.hwnd, 0x1013/*_LVM_ENSUREVISIBLE*/, (row : owner.selIndex) - 1, 0);
+		};
+		setSelected = function (row, selected=true) {
+			return owner.setItemState(row,selected ? 0x2/*_LVIS_SELECTED*/ : 0,0x2/*_LVIS_SELECTED*/ ); 
+		}; 
+		getSelected = function(row){
+			return owner.getItemState(row,0x2/*_LVIS_SELECTED*/ ) == 0x2/*_LVIS_SELECTED*/ 
+		}; 
+		getChecked = function(i){
+    		return ( owner.getItemState(i,0xF000/*LVIS_STATEIMAGEMASK*/) >> 12 ) != 1;
+		};
+		setChecked = function(i,v=true){ 
+			return owner.setItemState(i,( (v)?2:1 )<<12 ,0xF000/*LVIS_STATEIMAGEMASK*/) ;
+		};
+		selIndex = {
+			_get = function(){  
+				return ::SendMessageInt(owner.hwnd, 0x100C/*_LVM_GETNEXTITEM*/, -1, 0x1/*_LVNI_FOCUSED*/) + 1
+			}
+			_set = function( v ){
+				if(!v)return;
+				return owner.setItemState( v,0x1/*_LVNI_FOCUSED*/ | 0x2/*_LVIS_SELECTED*/)
+			} 	
+		}; 
+		setExtended = function(ex,v=true){
+			return ::SendMessageInt(owner.hwnd, 4150/*_LVM_SETEXTENDEDLISTVIEWSTYLE*/,ex,v?ex:0);
+		}
+		getExtended = function(ex=~0){
+			return ::SendMessage(owner.hwnd, 0x1037/*_LVM_GETEXTENDEDLISTVIEWSTYLE*/) & ex;
+		} 
+		checkbox = { 
+			_get = function(){
+				return owner.getExtended(4);
+			} 
+			_set = function( v ){  
+				 owner.setExtended(4/*_LVS_EX_CHECKBOXES*/|0x20/*_LVS_EX_FULLROWSELECT*/,v);
+			} 	
+		}; 
+		gridLines = { 
+			_set = function( v ){  
+				 owner.setExtended(0x1/*_LVS_EX_GRIDLINES*/,v)
+			} 	
+		};  
+		fullRow = {
+			_set = function( v ){  
+				 owner.setExtended(0x20/*_LVS_EX_FULLROWSELECT*/,v)
+			} 	
+		};
+		_preadjust = function(){
+			if(owner.filledParentIndex){
+				owner.fillParent(owner.filledParentIndex);
+			}
+		};
+		_afterDpiChanged = function(scaleX,scaleY,origScaleX,origScaleY){
+			var c = owner.columnCount;  
+			var col = LVCOLUMN();
+			for(i=1;c;1){ 
+				col.mask = 0x2/*_LVCF_WIDTH*/; 
+				if( owner.getColumn(col,i) ){
+					owner.setColumn( {cx=col.cx/origScaleX * scaleX } ,i); 
+				}
+							
+			}  
+		};
+ 	};
+ 	listview.editLable = listview.editLabel; // @Deprecated 
+ 	
+	_metaProperty = ..win.ui.ctrl.metaProperty(listview)
+}
+
+//https://msdn.microsoft.com/en-us/library/windows/desktop/ff485973(v=vs.85).aspx#
+
+/**intellisense()
+!listview.cls = 设计时类名
+!listview.className = 运行时类名 
+!listview.getNotifyMessage() = !NMLISTVIEW.
+!NMLISTVIEW.hdr = !nmhdr.
+!NMLISTVIEW.ptAction = !point.
+!NMLISTVIEW.iItem = 鼠标指向项的行号\n没有使用则为0
+!NMLISTVIEW.iSubItem =  鼠标指向项的列序号\n没有使用则为0
+!NMLISTVIEW.uNewState = 改变后状态\n由_LVIS_作为前缀的常量指定
+!NMLISTVIEW.uOldState = 改变前状态\n由_LVIS_作为前缀的常量指定
+!NMLISTVIEW.uChanged = 类似LVITEM结构体中的mask成员\n以LVIF_前缀的常量标明改变的属性
+!NMLISTVIEW.lParam = 附加参数
+!listview.getNotifyMessage(code,ptr) = 该函数限用于onnotify通知回调函数中\ncode参数为通知码,如果ptr指向NMLISTVIEW对象则返回该对象.
+!listview.getNotifyDispInfo() = !LV_DISPINFO.
+!LV_DISPINFO.hdr = !nmhdr.
+!LV_DISPINFO.item = !lvitem.
+!listview.setNotifyDispInfo(.(ptr,dispinfo) = 参数@1为更新目标指针,\n参数@2必须是getNotifyDispInfo函数的返回值
+!listview.getNotifyDispInfo(code,ptr) = 该函数限用于onnotify通知回调函数中\ncode参数为通知码,ptr参数为NMHDR指针\n如果NMHDR指针指向LV_DISPINFO对象则返回该对象,否则返回空值
+!lvitem.mask = 掩码
+!lvitem.iItem = 行
+!lvitem.iSubItem = 列
+!lvitem.state = 状态码 
+!lvitem.stateMask = 状态掩码
+!lvitem.text = 文本指针\n注意该值是指针类型而不是字符串类型\n转换为字符串必须首先判断mask是否包含0x1/*_LVIF_TEXT*/
+!lvitem.cchTextMax = 文本长度
+!lvitem.iImage = 图像索引
+!lvitem.lParam = 附加值
+!lvitem.iIndent = 缩进
+!lvitem.iGroupId = 组ID
+!lvitem.cColumns = 列数目
+!lvitem.puColumns = !point. 
+!listview.getItem(__) = 返回LVITEM对象,参数为TVITEM结构体或指定部分成员的table对象.\n可选使用参数一指定行号,参考二指定列序号,\n不指定项目序号,则取当前焦点节点作为序号
+!listview.setItem(.(LVITEM对象,行序号,列序号) = 更新项节点,参数为LVITEM结构体或指定部分成员的table对象\n如果参数未指定节点序号,则取当前焦点节点序号\n成功返回true;\n此函数可自动检测非空成员并自动设定相应mask位
+!listview.getItem() = !lvitem.
+!lvcolumn.mask = 掩码;
+!lvcolumn.fmt = 样式
+!lvcolumn.cx = 宽度
+!lvcolumn.text = 文本指针\n注意该值是指针类型而不是字符串类型\n转换为字符串必须首先判断mask包含0x4/*_LVCF_TEXT*/
+!lvcolumn.cchTextMax = 文本缓冲区长度
+!lvcolumn.iSubItem = 列号 
+!lvcolumn.iImage = 图像索引
+!lvcolumn.iOrder = 序号
+!listview.getColumn() = !lvcolumn.
+!listview.getColumn(.(列参数表,列序号) = 参数一可以为空,或是指定LVCOLUMN结构体成员键值的参数表,\n返回LVCOLUMN结构体
+!listview.setColumn(.({cx=100},列序号) = 改变列宽
+!listview.setColumn(.(列参数表,列序号) = 参数一指定LVCOLUMN结构体成员键值的参数表,\n也可以是LVCOLUMN结构体对象,自动设置掩码参数.
+!listview.getEditControl() = 开始编辑时返回编辑控件,\n此控件在完成编辑后会自动销毁,不必手动销毁\n取消发送_WM_CANCELMODE消息即可\n!edit.
+?.getEditControl = !edit.
+!listview.editLabel(.(行序号) = 编辑指定项,无参数则编辑选定项\n此函数成功返回编辑文本框句柄\n返则返回0
+!listview.setItemPos(__/*项索引*/,x,y) = 设置图标项坐标
+!listview.count = 项目总数
+!listview.insertColumn(.(列名,列宽,位置,样式) = 第一个参数可以是标题字符串,图像索引,\n或者指定LVCOLUMN结构体成员的table对象,\n\n其他参数都是可选参数,\n样式使用_LVCFMT_前缀的常量指定,\n例如_LVCFMT_LEFT为文本左对齐,注意第一列只能左对齐,\n不指定样式则默认左对齐,\n如果列宽为-1,则自动调用fillParent(ind)函数填充剩余空间
+!listview.setColumnText(.(位置,文本) = 设置指定列文本
+!listview.getColumnText(__) = 取指定列文本
+!listview.delColumn(__) = 删除指定列
+!listview.columnCount = 列总数
+!listview.clear() = 清空所有项
+!listview.clear(true) = 清空所有项,并且删除所有列
+!listview.getNextItem(.(起始索引,选项) = 参数二为一个或多个 _LVNI_ 前缀的常量合并\n默认为 _LVNI_ALL \n起始索引默认为0 
+!listview.getFocused(返回字段列号) = 获取当前焦点项位置,返回数值,不存在焦点项则返回0,\n\n返回字段列号为可选参数，\n返回值2为参数为返回行指定列的文本值
+!listview.getSelection(.(起始索引,返回字段列号)  = 获取选中项,返回数值,不存在选中项则返回0\n可选指定起始索引,默认为0,\n\n返回字段列号为可选参数，\n返回值2为参数为返回行指定列的文本值		
+!listview.addItem(.(文本,位置,图像索引) = 位置参数可省略,默认为count值\n图像索引可省略,默认为-1\n文本可以是一个指定多列文本的table数组,\n如果列文本不是指针、空值则自动转换为字符串,\n返回新增项行号
+!listview.addItem(.(LVITEM对象,位置) = 参数一可以是指定一个或多个LVITEM对象成员的table对象\ntext成员指定项目文件,也可以是一个指定多列文本的数组\n位置参数可省略,默认为count值\n返回新增项行号
+!listview.setItemText(.(文本,行,列) = 设置项目指定列文本,\n参数一也可是指定多列文本的数组(table对象),\n设置的文本如果不是指针或空值则自动转换为字符串,\n其他参数可选
+!listview.getItemText(.(行,列,缓冲区长度) = 返回指定项指定列文本，列默认值为1,\n如果列指定为-1，则返回一个包含所有列文本的数组,\n缓冲区最大字符数默认为520
+!listview.getItemRect(.(行,列,RECT,选项) = 返回表示项目表示项目区块的RECT结构体,\n除第一个参数以外,其他参数为可选参数,\n如果不指定列则返回所在行区块,\n使用_LVIR_前缀常量指定选项
+!listview.getItemRect() = !rect.
+!listview.hitTest(.(x坐标,y坐标,是否屏幕坐标) = 该函数返回指定坐标的行号,参数三可省略,默认为false.\n如果不指定任何参数,则自动调用 win.getMessagePos() 获取消息坐标\n返回行号,列号,_LVHT_前缀的状态常量
+!listview.selected = 所有选中项目索引的数组,注意是选中而不是勾选复选框
+!listview.setSelected(__/*项索引*/) = 选中项,注意是选中而不是勾选复选框
+!listview.setSelected(__/*项索引*/,false) = 取消选中项,注意是选中而不是勾选复选框
+!listview.getSelected(__/*项索引*/) = 指定项是否选中状态
+!listview.getChecked(__) = 返回指定索引项是否已勾选复选框，需要启用复选框支持
+!listview.setChecked(.(索引,是否勾选) = 勾选指定索引项前面的复选框，需要启用复选框支持\n参数@1为0则设置全部项目,\n参数@2省略则默认为true
+!listview.setItemState(.(项索引,状态位,掩码) = 设置状态,参数三如果省略则使用参数二的值.\n参数@1为0则设置全部项目,
+!listview.getItemState(.(项索引,状掩码 ) = 读取状态值
+!listview.selIndex = 当前选定项索引
+!listview.fullRow = 是否选中整行
+!listview.hwnd = 控件句柄
+!listview.id = 控件ID
+!listview._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!listview.getParent() = 返回父窗口\n!static.
+!listview.setParent(__/*控件对象*/) = 改变父窗口 
+!listview.disabled = 是否禁用
+!listview.left = 左侧坐标
+!listview.right = 右侧坐标
+!listview.top = 顶部坐标
+!listview.bottom = 底部坐标 
+!listview.width = 宽度
+!listview.height = 高度
+!listview.redraw() = 刷新
+!listview.setRedraw(false) = 禁止重绘
+!listview.setRedraw(true) = 恢复重绘
+!listview.show(true__) = 显示控件
+!listview.getRect() = 控件区块位置(::RECT结构体)
+!listview.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!listview.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!listview.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!listview.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+!listview.getFont() = 控件字体(::LOGFONT结构体)\n!logfont.
+!listview.setFont(__/*指定字体*/) = 指定LOGFONT字体对象,或逻辑字体句柄 
+!listview.setFont(混入字体属性) = @.setFont(point=10;name="宋体");
+!listview.clientRect =  获取控件客户区块位置(::RECT结构体)
+!listview.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!listview.delItem(__) = 参数为数值,移除指定索引的项目
+!listview.items = 返回或设置包含所有列表项的数组\n数组的每个项表示一行，每行也必须是包含列文本的数组\n返回数组有一个可选字段checked包含了所有勾选的行
+!listview.setColumns(__) = 用一个字符串数组指定要显示的列\n如果参数为空则清空所有列
+!listview.setTable(__) = 用listview控件显示数据表\n此函数会自动清空控件之前的所有项,\n如果没有创建任何列,则自动创建列\n如果要重新创建列,请先调用clear(true)清空原来的列,\n\n数据表应当包含行组成的数组,\n每行的数据列必须是由列名和列值组成的键值对\n数据表应使用fields包含需要显示的列名称数组\n可以通过fields控制要显的列、以及要显示的顺序\n\n使用sqlite,access,sqlServer等数据库对象提供的getTable函数可获取符合此规格的数据表
+!listview.checked = 返回已勾选复选框的项目索引数组,\n需要先启用复选框支持
+!listview.checkbox = 是否在每个项目前显示复选框
+!listview.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!listview.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!listview.capture = 是否捕获全局鼠标消息
+!listview.close() = 关闭控件窗口
+!listview.setExtended(_LVS_EX__) = 启用树视图指定扩展样式
+!listview.setExtended(_LVS_EX__,false) = 取消树视图指定扩展样式
+!listview.getExtended() = 获取树视图扩展样式
+!listview.getExtended(_LVS_EX__) = 获取树视图指定扩展样式
+!listview.gridLines = 是否显示网格线
+!listview.setFocus() = 设置焦点 
+!listview.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!listview.getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd)
+!listview.getTileViewInfo() = 返回排列显示相关属性
+!listview.setTileViewInfo() = 设置排列显示相关属性
+!listview.ensureVisible() = 保证显示选中项
+!listview.ensureVisible(__) = 保证显示指定项
+!listview.getImageList( _LVSIL__ ) = 获取图像列表,\n可选使用 _LVSIL_ 前缀常量指定类型
+!listview.setImageList( imageList,_LVSIL__ ) = 指定图像列表,\n可选使用 _LVSIL_ 前缀常量指定类型\nlistview控件在销毁时将自动销毁最后一次指定的图像列表，\n通过替换并且不再使用的图像列表由用户负责销毁
+!listview.clearColumnImage() = 清除所有列的图像索引
+!listview.getColumnImage(.(col) = 获取指定列的图像索引,参数和返回值都是数值,\n无图像返回null
+!listview.setColumnImage(.(col,iImage,fmt) = 使用col指定列索引设置该列的图像索引为iImage,\n第一列col的索引值为1,但图像列表的第一个图像索引为0,\n可选用fmt指定图像显示位置,此参数用法参考此函数源码
+!listview.setColumnImageList(.(imgList) = 设置图像列表,\n参数可以是图像列表句柄,也可以传入win.imageList对象
+!listview.getHeader() = 返回列标题窗口句柄
+!listview.fillParent(.(列序号) = 使指定列自适应父窗口宽度,\n如果不指定列默认调整最后一列,\n用户调整窗口大小时会自动调用此函数调整自适应列
+!listview.threadCallable() = 开启此控件的跨线程调用功能
+!listview.orphanWindow() = 使控件脱离原来的窗口,可以显示在父窗口外面,\n但仍然显示在原来的位置,继续如影随形的跟随父窗口移动或改变大小,\n控件原来的固定边距等参数仍然有效
+!listview.each(起始索引,选项) = @for itemIndex in ??.each(){
+	__/*遍历所有项*/
+}
+!listview.eachSelected(subItemIndex) = @for itemIndex,subItemValue in ??.eachSelected(){
+	__/*遍历所有选中项,itemIndex 参数为行号,\nsubItemValue 为 subItemIndex 参数所指定列的文本值*/
+}
+!listview.adjust = @.adjust = function(cx,cy){
+    winform.listview.fillParent(/*列序号*/);
+} 
+!listview.findItem(.(查找文本,起始位置,部分匹配,全局搜索) = 使用文本查找匹配项,\n除第一个参数外,所有参数可选,\n部分匹配仅限于匹配文本开始部分,默认值为true\n全局搜索指搜索到最后一项以后转到第一项继续搜索
+!listview.addCtrl = @.addCtrl(\n	edit ={ cls="edit";left=0;top=0;right=50;bottom=50;autoResize=false ;hide=1;edge=1;  }\n)
+!listview.onDestroy = @.onDestroy = function(){\n	__/*窗口销毁前触发*/\n}
+!listview.onnotify = @.onnotify = function(id,code,ptr){\n	__/*通知事件触发*/\n}
+!listview.oncommand = @.oncommand = function(id,event){\n	__/*命令事件触发*/\n}
+!listview.wndproc = @.wndproc = function(hwnd,message,wParam,lParam){\n	__/*窗口消息回调，返回任意非null值阻止默认回调\nwndproc重复赋值时追加函数而不是覆盖之前的回调\n设为null添除所有消息回调函数\nwndproc也可以是一个表,键要为处理的消息,值为对应的消息回调函数*/	\n}
+!listview.sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+!listview.postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+?win.ui.ctrl.listview  =!listview.
+win.ui.ctrl.listview() = 列表视图\n!listview.
+!tileviewinfo.dwMask = @.dwMask = _LVTVIM__ ;
+!tileviewinfo.dwFlags = @.dwFlags = _LVTVIF__ ;
+!tileviewinfo.sizeTile = !size.
+!tileviewinfo.cLines = 行数
+!tileviewinfo.rcLabelMargin = !rect.
+?.getTileViewInfo = !tileviewinfo.
+!listview.getNotifyCustomDraw(code,ptr) =  NM_CUSTOMDRAW通知消息返回NMLVCUSTOMDRAW结构体
+!listview.getNotifyCustomDraw() = !NMLVCUSTOMDRAW.
+?.getNotifyCustomDraw = !NMLVCUSTOMDRAW.
+!NMLVCUSTOMDRAW.update() = 更新数据
+!NMLVCUSTOMDRAW.nmcd.dwDrawStage = 绘图状态
+!NMLVCUSTOMDRAW.nmcd.hdr = !nmhdr.
+!NMLVCUSTOMDRAW.nmcd.hdc = 设置句柄
+!NMLVCUSTOMDRAW.nmcd.rc = !rect.
+!NMLVCUSTOMDRAW.nmcd.dwItemSpec = 行序号
+!NMLVCUSTOMDRAW.nmcd.uItemState = uItemState
+!NMLVCUSTOMDRAW.nmcd.lItemlParam = lItemlParam
+!NMLVCUSTOMDRAW.clrText = 文字颜色
+!NMLVCUSTOMDRAW.clrTextBk = 文字背景色 
+!NMLVCUSTOMDRAW.iSubItem = 列序号 
+!NMLVCUSTOMDRAW.dwItemType = dwItemType
+!NMLVCUSTOMDRAW.clrFace = clrFace
+!NMLVCUSTOMDRAW.iIconEffect = iIconEffect
+!NMLVCUSTOMDRAW.iIconPhase = iIconPhase
+!NMLVCUSTOMDRAW.iPartId = iPartId
+!NMLVCUSTOMDRAW.iStateId = iStateId
+!NMLVCUSTOMDRAW.rcText= !rect.
+!NMLVCUSTOMDRAW.uAlign = 对齐
+_CDIS_CHECKED=@8/*_CDIS_CHECKED*/
+_CDIS_DEFAULT=@0x20/*_CDIS_DEFAULT*/
+_CDIS_DISABLED=@4/*_CDIS_DISABLED*/
+_CDIS_FOCUS=@0x10/*_CDIS_FOCUS*/
+_CDIS_GRAYED=@2/*_CDIS_GRAYED*/
+_CDIS_HOT=@0x40/*_CDIS_HOT*/
+_CDIS_SELECTED=@1/*_CDIS_SELECTED*/
+_CDIS_MARKED=@0x80/*_CDIS_MARKED*/
+_CDIS_INDETERMINATE=@0x100/*_CDIS_INDETERMINATE*/
+_CDIS_SHOWKEYBOARDCUES=@0x200/*_CDIS_SHOWKEYBOARDCUES*/
+_LVTVIM_TILESIZE=@0x1/*_LVTVIM_TILESIZE*/
+_LVTVIM_COLUMNS=@0x2/*_LVTVIM_COLUMNS*/
+_LVTVIM_LABELMARGIN=@0x4/*_LVTVIM_LABELMARGIN*/
+_LVTVIF_AUTOSIZE=@0x0/*_LVTVIF_AUTOSIZE*/
+_LVTVIF_FIXEDWIDTH=@0x1/*_LVTVIF_FIXEDWIDTH*/
+_LVTVIF_FIXEDHEIGHT=@0x2/*_LVTVIF_FIXEDHEIGHT*/
+_LVTVIF_FIXEDSIZE=@0x3/*_LVTVIF_FIXEDSIZE*/
+_LVTVIF_EXTENDED=@0x4/*_LVTVIF_EXTENDED*/
+
+_LVS_ICON=@0x0/*_LVS_ICON*/
+_LVS_REPORT=@0x1/*_LVS_REPORT*/
+_LVS_SMALLICON=@0x2/*_LVS_SMALLICON*/
+_LVS_LIST=@0x3/*_LVS_LIST*/
+_LVS_TYPEMASK=@0x3/*_LVS_TYPEMASK*/
+_LVS_SINGLESEL=@0x4/*_LVS_SINGLESEL*/
+_LVS_SHOWSELALWAYS=@0x8/*_LVS_SHOWSELALWAYS*/
+_LVS_SORTASCENDING=@0x10/*_LVS_SORTASCENDING*/
+_LVS_SORTDESCENDING=@0x20/*_LVS_SORTDESCENDING*/
+_LVS_SHAREIMAGELISTS=@0x40/*_LVS_SHAREIMAGELISTS*/
+_LVS_NOLABELWRAP=@0x80/*_LVS_NOLABELWRAP*/
+_LVS_AUTOARRANGE=@0x100/*_LVS_AUTOARRANGE*/
+_LVS_EDITLABELS=@0x200/*_LVS_EDITLABELS*/
+_LVS_OWNERDATA=@0x1000/*_LVS_OWNERDATA*/
+_LVS_NOSCROLL=@0x2000/*_LVS_NOSCROLL*/
+_LVS_TYPESTYLEMASK=@0xFC00/*_LVS_TYPESTYLEMASK*/
+_LVS_ALIGNTOP=@0x0/*_LVS_ALIGNTOP*/
+_LVS_ALIGNLEFT=@0x800/*_LVS_ALIGNLEFT*/
+_LVS_ALIGNMASK=@0xC00/*_LVS_ALIGNMASK*/
+_LVS_OWNERDRAWFIXED=@0x400/*_LVS_OWNERDRAWFIXED*/
+_LVS_NOCOLUMNHEADER=@0x4000/*_LVS_NOCOLUMNHEADER*/
+_LVS_NOSORTHEADER=@0x8000/*_LVS_NOSORTHEADER*/
+_LVS_EX_GRIDLINES=@0x1/*_LVS_EX_GRIDLINES*/
+_LVS_EX_SUBITEMIMAGES=@0x2/*_LVS_EX_SUBITEMIMAGES*/
+_LVS_EX_CHECKBOXES=@0x4/*_LVS_EX_CHECKBOXES*/
+_LVS_EX_TRACKSELECT=@0x8/*_LVS_EX_TRACKSELECT*/
+_LVS_EX_HEADERDRAGDROP=@0x10/*_LVS_EX_HEADERDRAGDROP*/
+_LVS_EX_FULLROWSELECT=@0x20/*_LVS_EX_FULLROWSELECT*/
+_LVS_EX_ONECLICKACTIVATE=@0x40/*_LVS_EX_ONECLICKACTIVATE*/
+_LVS_EX_TWOCLICKACTIVATE=@0x80/*_LVS_EX_TWOCLICKACTIVATE*/
+_LVS_EX_FLATSB=@0x100/*_LVS_EX_FLATSB*/
+_LVS_EX_REGIONAL=@0x200/*_LVS_EX_REGIONAL*/
+_LVS_EX_INFOTIP=@0x400/*_LVS_EX_INFOTIP*/
+_LVS_EX_UNDERLINEHOT=@0x800/*_LVS_EX_UNDERLINEHOT*/
+_LVS_EX_UNDERLINECOLD=@0x1000/*_LVS_EX_UNDERLINECOLD*/
+_LVS_EX_MULTIWORKAREAS=@0x2000/*_LVS_EX_MULTIWORKAREAS*/
+_LVS_EX_LABELTIP=@0x4000/*_LVS_EX_LABELTIP*/
+_LVS_EX_BORDERSELECT=@0x8000/*_LVS_EX_BORDERSELECT*/
+_LVS_EX_DOUBLEBUFFER=@0x10000/*_LVS_EX_DOUBLEBUFFER*/
+_LVS_EX_HIDELABELS=@0x20000/*_LVS_EX_HIDELABELS*/
+_LVS_EX_SINGLEROW=@0x40000/*_LVS_EX_SINGLEROW*/
+_LVS_EX_SNAPTOGRID=@0x80000/*_LVS_EX_SNAPTOGRID*/
+_LVS_EX_SIMPLESELECT=@0x100000/*_LVS_EX_SIMPLESELECT*/
+_LVS_EX_JUSTIFYCOLUMNS=@0x200000/*_LVS_EX_JUSTIFYCOLUMNS*/
+_LVS_EX_TRANSPARENTBKGND=@0x400000/*_LVS_EX_TRANSPARENTBKGND*/
+_LVS_EX_TRANSPARENTSHADOWTEXT=@0x800000/*_LVS_EX_TRANSPARENTSHADOWTEXT*/
+_LVS_EX_AUTOAUTOARRANGE=@0x1000000/*_LVS_EX_AUTOAUTOARRANGE*/
+_LVS_EX_HEADERINALLVIEWS=@0x2000000/*_LVS_EX_HEADERINALLVIEWS*/
+_LVS_EX_AUTOCHECKSELECT=@0x8000000/*_LVS_EX_AUTOCHECKSELECT*/
+_LVS_EX_AUTOSIZECOLUMNS=@0x10000000/*_LVS_EX_AUTOSIZECOLUMNS*/
+_LVS_EX_COLUMNSNAPPOINTS=@0x40000000/*_LVS_EX_COLUMNSNAPPOINTS*/
+_LVS_EX_COLUMNOVERFLOW=@0x80000000/*_LVS_EX_COLUMNOVERFLOW*/
+
+_LVM_SETUNICODEFORMAT=@0x2005/*_LVM_SETUNICODEFORMAT*/
+_LVM_GETUNICODEFORMAT=@0x2006/*_LVM_GETUNICODEFORMAT*/
+_LVM_GETBKCOLOR=@0x1000/*_LVM_GETBKCOLOR*/
+_LVM_SETBKCOLOR=@0x1001/*_LVM_SETBKCOLOR*/
+_LVM_GETIMAGELIST=@0x1002/*_LVM_GETIMAGELIST*/
+_LVM_SETIMAGELIST=@0x1003/*_LVM_SETIMAGELIST*/
+_LVM_GETITEMCOUNT=@0x1004/*_LVM_GETITEMCOUNT*/
+_LVM_GETITEMW=@0x104B/*_LVM_GETITEMW*/
+_LVM_SETITEMW=@0x104C/*_LVM_SETITEMW*/
+_LVM_INSERTITEM=@0x104D/*_LVM_INSERTITEM*/
+_LVM_DELETEITEM=@0x1008/*_LVM_DELETEITEM*/
+_LVM_DELETEALLITEMS=@0x1009/*_LVM_DELETEALLITEMS*/
+_LVM_GETCALLBACKMASK=@0x100A/*_LVM_GETCALLBACKMASK*/
+_LVM_SETCALLBACKMASK=@0x100B/*_LVM_SETCALLBACKMASK*/
+_LVM_GETNEXTITEM=@0x100C/*_LVM_GETNEXTITEM*/
+_LVM_FINDITEM=@0x100D/*_LVM_FINDITEM*/
+_LVM_GETITEMRECT=@0x100E/*_LVM_GETITEMRECT*/
+_LVM_SETITEMPOSITION=@0x100F/*_LVM_SETITEMPOSITION*/
+_LVM_GETITEMPOSITION=@0x1010/*_LVM_GETITEMPOSITION*/
+_LVM_GETSTRINGWIDTH=@0x1011/*_LVM_GETSTRINGWIDTH*/
+_LVM_HITTEST=@0x1012/*_LVM_HITTEST*/
+_LVM_ENSUREVISIBLE=@0x1013/*_LVM_ENSUREVISIBLE*/
+_LVM_SCROLL=@0x1014/*_LVM_SCROLL*/
+_LVM_REDRAWITEMS=@0x1015/*_LVM_REDRAWITEMS*/
+_LVM_ARRANGE=@0x1016/*_LVM_ARRANGE*/
+_LVM_EDITLABEL=@0x1017/*_LVM_EDITLABEL*/
+_LVM_GETEDITCONTROL=@0x1018/*_LVM_GETEDITCONTROL*/
+_LVM_GETCOLUMN=@0x1019/*_LVM_GETCOLUMN*/
+_LVM_SETCOLUMN=@0x101A/*_LVM_SETCOLUMN*/
+_LVM_INSERTCOLUMN=@0x1061/*_LVM_INSERTCOLUMNW*/
+_LVM_DELETECOLUMN=@0x101C/*_LVM_DELETECOLUMN*/
+_LVM_GETCOLUMNWIDTH=@0x101D/*_LVM_GETCOLUMNWIDTH*/
+_LVM_SETCOLUMNWIDTH=@0x101E/*_LVM_SETCOLUMNWIDTH*/
+_LVM_GETHEADER=@0x101F/*_LVM_GETHEADER*/
+_LVM_CREATEDRAGIMAGE=@0x1021/*_LVM_CREATEDRAGIMAGE*/
+_LVM_GETVIEWRECT=@0x1022/*_LVM_GETVIEWRECT*/
+_LVM_GETTEXTCOLOR=@0x1023/*_LVM_GETTEXTCOLOR*/
+_LVM_SETTEXTCOLOR=@0x1024/*_LVM_SETTEXTCOLOR*/
+_LVM_GETTEXTBKCOLOR=@0x1025/*_LVM_GETTEXTBKCOLOR*/
+_LVM_SETTEXTBKCOLOR=@0x1026/*_LVM_SETTEXTBKCOLOR*/
+_LVM_GETTOPINDEX=@0x1027/*_LVM_GETTOPINDEX*/
+_LVM_GETCOUNTPERPAGE=@0x1028/*_LVM_GETCOUNTPERPAGE*/
+_LVM_GETORIGIN=@0x1029/*_LVM_GETORIGIN*/
+_LVM_UPDATE=@0x102A/*_LVM_UPDATE*/
+_LVM_SETITEMSTATE=@0x102B/*_LVM_SETITEMSTATE*/
+_LVM_GETITEMSTATE=@0x102C/*_LVM_GETITEMSTATE*/
+_LVM_GETITEMTEXT=@0x1073/*_LVM_GETITEMTEXT*/
+_LVM_SETITEMTEXT=@0x1074/*_LVM_SETITEMTEXT*/
+_LVM_SETITEMCOUNT=@0x102F/*_LVM_SETITEMCOUNT*/
+_LVM_SORTITEMS=@0x1030/*_LVM_SORTITEMS*/
+_LVM_SETITEMPOSITION32=@0x1031/*_LVM_SETITEMPOSITION32*/
+_LVM_GETSELECTEDCOUNT=@0x1032/*_LVM_GETSELECTEDCOUNT*/
+_LVM_GETITEMSPACING=@0x1033/*_LVM_GETITEMSPACING*/
+_LVM_GETISEARCHSTRING=@0x1034/*_LVM_GETISEARCHSTRING*/
+_LVM_SETICONSPACING=@0x1035/*_LVM_SETICONSPACING*/
+_LVM_GETEXTENDEDLISTVIEWSTYLE=@0x1037/*_LVM_GETEXTENDEDLISTVIEWSTYLE*/
+_LVM_GETSUBITEMRECT=@0x1038/*_LVM_GETSUBITEMRECT*/
+_LVM_SUBITEMHITTEST=@0x1039/*_LVM_SUBITEMHITTEST*/
+_LVM_SETCOLUMNORDERARRAY=@0x103A/*_LVM_SETCOLUMNORDERARRAY*/
+_LVM_GETCOLUMNORDERARRAY=@0x103B/*_LVM_GETCOLUMNORDERARRAY*/
+_LVM_SETHOTITEM=@0x103C/*_LVM_SETHOTITEM*/
+_LVM_GETHOTITEM=@0x103D/*_LVM_GETHOTITEM*/
+_LVM_SETHOTCURSOR=@0x103E/*_LVM_SETHOTCURSOR*/
+_LVM_GETHOTCURSOR=@0x103F/*_LVM_GETHOTCURSOR*/
+_LVM_APPROXIMATEVIEWRECT=@0x1040/*_LVM_APPROXIMATEVIEWRECT*/
+_LVM_SETWORKAREAS=@0x1041/*_LVM_SETWORKAREAS*/
+_LVM_GETWORKAREAS=@0x1046/*_LVM_GETWORKAREAS*/
+_LVM_GETNUMBEROFWORKAREAS=@0x1049/*_LVM_GETNUMBEROFWORKAREAS*/
+_LVM_GETSELECTIONMARK=@0x1042/*_LVM_GETSELECTIONMARK*/
+_LVM_SETSELECTIONMARK=@0x1043/*_LVM_SETSELECTIONMARK*/
+_LVM_SETHOVERTIME=@0x1047/*_LVM_SETHOVERTIME*/
+_LVM_GETHOVERTIME=@0x1048/*_LVM_GETHOVERTIME*/
+_LVM_SETTOOLTIPS=@0x104A/*_LVM_SETTOOLTIPS*/
+_LVM_GETTOOLTIPS=@0x104E/*_LVM_GETTOOLTIPS*/
+_LVM_SORTITEMSEX=@0x1051/*_LVM_SORTITEMSEX*/
+_LVM_SETSELECTEDCOLUMN=@0x108C/*_LVM_SETSELECTEDCOLUMN*/
+_LVM_SETVIEW=@0x108E/*_LVM_SETVIEW*/
+_LVM_GETVIEW=@0x108F/*_LVM_GETVIEW*/
+_LVM_INSERTGROUP=@0x1091/*_LVM_INSERTGROUP*/
+_LVM_SETGROUPINFO=@0x1093/*_LVM_SETGROUPINFO*/
+_LVM_GETGROUPINFO=@0x1095/*_LVM_GETGROUPINFO*/
+_LVM_REMOVEGROUP=@0x1096/*_LVM_REMOVEGROUP*/
+_LVM_MOVEGROUP=@0x1097/*_LVM_MOVEGROUP*/
+_LVM_GETGROUPCOUNT=@0x1098/*_LVM_GETGROUPCOUNT*/
+_LVM_GETGROUPINFOBYINDEX=@0x1099/*_LVM_GETGROUPINFOBYINDEX*/
+_LVM_MOVEITEMTOGROUP=@0x109A/*_LVM_MOVEITEMTOGROUP*/
+_LVM_GETGROUPRECT=@0x1062/*_LVM_GETGROUPRECT*/
+_LVM_SETGROUPMETRICS=@0x109B/*_LVM_SETGROUPMETRICS*/
+_LVM_GETGROUPMETRICS=@0x109C/*_LVM_GETGROUPMETRICS*/
+_LVM_ENABLEGROUPVIEW=@0x109D/*_LVM_ENABLEGROUPVIEW*/
+_LVM_SORTGROUPS=@0x109E/*_LVM_SORTGROUPS*/
+_LVM_INSERTGROUPSORTED=@0x109F/*_LVM_INSERTGROUPSORTED*/
+_LVM_REMOVEALLGROUPS=@0x10A0/*_LVM_REMOVEALLGROUPS*/
+_LVM_HASGROUP=@0x10A1/*_LVM_HASGROUP*/
+_LVM_GETGROUPSTATE=@0x105C/*_LVM_GETGROUPSTATE*/
+_LVM_GETFOCUSEDGROUP=@0x105D/*_LVM_GETFOCUSEDGROUP*/
+_LVM_SETTILEVIEWINFO=@0x10A2/*_LVM_SETTILEVIEWINFO*/
+_LVM_GETTILEVIEWINFO=@0x10A3/*_LVM_GETTILEVIEWINFO*/
+_LVM_SETTILEINFO=@0x10A4/*_LVM_SETTILEINFO*/
+_LVM_GETTILEINFO=@0x10A5/*_LVM_GETTILEINFO*/
+_LVM_SETINSERTMARK=@0x10A6/*_LVM_SETINSERTMARK*/
+_LVM_GETINSERTMARK=@0x10A7/*_LVM_GETINSERTMARK*/
+_LVM_INSERTMARKHITTEST=@0x10A8/*_LVM_INSERTMARKHITTEST*/
+_LVM_GETINSERTMARKRECT=@0x10A9/*_LVM_GETINSERTMARKRECT*/
+_LVM_SETINSERTMARKCOLOR=@0x10AA/*_LVM_SETINSERTMARKCOLOR*/
+_LVM_GETINSERTMARKCOLOR=@0x10AB/*_LVM_GETINSERTMARKCOLOR*/
+_LVM_SETINFOTIP=@0x10AD/*_LVM_SETINFOTIP*/
+_LVM_GETSELECTEDCOLUMN=@0x10AE/*_LVM_GETSELECTEDCOLUMN*/
+_LVM_ISGROUPVIEWENABLED=@0x10AF/*_LVM_ISGROUPVIEWENABLED*/
+_LVM_GETOUTLINECOLOR=@0x10B0/*_LVM_GETOUTLINECOLOR*/
+_LVM_SETOUTLINECOLOR=@0x10B1/*_LVM_SETOUTLINECOLOR*/
+_LVM_CANCELEDITLABEL=@0x10B3/*_LVM_CANCELEDITLABEL*/
+_LVM_MAPINDEXTOID=@0x10B4/*_LVM_MAPINDEXTOID*/
+_LVM_MAPIDTOINDEX=@0x10B5/*_LVM_MAPIDTOINDEX*/
+_LVM_ISITEMVISIBLE=@0x10B6/*_LVM_ISITEMVISIBLE*/
+_LVM_GETEMPTYTEXT=@0x10CC/*_LVM_GETEMPTYTEXT*/
+_LVM_GETFOOTERRECT=@0x10CD/*_LVM_GETFOOTERRECT*/
+_LVM_GETFOOTERINFO=@0x10CE/*_LVM_GETFOOTERINFO*/
+_LVM_GETFOOTERITEMRECT=@0x10CF/*_LVM_GETFOOTERITEMRECT*/
+_LVM_GETFOOTERITEM=@0x10D0/*_LVM_GETFOOTERITEM*/
+_LVM_GETITEMINDEXRECT=@0x10D1/*_LVM_GETITEMINDEXRECT*/
+_LVM_SETITEMINDEXSTATE=@0x10D2/*_LVM_SETITEMINDEXSTATE*/
+_LVM_GETNEXTITEMINDEX=@0x10D3/*_LVM_GETNEXTITEMINDEX*/
+_LVM_SETBKIMAGE=@0x1044/*_LVM_SETBKIMAGE*/
+_LVM_GETBKIMAGE=@0x1045/*_LVM_GETBKIMAGE*/
+_LVM_GETCOLUMNW=@0x105F/*_LVM_GETCOLUMNW*/
+_LVCF_FMT=@0x1/*_LVCF_FMT*/
+_LVCF_WIDTH=@0x2/*_LVCF_WIDTH*/
+_LVCF_TEXT=@0x4/*_LVCF_TEXT*/
+_LVCF_SUBITEM=@0x8/*_LVCF_SUBITEM*/
+_LVCF_IMAGE=@0x10/*_LVCF_IMAGE*/
+_LVCF_ORDER=@0x20/*_LVCF_ORDER*/
+_LVCF_MINWIDTH=@0x40/*_LVCF_MINWIDTH*/
+_LVCF_DEFAULTWIDTH=@0x80/*_LVCF_DEFAULTWIDTH*/
+_LVCF_IDEALWIDTH=@0x100/*_LVCF_IDEALWIDTH*/
+
+_LVCFMT_LEFT=@0x0/*_LVCFMT_LEFT*/
+_LVCFMT_RIGHT=@0x1/*_LVCFMT_RIGHT*/
+_LVCFMT_CENTER=@0x2/*_LVCFMT_CENTER*/
+_LVCFMT_JUSTIFYMASK=@0x3/*_LVCFMT_JUSTIFYMASK*/
+_LVCFMT_IMAGE=@0x800/*_LVCFMT_IMAGE*/
+_LVCFMT_BITMAP_ON_RIGHT=@0x1000/*_LVCFMT_BITMAP_ON_RIGHT*/
+_LVCFMT_COL_HAS_IMAGES=@0x8000/*_LVCFMT_COL_HAS_IMAGES*/
+_LVCFMT_FIXED_WIDTH=@0x100/*_LVCFMT_FIXED_WIDTH*/
+_LVCFMT_NO_DPI_SCALE=@0x40000/*_LVCFMT_NO_DPI_SCALE*/
+_LVCFMT_FIXED_RATIO=@0x80000/*_LVCFMT_FIXED_RATIO*/
+_LVCFMT_LINE_BREAK=@0x100000/*_LVCFMT_LINE_BREAK*/
+_LVCFMT_FILL=@0x200000/*_LVCFMT_FILL*/
+_LVCFMT_WRAP=@0x400000/*_LVCFMT_WRAP*/
+_LVCFMT_NO_TITLE=@0x800000/*_LVCFMT_NO_TITLE*/
+_LVCFMT_TILE_PLACEMENTMASK=@0x300000/*_LVCFMT_TILE_PLACEMENTMASK*/
+_LVCFMT_SPLITBUTTON=@0x1000000/*_LVCFMT_SPLITBUTTON*/
+
+_LVIF_TEXT=@0x1/*_LVIF_TEXT*/
+_LVIF_IMAGE=@0x2/*_LVIF_IMAGE*/
+_LVIF_PARAM=@0x4/*_LVIF_PARAM*/
+_LVIF_STATE=@0x8/*_LVIF_STATE*/
+_LVIF_INDENT=@0x10/*_LVIF_INDENT*/
+_LVIF_NORECOMPUTE=@0x800/*_LVIF_NORECOMPUTE*/
+_LVIF_GROUPID=@0x100/*_LVIF_GROUPID*/
+_LVIF_COLUMNS=@0x200/*_LVIF_COLUMNS*/
+_LVIF_COLFMT=@0x10000/*_LVIF_COLFMT*/
+
+_LVIS_FOCUSED=@0x1/*_LVIS_FOCUSED*/
+_LVIS_SELECTED=@0x2/*_LVIS_SELECTED*/
+_LVIS_CUT=@0x4/*_LVIS_CUT*/
+_LVIS_DROPHILITED=@0x8/*_LVIS_DROPHILITED*/
+_LVIS_GLOW=@0x10/*_LVIS_GLOW*/
+_LVIS_ACTIVATING=@0x20/*_LVIS_ACTIVATING*/
+_LVIS_OVERLAYMASK=@0xF00/*_LVIS_OVERLAYMASK*/
+_LVIS_STATEIMAGEMASK=@0xF000/*_LVIS_STATEIMAGEMASK*/
+
+_LVNI_ALL=@0x0/*_LVNI_ALL*/
+_LVNI_FOCUSED=@0x1/*_LVNI_FOCUSED*/
+_LVNI_SELECTED=@0x2/*_LVNI_SELECTED*/
+_LVNI_CUT=@0x4/*_LVNI_CUT*/
+_LVNI_DROPHILITED=@0x8/*_LVNI_DROPHILITED*/
+_LVNI_STATEMASK=@0xF/*_LVNI_STATEMASK*/
+_LVNI_VISIBLEORDER=@0x10/*_LVNI_VISIBLEORDER*/
+_LVNI_PREVIOUS=@0x20/*_LVNI_PREVIOUS*/
+_LVNI_VISIBLEONLY=@0x40/*_LVNI_VISIBLEONLY*/
+_LVNI_SAMEGROUPONLY=@0x80/*_LVNI_SAMEGROUPONLY*/
+_LVNI_ABOVE=@0x100/*_LVNI_ABOVE*/
+_LVNI_BELOW=@0x200/*_LVNI_BELOW*/
+_LVNI_TOLEFT=@0x400/*_LVNI_TOLEFT*/
+_LVNI_TORIGHT=@0x800/*_LVNI_TORIGHT*/
+_LVNI_DIRECTIONMASK=@0xF00/*_LVNI_DIRECTIONMASK*/
+_LVSIL_NORMAL=@0/*_LVSIL_NORMAL*/
+_LVSIL_SMALL=@1/*_LVSIL_SMALL*/
+_LVSIL_STATE=@2/*_LVSIL_STATE*/
+_LVSIL_GROUPHEADER=@3/*_LVSIL_GROUPHEADER*/
+_LVIR_BOUNDS=@0/*_LVIR_BOUNDS*/
+_LVIR_ICON=@1/*_LVIR_ICON*/
+_LVIR_LABEL=@2/*_LVIR_LABEL*/
+_LVIR_SELECTBOUNDS=@3/*_LVIR_SELECTBOUNDS*/
+_LVN_LAST=@FFFFFF39/*_LVN_LAST*/
+_LVN_FIRST=@0xFFFFFF9C/*_LVN_FIRST*/
+_LVN_ITEMCHANGING=@0xFFFFFF9C/*_LVN_ITEMCHANGING*/
+_LVN_ITEMCHANGED=@0xFFFFFF9B/*_LVN_ITEMCHANGED*/
+_LVN_INSERTITEM=@0xFFFFFF9A/*_LVN_INSERTITEM*/
+_LVN_DELETEITEM=@0xFFFFFF99/*_LVN_DELETEITEM*/
+_LVN_DELETEALLITEMS=@0xFFFFFF98/*_LVN_DELETEALLITEMS*/
+_LVN_BEGINLABELEDITW=@0xFFFFFF51/*_LVN_BEGINLABELEDITW*/
+_LVN_ENDLABELEDITW=@0xFFFFFF50/*_LVN_ENDLABELEDITW*/
+_LVN_COLUMNCLICK=@0xFFFFFF94/*_LVN_COLUMNCLICK*/
+_LVN_BEGINDRAG=@0xFFFFFF93/*_LVN_BEGINDRAG*/
+_LVN_BEGINRDRAG=@0xFFFFFF91/*_LVN_BEGINRDRAG*/
+_LVN_ODCACHEHINT=@0xFFFFFF8F/*_LVN_ODCACHEHINT*/
+_LVN_ITEMACTIVATE=@0xFFFFFF8E/*_LVN_ITEMACTIVATE*/
+_LVN_ODSTATECHANGED=@0xFFFFFF8D/*_LVN_ODSTATECHANGED*/
+_LVN_ODFINDITEM=@0xFFFFFF68/*_LVN_ODFINDITEM*/
+_LVN_HOTTRACK=@0xFFFFFF87/*_LVN_HOTTRACK*/
+_LVN_GETDISPINFOW=@0xFFFFFF4F/*_LVN_GETDISPINFOW*/
+_LVN_SETDISPINFOW=@0xFFFFFF4E/*_LVN_SETDISPINFOW*/
+_LVN_BEGINLABELEDIT=@0xFFFFFF97/*_LVN_BEGINLABELEDIT*/
+_LVN_ENDLABELEDIT=@0xFFFFFF96/*_LVN_ENDLABELEDIT*/
+_LVN_SETDISPINFO=@0xFFFFFF69/*_LVN_SETDISPINFO*/
+_LVN_COLUMNDROPDOWN=@0xFFFFFF5C/*_LVN_COLUMNDROPDOWN*/
+_LVN_COLUMNOVERFLOWCLICK=@0xFFFFFF5A/*_LVN_COLUMNOVERFLOWCLICK*/
+_LVN_MARQUEEBEGIN=@0xFFFFFF64/*_LVN_MARQUEEBEGIN*/
+_LVN_KEYDOWN=@0xFFFFFF65/*_LVN_KEYDOWN*/
+_LVFI_PARAM=@1/*_LVFI_PARAM*/
+_LVFI_STRING=@2/*_LVFI_STRING*/
+_LVFI_SUBSTRING=@4/*_LVFI_SUBSTRING*/
+_LVFI_WRAP=@0x20/*_LVFI_WRAP*/
+_LVFI_NEARESTXY=@0x40/*_LVFI_NEARESTXY*/
+
+_LVHT_NOWHERE=@1/*_LVHT_NOWHERE*/
+_LVHT_ONITEMICON=@2/*_LVHT_ONITEMICON*/
+_LVHT_ONITEMLABEL=@4/*_LVHT_ONITEMLABEL*/
+_LVHT_ONITEMSTATEICON=@8/*_LVHT_ONITEMSTATEICON*/
+_LVHT_ONITEM=@0xE/*_LVHT_ONITEM*/
+_LVHT_ABOVE=@8/*_LVHT_ABOVE*/
+_LVHT_BELOW=@0x10/*_LVHT_BELOW*/
+_LVHT_TORIGHT=@0x20/*_LVHT_TORIGHT*/
+_LVHT_TOLEFT=@0x40/*_LVHT_TOLEFT*/
+
+_LVM_FIRST=@0x1000/*_LVM_FIRST*/
+end intellisense**/

@@ -1,0 +1,17 @@
+﻿
+namespace chrome;
+
+class time{
+	ctor( stamp ){
+		this = ..time( stamp  ? tonumber( ..math.size64(stamp).div(1000000).sub(11644473600) ),"!%Y-%m-%d %H:%M:%S"  )
+	};
+	stamp = function(){
+		return ..math.size64( tonumber(this) ).add(11644473600).mul(1000000);
+	};
+}  
+
+/**intellisense()
+chrome.time = 用于处理WebKit/Chrome时间戳\n该时间戳表示1601年1月1日0点0时0分以来的微秒数\n微秒即百万分之一秒
+chrome.time(__) = 参数中指定WebKit/Chrome时间戳，无参数取当前时间,\n返回兼容time对象的时间对象\n增加了stamp函数用于重新生成WebKit/Chrome时间戳
+chrome.time() = !time.
+end intellisense**/

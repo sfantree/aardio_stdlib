@@ -1,0 +1,63 @@
+//menu 自定义菜单
+import web.form;
+import win.ui.menu; 
+namespace web.form
+
+class menu{
+	ctor( wb,tMenus ){
+		if(!wb[["_form"]] || (!type(tMenus) == type.table ) )
+			error("参数错误",2)
+			
+		this._form = wb._form[["_parentForm"]] : wb._form;
+	};
+	popup = function(x,y,id,ele){
+		var args = tMenus[id]
+		if(!args)
+			return;
+
+		var popMenu = ..win.ui.popmenu( this._form );//创建弹出菜单
+		var arg,command,proc,id;
+		var queryCommandEnabled = ele.ownerDocument.queryCommandEnabled; 
+		var ttcmd;
+		for(i=1;#args;1){
+			arg = args[i] 
+			command = arg[2] : arg.command
+			id = arg[4] : arg.id
+			 
+			proc = null; 
+			ttcmd = type(command);
+			if( ttcmd=="string" ){ 
+				if(id===null){
+					var commandProc = command;
+					proc = function(id,hwnd,ele,x,y){
+						wb.exec(commandProc);
+					};
+				}
+			}
+			elseif( ttcmd == type.function ){
+				proc = command; 
+				command = null;
+			}
+			
+			if( #arg ){ //parameter list
+				popMenu.add(arg[1],proc ,arg[3],id ); 
+			}
+			else{ //parameter table
+				popMenu.add( ..table.assign( arg, { proc = proc } ) ); 
+			} 
+			
+			if( #command ){
+				popMenu.enable(i,( queryCommandEnabled( command ) ) );
+			}
+		}   
+		
+		popMenu.fireId( popMenu.popId(x,y,true) 
+			,wb.hwndControl,ele,x,y );  
+	} 
+} 
+
+/**intellisense()
+web.form.menu(wb,menu) = @.menu( __/*web.form 对象*/, {\n    [2/*_CONTEXT_MENU_CONTROL*/] = {  \n        { "撤消";"Undo" }; \n        { /*-----*/};  \n        { "剪切";"Cut"}; \n        { "复制";"Copy"}; \n        { "粘贴";"Paste"};\n        { "删除";"Delete"}; \n        { /*-----*/};\n        { "全选";"SelectAll"};  \n    };\n    [4/*_CONTEXT_MENU_TEXTSELECT */] = {  \n        { "剪切";"Cut" }; \n        { "复制";"Copy" }; \n        { "粘贴";"Paste" };\n        { "删除";"Delete" };\n    };  \n} );
+end intellisense**/ 
+
+//http://bbs.aardio.com/doc/html/dhtml/commandids.html

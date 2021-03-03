@@ -1,0 +1,52 @@
+//设置代理
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=855;bottom=498;parent=...)
+winform.add()
+/*}}*/
+
+import inet; 
+/*
+inet.setProxy("HTTP://主机:端口"); //修改浏览器控件默认代理设置
+
+inet.setProxy(代理地址,绕过代理地址)
+设置的代理在当前进程范例内对所有基于WinInet的对象有效(web.form,inet.http),
+
+对基于WinHTTP的inet.whttp则不受IE或WinInet代理设影响,
+WinHTTP的默认代理设置请使用 inet.whttp.setProxy() 函数设置 
+
+这里的代理地址如果为false表示进程内默认禁用代理服务器。
+代理服务器设为"IE"表示使用IE代理设置,"IE"为默认值可省略。
+
+其中代理地址格式为(忽略大小写)
+格式1："被代理协议=代理协议://代理服务器地址:端口号"
+格式2："主机地址:端口号"
+格式3: "主机地址"
+
+被代理协议或代理协议省略则默认为"HTTP"
+端口省略则默认为":80"
+
+HTTP代理以下写法都可以:
+"HTTP=HTTP://代理服务器地址:端口号" 
+"HTTP=代理服务器地址:端口号"
+"代理服务器地址:端口号"
+
+FTP代理这样写:
+"FTP=FTP://代理服务器地址:端口号" 
+
+SOCKS4代理这样写:
+"SOCKS=代理服务器地址:端口号"
+*/
+
+import web.form;
+var wb = web.form(winform);
+
+import crypt.bin;
+wb.addHeaders ={
+	["Proxy-Authorization"] = "Basic " +crypt.bin.encodeBase64("代理服务器用户名"+":"+"代理服务器密码");
+	["Authorization"] = "Basic " +crypt.bin.encodeBase64("用户名"+":"+"密码");
+} 
+wb.go("http://www.aardio.com");
+
+winform.show();  
+win.loopMessage(); 

@@ -1,0 +1,198 @@
+//spin 微调按钮
+import win.ui.ctrl.metaProperty;
+namespace win.ui.ctrl; 
+
+class spin{
+    ctor(parent,tParam){ 
+    	if(tParam){
+    		tParam.cls = "msctls_updown32"; 
+	 		tParam.style |= 1/*_UDS_WRAP*/  | 0x20/*_UDS_ARROWKEYS*/ 
+	 		
+	 		//不在千位之间插入逗号或句号
+			if(tParam.nthousands) 
+				tParam.style |= 0x80/*_UDS_NOTHOUSANDS*/
+	  	
+	  		//导致未知的控件文本变为0
+			//tParam.style |= 0x10/*_UDS_AUTOBUDDY*/
+			
+			//当鼠标移到该控件时,使该控件作出可视反应  
+			tParam.style |=  0x100/*_UDS_HOTTRACK*/
+	 		
+	 		//自动更新伙伴控件中显示的数值
+	 		tParam.style |= 2/*_UDS_SETBUDDYINT*/
+	 		
+	 		//水平样式
+	 		if(tParam.horz) tParam.style |= 0x40/*_UDS_HORZ*/;
+	 	}
+    }
+    onCreate = function(){  
+    	if(tParam.min && tParam.max)
+    		this.setRange(tParam.min,tParam.max);
+    	else {
+    		this.setRange(0,0x7FFFFFFF);//不指定自增时会反过来
+    	}
+    	
+    }  
+    _adjust = function(){
+    	if( owner.parent != owner._parentForm ) return;
+    	
+    	var buddy = this.buddy;
+    	if(!buddy) return;
+    	
+   		var bX,bY,bCx,bCy = buddy.getPos(); 
+   		var x,y,cx,cy = this.getPos(); 
+   	 
+   		if( x > bX ){
+   			..win.setPos(owner.hwnd ,bX + bCx , y );
+   		}
+   		else {
+   			..win.setPos(owner.hwnd ,bX - cx , y );
+   		}  
+   	}
+	@_metaProperty;
+}
+
+namespace spin{
+	
+	_metaProperty = ..win.ui.ctrl.metaProperty( 
+		buddy =  {
+		 	_get = function(){
+		 		var hwnd = ::SendMessage(owner[["hwnd"]],0x46A/*_UDM_GETBUDDY*/)
+		 		var p = owner[["_parentForm"]];
+				if( p && hwnd ){
+					return p[["_ctrlHwnd"]][[hwnd]] : hwnd;
+				}
+		 	};
+			_set = function(b){
+		 		::SendMessageInt(owner[["hwnd"]],0x469/*_UDM_SETBUDDY*/,b[["hwnd"]]:v,0)
+		 		 
+				if(b.cls =="edit") {
+					var rcb = b._defRect;
+					var rca = owner._defRect;
+				
+		 			if( (rcb.left <= rca.right) && (rca.left >= rcb.left)   
+						&& rcb.intersectsWith(rca)  ){
+						owner[["dt"]] = 1;
+						owner[["db"]] = 1;
+						
+						var rcbc = b.getClientRect();
+						if( rca.left - rcb.left > 10){
+							owner[["dr"]] = 1;
+							owner[["dl"]] = null;
+							rcbc.right = rcbc.right - rca.width();
+						}
+						else {
+							rcbc.left = rcbc.left + rca.width();
+							owner[["dr"]] = null;
+							owner[["dl"]] = 1;
+						}
+						b.setClientRect(rcbc);
+						owner.setParent(b);
+					}
+					
+					b.text = owner.pos;
+				}
+		 	} 
+		}; 
+		base =  {
+		 	_get = function(){
+		 		return ::SendMessage(owner[["hwnd"]],0x46E/*_UDM_GETBASE*/) 
+		 	};
+			_set = function(v){ 
+		 		::SendMessageInt(owner[["hwnd"]],0x46D/*_UDM_SETBASE*/,v,0) 
+		 	} 
+		}; 
+		setRange = function(min,max){
+ 			::SendMessageInt(owner.hwnd,  0x46F/*_UDM_SETRANGE32*/,min,max);
+            owner.pos = min;
+ 		};
+ 		inc = {
+			_get = function(){   
+				var accel = { INT sec = 0; INT inc = v; }
+				::User32.SendMessage(owner.hwnd,  0x46C/*_UDM_GETACCEL*/,1  ,accel);
+				return accel.inc;
+			}
+			_set = function( v ){ 
+		     	::User32.SendMessage(owner.hwnd,  0x46B/*_UDM_SETACCEL*/ ,1  ,{ INT sec = 0; INT inc = v; })
+			} 	
+		};
+		pos = {
+			_get = function(){   
+				return ::SendMessage(owner.hwnd, 0x472/*_UDM_GETPOS32*/ )
+			}
+			_set = function( v ){ 
+		     	::SendMessageInt(owner.hwnd,0x471/*_UDM_SETPOS32*/,0,v) 
+			} 	
+		}
+	)
+}
+
+/***intellisense() 
+!spinbutton.inc = 设置步长
+!spinbutton.buddy = 设置、获取伙伴窗口\n伙伴窗口必须是edit控件\n可在设计器中将spin控件放在edit控件内部,或者外部靠左侧、靠右侧,\n调整窗口大小时,spin控件会自动吸附于edit控件左侧或右侧\n!edit.
+!spinbutton.pos = 当前位置数值
+!spinbutton.base = 显示数值进制基数,10或16
+!spinbutton.setRange(.(最小值,最大值) = 设置数值范围\n同时修改pos属性为最小值
+!spinbutton.cls = 设计时类名
+!spinbutton.className = 运行时类名
+!spinbutton.hwnd = 控件句柄
+!spinbutton.id = 控件ID
+!spinbutton.text = 控件文本
+!spinbutton._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!spinbutton.getParent() = 返回父窗口\n!spinbutton.
+!spinbutton.setParent(__/*控件对象*/) = 改变父窗口 
+!spinbutton.addCtrl = @.addCtrl(\n	button={ cls="button";text="button";left=33;top=32;right=126;bottom=81;autoResize=false }  \n)
+!spinbutton.hide = 控件是否隐藏
+!spinbutton.disabled = 是否禁用
+!spinbutton.left = 左侧坐标
+!spinbutton.right = 右侧坐标
+!spinbutton.top = 顶部坐标
+!spinbutton.bottom = 底部坐标
+!spinbutton.width = 宽度
+!spinbutton.height = 高度
+!spinbutton.redraw() = 刷新
+!spinbutton.show(true__) = 显示控件
+!spinbutton.getRect() = 控件区块位置(::RECT结构体)
+!spinbutton.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!spinbutton.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!spinbutton.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!spinbutton.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+!spinbutton.getFont() = 控件字体(::LOGFONT结构体)\n!logfont.
+!spinbutton.setFont(__/*指定字体*/) = 指定LOGFONT字体对象,或逻辑字体句柄 
+!spinbutton.setFont(混入字体属性) = @.setFont(point=10;name="宋体");
+!spinbutton.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!spinbutton.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!spinbutton.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!spinbutton.capture = 是否捕获全局鼠标消息
+!spinbutton.close() = 关闭控件窗口
+!spinbutton.invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+!spinbutton.invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+!spinbutton.update() = 重绘invalidate函数指定的区块
+!spinbutton.setFocus() = 设置焦点 
+!spinbutton.threadCallable() = 开启此控件的跨线程调用功能
+!spinbutton.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!spinbutton.getPos() = 返回相对坐标,宽,高
+!spinbutton.onnotify = @.onnotify = function(id,code,ptr){ 
+	if(code==0xFFFFFD2E/*_UDN_DELTAPOS*/){
+		var nmUpDown = ..raw.convert(ptr, {
+			struct hdr = ::NMHDR();
+			int pos;
+			int delta; 
+		} ); 
+		__/*pos为当前位置,delta为增减量,单击向下箭头此值为负数*/
+	} 
+}
+!spinbutton.sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+!spinbutton.postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+?win.ui.ctrl.spin  = !spinbutton.
+win.ui.ctrl.spin() = 滚动选框控件\n!spinbutton.
+end intellisense***/
+ 
+/**intellisense() 
+_UDS_ALIGNRIGHT=@4/*_UDS_ALIGNRIGHT*/
+_UDS_ALIGNLEFT=@8/*_UDS_ALIGNLEFT*/ 
+_UDS_ARROWKEYS=@0x20/*_UDS_ARROWKEYS*/ 
+_UDM_SETACCEL=@0x46B/*_UDM_SETACCEL*/
+_UDM_GETACCEL=@0x46C/*_UDM_GETACCEL*/
+_UDN_DELTAPOS=@0xFFFFFD2E/*_UDN_DELTAPOS*/
+end intellisense**/

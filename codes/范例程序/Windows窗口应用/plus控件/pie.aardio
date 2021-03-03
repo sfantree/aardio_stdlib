@@ -1,0 +1,40 @@
+//圆环进度条
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="圆形进度条";right=759;bottom=469)
+winform.add(
+plus={cls="plus";left=390;top=108;right=643;bottom=361;notify=1;z=1}
+)
+/*}}*/
+				
+winform.plus.setPieRange(1,360)
+winform.plus.progressPos  = 1;
+winform.plus.foreground = 0x80ffff00;//也可以改为图像,图像应设为center显示模式以居中对齐
+winform.plus.background = 0x60ff00ff;//也可以改为图像,图像应设为center显示模式以居中对齐
+ 
+winform.setInterval( 
+	10,function(){
+		winform.plus.progressPos = winform.plus.progressPos+1
+	} 
+)
+
+//在输出图像以后,抠出圆环效果
+winform.plus.onDrawForegroundEnd = function(graphics,rc){
+    
+    //切换为替换绘图模式
+    graphics.compositingMode = 1/*_CompositingModeSourceCopy*/;
+    
+    //创建一个透明刷子
+	var brush = gdip.solidBrush()
+	rc.inflate(-(rc.width()/5),-(rc.height()/5)) 
+	
+	//用透明刷子擦除中心圆形
+	graphics.fillEllipse(brush,rc.left,rc.top,rc.width(),rc.height());
+	brush.delete();	
+	
+	//恢复为叠加绘图模式
+	graphics.compositingMode = 0/*_CompositingModeSourceOver*/
+}
+
+winform.show() 
+win.loopMessage();

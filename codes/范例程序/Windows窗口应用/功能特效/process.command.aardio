@@ -1,0 +1,30 @@
+//进程间函数调用
+import win.ui;
+/*DSG{{*/
+mainForm = win.form(text="跨进程命令";right=581;bottom=373)
+mainForm.add(
+button={cls="button";text="发送跨进程命令";left=297;top=309;right=519;bottom=355;z=1};
+edit={cls="edit";left=28;top=17;right=555;bottom=298;edge=1;multiline=1;z=2}
+)
+/*}}*/
+
+import process.command; 
+
+//加入进程群组,使用GUID名字区分不同的进程群组
+process.command.join("{870819C0-D702-4508-BB0A-5F09E514E23E}") 
+
+//注册进程命令对象
+var processObserver = process.command();
+processObserver.testCmd = function(a,b,c){ 
+	mainForm.edit.appendText("testCmd被调用,参数:",a,b,c,'\r\n'); 
+	return 123;
+}
+
+//发送进程命令
+mainForm.button.oncommand = function(id,event){ 
+	process.command.testCmd(1,2,",进程命令参数")
+	
+}
+
+mainForm.show() 
+win.loopMessage(); 

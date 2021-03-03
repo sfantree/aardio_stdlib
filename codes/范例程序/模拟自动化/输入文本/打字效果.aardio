@@ -1,0 +1,5 @@
+import process;
+import key;
+
+process.executeWaitInput("notepad.exe");
+key.send( "这样就可以实现打字效果了.",200)

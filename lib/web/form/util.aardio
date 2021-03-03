@@ -1,0 +1,202 @@
+//util 扩展工具 
+import web.form;
+import com.interface.IOleControl;
+import com.interface.IServiceProvider;
+import win.reg;
+
+namespace web.form.util; 
+::Urlmon := ..raw.loadDll("Urlmon.dll");
+ 
+ambientPropertyChange = function(wb,id){ 
+	var ctrl = ..com.interface.IOleControl.Query( wb._browser ); 
+	ctrl.OnAmbientPropertyChange(id);
+	ctrl = null; 
+	collectgarbage("collect");	
+}
+
+dlCtrl = function(wb,dlctl){
+	wb.dlControl = dlctl;
+	ambientPropertyChange(wb,-5512) 
+}
+
+setUserAgent = function(wb,agent){  
+	wb.userAgent = agent; 
+	::Urlmon.UrlMkSetSessionOption(agent?0x10000001:0x10000002,agent,#agent,null); 
+	ambientPropertyChange(wb,-5513); 
+}
+
+getMajorVersion  = function(){ 
+	var v = getVersion();
+	if( v ) return ( tonumber( ..string.match(v,"^\d+") ) );
+}
+
+getVersion  = function(){ 
+    var reg  = ..win.regReader("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Internet Explorer") 
+    if( reg ){
+    	var v = reg.queryValue("svcVersion"/*IE10以后*/) or reg.queryValue("Version");
+    	reg.close()
+    	return v;
+    } 
+    
+	::Shlwapi := raw.loadDll("Shlwapi.dll");
+	var hr,version = ::Shlwapi.DllGetVersion( {
+  		INT cbSize = 20; INT major;INT minor;INT build; INT platform;} )
+  		
+	if( hr>=0/*_SUCCEEDED*/ ) {
+		if(version.major >= 10) return "11.0";//win10
+		if(version.minor >= 1) return "8.0";//win7 v6.1.7600
+		if(version.build >= 6002) return "7.0";//v6.0.6002
+	}
+	return 6.0;
+}
+
+var IWebBrowser2 = class {
+	ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+    pointer GetTypeInfoCount; 
+    pointer GetTypeInfo ; 
+    pointer GetIDsOfNames ; 
+    pointer invoke;
+    pointer GoBack;
+    pointer GoForward;
+    pointer GoHome;
+    pointer GoSearch;
+    pointer Navigate;
+    pointer Refresh;
+    pointer Refresh2; 
+    pointer Stop;
+    pointer get_Application; 
+    pointer get_Parent;
+    pointer get_Container;
+    pointer get_Document = "int(pointer &ppDisp)" 
+}
+IWebBrowser2.IID = "{D30C1661-CDAF-11D0-8A3E-00C04FC9E26E}";
+var IID_IWebBrowserApp = ..win.guid.fromString("{0002DF05-0000-0000-C000-000000000046}")
+var IID_IWebBrowser2 = ..win.guid.fromString("{D30C1661-CDAF-11D0-8A3E-00C04FC9E26E}")
+ 
+var queryBrowserPtr  = function(ele){
+	if(!ele)
+		return;
+		
+	if(ele.contentWindow )
+		ele = ele.contentWindow;
+		
+    var service = ..com.interface( ele,..com.interface.IServiceProvider) 
+    var hr,objPtr = service.QueryService( 
+        IID_IWebBrowserApp
+        ,IID_IWebBrowser2
+        )
+        
+    if( hr >=0/*SUCCEEDED*/ )
+    	return objPtr;
+}
+
+queryBrowser = function(ele){
+	var objPtr  = queryBrowserPtr(ele); 
+	if( objPtr ){
+		var ret = ..com.QueryObject( objPtr )
+		..com.Release(objPtr);
+		return ret;
+	} 
+}
+
+cacheBrowserIt = { @{_weak = "kv"} }
+queryBrowserIt = function(ele){
+	var ret = cacheBrowserIt[ele];
+	if(!ret){
+		var objPtr  = queryBrowserPtr(ele);
+		if( objPtr ){
+			ret = ..com.interface( objPtr,IWebBrowser2 )
+			..com.Release(objPtr) 
+		} 
+	}
+	return ret;
+}
+ 
+var getDocumentFromBrowserIt = function(browserIt){ 
+    var hr,docPtr =  browserIt.get_Document(); 
+    if( hr >=0/*SUCCEEDED*/ ){
+    	var doc = ..com.QueryObject( docPtr ) 
+    	..com.Release(docPtr)
+    	return doc;
+    }
+}
+
+var queryDocument = function(ele){ 
+	var browserIt = queryBrowserIt(ele)  
+	if( browserIt ) { 
+		return getDocumentFromBrowserIt(browserIt);
+	}
+}  
+
+var crossMeta = { 
+	[true] = {
+		getDoc = function(frame){ 
+			if(frame===null) {  
+				if( ! owner._browserIt )
+					return owner._browser.getDocument(); 
+					
+				return getDocumentFromBrowserIt( owner._browserIt );  
+			} 
+			var ele = owner.getFrame(frame); 
+   			if(ele){
+   				return queryDocument(ele) 
+   			}
+		}	
+		getWebForm = function(frame){
+			if(frame===null)
+				return owner;
+			
+			var wnd = owner.getFrame(frame) 
+   			if(wnd){ 
+   				var wb = { }
+   				wb._form = owner[["_form"]] ? owner[["_form"]] : {hwnd = owner.hwnd}
+   				wb._form.web = wb
+   				var objPtr  = queryBrowserPtr(wnd);
+				if( objPtr ){
+					wb._browser = ..com.QueryObject( objPtr )
+					wb._browserIt = ..com.interface( objPtr,IWebBrowser2) 
+					..com.Release(objPtr);
+				}   
+   				wb@ = owner@
+   				return wb;  
+   			}
+		} 
+	};
+	[false] =  {
+		getDoc = ..web.form._metaProperty._getDoc;
+		getWebForm  = ..web.form._metaProperty._getWebForm
+	}  
+}
+
+..web.form._metaProperty._getDoc = ..web.form._metaProperty.getDoc
+..web.form._metaProperty._getWebForm  = ..web.form._metaProperty.getWebForm
+crossDomain = function( cross = true ) {
+	..util.metaProperty.extend( ..web.form ,crossMeta[cross] );
+}
+
+//已废弃
+refreshOption = ..web.form.refreshOption;
+featureControl = ..web.form.featureControl;
+emulation = ..web.form.emulation;
+gpuRendering = ..web.form.gpuRendering;
+disableNavigationSounds = ..web.form.disableNavigationSounds;
+enableTab = ..web.form.enableTab;
+ 
+/**intellisense(web.form.util)
+dlCtrl(wb,_DLCTL__) =  修改web窗体下载控制参数
+dlCtrl(wb) = 恢复默认设置
+dlCtrl(wb,0) = 禁止下载图片
+setUserAgent(wb) = 恢复默认useragent
+setUserAgent(wb,"aardio explorer") = 修改useragent
+refreshOption() = 刷新web设置
+crossDomain() = 允许所有web.form对象跨域访问框架
+crossDomain(false) = 关闭跨域功能 
+getMajorVersion() = 返回IE主版本号,数值\n注意根据网页代码可能实际使用的是更低的兼容版本,\n兼容版本号使用web窗体的documentMode属性获取
+getVersion() = 返回IE版本号,字符串
+end intellisense**/
+
+/**intellisense()
+web.form.util = web.form辅助函数库\n导入此库同时会自动导入web.form
+end intellisense**/

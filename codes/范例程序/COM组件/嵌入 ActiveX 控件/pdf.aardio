@@ -1,0 +1,29 @@
+//ATL加载PDF控件
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="atlax加载控件";right=811;bottom=689)
+winform.add(
+pdfCtrl={cls="atlax";text="AcroPDF.PDF.1";left=9;top=9;right=803;bottom=682;db=1;dl=1;dr=1;dt=1;edge=1;transparent=1;z=1}
+)
+/*}}*/
+
+var pdf = winform.pdfCtrl.getControl();
+if( "IAcroAXDocShim" == winform.pdfCtrl.getControlTypeName() ){
+	import fsys.dlg;
+	var path = fsys.dlg.open("*.pdf|*.pdf||","打开PDF文件");
+	if( path ){
+		pdf.src = path;
+		pdf.setShowToolbar( false ); //去掉工具栏
+		pdf.setCurrentPage( 1 ); //翻到第2页
+		pdf.setZoom( 80 ); //设置百分比
+	}
+}
+else {
+	pdf.Navigate("about:请稍候......")
+	winform.text = "请先安装最新版Adobe Reader"
+	pdf.Navigate("https://get.adobe.com/reader/?loc=cn&promoid=KQZEN");
+}
+
+winform.show(3/*_SW_SHOWMAXIMIZED*/) 
+win.loopMessage(); 
+

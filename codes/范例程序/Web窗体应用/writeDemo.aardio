@@ -1,0 +1,131 @@
+//创建简单Web窗体
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=681;bottom=451;parent=...;scroll=1)
+winform.add()
+/*}}*/
+
+//创建web窗体
+import web.form;
+var wb = web.form( winform, , , ,true/*securityTrusted*/  )
+
+import console;
+wb.external={
+	log = function(...){
+		console.log(...) 
+	}
+	tab = {abc=1;b=2};
+	getAardioArray = function(){
+		return wb.jsArray({12;23;34}); 
+	}
+} 
+
+wb.html = /**
+<!doctype html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	
+	<script type="text/javascript">
+	console = {};
+	console.log = function () {
+	    for (var i = 0; i < arguments.length; i++) {  
+	    	if( typeof(arguments[i])!="undefined" && typeof(arguments[i])!="null"    )
+	        	arguments[i] =  arguments[i].toString() 
+	        else 
+	        	arguments[i] =  typeof (arguments[i]);
+		}
+		Array.prototype.splice.call(arguments, 0, 0, external, 'Javascript console:');
+		Function.call.apply(external.log, arguments);
+	};  
+	$enum = function(obj,callback,thisObj){
+	 
+		if( obj instanceof Array ){
+			for(var i=0;i<obj.length;i++){
+				callback.call(thisObj||window,i,obj[i],obj);  
+			}
+		}
+		else if( obj instanceof Object ){
+			for( k in obj){
+				callback.call(thisObj||window,k,obj[k],obj); 
+			}
+		}
+		else{
+			if(typeof(obj)=="unknown"){
+				var array = new VBArray(obj).toArray()
+				for (var i = 0; i < array.length; i++) {
+					callback.call(thisObj||window,i,array[i],array );
+				}
+			}
+			else if( obj ) { 
+				var e = new Enumerator(obj);  
+				var k;
+				if(!e)
+					return;
+				
+				for   (;!e.atEnd();e.moveNext()){ 
+					k = e.item(); 
+					callback.call(thisObj||window,k,obj[k],obj); 
+				} 
+			}
+		} 
+	}  
+	</script>
+	
+	<script type="text/javascript">
+	//其他Js代码
+	
+	</script>
+	
+	<style type="text/css">
+    body { 
+        font: 10.5pt/1.3;
+    }
+    </style> 
+</head>
+<body>
+	<div id="myId">  
+		click me!
+	</div>
+</body>
+</html>
+**/
+  
+var js = /**
+	console.log( "Hello,Aardio!" )
+	console.log( "Welcome to Aardio!",event.srcElement.id );
+	//枚举js数组
+	$enum(
+		[1,2,3],
+		function(v,i){
+			console.log(v,i)
+		}
+	)
+	//枚举js对象
+	$enum(
+		{a:123,b:456},
+		function(k,v){
+			console.log(k,v)
+		}
+	)
+	//枚举aardio数组
+	$enum(
+		external.getAardioArray(),
+		function(k,v){
+			console.log(k,v)
+		}
+	)
+	//枚举aardio对象
+	$enum(
+		external.tab,
+		function(k,v){
+			console.log(k,v)
+		}
+	)
+**/
+wb.eventScript(js,"myId","onclick")
+
+winform.show(); 
+
+//进入消息循环
+win.loopMessage(); 

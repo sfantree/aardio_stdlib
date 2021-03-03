@@ -1,0 +1,377 @@
+import fsys;
+import config;
+import process;
+import ide;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio-  已生成EXE文件";right=545;bottom=277;max=false;parent=...)
+winform.add(
+btnClose={cls="button";text="关闭(ESC)";left=352;top=226;right=512;bottom=258;db=1;dr=1;z=2};
+btnExplorer={cls="button";text="打开发布目录(Enter)";left=308;top=184;right=513;bottom=216;db=1;dr=1;z=1};
+btnRun={cls="button";text="运行EXE文件(F5)";left=352;top=140;right=512;bottom=172;db=1;dr=1;z=3};
+buttonMakeUpdater={cls="button";text="制作升级包";left=155;top=184;right=292;bottom=216;db=1;dr=1;z=11};
+chkBuildNumInc={cls="checkbox";text="版本号自增";left=362;top=111;right=493;bottom=129;ah=1;aw=1;z=8};
+chkLostFocusClose={cls="checkbox";text="对话框失去焦点自动关闭";left=32;top=111;right=198;bottom=130;ah=1;aw=1;checked=1;z=6};
+chkUpxCompress={cls="checkbox";text="UPX压缩EXE文件";left=219;top=111;right=341;bottom=131;ah=1;aw=1;z=7};
+editCmdLine={cls="edit";left=121;top=144;right=348;bottom=172;db=1;dl=1;dr=1;edge=1;z=9};
+editPublishPath={cls="edit";left=33;top=71;right=513;bottom=100;dl=1;dr=1;edge=1;readonly=1;z=4};
+lbCmd={cls="static";text="启动参数：";left=22;top=147;right=114;bottom=173;align="right";db=1;dl=1;transparent=1;z=10};
+lbTitle={cls="syslink";text='<a href="http://bbs.aardio.com/forum.php?mod=viewthread&tid=8299">目前很多基于服务端白名单进行云查杀的安全软件（或某些非安全软件的在后台运行的安全模块）会误报未知EXE、或阻止您的软件启动(可能无任何提示)，也有可能您生成EXE时一切正常，但发布给别人使用一段时间后被误报或拦截。</a>';left=33;top=9;right=519;bottom=65;ah=1;dl=1;dr=1;dt=1;z=5}
+)
+/*}}*/
+
+winform.lbTitle.text = '<a href="http://bbs.aardio.com/forum.php?mod=viewthread&tid=8299">请点击这里查看如何解决：目前很多基于服务端白名单进行云查杀的安全软件（或某些非安全软件的在后台运行的安全模块）会误报未知EXE、或阻止您的软件启动(可能无任何提示)，也有可能您生成EXE时一切正常，但发布给别人使用一段时间后被误报或拦截。</a>'
+winform.lbTitle.onHyperlinkClick = function(nmSysLink,url,id){ 
+    process.openUrl(url);	
+}
+
+win.setOwner(winform.hwnd,ide.getMainHwnd()); //避免窗口跑到IDE后面
+win.setForeground(winform.hwnd);
+
+/*abortDialog{{*/
+abortDialog = function(errCode){ 
+var frmBuildWaring = ..win.form( text="aardio生成EXE失败 错误代码："+errCode;bottom=169;parent=ide.getMainHwnd();right=496;border="dialog frame";max=false;exmode="toolwindow";mode="popup" )
+frmBuildWaring.add( 
+btnHelp={ bottom=159;text="安全认证教程";left=117;top=124;z=2;right=237;cls="button" };
+static={ bottom=127;right=488;left=12;top=23;transparent=1;z=1;text="生成EXE失败，
+部份安全软件会阻止生成未知EXE，或对未知EXE错误报警。
+请关闭文件监控类软件再试！
+
+EXE文件生成以后，建议及时提交到主流安全厂商云查杀平台通过安全认证，
+即可避免发生误报现象。";cls="static" };
+btnBuild={ bottom=159;text="重新生成";left=247;top=124;z=3;right=367;cls="button" };
+btnExt={ bottom=159;text="退出";left=377;top=124;z=4;right=478;cls="button" }
+)
+
+
+import process;
+frmBuildWaring.btnHelp.oncommand = function(id,event){
+	process.openUrl("http://www.aardio.com/thread-8299-1-1.html")
+	frmBuildWaring.endModal()
+}
+
+import ide;
+frmBuildWaring.btnBuild.oncommand = function(id,event){ 
+	frmBuildWaring.endModal()
+	::PostMessage( ide.getMainHwnd(),0x111/*_WM_COMMAND*/, 0x8317/*_IDE_ID_BUILD_PUBLISH*/,0);
+}
+
+
+frmBuildWaring.btnExt.oncommand = function(id,event){ 
+	frmBuildWaring.endModal() 
+}
+
+frmBuildWaring.doModal()
+}
+/*}}*/ 
+
+if( ide.projectIsOpened() ){
+	fsys.delete( ide.getPublishPath() )
+}
+winform.enableDpiScaling();
+winform.chkLostFocusClose.checked = config.publish.chkLostFocusClose;
+winform.chkUpxCompress.checked = config.publish.chkUpxCompress;
+winform.chkBuildNumInc.checked = ( config.publish.chkBuildNumInc === null ) 
+	? true : config.publish.chkBuildNumInc;
+
+var publishObj = ide.getPublishObjPath();
+var objDataFile;
+try{
+	objDataFile = ::Kernel32.LoadLibraryExW(publishObj, ,2/*_LOAD_LIBRARY_AS_DATAFILE*/)
+}
+catch(e){ 
+	abortDialog("30001"); 
+}
+if( !objDataFile ){
+	abortDialog("30002"); 
+	return;
+}
+
+import fsys.res; 
+var resLibs = {};
+fsys.res.enum(
+	function(module,resType,resName){
+		table.push(resLibs,..string.lower(resName) ) 
+		return true;
+	},"LIB",topointer(objDataFile)
+) 
+::Kernel32.FreeLibrary(objDataFile);
+
+/*Manifest{{*/
+var projectPath = ide.getProjectPath();
+var projectFileName = io.splitpath(projectPath).name;
+var manifestPath = ..fsys.joinpath( ide.getProjectDir(),".build\" + projectFileName + ".Manifest.xml" );
+var manifestData = ..string.load( manifestPath ); 
+if( !manifestData ){
+	manifestPath = ..fsys.joinpath( ide.getProjectDir(),".build\Manifest.xml" ); //兼容旧版
+	manifestData = ..string.load( manifestPath ); 
+}
+
+if( (!manifestData) || ( ! ..string.find(manifestData,"8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a" ) ) 
+	|| ( ! ..string.find(manifestData,"@<dpiAware>" ) )  ){
+	import string.template;
+	manifestTemplate = string.template();
+	manifestTemplate.template = /***
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?> 
+<assembly 
+xmlns="urn:schemas-microsoft-com:asm.v1" 
+manifestVersion="1.0">
+<assemblyIdentity 
+    processorArchitecture="x86" 
+    version="5.1.0.0"
+    type="win32"
+    name="${EXENAME}"/>
+    <description>${PROJENAME}</description>
+    <dependency>
+    <dependentAssembly>
+    <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        publicKeyToken="6595b64144ccf1df"
+        language="*"
+        processorArchitecture="x86"/>
+    </dependentAssembly>
+    </dependency>
+    <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+      <application> 
+          <!--Windows Vista -->
+          <supportedOS Id="{e2011457-1546-43c5-a5fe-008deee3d3f0}"/>
+          <!--Windows 7 -->
+          <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}"/>
+		  <!--Windows 8 -->  
+		  <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}"/>
+		  <!-- Windows 8.1 -->             
+          <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}"/>   
+          <!-- Windows 10 -->              
+          <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>    
+      </application>
+    </compatibility>
+    <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    	<security>
+        	<requestedPrivileges>
+			<!-- 
+				可任选以下配置之一指定一个进程权限：
+				<requestedExecutionLevel level="asInvoker" uiAccess="false" />
+				<requestedExecutionLevel level="requireAdministrator" uiAccess="false" /> 
+				<requestedExecutionLevel level="highestAvailable" uiAccess="false" />
+				
+				requireAdministrator 为管理员权限，
+				highestAvailable 为可以获取到的最高权限，
+				asInvoker 为默认值,即调用进程当前权限,一般不需要显式指定,指定后会禁用虚拟化。
+				
+				虚拟化指Vista以后系统禁止写 Program File目录,启用虚拟化则重定向到%localappdata%\VirtualStore目录，
+				而注册表 HKEY_LOCAL_MACHINE\Software 则重定向到HKEY_CURRENT_USER\Software\Classes\VirtualStore\MACHINE\Software
+			--> 
+        	</requestedPrivileges>
+    	</security>
+	</trustInfo>
+	<asmv3:application xmlns:asmv3="urn:schemas-microsoft-com:asm.v3" >
+		<asmv3:windowsSettings xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">
+			<dpiAware>True/PM</dpiAware>
+		</asmv3:windowsSettings>
+	</asmv3:application>
+</assembly>
+***/ 
+	manifestData = manifestTemplate.format(
+		EXENAME = ide.getPublishName();
+		PROJENAME = ide.getProjectProperty("name")
+	);
+	
+	var manifestPath = ..fsys.joinpath( ide.getProjectDir(),".build\" + projectFileName + ".Manifest.xml" );
+	..fsys.createParentDir(manifestPath);
+	string.save(manifestPath,manifestData )
+}
+ 
+var fileMain = io.open(ide.getProjectMainFile(),"rb"); 
+if( fileMain ){
+	var tag = fileMain.read(9);
+	if( tag == "//RUNAS//" ){
+		manifestData = ..string.replace(manifestData,"\<requestedPrivileges\>.+?\<\/requestedPrivileges\>"
+			,"<requestedPrivileges><requestedExecutionLevel level=""requireAdministrator"" uiAccess=""false"" /> </requestedPrivileges>")
+	}
+	fileMain.close();
+}
+
+var resFile = fsys.res.open( publishObj )
+resFile.update(24,1,manifestData,0 ) 
+resFile.close();
+/*}}*/
+
+ 
+var publishFile = ide.getPublishPath();
+io.rename(publishObj,publishFile)
+if(!io.exist(publishFile)){ 
+	abortDialog("30003");
+	return;
+}
+
+var publisDir = ide.getPublisDir();
+for(k,resName in resLibs){
+	var customBuild = fiber.create(
+		function(resName){
+			var libPath,libDir = io.libpath(resName);
+			if(libDir && libPath && ..string.endWith(libPath,"_.aardio",true) ){
+				var builder = fsys.joinpath(libDir,".build\main.aardio");
+				if( io.exist( builder ) ){
+					var tHnd,tId = thread.create(builder)
+					if(tHnd){
+						::User32.AttachThreadInput( ..thread.getId(),tId,true); 
+						thread.waitOne(tHnd);
+						raw.closehandle(tHnd);
+					}
+				}
+			}	
+		}, ide.getProjectDir() /*使用工程目录下的用户库*/
+	)
+	fiber.resume (customBuild,resName);	
+}
+
+var projectPath = ide.getProjectPath();
+var projectFileName = io.splitpath(projectPath).name;
+var builder = fsys.joinpath(ide.getProjectDir(),".build\" + projectFileName + ".main.aardio");
+if( io.exist( builder ) ){  
+	var tHnd,tId  = thread.create(builder)
+	if(tHnd){
+		::User32.AttachThreadInput( ..thread.getId(),tId,true);
+		thread.waitOne(tHnd);
+		raw.closehandle(tHnd);
+	}
+}
+else { 
+	var code =/*
+//此触发器在生成EXE以后执行
+import ide;
+import fsys; 
+
+//获取生成的EXE文件路径
+var publishFile = ide.getPublishPath();
+*/
+	var builder = fsys.joinpath(ide.getProjectDir(),".build\" + projectFileName + ".main.aardio");
+	..string.save(builder,code)  
+}
+
+/*自增版本号{{*/
+if( winform.chkBuildNumInc.checked ){
+
+	import fsys.version;
+	
+	var fileVersion = ide.getProjectProperty("FileVersion"); 
+	if( fileVersion ){
+		var verInfo = fsys.version(fileVersion);
+		
+		verInfo.revision++;
+		if( verInfo.revision >=  1000 ){
+			verInfo.revision = 0;
+			verInfo.build++;
+		}
+		if( verInfo.build >=  1000 ){
+			verInfo.build = 0;
+			verInfo.minor++;
+		}
+		if( verInfo.minor >=  100 ){
+			verInfo.minor = 0;
+			verInfo.major++;
+		}
+		ide.setProjectProperty("FileVersion",tostring(verInfo));
+	}
+	
+	var productVersion = ide.getProjectProperty("ProductVersion");
+	if(productVersion){
+		var verInfo = fsys.version(productVersion);
+		
+		verInfo.revision++;
+		if( verInfo.revision >=  1000 ){
+			verInfo.revision = 0;
+			verInfo.build++;
+		}
+		if( verInfo.build >=  1000 ){
+			verInfo.build = 0;
+			verInfo.minor++;
+		}
+		if( verInfo.minor >=  100 ){
+			verInfo.minor = 0;
+			verInfo.major++;
+		}
+		ide.setProjectProperty("ProductVersion",tostring(verInfo));
+	}
+} 
+
+winform.editPublishPath.text = ide.getPublishPath();
+winform.show();
+
+ide.setConfig("project_CompanyName",ide.getProjectProperty("CompanyName") );
+/*}}*/
+
+upxCompress = function(){
+	if( winform.chkUpxCompress.checked ){
+		winform.text = "aardio-  正在使用UPX压缩EXE文件"
+		winform.btnRun.disabled = true;
+		win.invoke(
+			function(publishFile){
+				import ide.upx;
+				ide.upx.compress(publishFile);
+			},ide.getPublishPath()
+		) 
+		winform.btnRun.disabled = false;
+		winform.text = "aardio-  已生成EXE文件"
+	}
+}
+upxCompress();
+winform.chkUpxCompress.oncommand = function(id,event){
+	upxCompress();
+}
+
+winform.btnClose.oncommand = function(id,event){
+	winform.close()
+}
+
+var cmdStorePath = ..fsys.joinpath( ide.getProjectDir(),".build\cmdline.txt" );
+winform.editCmdLine.text = string.load(cmdStorePath) : "";
+winform.btnRun.oncommand = function(id,event){
+	winform.btnRun.text = "请稍候..."
+	winform.btnRun.disabled = true;
+	process.execute(winform.editPublishPath.text,winform.editCmdLine.text);
+	if(#winform.editCmdLine.text){
+		string.save(cmdStorePath,winform.editCmdLine.text)
+	}
+	winform.close();
+}
+ 
+winform.btnExplorer.oncommand = function(id,event){
+	winform.btnExplorer.text = "请稍候..."
+	winform.btnExplorer.disabled = true;
+	process.explore_select( winform.editPublishPath.text )
+	winform.close();
+}
+
+winform.wndproc = function(hwnd,message,wParam,lParam){
+	select( message ) { 
+		case 0x1C/*_WM_ACTIVATEAPP*/ {
+			if(!wParam){
+				if( winform.chkLostFocusClose.checked ){
+					winform.close();
+				}
+			}
+		} 
+		case 0x100/*_WM_KEYDOWN*/{
+			if( wParam = 0x74/*_VK_F5*/ ){
+				winform.btnRun.oncommand();
+			}
+		}
+	} 
+}
+
+winform.onClose = function(hwnd,message,wParam,lParam){
+    config.publish.chkLostFocusClose = winform.chkLostFocusClose.checked
+    config.publish.chkUpxCompress = winform.chkUpxCompress.checked;
+    config.publish.chkBuildNumInc = winform.chkBuildNumInc.checked;
+}
+
+winform.buttonMakeUpdater.oncommand = function(id,event){
+    winform.close()
+    loadcodex("~\tools\编码\1) maker.aardio")
+}
+
+win.setActive(winform.hwnd);
+win.loopMessage();

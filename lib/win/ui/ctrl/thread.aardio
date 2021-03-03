@@ -1,0 +1,86 @@
+//thread 线程控件
+namespace win.ui.ctrl;  
+
+class thread { 
+	ctor(parent,tParam){
+	 
+	 	if(!tParam.loadForm){
+	 		error("线程控件创建参数未指定 loadForm 字段",3);
+	 	}
+	 	
+	 	var cmd = ..win.form().messageOnly();
+		cmd.onCreateThreadCtrl = function(threadCtrl,err){
+			if(!threadCtrl) error(err,3); 
+			this.hwnd  = threadCtrl.hwnd;
+			this.threadCtrl = threadCtrl;
+		} 
+		
+		this.threadHandle,this.threadId = ..thread.create( 
+			function(cmd,parent,tCtrlParam){  
+				import win.ui; 
+
+				try{
+					..win.loadForm(
+						tCtrlParam.loadForm,function(tParam){ 
+							tCtrlParam.loadForm = null;  
+							..table.assign( tParam,tCtrlParam,{
+								exmode="none";
+								mode="child" 
+							} );
+							..table.mix( tParam,{
+								border = "none";
+							} )
+
+							var winform = win.form(tParam)
+							if( winform[["hwnd"]] ){
+								winform.threadParent = parent;
+								cmd.onCreateThreadCtrl(winform) 
+							}
+							else {
+								cmd.onCreateThreadCtrl(null,"创建窗体失败")  
+							}
+							return winform;
+						},parent.hwnd
+					)
+					..win.loopMessage();
+				}
+				catch(err){
+					cmd.onCreateThreadCtrl(null,err)
+				}
+			},cmd,parent,tParam
+		);
+		::User32.AttachThreadInput( ..thread.getId(),threadId,true); 
+		
+		..win.wait(
+			function(){
+				return this.hwnd ; 
+			},parent.hwnd
+		); 
+		
+		cmd.close();
+		cmd = null;
+	};
+	_adjust = function(){  
+		::RedrawWindow(this[["hwnd"]],{},null,0x185/*_RDW_ALLCHILDREN | _RDW_INVALIDATE | _RDW_UPDATENOW  | _RDW_ERASE*/);
+	}; 
+	_onDestroy = function(){ 
+		 
+		if( !this.threadHandle ){
+			return;
+		} 
+		var threadHandle = this.threadHandle;
+		this.threadHandle = null;
+		
+		::PostMessage(this.hwnd,0x10/*_WM_CLOSE*/,0,0); 
+		::PostThreadMessage(this.threadId,0x12/*_WM_QUIT*/ ,0,0); 
+		..thread.waitOne(threadHandle);
+		..raw.closehandle(threadHandle);
+	};
+	@_metaProperty;
+}
+
+thread._metaProperty = metaProperty();
+
+/*intellisense()
+win.ui.ctrl.thread() = 线程控件\n!static.
+end intellisense*/

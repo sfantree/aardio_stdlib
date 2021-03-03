@@ -1,0 +1,76 @@
+namespace win.clip;
+  
+readUnicode = function(){
+	var txt;
+	if(!::User32.OpenClipboard(0))
+		return;	
+		
+	var hClip =  User32.GetClipboardDataP(0xD/*_CF_UNICODETEXT*/);
+	if(hClip){
+		var p = ::GlobalLock(hClip)
+		if(p){ 
+			txt = ..raw.str(p,true);
+			::GlobalUnlock(hClip)
+		}
+	} 
+	::User32.CloseClipboard();  
+
+	return txt;
+}
+
+read = function(){ 
+	var s = readUnicode();
+	if(s)return ..string.fromto(readUnicode(),0,65001);
+}
+
+write = function(str){ 
+	str = ..string.toUnicode(str);
+	if(!str) return;
+	
+	if(!::User32.OpenClipboard(0))
+		return;	
+			
+	User32.EmptyClipboard();
+	
+	
+	var clipbuffer = ::GlobalAlloc(0x2000/*_GMEM_DDESHARE*/, #str+2);
+    var buffer =  ::GlobalLock(clipbuffer);
+    
+    ::CopyMemory(buffer,str,#str+2); 
+	::GlobalUnlock(clipbuffer); 
+	
+	var hdl =  ::User32.SetClipboardDataP(0xD/*_CF_UNICODETEXT*/,clipbuffer);
+	::User32.CloseClipboard();
+	return hdl;
+	 
+}
+
+writeBitmap = function(hBmp){ 
+	if(!::User32.OpenClipboard(0))
+		return;	
+			
+	::User32.EmptyClipboard();  
+	var hdl = ::User32.SetClipboardDataP (0x2/*_CF_BITMAP*/
+		,::User32.CopyImageP(hBmp,0x0/*_IMAGE_BITMAP*/,0,0,0x4/*_LR_COPYRETURNORG*/) );
+	::User32.CloseClipboard();
+	return hdl;
+	 
+}
+
+readBitmap = function(){ 
+	if(!::User32.OpenClipboard(0))
+		return;	 
+		
+	var hBmp = User32.GetClipboardDataP(0x2/*_CF_BITMAP*/);  
+	hBmp = hBmp ? ::User32.CopyImageP(hBmp,0/*_IMAGE_BITMAP*/, 0, 0, 0x40/*_LR_DEFAULTSIZE*/)
+	::User32.CloseClipboard();  
+	return hBmp;
+}
+
+/**intellisense(win.clip)
+readUnicode() = 读取剪贴板UTF16编码文本
+read() = 读取剪贴板文本
+write(__) = 写入文本到剪贴板
+writeBitmap(__/*位图句柄*/) = 写入位图到剪贴板
+readBitmap() = 读取剪贴板位图句柄\n返回的位图句柄用完要自行销毁\n读取失败返回null
+end intellisense**/

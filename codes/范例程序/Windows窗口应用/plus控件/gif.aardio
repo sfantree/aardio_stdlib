@@ -1,0 +1,30 @@
+//动态gif
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="plus - 鼠标移动到图片上面试试";right=759;bottom=469)
+winform.add(
+plus={cls="plus";left=126;top=50;right=311;bottom=293;color=-1;notify=1;repeat="center";z=1}
+)
+/*}}*/
+
+import inet.http;
+winform.plus.background = "http://pic31.nipic.com/20130719/13231189_014518621159_2.gif";
+winform.plus.background.stopAnimation();//先暂停默认创建的动画
+
+//控件状态变更时触发
+winform.plus.onStateChange = function(){
+    //如果鼠标在控件上方
+	if(owner.state.hover){
+		//运行动画,因为已经创建过动画,所以这里可以省略所有参数
+		winform.plus.background.createAnimation();
+	}
+	else {
+		//停止动画
+		winform.plus.background.stopAnimation();
+	}
+	
+	winform.plus.redrawTransparent();
+}
+
+winform.show() 
+win.loopMessage();

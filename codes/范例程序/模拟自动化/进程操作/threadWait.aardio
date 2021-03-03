@@ -1,0 +1,29 @@
+//等待进程执行完成
+import win.ui;
+/*DSG{{*/
+var winform = win.form(parent=...; text="aardio form";right=349;bottom=249 )
+winform.add( 
+btnRun={ bottom=114;right=293;left=71;top=66;z=1;text="打开记事本";cls="button" }
+)
+/*}}*/
+
+winform.btnRun.oncommand = function(id,event){
+
+	thread.create( 
+		function(hwnd){
+			import process	
+			import win;
+			
+			win.setText(hwnd,"请稍等...")
+			var prcs = process("notepad.exe")
+			thread.wait( prcs.thandle )
+			win.setText(hwnd,"已完成...")
+		}
+		,winform.btnRun.hwnd
+	)
+
+	
+}
+
+winform.show() 
+win.loopMessage();

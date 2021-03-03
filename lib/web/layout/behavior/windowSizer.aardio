@@ -1,0 +1,117 @@
+//windowSizer 调整窗体大小
+namespace web.layout.behavior.windowSizer;
+ 
+onAttach = function( ltOwner ){
+	var form =  ltOwner.getForm();
+	if(!..win.getStyle(form.hwnd,0x10000/*_WS_MAXIMIZEBOX*/) ){
+		ltOwner.style.display = "none";
+		return true;
+	}
+	if( ltOwner.root().initHtmlayoutWindowSizer ){
+		return true;;
+	}
+	ltOwner.root().initHtmlayoutWindowSizer  = "true";
+	
+	var border = ltOwner.getCustomAttribute("border") or "4px";
+	var corner = ltOwner.getCustomAttribute("corner") or "8px"; 
+
+	ltOwner.windowSizer = "true";
+	var ltBorder = ltOwner.createElement("div") 
+	ltBorder.setAttribute("sizer-command","hitTopleft")
+	with ltBorder.style {
+		left = 0;
+		top = 0; 
+		width = corner;
+		height = corner;
+		cursor = "nw-resize";
+		position = "absolute";
+	}
+	
+	var ltBorder = ltOwner.createElement("div")
+	ltBorder.setAttribute("sizer-command","hitLeft")
+	with ltBorder.style {
+	    left = 0;
+	    top = corner;
+	    bottom = corner;
+	    width = border;
+	    cursor = "w-resize"; 
+	    position = "absolute"
+	}
+	
+	var ltBorder = ltOwner.createElement("div")
+	ltBorder.setAttribute("sizer-command","hitBottomleft")
+	with ltBorder.style{
+	    left = 0;
+	    bottom = 0;
+	    width = corner;
+	    height = corner;
+	    cursor = "sw-resize"; 
+	    position = "absolute";
+	}
+	
+	var ltBorder = ltOwner.createElement("div")
+	ltBorder.setAttribute("sizer-command","hitTop")
+	with ltBorder.style{
+	    left = corner;
+	    top = 0;
+	    right = corner;
+	    height = border;
+	    cursor = "n-resize"; 
+	    position = "absolute"
+	}
+	
+	var ltBorder = ltOwner.createElement("div")
+	ltBorder.setAttribute("sizer-command","hitBottom")
+	with ltBorder.style{
+	    left = corner;
+	    bottom = 0;
+	    right = corner;
+	    height = border;
+	    cursor = "s-resize"; 
+	    position = "absolute"
+	}
+	
+	var ltBorder = ltOwner.createElement("div")
+	ltBorder.setAttribute("sizer-command","hitTopright")
+	with ltBorder.style{ 
+	    top = 0;
+	    right = 0;
+	    width = corner;
+	    height = corner;
+	    cursor = "ne-resize"; 
+	    position = "absolute"
+	}
+
+	var ltBorder = ltOwner.createElement("div")
+	ltBorder.setAttribute("sizer-command","hitRight")
+	with ltBorder.style{
+	    right = 0;
+	    top = corner;
+	    bottom = corner;
+	    width = border;
+	    cursor = "e-resize"; 
+	    position = "absolute"
+	}
+	
+	var ltBorder = ltOwner.createElement("div")
+	ltBorder.setAttribute("sizer-command","hitBottomright")
+	with ltBorder.style{
+	    right = 0;
+	    bottom = 0;
+	    width = corner;
+	    height = corner;
+	    cursor = "se-resize"; 
+	    position = "absolute"
+	}
+}; 
+
+onMouseDown = function(ltTarget,ltOwner,x,y,mouseParams){
+	if( mouseParams.button_state == 1/*_HL_MAIN_MOUSE_BUTTON*/ ){ 
+		var sizerCommand = ltTarget.getAttribute("sizer-command");
+		if( sizerCommand ){
+			var form = ltOwner.getForm(); 
+			call( form[sizerCommand],form );
+			return true; 
+		} 
+	}
+}

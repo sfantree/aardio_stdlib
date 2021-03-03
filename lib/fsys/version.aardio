@@ -1,0 +1,157 @@
+//version 版本信息
+namespace fsys;
+
+class version{
+	ctor( value ){ {
+		
+		var tp = type(value);
+		if( tp == "table" ){
+			..table.assign(this,value);
+		}
+		elseif( tp == "number" ){
+		
+			var ver = { WORD build; BYTE minor; BYTE major}
+			..raw.convert({INT n = value },ver ); 
+			..table.assign(this,ver);
+			this.revision = 0;
+		}
+		elseif( tp == "string" ){
+			var v,t = ..string.match( ..string.trim(value) ,"([\d\.\,\s\-\p]+\d)\s*(\Z*)");
+			this.releaseType = t;
+			
+			if(v){ 
+				v = ..string.splitEx(v:"","[\.\,\s\-\p]+");
+				this.major = tonumber(v[1],10);
+				this.minor = tonumber(v[2],10);
+				this.build = tonumber(v[3],10);
+				this.revision = tonumber(v[4],10);
+			}
+			
+			if( t && !this.revision && ..string.match(t,"build[\-\p\s]*(\d+)") ){
+				this.revision = tonumber(..string.match(t,"build[\-\p\s]*(\d+)"),10);
+				this.releaseType = null;
+			}
+		}
+		
+		if( this.major === null ) this.major = 0;
+		if( this.minor === null ) this.minor = 0;
+		if( this.build === null ) this.build = 0;
+		if( this.revision === null ) this.revision = 0;
+	} };  
+	valid = function(){
+		with(this){
+			return major || minor || build || revision;
+		}
+	};
+	WORD build;
+	BYTE minor;
+	BYTE major;
+	@_meta;
+}
+
+namespace version{ 
+	_meta = {
+		_tonumber = function(){
+			return ..raw.convert(owner,{INT n = value }).n;
+		};
+		_tostring = function(){
+			var f = "%d.%d.%d.%02d";
+			if( !owner.revision ){
+				f = "%d.%d.%02d";
+				if( !owner.build ) f = "%d.%d"; 
+			}
+			var s = ..string.format(f,owner.major,owner.minor,owner.build,owner.revision);
+			if( #owner.releaseType ) s = s + " " + owner.releaseType;
+			return s;
+		}
+		_eq = function(b){
+			return  owner.major == b.major && owner.minor == b.minor
+				&& owner.build == b.build && owner.revision == b.revision
+		} 
+		_lt = function(b){
+			if( owner == b) return false;
+			if( owner.major < b.major )return true;
+			if( owner.major > b.major )return false;
+			if( owner.minor < b.minor )return true;
+			if( owner.minor > b.minor )return false;
+			if( owner.build < b.build )return true;
+			if( owner.build > b.build )return false;
+			if( owner.revision < b.revision )return true;
+			if( owner.revision > b.revision )return false;
+			return false;
+		}
+		_le = function(b){ 
+			return owner < b || owner == b;	
+		}
+	}
+	
+	var versionDll = ..raw.loadDll("Version.dll") 
+	GetFileVersionInfoSize = versionDll.api("GetFileVersionInfoSizeW","int(string filename,int& handle)") 
+	VerQueryValue = versionDll.api("VerQueryValueW","int(STRING pBlock,string subBlock,pointer &buffer,int& len)") 
+		
+	class TRANSLATE {
+		WORD language;
+		WORD codePage; 
+	}  
+	
+	var queryStringInfo = function(verInfo,translation,key){
+		var ok,pBuf,len = VerQueryValue(verInfo
+			, ..string.toUnicode( ..string.format("\StringFileInfo\%04X%04X\%s",translation.language,translation.codePage,key) )
+			, ,0
+			);  
+		if(ok && pBuf && len){ return ..string.str( ..string.fromUnicode(pBuf,,len) ); }	
+	} 
+	
+	getInfo = function(path){ 
+		path = ..string.toUnicode(path);
+		var verSize=GetFileVersionInfoSize(path,0); 
+		var verInfo = ..raw.buffer(verSize);
+		var re = versionDll.GetFileVersionInfoW(path,0,verSize,verInfo);
+		if(!re)return;
+		
+		var ok,pBuf,len = VerQueryValue(verInfo, '\\VarFileInfo\\Translation'u, ,0)  
+		if( ok ) {	
+			var translation = ..raw.convert(pBuf,TRANSLATE() ); 
+			var v = {
+				productVersion = ..fsys.version( queryStringInfo(verInfo,translation,"ProductVersion") );
+				fileVersion = ..fsys.version( queryStringInfo(verInfo,translation,"FileVersion") );
+				fileDescription = queryStringInfo(verInfo,translation,"FileDescription");
+				productName =  queryStringInfo(verInfo,translation,"ProductName"); 
+				originalFileName = queryStringInfo(verInfo,translation,"OriginalFileName"); 
+				internalName = queryStringInfo(verInfo,translation,"InternalName");
+				companyName = queryStringInfo(verInfo,translation,"CompanyName");
+				copyright = queryStringInfo(verInfo,translation,"LegalCopyright");
+				language = translation.translation;
+				codePage = translation.codePage;
+			}
+			return v;
+		}  
+	} 
+} 
+ 
+/**intellisense() 
+fsys.version("0->0->0->0__") = 创建版本号,支持大于小于相等比较,可转换为字符串或数值,\n参数可以为空,或者数值,字符串,表对象等\n如果参数为字符串,忽略无关文本,版本号后的文本提取为releaseType\n文本中提取的版本号为2~4组以圆点、或其他标点、空格分隔的数值
+fsys.version() = !fsys_version.
+!fsys_version.major = 发行版本号中的主版本号,8位数值\n表示较大或不兼容的改动
+!fsys_version.minor = 发行版本号中的副版本号,8位数值\n表示向下兼容的改动或新增功能
+!fsys_version.build = 发行版本号中用于表示编译版本或补丁版本,16位数值\n该版本号表示兼容的问题修正
+!fsys_version.revision = 内部修订版本号\n注意版本号比较大小或转换为一个数值时,忽略此版本号
+!fsys_version.releaseType = 发行版本类型,例如:"alpha", "beta","RC" 等\n可选字段,字符串类型
+!fsys_version.valid() = 版本号是否有效
+fsys.version.getInfo(__/*执行文件路径*/) = 返回版本信息	
+fsys.version.getInfo() =  !fsys_version_info.
+!fsys_version_info.productVersion = !fsys_version.
+!fsys_version_info.fileVersion = !fsys_version.
+!fsys_version_info.fileDescription = 文件描述
+!fsys_version_info.productName = 产品名称
+!fsys_version_info.originalFileName = 原始文件名
+!fsys_version_info.internalName = 内部名
+!fsys_version_info.companyName = 公司名
+!fsys_version_info.productNameUnicode = 产品名称,Unicode编码
+!fsys_version_info.fileDescriptionUnicode = 文件描述,Unicode编码
+!fsys_version_info.originalFileNameUnicode = 原始文件名,Unicode编码
+!fsys_version_info.internalNameUnicode = 内部名,Unicode编码
+!fsys_version_info.companyNameUnicode = 公司名,Unicode编码
+!fsys_version_info.language = 语言代码
+!fsys_version_info.codePage = 代码页
+end intellisense**/

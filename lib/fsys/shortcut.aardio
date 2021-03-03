@@ -1,0 +1,55 @@
+//shortcut 快捷方式生成器
+import fsys.lnk;
+import fsys.url;
+namespace fsys;
+
+class shortcut {
+	ctor( appDir ){ 
+		if( appDir )this.appDir = ..io.fullpath(appDir); 
+	};
+	create = function( param ){
+		return __pin__( param,this.appDir,true);
+	};
+	delete = function( param ){
+		return __pin__( param,this.appDir,false);
+	};
+}
+
+namespace shortcut {
+
+	__pin__ = function( param,appDir,pin ){ 
+    	if( appDir ) {
+    		param = ..table.mix({},param);
+    		if( param.lnk ) param.lnk = ..fsys.joinpath(appDir,param.lnk );
+    		if( param.icon ) param.icon = ..fsys.joinpath(appDir,param.icon );
+    		if( param.workDir ) param.workDir = ..fsys.joinpath(appDir,param.workDir );
+    	}; 
+    	
+    	var lnkFile = param.url  ? ..fsys.url() : ..fsys.lnk();
+    	..table.assign( lnkFile,param );
+    	
+    	if( param.icon ) lnkFile.setIcon(param.icon,param.iconIndex);
+    	if( param.url ) lnkFile.setUrl( param.url,1/*_IURL_SETURL_FL_GUESS_PROTOCOL*/ );
+    	elseif( param.lnk ) lnkFile.path = param.lnk;
+
+    	if( param.programsFolder ) lnkFile.pinToPrograms(pin,param.programsFolder,param.allUsers);
+    	if( param.desktop ) lnkFile.pinToDesktop(pin,param.allUsers);
+    	if( param.startMenu ) lnkFile.pinToStartMenu(pin);
+    	
+    	if( ( !param.url ) && param.lnk ) { 
+    		if( param.taskBar ) lnkFile.pinToTaskbar(pin);
+    		if( param.startMenu ) lnkFile.pinToStartMenu(pin);
+    	}
+	}	
+}
+
+/**intellisense()
+fsys.shortcut = 快捷方式生成器
+fsys.shortcut(.("目标文件根目录" ) = 创建快捷方式生成器\n快捷方式参数可指定相对[目标文件根目录]的子路径
+fsys.shortcut() = !fsys_shortcut.
+end intellisense**/
+ 
+/**intellisense(!fsys_shortcut)
+create( 参数表 ) = @.create( \n    url = "网址";\n    lnk = "应用程序路径";__/*lnk,url必须且只能指定其中一个\n其他参数都是可选的可以省略*/\n    arguments = 启动参数;\n    filename = 快捷方式文件名;\n    icon = 应用程序路径图标或图标资源所在程序路径;\n    iconIndex = 0;  \n    taskBar = true; \n    startMenu = false; \n    desktop = true;\n    programsFolder = "\公司名\"; \n    allUsers = false;\n)
+delete( 参数表 ) = @.delete( \n    url = "网址";\n    lnk = "应用程序路径";__/*lnk,url必须且只能指定其中一个\n其他参数都是可选的可以省略*/\n    filename = "快捷方式文件名";\n    taskBar = true; \n    startMenu = false; \n    desktop = true;\n    programsFolder = "\公司名\"; \n)
+end intellisense**/

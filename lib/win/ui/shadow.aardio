@@ -1,0 +1,186 @@
+//shadow 阴影边框
+import gdip.path;
+import gdip.pathGradientBrush; 
+import gdip.graphics; 
+import win.cur;
+
+namespace win.ui;
+
+class shadow{ 
+	ctor( winform,shadowAlpha,shadowSize,roundRadius,innerRadius,shadowColor,interpolation,focusRatio) { 
+		if( shadowSize === null ) shadowSize = 3;
+		if( roundRadius === null ) roundRadius = shadowSize;
+		if( interpolation === null ) interpolation = 0.15;
+		if( shadowColor === null) shadowColor = 0xFF000000;
+		if( shadowAlpha === null ) shadowAlpha = 80; 
+		if( focusRatio === null ) focusRatio = 15;
+		
+		if(winform._shadowWindow) return winform._shadowWindow;
+		winform._shadowWindow = this;
+		
+		var x,y,cx,cy = winform.getPos(); 
+		var frmShadow = ..win._form(
+			cls="AARDIO_SHADOWEDGE";left=x-shadowSize;top=y-shadowSize;right=x+cx+shadowSize*2;bottom=y+cy+shadowSize*2;
+			border = "none";mode="popup";exmode="toolwindow";max=false;min=false;sysmenu=false;title=false;parent=winform.hwnd;
+			exstyle = 0x80000/*_WS_EX_LAYERED*/;  
+		)
+		
+		this._form = frmShadow;
+		this._parent = winform;
+		this.show = function(flag){
+			frmShadow.show(flag?4/*_SW_SHOWNOACTIVATE*/: 0/*_SW_HIDE*/);
+		}
+		
+		this.onDrawShadow = function(hdc,hMemDc,hMemBitmap,width,height){
+		
+			var graphics = ..gdip.graphics(hMemDc);
+			graphics.smoothingMode = 2/*_SmoothingModeHighQuality*/;
+			 
+			var rcShadow = ::RECT(0,0,width,height) 
+    		var path = ..gdip.path();
+    		if( roundRadius )
+    			path.addRoundRect(rcShadow,roundRadius);
+    		else 
+    			path.addRectangle( rcShadow.left,rcShadow.top,rcShadow.width(),rcShadow.height() );
+    		
+    		var shadowBrush = ..gdip.pathGradientBrush(path);  
+			shadowBrush.setInterpolationColors( {0; shadowColor;shadowColor},{0;interpolation;1} );
+		 	shadowBrush.setFocusScales((width-focusRatio*shadowSize)/width, (height-focusRatio*shadowSize)/height); 
+   
+   			rcShadow.inflate( -shadowSize ,-shadowSize  ); 
+   			rcShadow.offset(0,-1);
+   			if( innerRadius ){
+   				var pathClip = ..gdip.path();
+   				pathClip.addRoundRect(rcShadow,innerRadius); 
+   				graphics.setClipPath(pathClip, 4/*_GdipCombineModeExclude*/);
+   				pathClip.delete();
+   			}
+   			else{
+   				graphics.setClipRect( rcShadow.left, rcShadow.top,rcShadow.width(),rcShadow.height(), 4/*_GdipCombineModeExclude*/)
+   			}
+			graphics.fillPath(shadowBrush,path);
+			 
+			shadowBrush.delete(); 
+			path.delete();
+			graphics.delete(); 
+		}
+		 
+		var transprent = 1;
+		this.transprent = function(v){
+			if(!..win.isWindow(frmShadow.hwnd)) return;
+			if(v == transprent ) return;
+			transprent = v;
+			this._onDrawShadow();
+		}
+		
+		this._onDrawShadow = function(){
+			..gdi.layeredBuffer( frmShadow.hwnd, 
+				function( hdc,hMemDc,hMemBitmap,width,height ){
+					if( height < 45 ) return;
+					this.onDrawShadow(hdc,hMemDc,hMemBitmap,width,height)
+					..gdi.updateLayeredWindow( frmShadow.hwnd,hMemDc,::SIZE(width,height) ,..gdi.blendFunction(shadowAlpha/*透明度*/*transprent)  );   
+				}
+			)
+		}
+		frmShadow._adjust = function( cx,cy ) {
+			var rc =  winform.getRect(); 
+			rc.inflate( shadowSize, shadowSize ); 
+			rc.offset(0,1);
+	 		..win.setRect(frmShadow.hwnd,rc);
+	 		this._onDrawShadow();
+		};
+		
+ 		frmShadow.disabled = !winform.hasResizeBorder && !..win.getStyle(winform.hwnd,0x10000/*_WS_MAXIMIZEBOX*/);
+		this.setResizeBorder = function(v){
+			frmShadow.disabled = !v;
+		};
+		
+ 		frmShadow.wndproc = {
+    		[0x84/*_WM_NCHITTEST*/ ] = function(hwnd,message,wParam,lParam){
+    			if( ..win.isZoomed(winform.hwnd) ) return;
+    			var x,y = ..win.getMessagePos(lParam); 
+				var htborder = ..win.hitBorder(..win.getRect(frmShadow.hwnd),x,y,12); 
+				if(htborder) return htborder; 
+    		}
+    		[0x20/*_WM_SETCURSOR*/] = function(hwnd,message,wParam,lParam){
+    			var ht,message = ..win.getMessagePos(lParam); 
+				var c = __cursor[ht];
+				if( c ) { 
+					..win.cur.setCur(c);
+					return true;
+				} 
+    		}
+    	};
+    	
+    	frmShadow.onMouseActivate = function(hwndTop,hitTest,message){
+    		select(hitTest) { 
+				case 0xB/*_HTRIGHT*/  winform.hitRight(); 
+				case 0x11/*_HTBOTTOMRIGHT*/  winform.hitBottomright(); 
+				case 0xF/*_HTBOTTOM*/ winform.hitBottom(); 
+				case 0x10/*_HTBOTTOMLEFT*/ winform.hitBottomleft(); 
+				case 0xA/*_HTLEFT*/ winform.hitLeft(); 
+				case 0xC/*_HTTOP*/ winform.hitTop(); 
+				case 0xD/*_HTTOPLEFT*/ winform.hitTopleft(); 
+				case 0xE/*_HTTOPRIGHT*/ winform.hitTopright();
+			} 
+    			
+ 			return 0x4/*_MA_NOACTIVATEANDEAT*/
+ 		};
+		
+		winform.wndproc  = function(hwnd,message,wParam,lParam){
+			select(message) {
+				case 0x18/*_WM_SHOWWINDOW*/ {
+					if(wParam) frmShadow._adjust(); 
+					frmShadow.show( wParam ?(0x4/*_SW_SHOWNOACTIVATE*/):false);  
+				}
+				case 0x5/*_WM_SIZE*/{
+					if( wParam == 0x1/*_SIZE_MINIMIZED*/ ) return;
+					if( wParam != 0x2/*_SIZE_MAXIMIZED*/  ){
+						frmShadow._adjust();
+						if( ..win.isVisible(winform.hwnd) ){
+							frmShadow.show(0x4/*_SW_SHOWNOACTIVATE*/);
+						}
+					}
+					else {
+						frmShadow._adjust();//防止最大化可能出现的残影
+						frmShadow.show(false);
+					} 
+				}
+				case 0x3/*_WM_MOVE*/{
+					var x,y = winform.getPos();
+					frmShadow.setPos( x - shadowSize,y - shadowSize + 1 );
+				}
+			} 
+		};
+		
+		if( ..win.isVisible( winform.hwnd ) ){
+			frmShadow._adjust();
+			frmShadow.show(0x4/*_SW_SHOWNOACTIVATE*/);
+		}
+	};
+}
+
+namespace shadow{
+	__cursor = {
+		[0xC/*_HTTOP*/]  = ..win.cur.load(0x7F85/*_IDC_SIZENS*/);
+		[0xF/*_HTBOTTOM*/] = ..win.cur.load(0x7F85/*_IDC_SIZENS*/);
+		[0xA/*_HTLEFT*/]  = ..win.cur.load(0x7F84/*_IDC_SIZEWE*/);
+		[0xB/*_HTRIGHT*/] = ..win.cur.load(0x7F84/*_IDC_SIZEWE*/);
+		[0xD/*_HTTOPLEFT*/] = ..win.cur.load(0x7F82/*_IDC_SIZENWSE*/);
+		[0x11/*_HTBOTTOMRIGHT*/] = ..win.cur.load(0x7F82/*_IDC_SIZENWSE*/);
+		[0xE/*_HTTOPRIGHT*/] = ..win.cur.load(0x7F83/*_IDC_SIZENESW*/);
+		[0x10/*_HTBOTTOMLEFT*/] = ..win.cur.load(0x7F83/*_IDC_SIZENESW*/); 
+	}
+}
+
+/**intellisense()
+win.ui.shadow = 阴影边框
+win.ui.shadow( = 创建阴影边框\n创建阴影后,窗体对象的_shadowWindow属性被设置为此对象
+win.ui.shadow(.(窗体对象,透明度,阴影大小,外圆角,内圆角,阻影颜色,插值位置,聚焦系数) = 除参数@1以外,其他所有参数可选\n透明度默认为80,255为不透明\n阴影大小默认为3像素\n外圆角默认为阴影大小\n内圆角默认为空\n阴影颜色默认为0xFF000000,FF为透明度\n插值位置默认为0.15\n聚焦系数默认为15
+win.ui.shadow() = !win_ui_shadow.
+!win_ui_shadow._form = !winform.
+!win_ui_shadow.show(true) = 暂时显示或隐藏阴影\n阴影会跟随所有者窗体自动显示隐藏,此函数仅用于特殊情况
+!win_ui_shadow.onDrawShadow(hdc,hMemDc,hMemBitmap,width,height) = @.onDrawShadow = function(hdc,hMemDc,hMemBitmap,width,height){\n	var graphics = ..gdip.graphics(hMemDc);\n	graphics.smoothingMode = 4/*_GdipSmoothingModeAntiAlias*/;\n	__\n	graphics.delete();\n} 
+!win_ui_shadow.setResizeBorder(true) = 允许通过拖动阴影边框改变父窗口大小\n如果窗口当前已经应用win.ui.resizeBorder添加了拖动边框,\n则默认启用此属性,不再需要调用此函数
+!win_ui_shadow.transprent(__) = 设置透明度,参数为0到1之间的小数\n通过wiform.transprent修改窗口透明度时,\n会自动调用wiform._shadowWindow.transprent函数同步透明度
+end intellisense**/

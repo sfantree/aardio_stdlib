@@ -1,0 +1,224 @@
+//command 进程命令
+import win.ui;
+import thread.table;
+namespace process;
+
+class command{
+	ctor( winform,changeMsgFilter ){ 
+		if(!winform){
+			winform = ..win.form( {} );
+			winform.messageOnly();
+		}
+		this._form = winform;
+		this._commands = {};
+		
+		if( winform.onCopyData ){
+			error("目标窗口已指定onCopyData事件,不能创建进程命令管理器!",2)
+		}  
+		
+		if( changeMsgFilter && ChangeWindowMessageFilterEx ){
+			ChangeWindowMessageFilterEx( this._form.hwnd,0x4A/*_WM_COPYDATA*/,1/*_MSGFLT_ALLOW*/,{});
+		}
+		
+		winform.onCopyData = function(args){ 
+			var method = this._commands[args[1] ] 
+			if(type(method)=="function"){ 
+				var _,argc = ..table.range(args) 
+				var ret = invoke(method,this._commands, ..table.unpack( args,2,argc) );
+				if( ret !== null ) return pushReturnValue(ret);	
+			} 
+		}
+			
+		..table.gc(this,function(){
+			for(name in this._commands ){
+				 this[name] = null;
+			} 
+		});
+	}; 
+	@_meta;
+}
+ 
+import process.mutex;
+import fsys.mmap;
+namespace command {  
+	try{ ChangeWindowMessageFilterEx = ::User32.api( "ChangeWindowMessageFilterEx", "bool(addr hwnd,INT msg,INT flag,struct &chgFilter)"); }
+ 	
+	var mutex,mmap,__groupName__; 
+	
+	var joinTest = function(name,size){
+		if(!#name) name = "{DE3F8932-2466-44EA-BA3B-851245C74DE3}";
+		
+		if( __groupName__  ) {
+			if( __groupName__ != name ) error("该线程已加入其他进程群组:" + __groupName__ + "\n不能再加入群组:" + name,2);
+			else{ return true;}
+		}
+		
+		mutex = ..process.mutex( name + ".mutex");
+		mmap = ..fsys.mmap( ,name + ".commands",size); 
+		
+		if(mutex && mmap){
+			__groupName__ = name;  
+			return true;
+		}
+	}
+	
+	join = function(name,size=0x100000){  
+		for(i=1;5;1){
+			if( joinTest(name,size) ){
+				return true;
+			}
+			sleep(200);
+		}
+		
+		var dbg = {
+			mutex = !!mutex;
+			mmap = !!mmap;
+			__groupName__ = __groupName__;
+			name = name;
+		}
+		var err = ..lasterr();
+		error( ..string.concat("注册进程群组时遇到错误"
+			,'\r\n',err," ->",..table.tostring(dbg)),2);
+	}
+	
+	pushReturnValue = function(v){
+		if(! mutex.waitOne() ) return;
+		
+		mmap.seek("set"); 
+		var commandTable  = mmap.readTable() : {};
+		if(!commandTable[-1])commandTable[-1] = {};
+		var ret = ..table.push(commandTable[-1],v);
+		mmap.seek("set"); 
+		mmap.writeTable(commandTable);  
+		mutex.release();
+		return ret;
+	}
+	
+	getReturnValue = function(idx){
+		if(! mutex.waitOne() ) return;
+		
+		mmap.seek("set"); 
+		var commandTable  = mmap.readTable() : {};
+		var ret;
+		if(commandTable[-1]){
+			ret = commandTable[-1][idx] ? ..table.remove(commandTable[-1],idx);
+		};
+		
+		mmap.seek("set"); 
+		mutex.release();
+		return ret;
+	}
+
+ 	_meta = {
+		_set = function(k,v){
+			if(!mutex) error("进程必须调用 process.command.join() 函数初始化",2);
+			if( k == -1 ) error("命令名不能设置为保留值-1",2);
+			
+			if(! mutex.waitOne() ) return;
+			mmap.seek("set"); 
+			var commandTable  = mmap.readTable() : {};
+			if(!commandTable[k])commandTable[k] = {};
+			commandTable[k][owner._form.hwnd] = v?true:null;
+			mmap.seek("set"); 
+			mmap.writeTable(commandTable);  
+			owner._commands[k] = v;
+			mutex.release();
+		}
+	}; 
+	
+	sendPid = function(pidDst,method,...){
+		var subscribe;
+		
+		if(! mutex.waitOne() ) return;
+		mmap.seek("set"); 
+		subscribe = mmap.readTable()[[realName]];  
+		mmap.seek("set");
+		mutex.release();
+		
+		var ret,tid,pid;
+		var sendTable = {method;...};
+		for(hwnd in subscribe){ 
+			tid,pid = ..win.getThreadProcessId();
+			if(pid!=pidDst) continue;
+			ret = ..win.sendCopyData( hwnd,sendTable );
+			if( ret ) return getReturnValue( ret );
+		}
+		return; 	
+	}
+	
+	
+	send = function(hwnd,method,... ){  
+		if(!mutex) error("进程必须调用 process.command.join() 函数初始化",2);
+		 
+ 		var t = type(hwnd); 
+		if( t == "string" ){
+			var realName = hwnd;
+			var sendTable = {realName;method;...};
+		 
+		 	var subscribe;
+		 	if(! mutex.waitOne() ) return;
+			mmap.seek("set"); 
+			subscribe = mmap.readTable()[[realName]];  
+			mmap.seek("set");
+			mutex.release();
+			
+			var ret;
+			for(hwnd in subscribe){ 
+				ret = ..win.sendCopyData( hwnd,sendTable );
+				if( ret ) return getReturnValue( ret );
+			}
+			return; 
+		}
+		elseif(t == "number" ){
+			var sendTable = {method;...}; 
+			var ret = ..win.sendCopyData( hwnd,sendTable )
+			if( ret ) return getReturnValue( ret );
+		}; 
+	};
+	
+	post = function( ...  ){
+		..thread.invoke( 
+			function(__groupName__,... ){
+				import process.command;
+				process.command.join(__groupName__)
+				process.command.send( ... );
+			},__groupName__,... 
+		)
+	};
+	
+	self.invoke = function(...){
+		return ..win.invoke( 
+			function(__groupName__,... ){
+				import process.command;
+				process.command.join(__groupName__)
+				return process.command.send( ... );
+			},__groupName__,... 
+		)
+	}
+	
+	self@ = {
+		_get = function(k){
+			self[[k]] =  function(...){
+				return owner.send(k,...);
+			} 
+			
+			return self[[k]];
+		} 
+	} 
+}
+
+/**intellisense() 
+process.command.join(.("群组GUID") = 加入进程群组\n使用GUID区分不同的进程分组\n同一线程应当且必须在定义或发送进程命令前调用该函数一次,\n同一线程可多次调用该函数,但参数必须相同\n成功返回true
+process.command.sendPid(.(目标进程ID,"命令函数名",其他参数) = 阻塞调用跨进程命令,\n可获取回调函数的数值返回值,默认返回null
+process.command.post(.("命令函数名",其他参数) = 非阻塞调用跨进程命令,无返回值\n此函数需要创建线程调用send函数,不适合频繁调用
+process.command.invoke(.("命令函数名",其他参数) = 非阻塞调用跨进程命令,支持返回值
+process.command.send(.(窗口句柄,"命令函数名",其他参数) = 阻塞调用跨进程命令,\n可获取回调函数的数值返回值,默认返回null
+process.command.send(.("命令函数名",其他参数) = 阻塞调用跨进程命令\n不指定窗口句柄,所有同名的进程命令函数都会被调用,\n可获取处理该命令的回调函数返回值,默认返回0
+process.command.? = 可指定外部进程的命令函数名,并直接调用该函数，\n可获取外部进程中被调用函数的返回值
+process.command(.(窗口对象,是否取消特权隔离) = 创建进程命令对象\n省略窗口参数则创建 message only window,\n该对象定义的成员函数,都可在其他进程中用 thread.command.post()调用
+process.command() = !process_command.
+!process_command.自定义函数名 = @.命令函数 = function( ... ) {
+	__/*支持不定个数参数\n返回值可阻止命令继续传递*/
+}
+!process_command._form = 窗体对象\n!winform.
+end intellisense**/

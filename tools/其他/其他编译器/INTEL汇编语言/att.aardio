@@ -1,0 +1,66 @@
+//AT&T汇编语法转换
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="INTEL -> ATT 汇编语法转换";right=599;bottom=399;parent=...)
+winform.add(
+btConvert={cls="button";text="转换为AT&&T汇编";left=433;top=371;right=558;bottom=396;db=1;dr=1;z=4};
+editAtt={cls="edit";left=9;top=191;right=592;bottom=368;db=1;dl=1;dr=1;edge=1;multiline=1;vscroll=1;z=2};
+editIntel={cls="edit";left=9;top=6;right=592;bottom=184;dl=1;dr=1;dt=1;edge=1;multiline=1;vscroll=1;z=1};
+splitter={cls="splitter";left=10;top=185;right=588;bottom=190;dl=1;dr=1;frame=1;horz=1;z=3}
+)
+/*}}*/
+
+import udis86;
+import raw.fasm;
+winform.btConvert.oncommand = function(id,event){
+	winform.btConvert.disabled = true;
+	
+	//INTEL汇编
+	var bin,err = raw.fasm.assemble32(winform.editIntel.text);
+	if(!bin){
+		winform.editAtt.text = err;
+		winform.btConvert.disabled = false;
+		return;
+	}
+	
+	var ud = udis86();  
+	ud.translateAtt(); //使用ATT汇编语法
+	ud.setInputBuffer(bin); //输入机器码
+	
+	//反汇编
+	winform.editAtt.text = "";
+	while( ud.disassemble() ){
+		winform.editAtt.appendText( ud.asm,'\r\n')  
+	} 
+	winform.btConvert.disabled = false;
+}
+
+
+winform.splitter.split(winform.editIntel,winform.editAtt)
+winform.editIntel.text = /*
+push ebp
+mov ebp,esp
+sub esp,0C0h 
+push ebx
+push ecx
+push edx
+push esi
+mov eax,[ebp+8];
+mov esi,[ebp+12];
+cpuid
+mov [esi],eax
+mov [esi+4],ebx
+mov [esi+8],ecx 
+mov [esi+12],edx 
+pop esi 
+pop edx
+pop ecx
+pop ebx
+mov esp, ebp
+pop ebp
+ret 
+*/
+
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();

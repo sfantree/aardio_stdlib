@@ -1,0 +1,149 @@
+//res 资源文件
+import fsys;
+namespace fsys.res;
+ 
+EnumResourceNames = ::Kernel32.api( "EnumResourceNames", "bool(pointer hModule,ustring type,pointer func,pointer lParam)"); 
+BeginUpdateResource = ::Kernel32.api( "BeginUpdateResource", "pointer(ustring filename,bool delExisting)");
+EndUpdateResource  = ::Kernel32.api( "EndUpdateResource", "bool(pointer hUpdate,bool fDiscard)");
+UpdateResource  = ::Kernel32.api( "UpdateResource", "bool(pointer hUpdate,ustring type,ustring name,WORD lang,string data,INT cb)");
+
+open = function(path,delExisting){
+	path = ..io.exist(path);
+	if(!path) error("错误的文件路径",2);
+	
+	var hUpdate = BeginUpdateResource(path,delExisting);
+	if( hUpdate ) return {
+		update = function(resType,resName,resData,lang=0){
+			if( type(resType) == type.number ) resType = topointer(resType);
+			if( type(resName) == type.number ) resName = topointer(resName);
+			return UpdateResource(hUpdate, resType,resName,lang,resData,#resData);
+		};
+		close = function(fDiscard){
+			return EndUpdateResource( hUpdate,fDiscard)
+		} 
+	}
+}
+
+load = function(path,flags){
+	if( flags === null ) flags = 2/*_LOAD_LIBRARY_AS_DATAFILE*/;
+	return ::Kernel32.LoadLibraryExP( ..io.localpath(path) : path ,,flags );
+}
+
+free = function(module){
+	if(!module) error("参数错误",2)
+	return ::Kernel32.FreeLibrary(module);
+}
+ 
+enum = function( proc,resType = "RES",module ){
+	var freeModule;
+	if( type(module) == type.string ){
+		module = ::Kernel32.LoadLibraryExP( ..io.localpath(module) : module ,,2/*_LOAD_LIBRARY_AS_DATAFILE*/)
+		if( !module) return null,"加载文件失败";
+		freeModule = module;
+	}
+	elseif(!module){
+		module = _HINSTANSE;
+	}
+ 
+	var proc_c = ..raw.tostdcall(
+		function(hModule,stype,name,lParam){
+			return proc( hModule,stype,name,lParam);
+		} ,"bool(pointer hModule,ustring stype,ustring name,pointer lParam)"
+	);
+	resType = makeIntResource(resType) : resType;
+	var ret = EnumResourceNames(module,resType,proc_c )
+	if(freeModule) ::Kernel32.FreeLibrary(freeModule);
+	return ret;
+}
+ 
+makeIntResource = function(name){ 
+	if( type(name) == type.number ) return topointer(name);
+	return name;
+} 
+
+loadRes = function(resName,resType = "RES",module ){
+	resType = makeIntResource(resType);
+	resName = makeIntResource(resName);
+	if(!module) module = _HINSTANSE;
+	
+	var tm = type(module);
+	if( tm == type.pointer ){
+		return ..string.loadBuffer(resName,resType,module);
+	} 
+	elseif( tm == type.string ){
+		module = ::Kernel32.LoadLibraryExP( ..io.localpath(module) : module ,,2/*_LOAD_LIBRARY_AS_DATAFILE*/)
+		if( !module) return null,"加载文件失败";
+		var res = ..string.load(resName,resType,module);
+		::Kernel32.FreeLibrary(module);
+		return res;
+	}  
+} 
+
+saveRes = function(srcDir="/",target="/"){
+
+	srcDir = ..string.upper( ..string.replace(srcDir,"@\","/") );
+	if( srcDir[1] != '/'#)
+		srcDir =  '/' + srcDir;
+	
+	if( _STUDIO_INVOKED ){ 
+		target = ..fsys.joinpath(target , srcDir); 
+		if( ..io.exist(target) ) return;
+		return ..fsys.copy( ..fsys.joinpath(srcDir,"/*"),..fsys.createDir( target )  );  
+	}
+		
+	return enum(
+		function(module,resType,resName){
+			if( ..string.startWith(resName,srcDir) ){
+				var str = ..string.load( resName )
+				var path = ..fsys.joinpath(target,resName)
+				..fsys.createDir( ..fsys.getParentDir(path)  )
+				..string.save( path,str ) 
+			}
+			return true;
+		},"RES"
+	)
+}
+
+saveAppData = function(resDir="/",target){
+    if(#target<6) error("参数@2必须大于6个这符",2)
+    target = ..io.joinpath("/aardio-res/",target);
+	var appdata = ..io.appData( target )
+
+	if( ..fsys.res.saveRes(resDir,appdata) ){
+		return ..io.exist( ..io.joinpath(appdata,resDir) )
+	} 
+}
+
+/**intellisense(fsys.res)
+enum(回调函数,资源类型,模块句柄或路径) =  @.enum(\n	function(module,resType,resName){ \n		var res = string.load(resName,resType,module);\n		return true;\n	}\n)
+saveRes(.(源目录,目标目录) = 保存内嵌资源目录为硬盘文件\n源目录可指定源目录路径\n所有参数可省略
+saveAppData(.(资源目录,目标目录) = 保存内嵌资源目录到系统AppData目录\n源目录可指定源目录路径\n目标目录必须指定子目录路径,不能指定完整路径,\n所有参数可省略
+makeIntResource(__) = 将数值类型资源名转换为指针,字符串类型名直接返回
+load(.("DLL路径") = 加载资源DLL并返回句柄\n仅加载资源不会执行DLL代码\n返回值可作为fsys.res.enum或string.load的最后一个参数\n注意必须调用fsys.res.free函数释放返回的句柄
+free(.(dll句柄) = 释放DLL
+loadRes(.(资源名,资源类型,模块句柄或路径) = 加载资源文件,返回buffer\n除参数@1外的其他参数可省略
+end intellisense**/
+
+/**intellisense()
+fsys.res.open() = !fsys_res_updater.
+!fsys_res_updater.update(.(资源类型,资源名,数据) = 更新或添加资源
+!fsys_res_updater.close(.(是否丢弃更改) = 关闭并更新资源,\n参数可选,默认为false
+fsys.res.open(.(执行文件路径,是否删除旧的资源) = 打开资源准备更新
+end intellisense**/
+
+/**intellisense()
+_RT_ACCELERATOR=@0x9/*_RT_ACCELERATOR*/
+_RT_BITMAP=@0x2/*_RT_BITMAP*/
+_RT_CURSOR=@0x1/*_RT_CURSOR*/
+_RT_DIALOG=@0x5/*_RT_DIALOG*/
+_RT_FONT=@0x8/*_RT_FONT*/
+_RT_FONTDIR=@0x7/*_RT_FONTDIR*/
+_RT_ICON=@0x3/*_RT_ICON*/
+_RT_MENU=@0x4/*_RT_MENU*/
+_RT_RCDATA=@0xA/*_RT_RCDATA*/
+_RT_STRING=@0x6/*_RT_STRING*/
+_RT_TYPELIB=@"TYPELIB"
+_RT_VERSION = @0x10/*_RT_VERSION*/
+_VS_VERSION_INFO = @0x1/*_VS_VERSION_INFO*/
+_RT_GROUP_ICON=@0xE/*_RT_GROUP_ICON*/
+end intellisense**/

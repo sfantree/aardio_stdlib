@@ -1,0 +1,19 @@
+//读写ini文件
+import console;
+import fsys.ini
+
+//打开文件,支持内嵌资源文件
+//如果文件不存在则自动创建新文件
+ini=fsys.ini("\配置文件.ini")
+
+//读取小节对象
+sec = ini.getSection("小节名称")
+
+//读写值
+sec.项名称 = 123; 
+console.dump(sec)
+
+//保存
+sec.save() 
+
+console.pause();

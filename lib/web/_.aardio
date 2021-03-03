@@ -1,0 +1,48 @@
+namespace web; 
+
+joinHeaders = function(h,...){
+
+	if( type(h) == "table" ){
+		if( ! #h ){
+			var lst = {};
+			var push = ..table.push;
+			for(k,v in h){ 
+				k = ..string.trimright(k,": ") + ": ";
+				if( type(v) == 'table' ){
+					for(i=1;#v){
+						var v = tostring(v[i]);
+						if(#v){
+							if( ..string.find(v,":") ) v =  ..string.hex(v,"%",'\x80');
+							push( lst,k,v,'\r\n' );
+						}
+					}
+				}
+				else{
+					v = tostring(v);
+					if(#v){
+						if( ..string.find(v,":") ) v =  ..string.hex(v,"%",'\x80'); 
+						push( lst,k,v,'\r\n' )	
+					}
+				}
+			}
+			h = lst; 
+		}
+		h = ..string.join(h ); 
+	}
+	elseif( #h ) {
+		if( ..string.startWith(h,'\r\n') ){
+			h = ..string.right(h,-3);
+		}
+		
+		if( ! ..string.endWith(h,'\r\n')  ){
+			h = h + '\r\n';
+		}
+	}
+ 
+	if(!...) return h;
+	return ..string.concat( h, joinHeaders(...) )
+}
+
+/**intellisense(web)
+joinHeaders(.(http头,->->->) = 拼接http头,支持任意个参数\nhttp头可以是字符串,数组,或键值对\n键值对的值可以是多个值组成的数组\n如果参数是键值对,自动对值中的宽字符进行UrlEncode编码(UTF8)
+end intellisense**/

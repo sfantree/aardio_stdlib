@@ -1,0 +1,25 @@
+//wow64 重定位
+import process;
+namespace fsys.wow64;
+
+disableRedirection = function(proc,...){
+    return proc( ... ) 
+}
+
+try{	
+	if( ..process().isWow64() && ::Kernel32.api("Wow64DisableWow64FsRedirection") ){
+    	var wow64DisableWow64FsRedirection = ::Kernel32.api( "Wow64DisableWow64FsRedirection", "bool(pointer &OldValue)");
+    	var wow64RevertWow64FsRedirection = ::Kernel32.api( "Wow64RevertWow64FsRedirection", "bool(pointer oldValue)"); 
+    	disableRedirection = function(proc,...){
+        	var ret,oldValue = wow64DisableWow64FsRedirection();
+        	var a = proc( ... );
+        	wow64RevertWow64FsRedirection(oldValue)	
+        	return a; 
+    	}
+    }
+}  
+
+/**intellisense(fsys)
+wow64 = 64位文件与注册表重定位管理
+wow64.disableRedirection( 回调函数 ) = @.disableRedirection(\n    function(){\n        __/*如果运行于64位暂时禁用文件与注册表重定向\n此函数兼容32位系统\n返回回调函数的首个返回值*/\n    }\n)	
+end intellisense**/

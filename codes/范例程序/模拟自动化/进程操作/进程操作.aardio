@@ -1,0 +1,35 @@
+import ide; 
+import console;
+import process; 
+
+//打开控制台 
+var prcs = process( "notepad.exe" )  
+console.log( prcs.getPath() ) //输出执行程序文件完整路径
+ 
+//列出所有模块
+for moduleEntry in prcs.eachModule() { 
+	console.log( moduleEntry.hModule,moduleEntry.szExePath,moduleEntry.szModule )
+}
+
+//读写内存
+var num = prcs.readNumber( 0x101d1,"word" ) ;  //读内存word类型数值
+prcs.writeNumber(0x101d1,num,"word") //写入内存word类型数值 
+console.log("内存word类型数值:"+ num );
+
+//暂停线程
+thread.suspend( prcs.thandle )//暂停主线程
+thread.resume( prcs.thandle ) //继续执行线程
+
+//aardio创建的进程同样提供remoteApi函数,而且较raw.remoteApi拥有更高的权限
+messageBox_call = prcs.remoteApi("void ( int hWnd, string &lpText,string &lpCaption ,INT uType )"
+	,"User32.dll","MessageBoxW");
+
+//象普通函数一样使用,注意aardio内部使用UTF8编码，使用UTF16字符串调用外部进程Unicode API即可，如下
+messageBox_call(0,'这是一个外部进程！在此进程加载了User32.dll,并获取执行了MessageBoxA函数指针'u
+	,'Aardio Call'u,0)         
+
+//prcs.wait(); //等待进程关闭
+prcs.free(); //释放进程控制权
+
+console.pause(true)
+

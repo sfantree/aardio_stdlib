@@ -1,0 +1,116 @@
+//xml 调用协议
+assert(com.flash)
+import string.xml;
+namespace com.flash.xml;
+
+var push = ..table.push;
+stringify = function(v){ 
+	var x = "<null/>";
+	select( type(v) ) {
+		case "string" {
+			x = "<string>" + v + "</string>" 
+		}
+		case "number" {
+			x = "<number>" + v + "</number>" 
+		} 
+		case "boolean" {
+			x = ( v?"<true/>":"<false/>" )
+		}  
+		case "table"{
+			if( #v ){
+				var tab = {'<array>'}
+				for(i=1;#v;1){
+					push( tab
+						, '<property id="'+(i-1)+'">'
+						,stringify(v[i]) 
+    					,'</property>'
+    				) 
+				}
+				push( tab,'' + '</array>');
+				x = ..string.join(tab);  
+			}
+			else {
+				var tab = { '<object>'}
+				for(k,v in v){ 
+					push( tab
+						, '<property id="'+k+'">'
+						,stringify(v) 
+    					,'</property>'
+    				) 
+				}
+				push( tab,'' + '</object>');
+				x = ..string.join(tab); 
+			} 
+		} 
+	}
+	return x;
+} 
+
+parseVariable = function(node){
+	select( node.tagName ) {
+		case "string" {
+			return node.innerText();
+		}
+		case "number" {
+			return tonumber( node.innerText() );
+		}
+		case "true" {
+			return true;
+		}
+		case "false" {
+			return false;
+		}
+		case "array" {
+			var arr = {};
+			var propertys = node.property;
+			for(i=1;#propertys;1){
+				arr[ tonumber(propertys[i].id) + 1 ] = parseVariable( propertys[i][1] )
+			}
+			return arr;
+		}
+		case "object"{
+			var obj = {};
+			var propertys = node.property;
+			for(i=1;#propertys;1){
+				obj[ propertys[i].id ] = parseVariable( propertys[i][1] )
+			}
+			return obj;
+		}
+	}
+	return null;	
+}
+
+parse = function(x){
+	if(x){
+		var xml = ..string.xml(x);
+		return parseVariable(xml[1]);
+	}
+}
+
+buildInvoke = function(name,...){
+	var args = {...}
+	var x = { '<invoke name="' +name+ '" returntype="xml"><arguments>'};
+
+	var _,ubound = ..table.range(args);
+	for(i=1;ubound;1){
+		push(x,stringify(args[i],'') ) 
+	}
+	
+	push(x,'</arguments></invoke>')
+	return ..string.join(x,'');
+}
+
+parseInvoke = function(xml){
+	if( xml ){
+		var xml = ..string.xml(xml);
+		var ivk = xml.invoke[1];
+		var name = ivk.name;
+		var args = ivk.arguments[1];
+		var args_aau = {};
+		for(i=1;#args;1){
+			args_aau[i] = parseVariable( args[i] );
+		} 
+		return name,args_aau,#args;
+	}  
+}
+ 

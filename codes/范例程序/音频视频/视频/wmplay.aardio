@@ -1,0 +1,30 @@
+﻿import win.ui;
+/*DSG{{*/
+var winform = win.form(text="mediaplayer 视频播放器控件";right=896;bottom=662)
+winform.add(
+btnDump={cls="button";text="显示成员";left=697;top=624;right=785;bottom=651;db=1;dr=1;z=4};
+btnPlay={cls="button";text="播放";left=494;top=624;right=582;bottom=651;db=1;dr=1;z=2};
+btnStop={cls="button";text="停止";left=598;top=624;right=686;bottom=651;db=1;dr=1;z=3};
+static={cls="static";left=32;top=16;right=880;bottom=601;bgcolor=0;db=1;dl=1;dr=1;dt=1;edge=1;z=1}
+)
+/*}}*/
+
+//创建控件
+//https://docs.microsoft.com/zh-cn/windows/win32/wmp/object-model-reference-for-scripting
+var wmplay = winform.static.createEmbed("WMPlayer.OCX");    
+wmplay._object.Url  = "http://download.aardio.com/demo/video.aardio"
+wmplay._object.stretchToFit = true;
+
+winform.btnStop.oncommand = function(id,event){ 
+    wmplay._object.controls.stop() 
+}
+winform.btnPlay.oncommand = function(id,event){ 
+    wmplay._object.controls.play()
+}
+winform.btnDump.oncommand = function(id,event){
+    io.open();
+    com.DumpTypeInfo(wmplay._object) 
+} 
+
+winform.show(true) 
+win.loopMessage();

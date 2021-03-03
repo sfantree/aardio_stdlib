@@ -1,0 +1,10 @@
+import ide;
+import fsys;
+
+var publisDir = ide.getPublisDir();
+if(!#publisDir)return; 
+ 
+var jreDir = fsys.joinpath(publisDir,"/java/jre")
+if( ! ..io.exist(jreDir) ){ 
+	..fsys.copy( "~/java/" ,publisDir,0x10/*_FOF_NOCONFIRMATION*/  | 0x200/*_FOF_NOCONFIRMMKDIR*/); 
+}

@@ -1,0 +1,50 @@
+//9)序列化
+import console;
+console.open();
+ 
+import py; 
+pyCode = /***
+ 
+#as是取别名的意思
+#aardio里如果你要取别名就相对直白一些直接用赋值语句就行，不过一般不推荐对库模块取别名（模块的名字保持一致性更好）
+import pickle  #python3以后 cPickle 和 pickle 模块合并 
+
+list = ['a', 'b', 'c']
+
+# 创建一个文件准备写
+f = open(".pickle.bin", 'wb') #一定要用'wb'而不是'w'
+pickle.dump(list, f) # 把list对象写入文件
+f.close()
+ 
+# 创建一个文件准备读
+f = open(".pickle.bin","rb")
+list = pickle.load(f)
+print( list  )
+f.close()
+***/ 
+
+py.exec( pyCode ) //运行python代码
+
+//下面是类似的aardio代码
+//=========================================================
+
+//aardio只有一种数据结构（表），都放在花括号里
+var list = {"a";"b";"c"} //成员只能用分号分隔，不能使用逗号替代
+
+import fsys.table; //这玩意就类似python里的pickle了 
+var pickle = fsys.table("/.pickle.table"); //创建本地文件
+pickle.list = list;
+pickle.save(); //这句可以不调用，线程退出时会自动保存
+
+var pickle2 = fsys.table("/.pickle.table");
+console.dump( pickle.list )
+
+/*
+更方便的是 fsys.config;
+fsys.config 是对 fsys.table 再封装了一层，
+在创建 fsys.config 对象时只要指定一个目录，那么对这个对象读写都会自动序列化到对应的文件 
+*/
+
+//移除测试文件
+io.remove("/.pickle.bin")
+console.pause()

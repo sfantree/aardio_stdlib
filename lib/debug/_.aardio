@@ -1,0 +1,123 @@
+global.import("(debug)");  
+debug = global["(debug)"];
+
+namespace debug; 
+
+debug = function(){
+
+	if( ! _STUDIO_INVOKED ) return;
+	if( self.breaking ) return;
+	self.breaking = true;
+	
+	global.import("console");
+	var dbg = ..debug.hook()
+	dbg.callcount = ..debug.callcount();
+	
+	dbg.line = function(line){
+	
+		var callcount = ..debug.callcount()
+		if( callcount > dbg.callcount && (!dbg.stepInto) ){ 
+			return;
+		} 
+		dbg.callcount =  callcount;
+		dbg.stepInto = null;
+		if( dbg.ignoreLines ){
+			dbg.ignoreLines = dbg.ignoreLines - 1;
+			return;
+		}
+		
+		if(!dbg.breakTitle){
+			..console.log("输入'c'继续, 'n' 单步执行,'t' 显示调用栈,'p' 显示局部变量");  
+			dbg.breakTitle = true;
+		}
+		while(true){
+				
+				..console.stderr.write("aardio debug> ");
+				var code = ..console.getText();
+				var token = ..string.splitEx(code,"\s+",2);
+				if( token[1] == "n" || token[1] == "step"  ){
+					var info = ..debug.queryinfo(2,"select source");
+					var srcLine = 0;
+						
+					if(info.source.code){
+						for lineCode in ..string.lines(info.source.code) { 
+							srcLine++;
+							if( srcLine == line  ){
+								..console.stderr.write("aardio debug> #",line,":",..string.trim(lineCode),'\n');
+								break ;
+							}
+						}
+					}
+					elseif(info.source.file  && ..io.exist(info.source.file) ) {
+							if( dbg.currentFile != info.source.file ){
+								..console.stderr.write("aardio debug> ",info.source.file ,'\n');
+								dbg.currentFile = info.source.file;
+							}
+						for lineCode in ..io.lines(info.source.file) { 
+							srcLine++;
+							if( srcLine == line  ){
+								..console.stderr.write("aardio debug> #",line,":",..string.trim(lineCode),'\n');
+								break ;
+							}
+						} 
+					}
+					
+					
+					if(token[2] && tonumber(token[2])){
+						dbg.ignoreLines = tonumber(token[2])
+					}
+					
+					if( token[1] == "step" ){
+						dbg.stepInto = true;
+						return;
+					}
+					return;
+				} 
+				elseif( token[1] == "finish" ){
+					dbg.callcount = dbg.callcount -1;
+					return;
+				}
+				elseif( token[1] == "c" ){
+					dbg.line = null;
+					dbg.close();
+					return;
+				}
+				elseif( token[1] == "info" ){
+					var info = ..debug.queryinfo(2,"select source");
+					..console.dump(info.source);
+					return;
+				}
+				elseif( token[1] == "t" ){
+					code = "io.print( debug.traceback(,,3) );";
+				}  
+				elseif( token[1] == "p" ){
+					var i,k,v = 1;
+					var name = token[2] ? tostring(token[2]);
+					do{
+						k,v = ..debug.getlocalvar(2,i);
+						if( !k ) break;
+						if( k=="(temporary)" ) { i++;continue;}
+						if( name && k!= name ) { i++;continue;}
+						if(type(v)==type.table ) v = ..util.table.stringify(v);
+						else v = tostring(v);
+						..console.stderr.write(k,'\t=\t',v,'\n' );
+						i++;
+					}while(1) 
+					continue ;
+				} 
+				
+				var f,e = loadcode(code,"=(debug command)")
+				while(!f && ..string.endWith(e,"'<eof>'") ){ 
+					code = code ++ ..console.getText();
+					f,e = loadcode(code,"=(debug command)")
+				}
+				
+				if(!f ){
+					..console.stderr.write(e,'\n');
+					continue; 
+				}
+				f();
+			}   
+	}
+}
+	

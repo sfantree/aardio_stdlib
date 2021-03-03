@@ -1,0 +1,90 @@
+﻿//template 代码模板
+
+import string.template;
+
+namespace protobuf.parser.template
+
+classDefine = ..string.template();
+classDefine.template =  /*
+class ${className} {
+	ctor(reader){
+		this = ..protobuf.message(reader) 
+		
+${fileds}  
+	} 
+	@_metaProperty ;
+}
+*/
+
+classNamespace = ..string.template();
+classNamespace.template = /*
+
+namespace ${className} {
+${subClasses}  
+${subEnums}  
+	_metaProperty  = ..util.metaProperty( 
+		_tostring = function(){
+			return owner.serializeToString();
+		};
+		
+${fieldMetas}   
+	)
+}
+*/
+
+enum = ..string.template();
+enum.template = /*
+class ${name}  {
+	ctor(...){
+		this = ..protobuf.type.enum(...)
+	}
+}   
+namespace ${name} ${body}
+*/	
+
+field = ..string.template();
+field.template = /*
+	this.fields[${idx}] = "${typeName}";
+	this.values[${idx}] = ${value};
+ */
+  
+fieldMeta = ..string.template();
+fieldMeta.template = /*
+	${varName} = {
+		_get = function(){ 
+			return owner._getValue(${fieldIndex});
+		}
+		_set = function( value ){
+			return owner._setValue(${fieldIndex}, value);
+		} 	
+	}; 
+ */
+ 
+fieldTimeMeta = ..string.template();
+fieldTimeMeta.template = /*
+	${varName} = {
+		_get = function(){ 
+			return owner._getTmeValue(${fieldIndex},"%Y-%m-%d %H:%M:%S");
+		}
+		_set = function( value ){
+			return owner._setTimeValue(${fieldIndex}, value,"%Y-%m-%d %H:%M:%S");
+		} 	
+	}; 
+ */
+ 
+fieldArrayMeta = ..string.template();
+fieldArrayMeta.template =  /*
+	${varName} =  function(index){ 
+		return owner._getArrayValue(${fieldIndex},index); 
+	};
+	${varName}Length = {
+		_get = function(){ 
+				return owner._getArraySize(${fieldIndex});
+		} 	
+	}; 
+	${varName}Array = {
+		_get = function(){ 
+				return owner._getArray(${fieldIndex});
+		} 	
+	};  
+ */

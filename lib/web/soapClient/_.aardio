@@ -1,0 +1,241 @@
+import web.msxml; 
+import inet.http; 
+
+namespace web;
+
+class soapClient{
+	ctor( url,username,password){
+		this.http = ..inet.http();
+		this.http.username = username;
+		this.http.password = password;
+		
+		var wsdl = ..web.msxml( ..string.indexOf(url,"?") ? url : url + "?wsdl" ); 
+		if(#wsdl.document.parseError.reason)
+			return null,wsdl.document.parseError.reason;
+			 
+		this.wsdl = wsdl;
+		this.soapUrl = url;
+		
+		
+		this.bindService = function(serviceName){
+			import console;
+			
+			var service;
+			if(serviceName){
+				service = this.wsdl.queryNodes( name = "^" + serviceName + "";tagName = "^wsdl\:service$");	
+			}
+			else {
+				service = this.wsdl.documentElement.getElementsByTagName("wsdl:service");
+				service = service.length ? service(0) : null;
+			}
+			
+			if(!service){
+				error("打开SOAP服务失败",2);
+			}
+			this.soapServiceName = service.getAttributeNode("name").nodeValue;
+		 	
+			var soapAddress = service.getElementsByTagName("soap:address");
+			if(soapAddress.length) {
+				this.soapUrl = soapAddress(0).getAttributeNode("location").nodeValue; 
+				this.soapPortName = soapAddress(0).parentNode.getAttributeNode("name").nodeValue;
+			}
+			
+			if( !(this.soapUrl && this.soapPortName) ){
+				error("获取SOAP接口地址失败",2);
+			}
+			
+			var bindings = wsdl.documentElement.getElementsByTagName("wsdl:binding");
+			if( bindings.length ){
+				for(i=1;bindings.length;1){
+					if(bindings(i-1).getAttributeNode("name").nodeValue==this.soapPortName){
+						this.soapPortNode = bindings(i-1);
+						this.soapOperations = this.soapPortNode.getElementsByTagName("wsdl:operation");
+						break;
+					} 
+				}
+			}
+			
+			if(!this.soapPortNode){
+				error("打开SOAP服务接口失败",2);	
+			}		
+		}
+		
+		this.soapTargetNamespace =  wsdl.documentElement.attributes.getNamedItem("targetNamespace").nodeValue;
+		this.bindService();
+ 
+	}; 
+	_invoke = function(method,param,resultType,resultComplexType){ 
+			
+		var sr = /*
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+<soap:Body>
+			*/
+			sr = sr + "<" + method + " xmlns=""" + this.soapTargetNamespace + """>" +
+					param.toXml() +
+					"</" + method + "></soap:Body> </soap:Envelope>	";
+	
+		
+		
+		var soapaction = this.soapTargetNamespace;
+		if( soapaction ? (  ! ..string.endWith(soapaction,"/") ) ) soapaction += "/";
+		soapaction += method;
+		
+		if(this.soapOperations){
+			for(i=1;this.soapOperations.length;1){
+				var op = this.soapOperations(i-1);
+				if(op.attributes.getNamedItem("name").nodeValue==method){
+					var sop = op.getElementsByTagName("soap:operation")
+					if(sop.length){
+						soapaction = sop(0).attributes.getNamedItem("soapAction").nodeValue;
+					} 
+				}
+			}
+		}
+		
+		var ret,err = this.http.post(this.soapUrl,sr, "SOAPAction:" + soapaction + '\r\nContent-Type:text/xml; charset=utf-8\r\n');  
+
+		if(!ret)
+			return null,err;
+			 
+		ret = ..web.msxml( ret );  
+		var nd = ret.documentElement.getElementsByTagName(method + "Result")
+		if(nd.length == 0)
+			 nd = ret.documentElement.getElementsByTagName(method + "return")
+			 
+		if(nd.length == 0){
+			 if(ret.faultcode.length > 0 )
+			 	error(ret.faultstring(0).childNodes(0).nodeValue,2)
+		}
+		else { 
+			this.lastResultXml = nd(0);
+			return _wsdlParseObject(nd(0) ,resultType,resultComplexType)
+		} 
+	} 
+	@_meta;
+}
+
+import web.soapClient.parameters;
+namespace soapClient{
+
+	_wsdlGetComplexType = function(wsdl,method){
+		var methodWsdl = wsdl.queryNodes( name = "^" + method + "$";tagName = "!\welement$")
+		if(!#methodWsdl) return;  
+		
+		var ns = ..string.match( methodWsdl[1].tagName,"\a+\:")
+		var complexType = methodWsdl[1].getElementsByTagName( ..string.concat( ns,"complexType") );
+		if( complexType.length ) {  
+		
+			var sequence = complexType(0).getElementsByTagName( ..string.concat( ns,"sequence") );
+			if( sequence.length && sequence(0).hasChildNodes() ) {  
+				return sequence(0).childNodes  ; 
+ 			} 
+ 		} 
+	}
+	
+
+	_meta = {
+		_get = function( method ){
+			var argsWsdl = _wsdlGetComplexType(owner.wsdl,method)
+			var resultType;
+			var resultComplexType;
+			
+			{
+				var resultWsdl = owner.wsdl.queryNodes( name = "^" + method + "Result$";tagName = "!\welement$";type="\a+");
+				var resultComplexWsdl;
+				if( #resultWsdl ){
+					resultType = ..string.match( resultWsdl[1].getAttributeNode("type").nodeValue,"!\w\a+$");
+				}
+				else{
+					resultComplexWsdl = _wsdlGetComplexType(owner.wsdl,method + "Result")  
+				}
+			}
+			
+			owner[[method]] = function(...){
+				var param = parameters();
+				if( argsWsdl ){
+					var args = { ... }; 
+					for(i=1;#args;1){ 
+						param.add( argsWsdl(i-1).attributes.getNamedItem("name").nodeValue,args[i])
+					}
+				}
+				 
+				return owner._invoke(method,param,resultType,resultComplexType); 
+			} 
+			return owner[[method]];
+		}
+	};
+	
+	_wsdlParseObject = function(node,resultType,resultComplexType ) {
+		if(!node) return;
+		if(node.nodeType == 3/*TEXT*/ || node.nodeType == 4/*CDATA*/){
+
+			var value = node.nodeValue; 
+			select( resultType ) { 
+				case "string" 			
+					return (value != null) ? value : "";
+				case "boolean" 
+					return value  == "true";
+				case "int","long" 
+					return (value != null) ? tonumber(value) : 0;
+				case "double" 
+					return (value != null) ? tonumber(value) : 0;
+				case "datetime"{
+					if( value ){
+						return ..time(value,"%Y-%m-%dT%H:%M:%S");	
+					}
+				}
+				else { 
+					return value;
+				} 
+			}
+		} 
+		return _wsdlParseComplexObject(node,resultType,resultComplexType )
+	}
+	
+	_wsdlParseComplexObject = function(node,resultType,resultComplexType ) {
+		if(!node) return; 
+		
+		if (node.childNodes.length == 1){
+			var node = node.childNodes(0);
+			if(node.nodeType == 3 || node.nodeType == 4 ) return _wsdlParseObject(node, resultType,resultComplexType);
+		}
+			
+		var isarray = resultType ? ..string.find( ..string.lower( resultType ) , "arrayof")  ;
+ 	
+		if(!isarray) {
+			var obj = null;
+			if(node.hasChildNodes()) {
+				obj = {};
+				for index,child in ..com.each( node.childNodes ) {
+					obj[child.nodeName] = _wsdlParseObject(child,resultType,resultComplexType);;
+				} 
+			} 
+			return obj;
+		} 
+		else { 
+			var obj = null;
+			if(node.hasChildNodes()) {
+				obj = {};
+				for(i=0;node.childNodes.length-1){
+					..table.push(obj,_wsdlParseObject(node.childNodes(i), resultType,resultComplexType ) ) 
+				} 
+			}
+			return obj; 
+		} 
+	}
+}
+
+/**intellisense()
+web.soapClient = SOAP客户端支持库
+web.soapClient(.(WebService网址,用户名,密码) = 创建SOAP客户端,\n必须指定有效WSDL网址,\n用户名与密码为可选参数
+web.soapClient() = !web_soapClient.
+!web_soapClient.接口函数名字(调用参数) = 
+!web_soapClient.lastResultXml = 调用接口最后一次返回值创建XML节点对象\n!xnode.
+!web_soapClient.http = 用于发送请求的http客户端\n!inet_http.
+!web_soapClient.bindService(__) = 绑定服务,参数指定服务名,无参数绑定默认服务\n在创建对象时此函数会被自动调用一次并绑定默认服务
+!web_soapClient.soapUrl = 发送SOAP请求的目标URL，默认自WSDL中自动获取
+!web_soapClient.soapPortName = 当前绑定接口名
+!web_soapClient.soapServiceName = 当前绑定服务名
+!web_soapClient.soapTargetNamespace = SOAP目标名字空间
+end intellisense**/

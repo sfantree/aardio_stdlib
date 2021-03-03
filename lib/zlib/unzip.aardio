@@ -1,0 +1,242 @@
+﻿//unzip 解压缩
+//http://www.winimage.com/zLibDll/minizip.html 
+import zlib;
+import fsys; 
+import fsys.size;
+import fsys.file;
+
+var dll = zlib._dll;
+namespace zlib;
+ 
+class unzip{
+	ctor(path,extractDir){
+		var bufferPrev;
+
+		var path = ..io.exist(path);
+		if(!path)error("zip文件路径错误",2);
+		 
+		if( !extractDir ) 
+			extractDir = ..string.match(path,"(.+)\.\w+$")
+			
+		extractDir = ..fsys.createDir(extractDir);
+		if(!extractDir)error("解压目录错误",2);
+		
+		var unzFile = unzOpen64(..string.fromto(path)); 
+		if(!unzFile)return null
+		 
+		var globalInfo = unz_global_info64();
+		this.globalInfo = globalInfo;
+		if (unzGetGlobalInfo64(unzFile, globalInfo) != 0/*_UNZ_OK*/) { 
+        	return null;
+    	}
+    	
+    	this.codepage = 0;
+    	..table.gc(this,"close");
+	} 
+	getCurrentFileInfo = function(fileInfo){
+		var ret,fileInfo,fileName = unzGetCurrentFileInfo64(unzFile,fileInfo,0x104/*_MAX_PATH*/,0x104/*_MAX_PATH*/,null,0,null,0);
+    	if( ret != 0/*_UNZ_OK*/ )
+    		return null;
+    	
+    	if( ! (fileInfo.flag & 0x800) ){ 
+    		//Bit 11: Language encoding flag (EFS),the filename and the comment fields MUST be encoded using UTF-8
+    		fileName = ..string.fromto(fileName,this.codepage,65001);
+    	}
+    	var dirName;
+    	var blackSlash = fileName[#fileName] 
+    	var extractPath = ..fsys.joinpath(extractDir,fileName);
+    	var versionMadBy = fileInfo.version >> 8 & 0xFF;
+    	if(   ( blackSlash == '\\'#  ) || ( blackSlash == '/'# ) || ( 
+    		( versionMadBy == 0/*_VERSIONMADEBYDOS*/ || versionMadBy == 10 || versionMadBy == 14 ) &&  ( fileInfo.external_fa & 0x10/*_FILE_ATTRIBUTE_DIRECTORY*/) 
+    		)  || ( ( versionMadBy == 3 ) && ( fileInfo.external_fa & 0040000/*S_IFDIR*/ ) ) ) {
+    		dirName = fileName; 
+    		fileName = null
+    	}
+    	return dirName,fileName,extractPath,fileInfo
+	}; 
+    eachReadCurrentFile = function(password,bufSize = 0xA00000 ){
+    	unzCloseCurrentFile(unzFile);  
+		var err = unzOpenCurrentFilePassword(unzFile,password);
+    	if ( ( bufSize<=0 ) || ( err != 0/*_UNZ_OK*/ ) ){
+    		error("解压当前文件失败,错误代码：" + err ,2)
+    	}
+    	
+    	var buffer;
+    	if( #bufferPrev = bufSize ){
+    		buffer = bufferPrev;
+    	}
+    	else{
+    		buffer = ..raw.buffer(bufSize);
+    	};
+    	
+    	return function(){
+    		var readSize = unzReadCurrentFile(unzFile,buffer,bufSize) 
+    		if(readSize<=0)return null;
+    		return buffer,readSize;
+    	},function(){
+    		unzCloseCurrentFile(unzFile);
+    	} 
+    } 
+    eachFile = function() { 
+    	var fileInfo = unz_file_info64();
+    	var pos = 0;
+    	unzGoToFirstFile(unzFile);
+    	
+    	return function(){ 
+    		if ( pos ){
+    			if (unzGoToNextFile(unzFile) != 0/*_UNZ_OK*/)
+    				return null; 
+    		} 
+    		pos++;
+    			 
+    		return pos,this.getCurrentFileInfo(fileInfo);
+    	} 
+    };
+	close = function(){
+		if(unzFile){
+			unzClose(unzFile);
+			unzFile = null;
+		}
+	}
+}
+namespace unzip{ 
+	class unz_global_info64{
+    	LONG number_entry;
+    	INT size_comment;
+	}  
+	class unz_file_info64 {
+    	INT version; 
+    	INT version_needed;
+    	INT flag; 
+    	INT compression_method;  
+    	INT dosDate;
+    	int crc; 
+    	INT compressed_size;  
+    	INT compressed_size_high;  
+    	INT uncompressed_size; 
+    	INT uncompressed_size_high; 
+    	INT size_filename;
+    	INT size_file_extra;
+    	INT size_file_comment;
+    	INT disk_num_start;
+    	INT internal_fa;
+    	INT external_fa;
+    	struct tmu_date = {
+    		INT second; 
+    		INT minute;
+    		INT hour;
+    		INT day; 
+    		INT month;
+    		INT year;
+		}; 
+	};	
+	
+	unzOpen64 = dll.api("unzOpen64","pointer(string path)"); 
+	unzClose = dll.api("unzClose","int(pointer file)");  
+	unzGetGlobalInfo64 = dll.api("unzGetGlobalInfo64","int(pointer file,struct &pGlobalInfo)"); 
+	unzClose = dll.api("unzClose","int(pointer file)"); 
+	unzGoToNextFile = dll.api("unzGoToNextFile","int(pointer file)"); 
+	unzGoToFirstFile = dll.api("unzGoToFirstFile","int(pointer file)"); 
+	unzGetCurrentFileInfo64 = dll.api("unzGetCurrentFileInfo64","int(pointer file,struct &pfile_info,str &fileName
+		,INT fileNameSize,pointer extraField,INT extraFieldBufferSize,string szComment,INT commentBufferSize)"); 
+	unzOpenCurrentFilePassword = dll.api("unzOpenCurrentFilePassword","int(pointer file,string password)");   
+	unzCloseCurrentFile = dll.api("unzCloseCurrentFile","int(pointer file)"); 
+	unzReadCurrentFile = dll.api("unzReadCurrentFile","int(pointer file,POINTER buf,INT len)");  
+	
+	extract = function(path,extractDir,proc,password,initProc ){
+		var path = ..io.exist(path);
+		if(!path)error("zip文件路径错误",2);
+			
+		if( !extractDir ) 
+			extractDir = ..string.match(path,"(.+)\.\w+$")
+			
+		extractDir = ..fsys.createDir(extractDir);
+		if(!extractDir)error("解压目录错误",2);
+			
+		var unzip,err = ..zlib.unzip(path,extractDir)
+		if(!unzip) return false,err;
+		
+		if( initProc ) initProc ( unzip.globalInfo.number_entry );
+		
+		var ftm = ..fsys.time();  
+		for(pos,dirName,fileName,extractPath,fileInfo in unzip.eachFile() ){   
+			if( dirName ) { 
+				..fsys.createDir(extractPath);
+				if( proc ) proc( dirName, ,fileInfo )
+				continue;
+			}
+			
+			var size,unitSize,unitName = ..fsys.size.format( fileInfo.uncompressed_size,fileInfo.uncompressed_size_high);
+			if( proc &&  ( !proc( fileName,extractPath,fileInfo,size,unitSize,unitName ) ) ){
+				continue;
+			}
+	 		
+	 		..fsys.createParentDir(extractPath) 
+			var file = ..io.open( extractPath,"w+b" );
+			if(!file)
+				continue;
+				
+			var readOk;
+			for(buffer,readSize in unzip.eachReadCurrentFile(password) ){
+				file.writeBuffer(buffer,readSize); 
+				readOk = true;
+			}
+			file.close() 
+			
+			if(size && (!readOk) ){
+				..io.remove(extractPath);
+				unzip.close();
+				return null,password?"密码错误":"解压失败"
+			}
+			
+			var file = ..fsys.file(extractPath,"r+"); 
+			ftm.fromDosTime( fileInfo.dosDate );
+			ftm.utc();  
+			
+			file.setFileTime( creation = ftm ;access = ftm ;write = ftm )
+			file.close() 
+		}
+		unzip.close(); 
+		return true;
+	}
+} 
+
+
+/**intellisense() 
+zlib.unzip(.(zip路径) = 创建解压对象\n注意如果zip文件为空返回null\nzip路径错误则抛出异常,调用者有责任检测路径是否正确
+zlib.unzip() = !unzip.
+!unzip.codepage =  指定zip文件名使用的代码页,数值
+!unzip.eachFile() = !unz_file_info.
+!unzip.globalInfo.number_entry = 文件与目录总数
+!unz_file_info.dosDate = DOS时间格式
+!unz_file_info.crc = 原始文件CRC32校验值(允许负整数)
+!unz_file_info.flag = 选项
+!unz_file_info.compressed_size = 压缩大小
+!unz_file_info.compressed_size_high = 压缩大小,高位
+!unz_file_info.uncompressed_size = 原始大小
+!unz_file_info.uncompressed_size_high = 原始大小,高位 
+!unzip.eachFile( ) = @for(pos,dirName,fileName,extractPath,fileInfo in ??.eachFile() ){ 
+	if( dirName ) continue;
+	 
+	var file = io.open( extractPath,"w+b" )
+	for(buffer,readSize in ??.eachReadCurrentFile() ){
+		file.writeBuffer(buffer,readSize); 
+	}
+	file.close();__
+}
+!unzip.eachReadCurrentFile(解压密码,缓冲区大小) = @for(buffer,readSize in ??.eachReadCurrentFile() ){
+	file.writeBuffer(buffer,readSize); 
+}
+
+_UNZ_OK=@0/*_UNZ_OK*/
+_UNZ_END_OF_LIST_OF_FILE=@-100/*_UNZ_END_OF_LIST_OF_FILE*/
+_UNZ_ERRNO=@-1/*_UNZ_ERRNO*/
+_UNZ_EOF=@0/*_UNZ_EOF*/
+_UNZ_PARAMERROR=@-102/*_UNZ_PARAMERROR*/
+_UNZ_BADZIPFILE=@-103/*_UNZ_BADZIPFILE*/
+_UNZ_INTERNALERROR=@-104/*_UNZ_INTERNALERROR*/
+_UNZ_CRCERROR=@-105/*_UNZ_CRCERROR*/
+
+zlib.unzip.extract(zip文件路径,解压目录,筛选函数,解压密码) = @.extract( "/my.zip","/my",\n	function(fileName,extractPath,fileInfo,size,unitSize,unitName){\n		if(extractPath){ \n			return true__/*是否解压该文件*/;\n		}\n	}, ,\n	function(numEntries){\n		\n	}\n)	
+
+end intellisense**/

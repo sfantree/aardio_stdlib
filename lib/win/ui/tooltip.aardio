@@ -1,0 +1,278 @@
+//tooltip 提示控件
+import win.ui;
+import win.ui.ctrl.metaProperty;
+
+namespace win.ui;
+
+class tooltip{
+	ctor(winform,tParam){
+		if( ! winform ){
+			error("第一个构造参数必须指定有效窗口",2) 
+		} 
+		this.parent = winform;
+		this.hParent = winform[["hwnd"]] : winform;
+		
+		//https://docs.microsoft.com/en-us/windows/win32/controls/tooltip-styles
+		var style = 0x80000000/*_WS_POPUP*/ ;
+		if(tParam[["balloon"]]){ style = style | 0x40/*_TTS_BALLOON*/ } 
+		if(tParam[["close"]]){ style = style |0x80/*_TTS_CLOSE*/ }
+		
+		if( tParam[["style"]] ) style = style | tParam[["style"]]; 
+		var exStyle = tParam[["exstyle"]] : 0;
+		if(tParam[["topmost"]] ){exStyle = exStyle | 8/*_WS_EX_TOPMOST*/}
+		
+		this.hwnd = ::CreateWindowEx(exStyle, "tooltips_class32", , style,0, 0, 0, 0, this.hParent, 0 );
+		::SendMessageInt(this.hwnd, 0x418/*_TTM_SETMAXTIPWIDTH*/, 0, 410);
+		
+		this.create = function (tParam) {};
+		this.tooltips = {};
+	};
+	destroy = function(){
+		if( this.hwnd ){
+			::DestroyWindow(this.hwnd);
+			this.hwnd = null;
+		}
+	};
+	delTool = function(ti){  
+		::SendMessageByStruct(this.hwnd, 0x433/*_TTM_DELTOOLW*/, 0, ti);
+	};
+	addTool = function(ctrl,text,flags){
+		if( flags === null ) flags = 0x10/*_TTF_SUBCLASS*/ | 0x1000/*_TTF_PARSELINKS*/;
+		flags = flags | 1/*_TTF_IDISHWND*/ ;
+	
+		var ti = TOOLINFO();
+		ti.cbSize = ..raw.sizeof(ti);
+		ti.hOwner = this.hParent;
+		ti.flags = flags;
+		ti.text = topointer(text) == _INVALID_HANDLE_VALUE ? _INVALID_HANDLE_VALUE : text;
+		
+		var hCtrl = ctrl[["hwnd"]] : ctrl;
+		if( hCtrl && this.tooltips[hCtrl] ){
+			this.delTool(this.tooltips[hCtrl]);
+		}
+		ti.id = hCtrl;
+		
+		::SendMessageByStruct(this.hwnd, 0x432/*_TTM_ADDTOOLW*/, 0, ti); 
+		
+		ti.hTooltip = this.hwnd;
+		if(hCtrl) this.tooltips[hCtrl] = ti;
+		
+		this.lastToolInfo = ti;
+		return ti;  
+	};
+	addTrackingTool = function(text,ctrl,flags){
+		return this.addTool(ctrl,text,(flags:0)|0x20/*_TTF_TRACK*/);
+	};
+	add = function(ctrls){
+		var tis = {};
+		for(k,v in ctrls) tis[k] = owner.addTool(this.parent[k],v);
+		return tis;
+	};
+	getTool = function(ctrl){
+		if(!ctrl) return this.lastToolInfo; 
+		return this.tooltips[ctrl[["hwnd"]]:ctrl];
+	};
+	setText = function(text,ti){
+		if(!ti) ti = this.lastToolInfo;
+		if(ti.hwnd){ ti = this.tooltips[ti.hwnd] }
+		if(ti) return ti.setText(text);
+		else {
+			error("参数@2错误",2)
+		}
+		return ti;
+	};
+	setTitle = function(title,icon){
+		::User32.SendMessage(this.hwnd,0x421/*_TTM_SETTITLE*/,icon,title:"");
+		return this;
+	};
+	setInfo = function(title,large){
+		::User32.SendMessage(this.hwnd,0x421/*_TTM_SETTITLE*/,large?4:1,title:"");
+		return this;
+	};
+	setWarning = function(title,large){
+		::User32.SendMessage(this.hwnd,0x421/*_TTM_SETTITLE*/,large?5:2,title:"");
+		return this;
+	};
+	setError = function(title,large){
+		::User32.SendMessage(this.hwnd,0x421/*_TTM_SETTITLE*/,large?6:3,title:"");
+		return this;
+	};
+	setMaxWidth = function(width){
+		::SendMessageInt(this.hwnd,0x418/*_TTM_SETMAXTIPWIDTH*/, 0, width);
+		return this;
+	};
+	setDelayTime = function(time,flag){
+		::SendMessageInt(this.hwnd,0x403/*_TTM_SETDELAYTIME*/,flag,time : -1); 
+		return this;
+	};
+	setBkColor = function(clr){
+		::SendMessageInt(this.hwnd,0x413/*_TTM_SETTIPBKCOLOR*/,0,clr); 
+		return this;
+	};
+	setTextColor = function(clr){
+		::SendMessageInt(this.hwnd,0x414/*_TTM_SETTIPTEXTCOLOR*/,0,clr);
+		return this; 
+	}; 
+	activate = function(active){
+		::User32.SendMessage(this.hwnd,0x401/*_TTM_ACTIVATE*/,active,0);
+	};
+	trackPos = function(x,y){
+		if(x==null || y==null) x,y = ..win.getMessagePos();
+		::SendMessageInt(this.hwnd,0x412/*_TTM_TRACKPOSITION*/, 0, ::MAKELONG(x,y));
+		return this; 
+	};
+	update = function(){
+		::SendMessage(this.hwnd,0x41D/*_TTM_UPDATE*/); 
+	}; 
+	sendMessage = function(msg,wParam,lParam){
+		::User32.SendMessage(owner.hwnd,msg,wParam,lParam);
+		return owner;
+	};
+	// @Deprecated
+	relayEvent = function(msg){
+		::SendMessageByStruct(this.hwnd,0x407/*_TTM_RELAYEVENT*/,0,msg);
+	};
+	// @Deprecated
+	updateTipText = function(ti,text){ 
+		return this.setText(text,ti);
+	};
+	@_metaProperty;
+}
+
+namespace tooltip {
+
+	balloon = function(form,tParam){
+		tParam = ..table.assign(tParam,{balloon=true})
+		return ..win.ui.tooltip(form,tParam);
+	}
+	
+	tracking = function(winform){
+		var t = ..win.ui.tooltip.balloon(winform)
+		t.addTrackingTool("",winform);
+		return t;
+	}
+	
+	class TOOLINFO {
+			INT cbSize;
+			INT flags;
+			ADDR hOwner;
+			ADDR id;
+			struct rect = ::RECT();
+			pointer hinst;
+			ustring text;
+			int lParam;
+			hTooltip = 0;
+			@_meta;
+	}
+	
+	namespace TOOLINFO{
+		
+		_meta = {
+			_get = {
+				sendMessage = function(msg,wParam){
+					::User32.SendMessage(owner.hTooltip,msg, wParam, owner);
+					return owner;
+				};
+				setText = function(text){
+					owner.text = topointer(text) == topointer(-1) ? topointer(text) : text;  
+					::SendMessageByStruct(owner.hTooltip,0x439/*_TTM_UPDATETIPTEXTW*/, 0, owner);
+					return owner;
+				};
+				trackPopup = function(active,x,y){
+					if( ! ( owner.flags & 0x20/*_TTF_TRACK*/ ) ){ error("创建该提示必须指定_TTF_TRACK选项",2) }
+				
+					if(active){
+						if( (x===null) || (y===null)){x,y = ..win.getMessagePos();}
+						::SendMessageInt(owner.hTooltip,0x412/*_TTM_TRACKPOSITION*/, 0, ::MAKELONG(x,y)); 
+						::SendMessage(owner.hTooltip,0x41D/*_TTM_UPDATE*/);	
+					}	
+						
+					::User32.SendMessage(owner.hTooltip,0x411/*_TTM_TRACKACTIVATE*/,!!active, owner); 	
+					return owner;
+				};
+				delete = function(){
+					::SendMessageByStruct(owner.hTooltip, 0x433/*_TTM_DELTOOLW*/, 0, owner);
+				};
+			}
+		}
+	}
+	
+	_metaProperty = ..win.ui.ctrl.metaProperty()
+}
+
+/**intellisense()
+win.ui.tooltip = 提示控件
+win.ui.tooltip() = !winUiTooltip.
+win.ui.tooltip(.(winform,创建参数) = 创建提示控件,参数@1为窗体对象,\n参数@2使用一个表指定创建选项与样式,可省略,\n参数@2的详细用法请参考源码与MSDN文档
+win.ui.tooltip.balloon() = !winUiTooltip.
+win.ui.tooltip.balloon(.(winform,创建参数) = 创建提示控件,参数@1为窗体对象,\n参数@2使用一个表指定创建选项与样式,可省略,\n参数@2的详细用法请参考源码与MSDN文档
+win.ui.tooltip.tracking() = !winUiTooltip.
+win.ui.tooltip.tracking(.(winform) = 创建汽泡提示控件,显示关闭按钮\n并调addTrackingTool函数添加默认TOOLINFO结构体\n返回
+end intellisense**/
+
+/**intellisense(!winUiTooltip)
+setMaxWidth(.(宽度) = 设置提示框最大宽度
+setDelayTime(.(超时值,选项) = 设置超时值
+setTextColor(.(颜色值) = 设置文本颜色
+setBkColor(.(颜色值) = 设置背景颜色
+setTitle(.(title,icon) = 设置@title参数指定的标题,\n可选用@icon参数指定图标句柄
+setInfo(.(title,large) = 设置@title参数指定的标题,并显示信息图标,\n可选用@large指定是否使用大图标
+setWarning(.(title,large) = 设置@title参数指定的标题,并显示警告图标,\n可选用@large指定是否使用大图标
+setError(.(title,large) = 设置@title参数指定的标题,并显示错误图标,\n可选用@large指定是否使用大图标
+add(__) = 批量添加控件提示\n参数应使用一个表指定多个控件的提示文本,\n表成员的键为控件名,值为控件提示
+addTool( = 创建并返回TOOLINFO结构体
+addTool(.(ctrl,text,flags) = 除参数@ctrl以外都是可选参数,\n@ctrl参数指定控件对象,如果控件之前添加了提示会自动删除,\nflags为_TTF_前缀常量组合
+addTrackingTool(.(text,ctrl,flags) = 创建手动控制提示框,\n该提示框必须使用trackPopup函数控制显示或隐藏,\n可选用@ctrl参数指定一个关联控件,\n@flags为可选参数,可用_TTF_前缀常量组合
+delTool(.(ctrl) = 删除提示\n参数@1请使用窗口控件对象,\n如果控件尚未添加提示则忽略不操作
+delTool(.(toolInfo) = 删除提示\n参数@1请使用addTool函数的返回值
+setText(.(text,ctrlOrToolInfo) = 更新提示文本\n可选用参数@ctrlOrToolInfo指定控件或TOOLINFO结构体,\n如果不指定则默认使用最后一次添加的TOOLINFO结构体,\n成功返回TOOLINFO结构体
+getTool(.(ctrl) = 参数指定控件对象\n返回该控件创建的TOOLINFO结构体\n不指定参数返回最后一次添加的TOOLINFO结构体
+trackPos(.(x,y) = 移动到指定坐标,\n省略参数是移动到最后一次处理鼠标消息的坐标,\n请使用trackPopup函数控制显示和隐藏\n此函数返回自身
+activate(.(true) = 激活提示控件
+activate(.(false) = 停用提示控件
+update() = 刷新
+lastToolInfo = 最后一次添加的提示结构体\n!winUiTooltipInfo.
+addTool() = !winUiTooltipInfo.
+getTool() = !winUiTooltipInfo.
+setText() = !winUiTooltipInfo.
+setTitle() = !winUiTooltip.
+setInfo() = !winUiTooltip.
+setWarning() = !winUiTooltip.
+setError() = !winUiTooltip.
+addTrackingTool() = !winUiTooltipInfo.
+trackPos() = !winUiTooltipInfo.
+end intellisense**/
+
+/**intellisense(!winUiTooltipInfo)
+sendMessage(msg,wParam) = 发送消息，用法参考此函数源码\n此函数返回自身
+setText(.(text) = @text参数指定要更新的提示文本\n此函数返回自身
+trackPopup(.(active,x,y) = @active参数为true弹出提示,\n@active参数为false隐藏弹出的提示,\n可选用x,y参数指定显示坐标,不指定则取最后一次鼠标消息坐标,\n注意调用此函数显示的提示提示不会自动隐藏,\n只有调用addTrackingTool函数添加的提示才能使用此函数,\n此函数返回自身
+delete() = 删除提示
+trackPopup() = !winUiTooltipInfo.
+setText() = !winUiTooltipInfo.
+sendMessage() = !winUiTooltipInfo.
+end intellisense**/
+
+/**intellisense()
+_TTS_ALWAYSTIP=@1/*_TTS_ALWAYSTIP*/
+_TTS_NOPREFIX=@2/*_TTS_NOPREFIX*/
+_TTS_NOANIMATE=@0x10/*_TTS_NOANIMATE*/
+_TTS_NOFADE=@0x20/*_TTS_NOFADE*/
+_TTS_BALLOON=@0x40/*_TTS_BALLOON*/
+_TTS_CLOSE=@0x80/*_TTS_CLOSE*/
+_TTF_IDISHWND=@1/*_TTF_IDISHWND*/
+_TTF_CENTERTIP=@2/*_TTF_CENTERTIP*/
+_TTF_RTLREADING=@4/*_TTF_RTLREADING*/
+_TTF_TRACK=@0x20/*_TTF_TRACK*/
+_TTF_ABSOLUTE=@0x80/*_TTF_ABSOLUTE*/
+_TTF_TRANSPARENT=@0x100/*_TTF_TRANSPARENT*/
+_TTF_PARSELINKS=@0x1000/*_TTF_PARSELINKS*/
+_TTF_DI_SETITEM=@0x8000/*_TTF_DI_SETITEM*/
+_TTN_FIRST=@0xFFFFFDF8/*_TTN_FIRST*/
+_TTN_LAST=@0xFFFFFFCA/*_TTN_LAST*/
+_TTN_GETDISPINFO=@0xFFFFFDF8/*_TTN_GETDISPINFO*/
+_TTN_SHOW=@0xFFFFFDF7/*_TTN_SHOW*/
+_TTN_POP=@0xFFFFFDF6/*_TTN_POP*/
+_TTN_LINKCLICK=@0xFFFFFDF5/*_TTN_LINKCLICK*/
+_TTN_NEEDTEXT=@0xFFFFFDF8/*_TTN_NEEDTEXT*/
+end intellisense**/

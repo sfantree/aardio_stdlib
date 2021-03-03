@@ -1,0 +1,131 @@
+﻿import win;
+import win.reg;
+import inet.downBox;
+import web.rest.jsonLiteClient;
+import process;
+import fsys.version;
+
+namespace chrome;
+
+class path{
+	ctor(enableInstaller){
+		if(_WINE){
+			if(..io.exist("//opt/google/chrome/google-chrome") ){
+				return "//opt/google/chrome/google-chrome";
+			}
+		}
+		
+		var path;
+		
+		var path = findPath({
+			"chrome.exe";
+			"msedge.exe";
+			"2345Explorer.exe"; 
+			"360chrome.exe";
+		})
+		
+		if(!(#path && ..io.exist(path))){
+			if(enableInstaller){
+				installChrome();
+				path = findPath({"msedge.exe";"chrome.exe"})	
+			}
+		}
+
+		return path;
+	};
+}
+
+namespace path{
+    
+	findPath = function(browsers){
+    	var path;
+    	for i,filename in ..table.eachIndex(browsers){
+        	var reg = ..win.reg("HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" + filename)
+        	if(reg){
+            	path  = reg.queryValue("");
+            	reg.close();
+        	};
+        	
+        	if( !#path ) {
+        	
+            	var reg = ..win.reg("HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\App Paths\" + filename)
+            	if(reg){
+                	path  = reg.queryValue("");
+                	reg.close();
+            	};
+        	}
+        	
+        	if( #path ) {
+            	break;
+        	}
+    	}
+	
+    	return path;
+	}  
+	
+	var getChromeInstallerUrl = function(){
+		if(!_WIN7_LATER){
+			return "http://dl.google.com/release2/h8vnfiy7pvn3lxy9ehfsaxlrnnukgff8jnodrp0y21vrlem4x71lor5zzkliyh8fv3sryayu5uk5zi20ep7dwfnwr143dzxqijv/49.0.2623.112_chrome_installer.exe"
+		}
+		
+		var http = ..web.rest.jsonLiteClient();
+		var products = http.get("http://edgeupdates.microsoft.com/api/products");
+    	http.close();
+	
+		if(products){
+			var architecture = ..process().isWow64() ? "x64" : "x86";
+			for i,product in ..table.eachIndex(products){
+				if(product[["Product"]] == "Stable"){
+					var releases = product[["Releases"]]
+					for i,release in ..table.eachIndex(releases){
+						if((release.Platform!="Windows") || (release.Architecture !=  architecture)){
+							continue;
+						} 
+						
+						for i,artifact in ..table.eachIndex(release.Artifacts){
+							if(artifact.ArtifactName=="msi"){
+								return artifact.Location;
+							}
+						}
+					}
+				}
+			}
+		} 	
+	}
+	
+	installChrome = function(){
+		var url = getChromeInstallerUrl();
+		if(!url){
+			return;
+		}
+		
+    	var downBox = ..inet.downBox(mainForm,
+    		_WIN7_LATER ? "正在下载本程序运行必需组件：Microsoft Edge":"正在下载本程序运行必需组件：Chrome",1000)
+ 		var downloadPath = _WIN7_LATER ?
+ 			..io.appData("/aardio/edge/MicrosoftEdgeEnterprise.msi")
+ 			: ..io.appData("/aardio/edge/49.0.2623.112_chrome_installer.exe")
+
+		downBox.endProc = function(ret,fileSize,unmodified){ 
+			if(_WIN7_LATER) return;
+			
+			downBox.progress.setProgressRange(1,50);
+			downBox.progress.startProgress();
+			
+			downBox.text = "正在安装本程序运行必需组件" ; 
+			downBox.labInfo.text = "正在安装：Chrome" ; 	
+			downBox.labProgress.text = "可能需要数分钟, 请稍候 ... ";
+			
+        	..process.executeWait(downloadPath,"/silent /install");
+		}
+		
+        downBox.download(url,downloadPath); 
+        if(downBox.complete && _WIN7_LATER){
+        	return ..process.executeWait(downloadPath ," /qn /quiet /passive /norestart")
+        }
+	}
+}
+
+/**intellisense()
+chrome.path(.() = 用于获取chrome安装路径\n支持chrome兼容的edge、2345、360等浏览器
+chrome.path(.(true) = 用于获取chrome安装路径\n支持chrome兼容的edge、2345、360等浏览器\n\n如果没有可用浏览器,将会下载安装Edge(Chromium) 
+end intellisense**/

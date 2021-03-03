@@ -1,0 +1,56 @@
+//2、调用线程命令
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="线程命令";right=599;bottom=399)
+winform.add(
+edit={cls="edit";left=12;top=11;right=588;bottom=389;db=1;dl=1;dr=1;dt=1;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+import thread.command;
+var listener = thread.command();
+listener.print = function( ... ){
+    winform.edit.print( ... ) //将线程传过来的参数追加输出到文本框
+}  
+listener.$print = function( ... ){
+    winform.edit.print( ... ) //将线程传过来的参数追加输出到文本框
+} 
+
+//创建工作线程,线程内错误信息默认输出到控制台
+thread.invoke(
+
+    function(hwnd){ 
+    
+        //必须在线程函数内部导入需要的库
+        import thread.command;
+        
+        //send同步模式调用界面线程的命令
+        thread.command.print("hello world",1,2,3);
+        
+        //post异步模式调用界面线程的命令
+        thread.command.$print("异步 hello world",1,2,3);
+        
+        //也可以用post方法异步调用线程命令,不会等待调用完成
+        thread.command.post("print","hello world",1,2,3);
+        
+    },listener.hwnd
+)
+
+/*
+下面这种方法实际上会转换为 thread.command.send调用，
+所以无论该命令是否定义都可以调用，不会报错。
+注意，不能使用下标获取命令调用函数
+*/
+listener.print(999,"也可以直接使用成员操作符调用命令")
+
+//工作线程内这样写更方便,适合用于编写后台线程触发器之类的支持库
+//listener作为线程参数转递时，将自动调用 thread.command.bind() 函数转换为线程命令调用对象
+thread.invoke(
+    function( listener ){  
+        listener.print("正在努力执行线程.....",99,88) 
+        listener.$print("异步 正在努力执行线程",99,88) 
+    },listener
+)
+
+winform.show();
+win.loopMessage(); 

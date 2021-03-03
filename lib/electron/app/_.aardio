@@ -1,0 +1,704 @@
+﻿import win.ui;
+import web.socket.server;
+import web.socket.jsonServer;
+import web.rpc.jsonServer;
+import string.aasdl;
+import fsys;
+import fsys.res;
+import process;
+
+namespace electron;
+
+class app{
+
+	ctor(winform,electronPath,showConsole){
+		
+		if(showConsole && _STUDIO_INVOKED){
+			global.import("console");
+			..console.open(true);
+		}
+		
+		if(winform){
+			if( type(winform) == type.string ){
+				..win.title = winform;
+				this.windowTitle = winform;
+				winform = null;
+			}
+			else {
+				..win.modifyStyle(winform.hwnd,,0x2000000/*_WS_CLIPCHILDREN*/);
+			
+				//调整主窗体时自动调整electron窗口
+				winform._adjust = function( cx,cy,wParam ) {	 
+					if( this.hwndChrome ){
+						var rect = winform.getClientRect();
+       					..win.setPos(this.hwndChrome,rect.left,rect.top,rect.width(),rect.height());
+					} 
+				};	
+			} 
+		}
+				
+		if( !electronPath ){
+			import electron.runtime;
+			electronPath = ..electron.runtime.path; 
+			this.chromeVersion = ..electron.runtime.chromeVersion;
+		}
+			
+		if(!..io.exist(electronPath) ){  
+			error("请在参数@2中指定electron.exe的正确位置" ,2) 
+		}
+		
+		this.electronPath = ..io.fullpath(electronPath);
+		this.chromePath = this.electronPath;
+		this.electronDir = ..io.splitpath(this.electronPath).dir;
+		this.nodePath =  ..io.joinpath(this.electronDir,"\resources\node_modules\");
+
+		this.ws = ..web.socket.server(); 
+		this.rpc = ..web.socket.jsonServer(this.ws);
+		this.http = this.ws.httpServer;
+		this.httpHandler = {
+			["/aardio.js" ] = function(response,request){
+				var ip,port = this.ws.getLocalIp();
+				var js = ..string.replace($"~\lib\electron\app\.build\aardio\index.js"
+    				,"@{{{$rpcServerPort}}}",tostring(port));
+    			response.contentType = "text/javascript";
+    			
+    			response.write(js) 
+			}
+			["/rpc/http"] = function(response,request){
+				
+				var rpcSocket = topointer( request.headers["rpc-client-id"] );
+    			if(rpcSocket) {
+    				this.hActiveSocket = rpcSocket; 
+    				var jsonServer = ..web.rpc.jsonServer(); 
+					jsonServer.rpc.external = this.external;
+					jsonServer.rpc.onError = function(err,requestData){
+						if(this.onError){
+							return this.onError(rpcSocket,err,requestData);
+						}
+						else {
+							errput(err,"electron/http/rpc error");
+						} 
+					};
+    				jsonServer.rpc.run(rpcSocket);
+    			}
+    			else {
+    				error("错误的RPC请求，请求头缺少：rpc-client-id",2)
+    			}
+			}
+		};
+		
+		this.ws.onUpgradeToWebsocket = function(hSocket,request,response,protocol,origin){    
+    		if( request.path == "/rpc" ){
+        		return this.rpc.start(hSocket);
+    		} 
+    		elseif( request.path == "/rpc/main" ){
+    			this.hRpcMainSocket = hSocket;
+        		return this.rpc.start(hSocket);
+    		} 
+    		
+    		response.close();
+		}
+		
+		this.ws._onClientClosed = function(hSocket){
+			if( hSocket == this.hRpcMainSocket ){
+				this.hRpcMainSocket = null;
+			}
+		}
+		
+		this.ws.onClose = function(hSocket,err){
+			if( hSocket == this.hRpcMainSocket ){
+				if(this._form)this._form.close();
+				this.onQuit();
+			}
+			elseif(this.onClose){
+				return this.onClose(hSocket,err);
+			}
+		}
+		
+		this.ws.onOpen = function(hSocket){
+			this.rpc.notify(hSocket,"rpcClientId",tonumber(hSocket) );
+		}
+		
+		this.ws.onError = function(hSocket,err){
+			if(this.onError){
+				return this.onError(hSocket,err);
+			}
+			else {
+				errput(err,"electron/ws/rpc error");
+			} 
+		}
+		 
+		this.serverIp = "127.0.0.1";
+		this.serverPort = null;
+		this.name = "project-name";
+		
+		this._form = winform;
+		..table.gc(this,function(){
+			if(this.hwndChrome) ..win.close(this.hwndChrome);
+			if(this.asarTempDir){
+				sleep(200); 
+				..fsys.deleteEx(this.asarTempPath);
+				..fsys.deleteEx(this.asarTempDir);
+				this.asarTempDir = null;	
+				this.asarTempPath = null;
+			}
+		} );
+		
+		this.$readyCallbacks = {};
+		this.$indexReadyCallbacks = {};
+	};  
+	fullpath = function(p){
+		return ..io.joinpath(this.electronDir,p)
+	}; 
+	publish = function(...){
+		this.rpc.publish(...)
+	};
+	survey = function(...){
+		this.rpc.survey(...)
+	};
+	xcallMain = function(method,...){
+		if( type(method) == "string" ){
+			if(this.hRpcMainSocket) return this.rpc.xcall(this.hRpcMainSocket,method,...);
+		}
+		else {
+			error("参数@1必须是字符串",2);
+		}
+	};
+	notifyMain = function(method,...){
+		if( type(method) == "string" ){
+			if(this.hRpcMainSocket) return this.rpc.notify(this.hRpcMainSocket,method,...);
+		}
+		else {
+			error("参数@1必须是字符串",2);
+		} 
+	};
+	xcall = function($,method,...){
+		if( type($) == "string" )return this.xcallMain($,method,...);
+		return this.rpc.xcall($ : this.getActiveSocket(),method,...);
+	};
+	notify = function($,method,...){
+		if( type($) == "string" )return this.notifyMain($,method,...);
+		return this.rpc.notify($ : this.getActiveSocket(),method,...);
+	};
+	doScript = function($,js,...){
+		if( ... !== null ) js = ..string.format(js,...);
+		return this.notify($,"doScript",js);
+	};
+	doScriptMain = function($,js,...){
+		if(this.hRpcMainSocket) return this.rpc.notify(this.hRpcMainSocket,"doScript",...);
+	};
+	callback = function(name,func){
+		if( type(name) != type.string ) error("参数@1必须是字符串",2);
+		if( (func!==null) && (type(func) != type.function )  )error("参数@2必须是函数对象",2);
+		this.rpc.xcallback[name] = func;
+	}; 
+	getActiveSocket = function(){
+		return this.hActiveSocket;
+	};
+	msgbox = function(str,title,style){
+		return ..win.msgbox(str,title,style,this.hwndChrome )
+	};
+	msgboxTest = function(str,title){
+		return ..win.msgboxTest(str,title,this.hwndChrome )
+	}; 
+	msgboxErr = function(str,title){
+		return ..win.msgboxErr(str,title,this.hwndChrome  )
+	}; 
+	setPos = function(...){
+		if(this.hwndChrome) ..win.setPos(this.hwndChrome,...);
+	};
+	center = function(target){
+		if(this.hwndChrome) ..win.center(this.hwndChrome,target);
+	};
+	show = function(flags){
+		if(this.hwndChrome) ..win.show(this.hwndChrome,flags)
+	};
+	close = function(){
+		var hwnd = this.hwndChrome;
+		if(!hwnd){
+			if(this.process){
+				return ..win.close( ..win.wait( lambda() this.hwndChrome ) );	
+			} 
+		}
+		else {..win.close(this.hwndChrome);}
+	};
+	getUrl = function(path){
+		return this.http.getUrl(path);
+	};
+	onQuit = function(){
+		if(!this._form){
+			..win.quitMessage()
+		}
+	};
+	ready = function(proc){
+		if(this.hwndChrome){proc(this.hwndChrome);}
+		else {..table.push(this.$readyCallbacks,proc);} 
+	};
+	indexReady = function(proc){
+		if(this.$indexReady){proc();}
+		else {..table.push(this.$indexReadyCallbacks,proc);} 
+	};
+	startLoopMessage= function(startEnviron){
+		this.start(startEnviron);
+		return ..win.loopMessage();
+	};
+	start = function(startEnviron){ 
+		if( this.process ) error("start函数不能重复调用",2);
+		
+		if( type(startEnviron) == type.string ) {
+			return this.start(indexUrl=startEnviron);
+		}
+		else if( type(startEnviron) != type.table ) {
+			if(!startEnviron){
+				startEnviron = {};
+			}
+			else{
+				error("参数类型错误",2)
+			}
+		}
+		
+		if( !startEnviron.indexUrl  ) { startEnviron.indexUrl = "./index.html" }
+		
+		if( this._form ){
+			var screenWidth,screenHeight = ..win.getScreen();
+			startEnviron.browserWindow = ..table.assign(startEnviron.browserWindow,{
+				frame = false;
+        		resizable = false;
+        		center = false;
+        		width = 0;
+        		height = 0; 
+        		minWidth = 0;
+        		minHeight = 0; 
+        		x = 0;
+        		y = screenHeight*2;
+			}); 	
+		}
+		else {
+			startEnviron.browserWindow = ..table.mix(startEnviron.browserWindow,{
+        		resizable = true;
+        		center = true;
+        		width = 1024;
+				minWidth = 800;
+				height = 760;
+				minHeight= 600;
+        		autoHideMenuBar = true; // 按ALT还是会显示 
+        		backgroundColor =  '#ffffff';
+        		title = this.windowTitle;
+			}); 
+		}
+		startEnviron.title = this.windowTitle;
+		
+		if(startEnviron.extensions){
+			startEnviron.extensions = ..table.map(startEnviron.extensions,function(v){
+				if(..io.localpath(v) && !..io.exist(v) ){
+					return ..fsys.res.saveAppData(v,"aardio/std/electron-extensions")
+				}
+				return  ..io.fullpath(v); 
+			} )	
+		}
+		
+		startEnviron.studioInvoke = _STUDIO_INVOKED;
+		
+		var hwndChromeX,hwndChromeY;
+		this.external = ..table.assign( this.external,{ 
+			$onUrlReady = function($,url){
+				if(!this.$indexReady){
+					this.$indexReady = true;
+					if( this.onIndexReady ) this.onIndexReady();
+					
+					var $indexReadyCallbacks = this.$indexReadyCallbacks;
+					for(i=1;#$indexReadyCallbacks;1){
+						var p = $indexReadyCallbacks[i]
+						p();
+					}
+					this.$indexReadyCallbacks = {};					
+				} 
+				
+				if(this.onUrlReady){ this.onUrlReady($,url); }
+			};
+			quit = function(){
+				var hwnd = ..win.getRoot(this.hwndChrome);
+				if(hwnd) ::PostMessage(hwnd,0x10/*_WM_CLOSE*/,0,0);	
+				this.onQuit();
+			};
+			hitClose = function(){
+				var hwnd = ..win.getRoot(this.hwndChrome);
+				if(hwnd) ::PostMessage(hwnd,0x10/*_WM_CLOSE*/,0,0);
+			};
+			hitCaption = function(){
+				if(!this.hwndChrome)return;
+				var hwnd = ..win.getRoot(this.hwndChrome);
+				if(  ..win.isZoomed(hwnd) ) return; 
+				
+				..win.releaseCapture();
+				::PostMessage(hwnd,0x112/*_WM_SYSCOMMAND*/,0xF010/*_SC_MOVE*/ | 2/*_HTCAPTION*/,0)
+			};
+			isZoomed = function(){
+				var hwnd = ..win.getRoot(this.hwndChrome);
+				return ..win.isZoomed(hwnd);
+			};
+			hitMax = function(){
+				if(!this.hwndChrome)return;
+				var hwnd = ..win.getRoot(this.hwndChrome);
+				var zoomed = ..win.isZoomed(hwnd);
+				
+    			if(zoomed)
+					::PostMessage(hwnd,0x112/*_WM_SYSCOMMAND*/,0xF120/*_SC_RESTORE*/, 0);  
+				else
+					::PostMessage(hwnd,0x112/*_WM_SYSCOMMAND*/,0xF030/*_SC_MAXIMIZE*/,0);
+				
+				return !!zoomed;
+			};
+			hitMin = function(){
+				if(!this.hwndChrome)return;
+				var hwnd = ..win.getRoot(this.hwndChrome);
+    			::PostMessage(hwnd,0x112/*_WM_SYSCOMMAND*/,0xF020/*_SC_MINIMIZE*/, 0);
+			}; 
+			hitmin = function(){ return owner.hitMin(); };
+			hitmax = function(){ return owner.hitMax(); };
+		} );
+		
+		this.external.main = ..table.assign(this.external.main,{
+			onReady = function(hwndChrome){
+				if( this.hwndChrome ) return;
+				
+				if(winform){ 
+					..win.setParent(hwndChrome,this._form.hwnd);  
+					..win.modifyStyle(hwndChrome,0xC00000/*_WS_CAPTION*/|0x80000/*_WS_SYSMENU*/|0x20000/*_WS_MINIMIZEBOX*/,0x40000000/*_WS_CHILD*/);  
+	    			
+	    			var rect = winform.getClientRect();
+       				..win.setPos(hwndChrome,0,0,rect.width(),rect.height());	  
+       				
+       				::User32.SendMessage(hwndChrome, 0x0128/*_WM_UPDATEUISTATE*/,3/*_UIS_INITIALIZE*/,0);
+       				::User32.SetForegroundWindow(hwndChrome);
+       				::User32.UpdateWindow(hwndChrome);
+				} 
+				
+				this.hwndChrome = hwndChrome; 
+				this.hwndElectron = hwndChrome;
+				::User32.AttachThreadInput( ..thread.getId(),this.process.tid,true);  
+				if( this.onReady ) this.onReady(hwndChrome);
+				
+				var $readyCallbacks = this.$readyCallbacks;
+				for(i=1;#$readyCallbacks;1){
+					var p = $readyCallbacks[i]
+					p(hwndChrome);
+				}
+				this.$readyCallbacks = {};
+			}; 	
+			onIndexLoad = function(){
+				if( this.onIndexLoad ) this.onLoadIndex();
+			};
+		});
+		
+		if(!this.external.$onLoadUrl){
+			this.external.$onLoadUrl = function($,url){}
+		}
+		
+		this.ws.start(this.serverIp,this.serverPort);
+		this.http.run( 
+    		function(response,request){
+    			response.headers["Access-Control-Allow-Origin"] = "*";
+    			response.headers["Access-Control-Allow-Headers"] = "Content-Type, Rpc-Client-Id, *"
+
+    			if(request.method != "OPTIONS"){
+    				var handler = this.httpHandler[request.path];
+    				if( handler ) return handler(response,request);
+        			response.loadcode( request.path);
+        		}
+    		} 	
+		);
+		
+		if( (!_STUDIO_INVOKED) && ( (!this.appPath) || (this.appPath == "/electron.app") ) ){
+			var file = ..io.open(..io._exepath,"rb");
+			
+			if( file ){
+				file.seek("end",-4);
+				var str = file.read(4);
+				
+				if( str == "ASAR" ){
+					file.seek("end",-8);
+					var size = file.read({INT value});
+					
+					if( size.value ){
+						file.seek("end",-(8+size.value));
+						
+						var buf = ..raw.buffer(size.value);
+						file.readBuffer(buf);
+						 
+						this.asarTempDir = ..io.tmpname()
+						this.asarTempPath = this.asarTempDir  + "\app.asar"
+						this.appPath = this.asarTempPath;
+						
+						..io.createDir(this.asarTempDir);
+						..string.save(this.appPath, buf);
+					}
+				}
+				
+				file.close();
+			}
+		}
+		
+		if(this.appPath){
+			if(!..io.exist(this.appPath)){
+				error("appPath指定了错误的路径",2)
+			}
+		}
+		else{ 
+			if( ..io.exist("/electron.app.asar") ){
+				this.appPath =  "/electron.app.asar";
+			} 
+			else if( ..io.exist("/electron.app") ) { 
+				this.appPath = "/electron.app"; 
+			}
+			else {
+				if( ..io.exist("\package.json") ){
+					this.appPath = "\";
+				}
+				else if( ..io.exist("\..\package.json") ){
+					this.appPath = "\..\";
+				}
+				else {
+					var path = ..io.joinpath(this.electronDir,"\resources\app\"); 
+					if( ..io.exist(path) ){ this.appPath = path;} 
+				} 
+			}
+		}
+		
+		if(!this.appPath){
+			if(this.jsMain){this.appPath = "/electron.app"}
+			else{ error("未找到应用程序启动文件",2) }
+		}
+		
+		if(this.appPath == "/electron.app"){
+			var packeJsonPath =  ..io.joinpath(this.appPath,"\package.json");  
+			if(!..io.exist(packeJsonPath)){
+				
+				if(! ..io.exist(packeJsonPath) ){
+					if(!this.jsMain) this.jsMain = self.defaultJsMain;
+					..string.save(packeJsonPath, ..web.json.stringify({
+						name = this.name;
+						main = "main.js";
+						version = "1.0.0";
+					}));
+				}
+			}	
+		}
+		
+		if(this.jsMain){
+			if( ..io.exist(this.appPath) ){
+				..string.save(..io.joinpath(this.appPath,"main.js")
+						,..string.loadcode("var startEnviron = ...; ?>" +this.jsMain,startEnviron) );
+			}
+		}
+		
+		if(!..string.endWith(this.appPath,".asar",true)){ 
+			..string.save(..io.joinpath(this.appPath,"\node_modules\aardio\index.js"), $"~\lib\electron\app\.build\aardio\index.js");
+			..string.save(..io.joinpath(this.appPath,"\node_modules\aardio\index.d.ts"), $"~\lib\electron\app\.build\aardio\index.d.ts");
+			..io.remove(..io.joinpath(this.appPath,"\node_modules\aardio.js"))
+		}
+		
+		if( this.html ){
+			..string.save(startEnviron.indexUrl,this.html);
+		};
+		
+		this.appPath = ..fsys.path.removeBackslash( ..io.fullpath(this.appPath) )
+		startEnviron.appPath = this.appPath;
+		if(!..string.indexOf(startEnviron.indexUrl,":") ){
+			 
+			if(..io.localpath(startEnviron.indexUrl)){
+				this.page404 = startEnviron.indexUrl;
+				this.http.customErrors = {
+				    [404] = function(response){
+						response.loadcode(this.page404);
+					} 
+				} 
+				startEnviron.indexUrl  = this.http.getUrl(startEnviron.indexUrl); 
+			} 
+			else {
+				startEnviron.indexUrl  = ..io.joinpath("file:",startEnviron.appPath,startEnviron.indexUrl) 
+			}
+		}
+		
+		var preloadJs = startEnviron.browserWindow[["webPreferences"]][["preload"]]
+		if(preloadJs && preloadJs[1] == '.'# ) {
+			startEnviron.browserWindow.webPreferences.preload = ..io.joinpath(startEnviron.appPath,preloadJs); 
+		}
+		
+		if( ..string.startWith(startEnviron.indexUrl,"http://localhost:")
+			|| ..string.startWith(startEnviron.indexUrl,"http://127.0.0.1:")
+			|| ..string.startWith(startEnviron.indexUrl,"file:") ){
+				
+			//本地渲染线程默认启用require,webview
+			startEnviron.browserWindow.webPreferences = ..table.mix(startEnviron.browserWindow.webPreferences,{
+				enableRemoteModule = true;
+				nodeIntegration = true;
+        		webviewTag = true; 
+			})
+		}
+		
+		startEnviron.browserWindow.icon = ..fsys.path.full(
+			startEnviron.browserWindow.icon || startEnviron.icon ||  ".\app.ico"
+			,startEnviron.appPath
+			);
+		startEnviron.icon = startEnviron.browserWindow.icon;
+		
+		var ip,port = this.http.getLocalIp();
+		startEnviron.rpcPort = port;
+		startEnviron.rpchttpServerUrl  = this.http.getUrl("rpc/http"); 
+		startEnviron.rpcServerUrl  = this.ws.getUrl("rpc"); 
+		startEnviron.rpcMainServerUrl  = this.ws.getUrl("rpc/main");  
+		startEnviron.name = this.name;
+		
+		if( this.remoteDebuggingPort !== null  ){
+			if(!startEnviron.args) startEnviron.args ={};
+			startEnviron.args[["--remote-debugging-port"]] = this.remoteDebuggingPort;
+		}
+		
+		if( startEnviron.args[["--remote-debugging-port"]] === 0  ){
+			startEnviron.args[["--remote-debugging-port"]] = ..wsock.getFreePort();
+		}
+		this.remoteDebuggingPort = startEnviron.args[["--remote-debugging-port"]];
+		..electron.lastRemoteDebuggingPort = this.remoteDebuggingPort;
+		
+		startEnviron.nodePath = this.nodePath;
+		var wsJsPath = ..io.joinpath(this.nodePath,"ws.asar");
+		if( !..io.exist(wsJsPath) ){
+			..string.save(wsJsPath, $"~\lib\electron\app\.build\ws.asar");
+		}
+
+		startEnviron.aasdl = ..string.aasdl.strip(this.external);
+		..win.setenv("aarStartEnviron",null);
+		
+		startEnviron.mainWindowId = 0;
+		this.process,err  = ..process(
+    		this.electronPath,'"' + startEnviron.appPath + '"' ,
+    		{
+        		environment = {
+           			aarStartEnviron = ..web.json.stringify(startEnviron);
+        		}
+    		}
+		);
+	 
+		if(!this.process) error(err,2); 
+		this.chromeProcessId = this.process.id;
+		this.chromeThreadId = this.process.tid;
+		this.startEnviron = startEnviron;
+	}
+}
+
+if( !_WIN7_LATER ){
+	error("Electron组件到少要求Win7/Win2008 R2或之后的操作系统",2)
+}
+
+app.defaultJsMain = /**
+const aardio = require('aardio')
+const app = require('electron').app
+
+// electron/aardio 初始化后执行
+aardio.ready( win=> { 
+	if( !aardio.studioInvoke ){
+		win.removeMenu()
+	} 
+	
+	win.on('closed', () => {  
+		
+	})  	
+} )
+
+// 在JS中注册并导出接口函数给aardio
+aardio.on('main.hello', (str) => {
+    return "electron主进程应答" + str;
+}) 
+
+app.on('window-all-closed', () => {
+    app.quit();
+}) 
+**/
+
+/**intellisense()
+electron = electron扩展库
+electron.app( = 创建electron嵌入进程,\n注意主进程的控制台输出需要在aardio中调用console.open打开控制台才能查看，并且必须开启控制台的UTF-8模式,\n可选在参数@4中指定true，以通知aardio在开发环境下自动打开控制台
+electron.app(.(winform,electronPath,showConsole) = 创建electron嵌入进程,所有参数可选\n参数@1指定一个win.form窗体对象,electron将其作为父窗口,\n参数@electronPath指定electron.exe的路径,\n不指定则自动下载安装electron运行时
+electron.app(.(title) = 创建electron嵌入进程,所有参数可选\n参数@1指定窗口标题
+electron.app() = !stdElectronApp.
+electron.lastRemoteDebuggingPort = electron最近启用的远程调试端口
+end intellisense**/
+
+/******intellisense(!stdElectronApp)
+name = 应用程序名，只能使用英文字母、连字符、下划线\n在调用start函数之前指定才会生效
+_form = 创建chrome.app时指定的父窗口\n!static.
+nodePath = 调用start函数时会将此目录添加到NodeJs搜索模块路径,\n此目录不用指定保持默认值即可,aardio会自动在此目录下添加ws.asar
+windowTitle = 窗口默认标题
+ws = aardio创建的WebSocket服务器\n!stdwebsocketserver.
+rpc = aardio创建的JSON-RPC服务端\n!stdwebsocketjsonserver.
+http = aardio创建的HTTP服务器\n!stdasynHttpServer.
+html = 可选使用些属性直接指定启动页面的代码\n代码会被自动存于indexUrl指定的文件地址
+jsMain = @.jsMain = /**\n    const aardio = require('aardio'); \n    const app = require('electron').app; \n    \n    /* aardio-electron 主进程已准备就绪,win是已创建的主窗口(BrowserWindow对象) */\n	aardio.ready( win => { \n		if( !aardio.studioInvoke ){\n			win.setMenu( null ) \n		} \n		\n		win.on('closed', () => {  \n			\n		})  	\n	} )\n   \n    /* 全部窗口已关闭, 退出electron进程 */\n    app.on('window-all-closed', () => {\n        app.quit(); \n    }) \n**/
+electronDir = electron.exe 所在的目录
+electronPath = electron.exe 路径
+chromePath = electron.exe 路径
+appPath = electron主进程所在目录,可指定为asar文件路径，\n该值不指定时默认为"/electron.app",\n该目录为默认值"/electron.app"时，发布EXE时可自动打包为asar - 可选嵌入EXE文件
+fullpath(__) = 在参数中指定electron.exe 所在目录下的相对路径,\n此函数转换为完整路径
+serverIp = 指定嵌入服务器的监听IP\n默认值为 "127.0.0.1",仅限本机可以访问\n如果希望外网可以访问,可以赋值为null即可\n在调用start函数以前指定此属性才有效
+serverPort = 指定嵌入服务器的监听端口\n建议保持默认值null\n不指定端口可以随机分配空闲端口，不会出现端口冲突的问题\n在调用start函数以前指定此属性才有效
+remoteDebuggingPort = 指定远程调试端口\n如果指定为0，则自动分配1025以后的空闲端口\n此属性启动后更新为实际开始的调试端口号\n\n注意开启远程调试端口以后，\n不应再在electron中调用win.webContents.openDevTools启动调试工具\n这2个会冲突导致一些不正常
+startEnviron = 调用start函数时指定的启动参数\n在调用start启动electron以后再修改此参数对electron是不起作用的
+startEnviron.rpcServerUrl = WebSocket/RPC服务器地址
+startEnviron.indexUrl = electron打开的首页地址
+process = electron进程对象\n!process.
+publish(.(method,->->->) = 主动向所有客户端发送通知\nmethod指定客户端方法名,\n可添加任意个调用参数
+survey(.(method,->->->) = 发起调查任务,\n调用所有客户端的同名函数,\nmethod指定客户端方法名,\n可添加任意个调用参数\n\n请使用callback函数指定调查结束后客户端回调的函数
+notifyMain(.("main->method",->->->) = 调用electron主进程的函数,但不需要客户端回调反馈,\n建议名字加上"main."前缀
+notify(.($,"method",->->->) = 调用指定electron函数,但不需要客户端回调反馈,\n\n参数@1指定客户端套接字句柄,\nRPC服务端远程回调函数名首字符为$时,\n第一个回调$参数即为当前客户端套接字句柄,\n除非熟悉getActiveSocket函数导致的潜在问题,请不要省略$参数
+xcallMain(.("main->method",->->->) = 调用electron主进程的函数,建议名字加上"main."前缀,\n在electron主进程中js代码使用 aardio.on("main.method")\n添加允许aardio调用的js回调函数.\n\n可选使用callback函数指定一个同名回调函数按收本次调用electron的返回值 
+xcall(.($,"method",->->->) = 调用electron函数,\n参数@1指定客户端套接字句柄,\nRPC服务端远程回调函数名首字符为$时,第一个回调$参数即为当前客户端套接字句柄,\n除非熟悉getActiveSocket函数导致的潜在问题,请不要省略$参数\n\n在electron的js代码使用 aardio.on("method")\n添加允许aardio调用的js回调函数.\n\n可选使用callback函数指定一个同名回调函数按收本次调用electron的返回值 
+doScript(.($,js,->->->) = 在electron中执行javascript代码,忽略返回,\n在js参数后可选指定多个字符串格式化参数用于调用string.form格式化代码,\n\n参数@1指定客户端套接字句柄,\nRPC服务端远程回调函数名首字符为$时,\n第一个回调$参数即为当前客户端套接字句柄,\n除非熟悉getActiveSocket函数导致的潜在问题,请不要省略$参数
+doScriptMain(.(js,->->->) = 在electron主进程中执行javascript代码,忽略返回值,\n在js参数后可选指定多个字符串格式化参数用于调用string.form格式化代码
+callback(method,proc) =  @.callback("__/*调用survey发起调查指定的方法名字*/",function(hSocket,result,err){\n	\n})
+start(startEnviron) = @.start({\n\n    /*指定首页地址,必须指定*/\n    indexUrl = "/res/index.aardio";\n    \n    /*创建窗口参数,可以不指定*/\n    browserWindow = {\n        width = 800;\n        height = 600;\n    };\n    \n    /*启动参数,可以不指定*/\n    args = {\n        \n    };\n}) 
+start(indexUrl) = @.start("__/*可选直接在这里指定一个启动网址启动electron*/")
+start() = 启动electron主进程,\n省略参数自动指定默认值,indexUrl默认指定为"./index.html"\nindexUrl参数的首字符为"."表示electron主进程目录下的相对路径
+startLoopMessage(.(startEnviron) = 调用start函数启动electron主进程,\n然后调用 win.loopMessage 函数并返回该函数的返回值,\n参数用法请参考start函数
+external = @.external = {
+    __/*可以在这里指定允许electron访问的对象和函数\n在electron使用const aardio = require('aardio')导入此对象\n必须在调用start函数以前设置此对象才能生效\n注意electron.app已经默认提供了部分导出函数\n例如发送标题栏命令必须使用预定义的hitCaption等函数*/
+}
+getActiveSocket() = 获取RPC服务端当前活动套接字句柄\n,任何触发消息处理、异步套接字处理程序的代码都有可能改变这个函数的返回值\n任何时候都不推荐使用此函数\n\n更好的替代方案是在RPC函数名前添加$字符,用于通知aardio在回调参数中添加$参数\n回调$参数可以稳定可靠的获取当前套接字
+ready = @.ready(\n	function(hwndChrome){\n		__/*保证在electron主窗口准备就绪后立即执行此回调函数\n可重复添加此回调，并保证按添加的前后顺序调用*/\n	} \n)
+indexReady = @.indexReady(\n	function(){\n		__/*如果加载startEnviron.indexUrl已完成,\n并且页面上的DOM内容、aardio模块都已准备就绪,\n将立即执行在此注册的回调函数,\n可重复添加回调，并保证按添加的前后顺序调用且仅调用一次*/\n	} \n)
+onReady() = @.onReady = function(){
+	__/*electron已创建主窗口\nnode.js主进程内aardio/electron交互接口已准备就绪*/
+}
+onIndexLoad = @.onIndexLoad = function(){
+    __/*主窗口首次加载startEnviron.indexUrl指定的首页后触发此事件*/
+}
+onIndexReady = @.onIndexReady = function(){
+	__/*主窗口首次加载完成startEnviron.indexUrl指定的首页,\n并且页面上的DOM内容、aardio模块都已准备就绪*/
+}
+onUrlReady = @.onUrlReady = function(hSocket,url){
+    __/*页面加载完成并且页面上的DOM内容、aardio模块都已准备就绪*/
+}
+httpHandler = @.httpHandler["/test.js" ] = function(response,request){
+	__/*自定义HTTP处理程序\n键为请求的路径,值为处理函数*/
+}
+getUrl("/res/__") = 将资源文件路径转换为HTTP服务端网址
+onQuit = @.onQuit = function(){
+	..win.quitMessage();__/*Electron主进程断开连接触发此事件*/
+}
+onError = @.onError = function(hSocket,err){
+    errput(err,"electron/rpc error");__/*自定义RPC错误处理*/
+}
+onClose = @.onClose = function(hSocket,err){
+    __/*一个渲染进程断开连接触发此事件*/
+}
+chromeProcessId = electron进程ID
+chromeThreadId = electron启动线程ID
+hwndChrome = electron窗口句柄
+msgbox("__") = 弹出对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n此函数调用win.msgbox,但设定父窗口为当前chrome窗体
+msgbox("__","标题") = 弹出对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n此函数调用win.msgbox,但设定父窗口为当前chrome窗体
+msgboxErr("__") = 弹出错误对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n此函数调用win.msgbox,但设定父窗口为当前chrome窗体
+msgboxErr("__","标题") = 弹出错误对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n此函数调用win.msgbox,但设定父窗口为当前chrome窗体
+msgboxTest("__") = 弹出询问对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n此函数调用win.msgbox,但设定父窗口为当前chrome窗体
+show() = 显示或隐藏主窗口,\n参数可以省略，也可指定为false,true用于控制显示状态,\n也可以使用_SW_前缀的常量等
+close() = 关闭主窗口
+end intellisense******/

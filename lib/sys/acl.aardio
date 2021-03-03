@@ -1,0 +1,232 @@
+﻿//acl 权限控制
+namespace sys.acl;
+
+::Advapi32 := ..raw.loadDll("Advapi32.dll");
+
+sidLength = function(pSid){
+	return ::Advapi32.GetLengthSid(pSid)
+}
+
+sidBuffer = function(pSid){
+	var size = ::Advapi32.GetLengthSid(pSid);
+	if(size) return ..raw.buffer(size,pSid);	
+}
+
+sidCreate = function(identifierAuthority,...){
+	var subAuth = {...}
+	var sidAuthWorld = { BYTE Value[6] = identifierAuthority }; /*_SECURITY_WORLD_SID_AUTHORITY*/
+	var sid = {ptr p} 	
+			
+	if (!::Advapi32.AllocateAndInitializeSid(sidAuthWorld,#subAuthority
+		,subAuth[1],subAuth[2],subAuth[3],subAuth[4],subAuth[5],subAuth[6],subAuth[7],subAuth[8]
+		,sid)){
+		if (sid.p) ::Advapi32.FreeSid(sid.p); 
+		return null,"AllocateAndInitializeSid error";
+	}
+
+	if(sid.p){
+		var sidBuf = sidBuffer(sid.p); 
+		::Advapi32.FreeSid(sid.p)
+		return sidBuf;
+	}
+}
+
+sidEveryone = function(){
+	return sidCreate( {0;0;0;0;0;1} /*_SECURITY_WORLD_SID_AUTHORITY*/
+		,0/*_SECURITY_WORLD_RID*/ ) 
+}
+
+sidAdmin = function(){
+	return sidCreate( {0;0;0;0;0;5} /*_SECURITY_NT_AUTHORITY*/  
+		,0x20/*_SECURITY_BUILTIN_DOMAIN_RID*/ ) 
+}
+
+sidFromString = function(sidStr){
+	var sid = {ptr p}
+	if( ::Advapi32.ConvertStringSidToSidW(sidStr,sid) ){
+		var sidBuf = sidBuffer(sid.p); 
+		::Kernel32.LocalFree(sid.p)
+		return sidBuf; 
+	}
+}
+
+sidToString = function(sid){
+	var wstr = {ptr ptr}
+	
+	::Advapi32.ConvertSidToStringSid(sid,wstr);
+	var ret = ..string.fromUnicode(wstr.ptr,65001,-1)
+	::Kernel32.LocalFree(wstr.ptr);
+	
+	return ret;
+}
+
+sidWellKnown = function(sidType,domainSid){  
+	var sidSize = {INT value}   
+	::Advapi32.CreateWellKnownSid(sidType,domainSid,null,sidSize)
+	var sid = ..raw.buffer(sidSize.value);
+	
+	if( ::Advapi32.CreateWellKnownSid(sidType,domainSid,sid,sidSize)){ 
+		return sid;
+	}	
+}
+
+sidFromUserName = function(userName,systemName){ 
+	var sidNameUse = {int type}
+	var domainSize = {INT value} 
+	var sidSize = {INT value}  
+	
+	if(!userName) userName = getUserName();
+	::Advapi32.LookupAccountNameB(systemName,userName,null,sidSize,null,domainSize,sidNameUse)
+	var sid = ..raw.buffer(sidSize.value);
+	var domainName = ..raw.buffer(domainSize.value*2)
+	
+	if( ::Advapi32.LookupAccountNameB(systemName,userName,sid,sidSize,domainName,domainSize,sidNameUse) ){ 
+		return sid,..string.fromUnicode(domainName),sidNameUse.type;
+	}	
+}
+
+sidToUserName = function(sid,systemName){ 
+	var sidNameUse = {int type}
+	var domainSize = {INT value} 
+	var nameSize = {INT value}  
+	
+	::Advapi32.LookupAccountSidB(systemName,sid,null,nameSize,null,domainSize,sidNameUse)
+	var name = ..raw.buffer(nameSize.value*2);
+	var domainName = ..raw.buffer(domainSize.value*2)
+	
+	if( ::Advapi32.LookupAccountSidB(systemName,sid,name,nameSize,domainName,domainSize,sidNameUse) ){ 
+		return ..string.fromUnicode(name),..string.fromUnicode(domainName),sidNameUse.type;
+	}	
+}
+
+sidStringToUserName = function(sidStr){
+	var sid = sidFromString(sidStr); 
+	if(sid) return sidToUserName(fileName,sid); 
+}
+
+sidStringFromUserName = function(userName,systemName){
+    if(!userName) userName = getUserName();
+	var sid = sidFromUserName(userName,systemName); 
+	if(sid) return sidToString(sid); 
+}
+
+takeOwnBySid = function(sid,objName,objType){  
+	if(!objName){ error("Object name argument required",2) }
+	if(objType===null) objType = 1/*SE_FILE_OBJECT*/;
+	if(objType==1){
+		objName = ..io.exist(objName) : objName;
+	}
+	
+	if(!setprivilege('SeTakeOwnershipPrivilege',true)){
+		return null,"You must be logged on as Administrator."
+	}
+	
+	var res = ::Advapi32.SetNamedSecurityInfoW(objName
+		,1/*SE_FILE_OBJECT*/,1/*_OWNER_SECURITY_INFORMATION*/
+		,sid, null,null,null);
+		
+	setprivilege('SeTakeOwnershipPrivilege',false)
+		
+	if (res == 5/*_ERROR_ACCESS_DENIED*/){
+		return null,"The requested operation requires elevation";
+	}
+	elseif( res != 0/*_ERROR_SUCCESS*/ ){
+		return null,"Could not set owner.";
+	} 
+		
+	return true;
+}
+
+takeOwnBySidString = function(userName,objName,objType){
+	var sid = sidFromString(userName); 
+	if(sid) return takeOwnBySid(sid,objName,objType); 
+}
+
+takeOwnByAdmin = function(objName,objType){
+	var sid = sidAdmin(); 
+	if(sid){
+		return takeOwnBySid(sid,objName,objType); 
+	} 
+}
+
+takeOwnByUserName = function(userName,objName,objType){
+	var sid = sidFromUserName(userName); 
+	if(sid) return takeOwnBySid(sid,objName,objType);  
+}
+
+class EXPLICIT_ACCESS{
+	INT grfAccessPermissions;
+	int  grfAccessMode = 2/*_SET_ACCESS*/;
+	INT grfInheritance;
+	struct Trustee = {
+		ptr pMultipleTrustee;
+		int  MultipleTrusteeOperation;
+		int TrusteeForm;
+		int TrusteeType; 
+		ustring ptstrName;
+	}
+}
+
+daclGrant = function(sid,objName,objType,trusteeType,premissions){
+	if(!objName){ error("Object name argument required",2) }
+	if(objType === null ) objType = 1/*_SE_FILE_OBJECT*/;
+	if(premissions === null ) premissions = 0x10000000/*_GENERIC_ALL*/
+	
+	var ea = { EXPLICIT_ACCESS();}
+	ea[1].grfAccessPermissions = premissions
+	ea[1].Trustee.TrusteeType = trusteeType;
+	ea[1].Trustee.ptstrName = sid;
+	
+	var acl = {ptr p} 
+	if (0/*_ERROR_SUCCESS*/ != ::Advapi32.SetEntriesInAcl(1,{struct array[1] = ea}, null,acl)){
+		return false,"Failed SetEntriesInAcl";
+	}
+	
+	var res = ::Advapi32.SetNamedSecurityInfoW(objName,objType
+		,4/*DACL_SECURITY_INFORMATION*/,null, null,acl.p,null);
+	::Kernel32.LocalFree(acl.p); 
+	
+	if ( res != 0/*_ERROR_SUCCESS*/) { 
+		return false,"Second SetNamedSecurityInfo call failed"
+	} 
+	
+	return true;
+}
+
+daclGrantAdmin = function(objName,objType,premissions){
+	return daclGrant(sidAdmin(),objName,objType,2/*_TRUSTEE_IS_GROUP*/,premissions) 
+}
+	
+daclGrantEveryone = function(objName,objType,premissions){ 
+	return daclGrant(sidEveryone(),objName,objType,5/*_TRUSTEE_IS_WELL_KNOWN_GROUP*/,premissions) 
+}
+
+getUserName = function(){ 
+	var name = ..raw.buffer(0x202);
+	if( ::Advapi32.GetUserNameW(name,{INT size=0x101}) ) return ..string.fromUnicode(name);
+}
+	
+/**intellisense(sys.acl)
+sidCreate(.(identifierAuthority,->->->) = 创建SID，返回SID句柄\n参数@1使用数值数组指定SID_IDENTIFIER_AUTHORITY结构体的值,\n后续可使用1到8个参数指定SID子权限
+sidEveryone()  = 创建SID，返回Everyone用户SID句柄
+sidAdmin() = 创建SID，返回管理员用户组SID句柄
+sidFromString(.(sidStr) = 参数传入文本格式SID,\n返回SID内存句柄
+sidToString(.(sid) = 参数传入SID句柄,\n返回SID文本格式字符串
+sidWellKnown(.(sidType,domainSid) = 获取通用SID,\n参数@1参考::Advapi32.CreateWellKnownSid函数说明\n参数@2可省略,\n返回buffer对象不需要释放 
+sidFromUserName(.(userName,systemName) = 参数@userName传入系统用户名,,省略取当前登录用户名,\n@systemName参数可省略,\n返回SID内存句柄
+sidToUserName(.(sid,systemName) = 参数传入SID,@systemName参数可省略,\n返回用户名
+sidStringToUserName(.(sidStr,systemName) = 参数传入文本格式SID,systemName参数可省略,\n返回用户名
+sidStringFromUserName(.(userName,systemName)  = 参数@userName传入系统用户名,省略取当前登录用户名\n@systemName参数可省略,\n返回文本格式SID
+takeOwnBySid(.(sid,objName,objType) = 对@objName指定名称的对象获取sid指定用户的所有者权限,\nsid应当是sid句柄或内存指针,\n@objType可省略，默认值为_SE_FILE_OBJECT
+takeOwnBySidString(.(sid,objName,objType) = 对@objName指定名称的对象获取@sid指定用户的所有者权限,\n@si参数指定文本格式SID,注意不是内存指针或句柄,\n@objType可省略，默认值为_SE_FILE_OBJECT
+takeOwnByAdmin(.(objName,objType) = 对objName指定名称的对象获取管理员用户组的所有者权限,\@nobjType可省略，默认值为_SE_FILE_OBJECT
+takeOwnByUserName(.(userName,objName,objType) = 对@objName指定名称的对象获取@userName参数指定用户的所有者权限,\n@objType可省略，默认值为_SE_FILE_OBJECT
+daclGrant(.(sid,objName,objType,trusteeType,premissions) = 对@objName指定名称的对象获取@sid指定用户的@premissions参数指定的权限,\n@objType可省略，默认值为_SE_FILE_OBJECT,\n其他参数请参考函数源码与MSDN
+daclGrantAdmin(.(objName,objType,premissions) = 对@objName指定名称的对象获取管理员用户组的@premissions参数
+daclGrantEveryone(.(objName,objType,premissions) = 对@objName指定名称的对象获取Everyone用户的@premissions参数指定的权限
+getUserName() = 返回当前系统用户名
+end intellisense**/
+
+/**intellisense()
+sys.acl = 系统用户访问权限控制接口
+end intellisense**/

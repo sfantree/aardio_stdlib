@@ -1,0 +1,78 @@
+//使用table作为参数
+import sqlite
+import console;
+ 
+//打开数据库连接
+var conn = sqlite("/tableParameter.db")
+
+//创建表 
+if( not conn.existsTable("dataTable") ) {
+	conn.exec( "CREATE TABLE dataTable( name TEXT PRIMARY KEY,info BLOB);" );//指定 name 字段为主键 
+}  
+ 
+//添加数据,如果存在相同主键数据则覆盖;
+//-----------------------------------------------
+var cmd = conn.prepare("REPLACE INTO [dataTable] VALUES ( @name,@info );")
+cmd.step( //执行命令
+	name = "相同名称";
+	info = {
+		a = 123;
+		b = {
+			d = "测试";
+		}
+	}
+);
+
+cmd.step( //执行命令
+	name = "相同名称";
+	info = {
+		a = 456;
+		b = {
+			d = "测试";
+		}
+	}
+);
+
+cmd.step( //执行命令
+	name = "不同名称";
+	info = {
+		a = 789;
+		b = {
+			d = "测试";
+		}
+	}
+);
+
+//查询数据
+//----------------------------------------------- 
+cmd.prepare("SELECT * FROM [dataTable] ",{
+	name = "不同名称"; //可使用键值对指定查询条件
+} )
+
+console.log("自动生成的sql语句",cmd.sql )
+
+var tab = cmd.stepQuery(); 
+console.varDump("----------cmd.prepare(sql).stepQuery()-------------",tab)
+cmd.finalize()
+
+//查询数据 下面的代码更简单,等效于上面的代码
+//----------------------------------------------- 
+tab = conn.stepQuery("SELECT * FROM [dataTable] ",{
+	name = "不同名称"; //可使用键值对指定查询条件
+} )
+console.varDump("----------conn.stepQuery()-------------",tab)
+
+
+//查询数据 返回所有符合条件的行记录数组
+//----------------------------------------------- 
+tab = conn.getTable("SELECT * FROM [dataTable] ",{
+	name = "不同名称"; //可使用键值对指定查询条件
+} )
+console.varDump("----------conn.getTable()-------------",tab)
+
+//----------------------------------------------- 
+conn.exec("DROP TABLE dataTable ") 
+conn.close();
+
+console.pause();
+   

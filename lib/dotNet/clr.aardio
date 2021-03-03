@@ -1,0 +1,205 @@
+//clr 公共语言运行时
+import win.ole;
+import com.interface;
+import dotNet.interface.ICLRMetaHost;
+import dotNet.interface.ICLRRuntimeInfo;
+import dotNet.interface.ICLRRuntimeHost;
+import dotNet.interface.ICorRuntimeHost;
+import dotNet.interface.IAppDomainSetup; 
+import dotNet.appDomain;
+
+namespace dotNet;
+
+class clr{
+	ctor( version, ... ){
+	
+		if( !version ) {
+			return ..dotNet.clr("v4.0") || ..dotNet.clr("v2.0");
+		}
+		
+		if( ... ){
+			return ..dotNet.clr(version) || ..dotNet.clr(...);
+		}
+		
+		if( version[1] != 'v'# ) version = "v" + version;
+		if(  ! ..string.match(version,"^v\d+[\d.]+$")  ) return;
+		if( ..string.startWith( version,"v1.") ){
+			error("指定的.NET Framework 最低版本不能小于v2.0");
+		}
+		if( version == "v2.0" ||  ..string.startWith( version,"v3.") ){ 
+			version = "v2.0.50727";
+		}
+		elseif( version == "v4.0" ||  ..string.startWith( version,"v4.") ){
+			version = "v4.0.30319";
+		};
+		
+		this.version = version;
+		var hr,pRuntimeHost,pCorRuntimeHost; 
+		if( CLRCreateInstance ){ 
+			try{
+				this.metaHost = createInterface( CLSID_CLRMetaHost,..dotNet.interface.ICLRMetaHost );
+		 		
+				var hr,pRuntimeInfo = this.metaHost.GetRuntime(version, ..dotNet.interface.ICLRRuntimeInfo.IID);
+				if(  (hr)<0/*_FAILED*/ ){
+					return null,..lasterr(hr,"ICLRMetaHost.GetRuntime()");
+				}
+				
+				this.runtimeInfo =  ..com.interface(pRuntimeInfo,..dotNet.interface.ICLRRuntimeInfo );
+				..com.Release(pRuntimeInfo) 
+				
+				var hr,loadable = this.runtimeInfo.IsLoadable();
+				if(  (hr)<0/*_FAILED*/ ){
+					return null,..lasterr(hr,"ICLRRuntimeInfo.IsLoadable()");
+				} 
+		 		
+				if (!loadable) { 
+        			return null,..string.format(".NET runtime %s cannot be loaded",version )
+    			}
+    			
+    			//启用.net Framework 2.0 运行时激活策略
+    			hr = this.runtimeInfo.BindAsLegacyV2Runtime();
+    			if(  (hr)<0/*_FAILED*/ ){
+					//return null,..lasterr(hr,"ICLRRuntimeInfo.BindAsLegacyV2Runtime()");
+				} 
+    			
+    			this.runtimeInfo.SetDefaultStartupFlags(1/*STARTUP_CONCURRENT_GC*/ | ( 0x1 << 3 ) ,"" );
+				
+				hr,pCorRuntimeHost = this.runtimeInfo.GetInterface(CLSID_CorRuntimeHost, ..dotNet.interface.ICorRuntimeHost.IID )  
+        		if(  (hr)<0/*_FAILED*/ ){
+					return null,..lasterr(hr,"ICLRRuntimeInfo.GetInterface(CLSID_CorRuntimeHost)");
+				} 
+				
+				hr,pRuntimeHost = this.runtimeInfo.GetInterface(CLSID_CLRRuntimeHost, ..dotNet.interface.ICLRRuntimeHost.IID )  
+        		if(  (hr)<0/*_FAILED*/ ){
+					return null,..lasterr(hr,"ICLRRuntimeInfo.GetInterface(CLSID_CLRRuntimeHost)");
+				}  
+			}
+		}
+
+		if( CorBindToRuntimeEx && ( !(pCorRuntimeHost && pRuntimeHost ) ) ){
+			hr,pCorRuntimeHost = CorBindToRuntimeEx( 
+				version, "wks" ,1/*STARTUP_CONCURRENT_GC*/ | ( 0x3 << 1 ),
+ 				CLSID_CorRuntimeHost,..dotNet.interface.ICorRuntimeHost.IID)
+ 			if(  (hr)<0/*_FAILED*/ ){
+				return null,..string.format(".NET runtime %s cannot be loaded",version )
+			}  
+			
+			hr,pRuntimeHost = CorBindToRuntimeEx( 
+				version, "wks" , 1/*STARTUP_CONCURRENT_GC*/ | ( 0x3 << 1 ),
+ 				CLSID_CLRRuntimeHost,..dotNet.interface.ICLRRuntimeHost.IID)
+ 			if(  (hr)<0/*_FAILED*/ ){
+				pRuntimeHost = null;
+			} 
+		}
+		
+		if( pRuntimeHost ){	
+			this.runtimeHost =  ..com.interface(pRuntimeHost,..dotNet.interface.ICLRRuntimeHost );
+			..com.Release(pRuntimeHost)  
+		}
+		
+		this.corRuntimeHost =  ..com.interface(pCorRuntimeHost,..dotNet.interface.ICorRuntimeHost );
+		..com.Release(pCorRuntimeHost) 
+		
+		// Start the CLR.
+    	var hr = this.runtimeHost.Start();
+    	if(  (hr)<0/*_FAILED*/ ){
+			return null,..string.format("CLR failed to start w/hr 0x%08X",hr )
+		}  
+	
+		var hr,pAppDomainSetup = this.corRuntimeHost.CreateDomainSetup(); 
+		if(  (hr)<0/*_FAILED*/ ){
+			return null,..lasterr(hr,"ICorRuntimeHost.CreateDomainSetup()");
+		} 
+		..com.Release(pAppDomainSetup) 
+		this.AppDomainSetupReal =  ..com.interface(pAppDomainSetup,..dotNet.interface.IAppDomainSetup ); 
+		this.AppDomainSetup = {
+			@{
+				_get = function(k){
+					var method = this.AppDomainSetupReal["get_"+k];
+					if( method ){
+						var hr,bstr = method();
+						if( (hr)>=0/*_SUCCEEDED*/ ){
+							return ..win.ole.fromSysString(bstr)  
+						}
+						return;
+					} 
+				};
+				_set = function(k,v){
+					var method = this.AppDomainSetupReal["put_"+k];
+					if( method ){
+						var bstr = ::SysAllocString( v ); 
+						method(bstr); 
+					} 
+				};
+				_topointer = function(){
+					return this.AppDomainSetupReal;
+				} 
+			} 
+		}
+		
+		this.AppDomainSetup.ApplicationBase = ..io.fullpath("/"); 
+		this.AppDomainSetup.PrivateBinPath = "bin"; 
+		
+		this.createAppDomain = function(domainName){
+		 	return ..dotNet.appDomain(this,domainName)
+		}   
+	}; 
+	 
+}
+
+namespace clr{
+	var dll = ..raw.loadDll("MSCorEE.dll")
+	try{
+		CLRCreateInstance = dll.api("CLRCreateInstance","int(struct clsid,struct riid,pointer &ppInterface)" );
+	}
+	CorBindToRuntimeEx = dll.api("CorBindToRuntimeEx","int(ustring pwszVersion,ustring pwszBuildFlavor, INT startupFlags, struct rclsid, struct riid, pointer &ppv)" );
+	
+	var guid = ..win.guid;
+	
+	CLSID_CLRMetaHost = guid( 0x9280188d, 0xe8e, 0x4867, { 0xb3; 0xc; 0x7f; 0xa8; 0x38; 0x84; 0xe8; 0xde } );
+	CLSID_CLRRuntimeHost = guid( 0x90F1A06E, 0x7712, 0x4762, { 0x86; 0xB5; 0x7A; 0x5E; 0xBA; 0x6B; 0xDB; 0x02 } );
+	CLSID_CorRuntimeHost = guid( 0xcb2f6723, 0xab3a, 0x11d2, { 0x9c;  0x40; 0x00; 0xc0; 0x4f; 0xa3; 0x0a; 0x3e } )
+
+	..com.interface.checkInterface(..dotNet.interface.ICLRRuntimeInfo,2);
+	..com.interface.checkInterface(..dotNet.interface.ICLRRuntimeHost,2);
+	..com.interface.checkInterface(..dotNet.interface.ICorRuntimeHost,2); 
+
+	createInterface = function(clsid,itface){
+		if(type(clsid)==type.string)
+			clsid = guid.fromString(clsid)
+			 
+		..com.interface.checkInterface(itface,2);  
+		
+		var iid = itface.IID ;
+		var hr,unknown = CLRCreateInstance(clsid,iid );
+		..com.interface.checkError(hr,2);
+		
+		var iterface =  ..com.interface(unknown,itface);
+		..com.Release(unknown) 
+		return iterface;
+	}
+}
+
+/**intellisense()
+dotNet = dotNet支持库;
+dotNet.clr("v4->0") = 创建CLR运行时,\n可以使用多个参数指定多个允许加载的版本号,\n注意 .NET 3.5的运行时是v2.0,.Net 4.5的运行时是v4.0\nWIN7自带.NET2.0运行时,WIN10自带.NET4.0运行时
+dotNet.clr() = !dotNetCrl.
+!dotNetCrl.runtimeHost = !dotNetCorRuntimeHost.
+!dotNetCrl.createAppDomain(.("域名称") = 创建应用程序域,参数可选 
+!dotNetCrl.createAppDomain() = !dotNetAppDomain.
+!dotNetCrl.unloadDomain(.(应用程序域对象) = 卸载应用程序域 
+!dotNetCrl.version = 运行时版本
+end intellisense**/
+
+/**intellisense(!dotNetCrl.AppDomainSetup)
+ApplicationBase=获取或设置包含该应用程序的目录的名称。
+ApplicationName=获取或设置应用程序的名称。
+CachePath=获取和设置特定于应用程序的区域名称,在该区域中影像复制文件。
+ConfigurationFile=获取和设置应用程序域的配置文件的名称。
+DynamicBase=获取或设置将在其中存储和访问动态生成文件的目录。
+LicenseFile=获取或设置与此域关联的许可证文件的位置。
+PrivateBinPath=获取或设置目录列表,它与 ApplicationBase 目录结合来探测专用程序集。
+PrivateBinPathProbe=获取或设置用于定位应用程序的专用二进制目录路径。
+ShadowCopyDirectories=获取或设置目录的名称,这些目录包含要影像复制的程序集。
+ShadowCopyFiles=获取或设置指示影像复制是打开还是关闭的字符串
+end intellisense**/

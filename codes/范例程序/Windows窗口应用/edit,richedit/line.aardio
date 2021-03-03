@@ -1,0 +1,34 @@
+//换行规则
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="文本框换行规则";right=314;bottom=342;border="dialog frame";max=false;min=1)
+winform.add(
+edit={cls="edit";text="edit";left=39;top=129;right=278;bottom=210;edge=1;multiline=1;z=1};
+edit2={cls="edit";text="自动换行";left=39;top=29;right=278;bottom=110;autohscroll=false;edge=1;multiline=1;z=3};
+richedit={cls="richedit";text="richedit";left=39;top=228;right=278;bottom=309;edge=1;multiline=1;z=2}
+)
+/*}}*/
+
+winform.edit2.text = '
+控件属性中，设置【垂直自动滚动】为true,设置【水平自动滚动】为false，即可支持自动换行
+'
+
+//EDIT控件的换行必须是'\r\n'
+winform.edit.text = '第一行\r\n第二行' 
+
+//因为段注释用来表示字符串时，换行总是'\r\n'，所以可以这样赋值
+winform.edit.text = /*
+第一行
+第二行
+*/
+
+//richedit控件要不要回车都可以，换行可以是'\n'，也可以是'\r\n'
+winform.richedit.text = '第一行\n第二行'
+
+//因为双引号（或反引号）包含字符串时，换行总是解析为'\n'，所以可以这样赋值
+winform.richedit.text = "第一行
+第二行"
+
+
+winform.show() 
+win.loopMessage();

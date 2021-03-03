@@ -1,0 +1,20 @@
+﻿//debounce 防抖
+import win.ui;
+namespace win;
+
+class debounce{
+	ctor( proc,delay ){{
+  		var id; 
+  		return function(...){
+  			..win.clearTimeout(id); 
+  			id = ..win.setTimeout(function(...){
+  				id = null;
+  				proc(...);
+  			},delay:300,...)
+  		} 
+	}};
+}
+
+/**intellisense()
+win.debounce(.(函数,延时) = 将函数转换为防抖函数,\n在限定的延时内重复调用时仅保留最后一次调用\n延时以毫秒为单位，省略延时则默认值为300毫秒
+end intellisense**/

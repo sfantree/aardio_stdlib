@@ -1,0 +1,55 @@
+//使用replace语句
+import sqlite;
+import console;
+
+//打开内存数据库连接
+var sqlConnection = sqlite(":memory:");
+if( not sqlConnection.existsTable("tableName2") ){ 
+
+    //创建单主键表 
+    sqlConnection.exec( "CREATE TABLE tableName(
+        title PRIMARY KEY, 
+        length, 
+        tm 
+        );"
+    ) 
+    
+    //创建双主键表
+    sqlConnection.exec( "CREATE TABLE tableName2(
+        title, 
+        length, 
+        tm,  
+        constraint pk_tableName2 PRIMARY KEY (title,length) 
+        );"
+    ) 
+}
+
+//replace语句根据主键查询,不存在相同数据则插入新的,否则更新已存在的数据
+sqlConnection.exec( "REPLACE INTO tableName VALUES ('Silence of the Lambs, The', 11.8, datetime('now','localtime')  );")
+sqlConnection.exec( "REPLACE INTO tableName2 VALUES ('Contact', 32, datetime('now','localtime') );") 
+sqlConnection.exec( "REPLACE INTO tableName2 VALUES ('Contact', 16, datetime('now','localtime') );") 
+
+/*
+REPLACE INTO 必须要设置所有无默认值字段的值,
+如果要在插入冲突时修改部份字段,请用下面的方法
+*/
+sqlConnection.exec("
+    INSERT OR IGNORE INTO tableName (title,length,tm) VALUES (@title,@length,@tm);  
+    UPDATE tableName SET tm=@tm WHERE title=@title",{
+        title = 'Silence of the Lambs, The';
+        length = 123;
+        tm = "456"
+    } ) 
+
+
+for title,length,tm in sqlConnection.each("SELECT * FROM tableName") {
+    console.log( title,length,tm )
+}
+
+for title,length,tm in sqlConnection.each("SELECT * FROM tableName2") {
+    console.log( title,length,tm )
+}
+ 
+sqlConnection.close()
+execute("pause")
+

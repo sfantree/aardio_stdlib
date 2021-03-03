@@ -1,0 +1,125 @@
+﻿import win.ole;
+import com.interface;
+import com.interface.IEnumGUID;
+
+namespace com.interface;
+
+class ITfInputProcessorProfiles{
+	ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer Register = "int(struct rclsid)";  
+	pointer Unregister = "int(struct rclsid)";
+	pointer AddLanguageProfile = "int(struct rclsid,WORD langid,struct guidProfile,ustring pchDesc,INT cchDesc,ustring pchIconFile, INT cchFile,INT uIconIndex)";
+	pointer RemoveLanguageProfile = "int(struct rclsid,WORD langid,struct guidProfile)";
+	pointer EnumInputProcessorInfo = "int(pointer &ppEnum)";
+	pointer GetDefaultLanguageProfile = "int(WORD langid,struct catid,struct& pclsid, struct& pguidProfile)";
+	pointer SetDefaultLanguageProfile = "int(WORD langid, struct rclsid,struct guidProfiles)";
+	pointer ActivateLanguageProfile = "int(struct rclsid, WORD langid,struct guidProfiles)";
+	pointer GetActiveLanguageProfile = "int( struct rclsid,WORD& plangid, struct& pguidProfile)";
+	pointer GetLanguageProfileDescription__ = "int(struct rclsid, WORD langid, struct guidProfile,pointer &pbstrProfile)";
+	pointer GetCurrentLanguage = "int(WORD& plangid)";
+	pointer ChangeCurrentLanguage = "int(WORD langid)";
+	pointer GetLanguageList = "int(struct &ppLangId,INT &pulCount)";
+	pointer EnumLanguageProfiles = "int(WORD langid,pointer &pEnum)";
+	pointer EnableLanguageProfile = "int( struct rclsid, WORD langid, struct guidProfile, bool  fEnable)";
+	pointer IsEnabledLanguageProfile = "int( struct rclsid,WORD langid, struct guidProfile, bool& pfEnable)";
+	pointer EnableLanguageProfileByDefault = "int(struct rclsid, WORD langid, struct guidProfile, bool fEnable)";
+	pointer SubstituteKeyboardLayout = "int( struct rclsid, WORD langid,struct guidProfile,pointer hKL)";
+	GetLanguageProfileDescription = function(rclsid,langid,guidProfile){
+		if(rclsid[["clsid"]]){
+			rclsid,langid,guidProfile = rclsid[["clsid"]],rclsid[["langid"]],rclsid[["guidProfile"]]
+		}
+		
+		var hr,bstr = owner.GetLanguageProfileDescription__(rclsid,langid,guidProfile,null);
+		if( hr>=0/*_SUCCEEDED*/ ){
+			return ..win.ole.fromSysString(bstr)
+		} 
+	};
+    each = function(langid){
+    	var hr,pEnum = owner.EnumLanguageProfiles(langid:0x804); 
+    	var this = owner; //owner才是当前com对象,this指向的是接口定义
+    	
+    	if( (hr>=0/*_SUCCEEDED*/) && pEnum){ 
+    		var enum = ..com.interface(pEnum,IEnumTfLanguageProfiles);
+    		return function(){
+    			var profile = TF_LANGUAGEPROFILE() 
+    			var hr,profile,cFetch = enum.Next(1,profile,0); 
+    			if( (hr>=0/*_SUCCEEDED*/) && cFetch){ 
+    				profile.description = this.GetLanguageProfileDescription(profile) 
+    				return profile;  
+    			}
+    		} ; 
+    	}
+    	return function(){}
+    };
+    eachInputProcessorInfo = function(){
+    	var hr,pEnum = owner.EnumInputProcessorInfo(); 
+    	var this = owner; //owner才是当前com对象,this指向的是接口定义
+    	
+    	if( (hr>=0/*_SUCCEEDED*/) && pEnum){ 
+    		var enum = ..com.interface(pEnum,..com.interface.IEnumGUID);
+    		return enum.each();
+    	}
+    	return function(){}
+    };
+    activeProfileByDescription = function(desc){
+		var profile = owner.findProfileByDescription(desc);
+		if(profile) return 0 <= owner.ActivateLanguageProfile(profile.clsid,profile.langid,profile.guidProfile) 
+	}; 
+	findProfileByDescription = function(desc){
+		for( profile in owner.each() ){
+			 if( profile.description === desc ){
+			 	return profile
+			 }
+		}
+		
+		for( profile in owner.each() ){
+			 if( string.find(profile.description,desc) ){
+			 	return profile
+			 }
+		} 	
+	};
+} 
+
+namespace ITfInputProcessorProfiles{
+    IID = "{1F02B6C5-7842-4EE6-8A0B-9A24183A95CA}";
+    
+    Create = function(){
+		return  ..com.interface.create( ..win.guid.fromString("{33C53A50-F456-4884-B049-85FD643ECFED}")
+			, ..com.interface.ITfInputProcessorProfiles ); 
+	} 
+    
+	class IEnumTfLanguageProfiles{
+		ctor(){
+			this = ..com.interface.IUnknown(); 
+		}; 
+		pointer Clone = "int(ptr *pEnum)";
+		pointer Next = "int(INT ulCount,struct &pProfile,INT &cFetch)";
+		pointer Reset = "int()";
+		pointer Skip = "int(INT ulCount)";
+	}
+	IEnumTfLanguageProfiles.IID = "{3d61bf11-ac5f-42c8-a4cb-931bcc28c744}";
+	
+	class TF_LANGUAGEPROFILE { 
+    	struct clsid = ..win.guid();
+    	WORD langid;
+    	struct catid= ..win.guid();
+    	bool fActive;
+    	struct guidProfile= ..win.guid(); 
+	} 
+}
+
+ /**intellisense()
+com.interface.ITfInputProcessorProfiles.Create() = 创建输入法配置接口对象\n!ITfInputProcessorProfiles.
+end intellisense**/
+
+/**intellisense(!ITfInputProcessorProfiles)
+each(langid) = @for( languageProfile in ??.each() ){\n	__/*遍历输入语言配置文件*/\n}
+GetLanguageProfileDescription(.(rclsid,langid,guidProfile) = 获取输入语言描述
+GetLanguageProfileDescription(.(languageProfile) = 获取输入语言描述
+activeProfileByDescription(__) = 按参数指定的描述激活输入语言配置文件
+findProfileByDescription(__) = 按参数指定的描述查找输入语言配置文件\n返回TF_LANGUAGEPROFILE结构体
+end intellisense**/
+
+ 

@@ -1,0 +1,52 @@
+//鼠标画渐开线
+import win.ui;
+/*DSG{{*/
+var winform = ..win.form(text="鼠标画线";right=349;bottom=249;parent=...)
+winform.add(
+button={cls="button";text="运行范例";left=33;top=55;right=312;bottom=108;z=1}
+)
+/*}}*/
+
+winform.wndproc = function(hwnd,message,wParam,lParam){
+	select(message) {//判断消息类型
+		case 0x201/*_WM_LBUTTONDOWN*/{
+			if(winform.button.disabled = true)
+				win.quitMessage()
+		}
+	} 
+}
+
+winform.button.oncommand = function(id,event){
+	winform.capture = true;
+	winform.button.disabled = true;
+	winform.button.text = "按下鼠标左键停止演示并退出程序"
+	winform.capture = true;
+	//鼠标画渐开线
+	import mouse.draw; 
+ 	
+	//自定义此函数,每移动到一个点,画线函数会自动调用此函数
+	//mouse.draw库所有函数遵守约定：返回值为true表示继续,返回false表示停止画线
+	mouse.draw.move = function(x,y){ 
+		hdc = ::GetDC(0)
+    	SetPixel(hdc ,x,y,255 )
+    	::ReleaseDC(0,hdc);
+    	
+		mouse.move(x,y,true)
+		return win.delay(1)  
+	}
+	  
+	// 画正弦曲线
+	mouse.draw.sin() 
+ 	
+	// 画渐开线
+	mouse.draw.involute(); 
+ 	
+	// 画方形仿渐开线,步进为5,中间忽略的正方形边长为50
+	mouse.draw.rectInvolute(5,50); 
+ 	
+	//这是真正的渐开线,第三个参数指定基圆的半径
+	mouse.draw.involute2(1024/2,768/2,0.1,10); 
+} 
+
+winform.show() 
+win.loopMessage();

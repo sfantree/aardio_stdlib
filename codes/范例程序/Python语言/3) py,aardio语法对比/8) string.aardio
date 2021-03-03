@@ -1,0 +1,113 @@
+//8)字符串、正则表达式
+import console;
+console.open();
+ 
+import py; 
+pyCode = /***
+text = "Python - 调用字符串方法"
+print( "upper", "=>", text.upper() ) #python3不能再写为string.upper(text)
+print( "lower", "=>", text.lower() )
+print( "split", "=>", text.split() )
+print( "join", "=>", "+".join(text.split()) )
+print( "replace", "=>", text.replace("Python", "Perl") )
+print( "find", "=>", text.find("Python"), text.find("Perl") )
+print( "count", "=>", text.count("n")  )
+***/ 
+py.exec( pyCode ) //运行python代码
+
+//下面是类似的aardio代码 - 有趣的是函数名基本是一样的
+//=========================================================
+
+import string //导入string是不必要且不推荐的,aardio中string模块是内核库不需要导入
+text = "aardio - 调用string模块"
+console.dump( string.upper(text) )
+console.dump( string.lower(text) )
+console.dump( string.split(text," ") )
+console.dump( string.join(string.split(text," "), "+") )
+console.dump( string.replace(text, "aardio", "Python") )
+console.dump( string.find(text, "Python"), string.find(text,"aardio") )
+  
+import string.string; 
+text = string.string( "aardio - 调用字符串方法" ) //aardio里建议不要用这种方法，一切皆对象是不必要的
+console.dump( text.upper() )
+console.dump( text.lower() )
+console.dump( text.split(" ") ) 
+console.dump( string.string("+").join( text.split(" ") ) )
+console.dump( text.replace("aardio", "Python") )
+console.dump( text.find("Python"), text.find("aardio") )
+ 
+/*
+注意aardio里字符串查找替换等函数默认支持模式匹配,
+aardio里的模式匹配类似精简的正则语法,执行速度也更快，详细的请参考手册
+*/
+
+/*
+python里字符串转换:
+n = int("123") #字符串转换为数值
+n = atoi("11", 8) #以指定的8进制转换为数值
+s = str(123) #数值转换为字符串
+
+aardio里字符串类型转换:
+n = tonumber("123") //字符串转换为数值,第二个参数可选指定进制
+s = tostring(123) //数值转换为字符串
+*/
+
+//Python里的正则表达式
+//=========================================================
+
+pyCode = /***
+import re
+
+regex = re.compile(r"\d+")
+
+#match在python里指的字符串必须从头完整匹配不能匹配子串,而且返回的是一个match对象,
+#而这个同名函数在aardio里是用来匹配任意子串或整串都可以的(类似下面的search函数的作用)，而且返回值是字符串
+m = regex.match("12345 test") #也可以直接写 re.match(r"\d+","12345 test"),python会自动编译正则并缓存
+if m: print( repr("."), "=>", repr(m.group(0)) )
+
+#查找
+m = regex.search("test 12345 test") #search函数的匹别是不需要从头匹配
+if m: print( repr("."), "=>", repr(m.group(0)) )
+
+#替换,用第一个参数里的子串替换到第二个参数里, sub这个名字不要误解 - 在aardio里是切片的函数（替换是replace）
+print( regex.sub("***","test 12345 test") )
+
+#松散正则
+print( re.search("""
+\d+ #松散正则可以用#号开始注释
+#并且忽略所有空白换行""", '12345', re.VERBOSE) 
+)
+***/  
+py.exec( pyCode ) //运行python代码
+
+//下面是类似的aardio代码 - 注意正则表达式的语法都是PERL兼容的基本一样
+//=========================================================
+import preg;
+var regex = preg("\d+"); //这类似于python里的re.compile,aardio里没有python里的所谓"反斜杠陷阱" - 所以不用在引号前加r
+ 
+//这类似于python里的 regex.search(),不过返回值直接就是字符串
+console.log( "获取匹配字符串", regex.match("test 12345 test") );
+
+//全局匹配
+for scheme,host in regex.gmatch( testString  ) { 
+    console.log("发现匹配字符串", scheme,host )
+}
+
+console.log( '字符串替换结果\r\n', regex.replace( "test 12345 test","****" ) );
+
+//松散正则的用法类似,不过需要加上x修正符选项 "/正则/x" 这样写，这种写法类似javascrip,php
+var m = preg("/
+\d+   #数字
+[\s]+ #空格
+\w+   #单词
+/x").match ( "243523 test");
+console.dump( m )
+
+/*
+这个preg库提供的函数非常多，各种不同的用法也非常多，请参详细的考教程
+http://bbs.aau.cn/forum.php?mod=viewthread&tid=8910 
+
+因为aardio内置的模式匹配简单方便，所以一般用不到正则。
+*/
+
+console.pause()

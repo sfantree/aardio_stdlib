@@ -1,0 +1,12 @@
+ 
+import fsys;
+
+fsys.createDir("~/lib/ide/")
+fsys.copy( "/upx","~/lib/ide/" );  
+
+import ide;
+ide.refreshStdLib();
+
+import win;
+win.msgboxTimeout("ide.upx扩展库已安装成功","aardio - ide.upx扩展库安装程序",1000)
+

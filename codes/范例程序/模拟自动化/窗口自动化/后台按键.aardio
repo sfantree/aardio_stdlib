@@ -1,0 +1,27 @@
+import winex.key;
+import process;
+
+//运行记录本
+process.executeWaitInput("notepad.exe");
+win.delay(500)
+
+//查找窗口
+hwnd,hctrl = winex.findActivate( , ,"Notepad","Edit",15 );
+win.delay(500)
+
+//设置焦点
+winex.attach(hwnd)
+win.setFocus(hctrl)
+
+//输入一些内容 (你知道aardio发送文本的方式共有多少种吗?)
+winex.key.send(hctrl,"Test" )
+win.delay(100)
+
+//后台发送CTRL+A组合键 
+winex.key.combine(hwnd,"CTRL","A")
+
+//后台发送ALT+F组合键
+winex.key.altClick(hwnd,"F" )
+
+winex.attach(hwnd,false) 
+

@@ -1,0 +1,184 @@
+//untar TAR格式解压
+import zlib;
+import fsys;
+import fsys.file;
+import fsys.time;
+namespace fsys;
+
+class untar{
+
+	ctor( path,saveDir  ){
+		var tarFile;
+		var path = ..io.exist(path);
+		if(!path) return null,"错误的tar文件路径";
+		
+		if(!saveDir)saveDir = ..string.match(path,"(.*\\\w+)\.[\w.]+$");
+		if( ! (saveDir?..fsys.createDir(saveDir) ) )
+			return null,"错误的存储目录";
+			
+		if( ..string.match(path,"<.gz>|<.tgz>$") ){
+			tarFile = ..zlib.gzFile(path,"rb")
+		}
+		else {
+			tarFile = ..io.open(path,"rb")
+		}
+		if(!tarFile) return null,"打开tar文件失败";
+
+		{
+			var size = tarFile.size(1);
+			if( size < 0 ) size = 0xFFFFFFFF;
+			this.blocksCount = ( size / 512 ) - 1;
+			if( this.blocksCount < 1 ) return null,"tar文件格式错误";
+		}
+		
+		var curFileName,curFile;
+		var curFileSize = 0;
+		var curFileTime = ..fsys.time()
+		
+		var tarHeader = tar_header();
+		var buffer = ..raw.buffer(512);
+		
+		this.utf8 = false;
+		..table.gc(this,"close");
+	};
+	nextBlock = function(){
+		if( curFileSize <= 0){
+			if( curFile ) curFile.close(); 
+			if( ! tarFile.read( tarHeader ) ){
+				return null,"读取TAR头失败";
+			}
+			
+			var name =  ..string.str(tarHeader.name);
+			if( !#name ){ 
+				this.complete = true;
+				return;//last block
+			}
+			this.complete = false;
+			
+			if( this.utf8 === false ){
+				name = ..string.fromto(name,0,65001);
+			}
+			elseif( this.utf8 !== true ) {
+				if( !..string.len(name) ){
+					name = ..string.fromto(name,0,65001);
+				}
+			}
+			
+			tarHeader.name = name;
+			curFileName = ..fsys.joinpath(saveDir,name); 
+			curFileSize = tonumber(tarHeader.size,8)  
+			
+			var linkflag = tarHeader.linkflag;
+			var mtime = tonumber(tarHeader.mtime,8) 
+			curFileTime.fromSystemTime( ..time(mtime) );
+			curFileTime.utc()
+
+			if( linkflag == '5'#/*LF_DIR*/ ){
+				..fsys.createDir(curFileName);  
+				if( this.onProgressFolder ){
+					this.onProgressFolder(name);
+				}
+				return curFileName,0;
+			}
+			if( this.onProgressFile ){
+				this.onProgressFile(name);
+			}
+			
+			if( curFileSize == 0 ){
+				return curFileName,0;
+			}  
+			..fsys.createParentDir( curFileName ); 
+			
+			curFile = ..fsys.file(curFileName,"w+b"); 
+			if(!curFile) return null,"写入文件失败:" + name;
+			
+			curFile.setFileTime( creation = curFileTime ;access = curFileTime ;write = curFileTime);
+			return curFileName,0,curFileSize;
+		}
+		 
+		var writeSize = ..math.min(512,curFileSize )  
+		tarFile.readBuffer(buffer,512);
+		curFile.writeBuffer( buffer,writeSize );
+		 
+		curFileSize = curFileSize - writeSize; 
+		return curFileName,writeSize,curFileSize;
+	} 
+	eachBlock = function(posRange){
+		if(!posRange) return this.nextBlock;
+		
+		var processed = 0;
+		var step = this.blocksCount / posRange;
+		var posOld,posNew;
+		
+		this.lastError = null;
+		var nextBlock; 
+		nextBlock = function(){
+			var fileName,writeSize,remainSize = this.nextBlock();
+			if(fileName) {
+				processed++;
+				
+				posNew = ..math.floor(processed / step);
+				if( posNew != posOld ){
+					posOld = posNew
+					return fileName,writeSize,remainSize,posNew
+				}
+				
+				return nextBlock();
+			}
+			else {
+				this.lastError = writeSize;
+			}
+		}
+		return nextBlock;
+	} 
+	close = function(){
+		if( tarFile ){
+			tarFile.close();
+			tarFile = null;
+			return this.complete;
+		}
+	}
+}
+
+namespace untar {
+
+	class tar_header {
+		byte name[100];
+		byte mode[8];
+		byte uid[8];
+		byte gid[8];
+		byte size[12];
+		byte mtime[12];
+		byte chksum[8];
+		byte linkflag;
+		byte linkname[100];
+		byte magic[8];
+		byte uname[32];
+		byte gname[32];
+		byte devmajor[8];
+		byte devminor[8];
+		byte prefix[155];
+		byte data[12]
+	}
+}
+
+/**intellisense()
+fsys.untar = tar文件操作
+fsys.untar(.("tar文件路径",存储路径) = 参数一可以是tar文件或tar.gz文件路径,\n参数2为可选参数
+fsys.untar() = !fsys_untarfile.
+!fsys_untarfile.utf8 = 是否使用UTF8编码文件名\n默认值为false，表示ansi多字节编码\n设为true表示使用utf8编码,\n设为null则自动检测，因为tar格式并不支持编码声明,所以可能出现文件名乱码
+!fsys_untarfile.blocksCount = 数据块总数,\n仅供进度条使用的估算值
+!fsys_untarfile.onProgressFolder = @.onProgressFolder = function(path){
+	__/*正在创建目录*/
+}
+!fsys_untarfile.onProgressFile = @.onProgressFile = function(path){
+	__/*正在创建文件*/
+}
+!fsys_untarfile.nextBlock() = 释放下一个块,\n成功返回文件名,释放大小,\n同一文件可能需要释放多个文件块
+!fsys_untarfile.eachBlock(posRange) = @for(fileName,writeSize,remainSize,pos in ??.eachBlock() ){
+	 __/*循环展开所有文件块,\n文件块较多时指定posRange参数可以减少循环次数以优化性能\nposRange参数可选指定一个表示进度上限的数值,\n指定posRange参数则返回值pos表示当前进度*/
+} 
+!fsys_untarfile.close() = 关闭文件,\n如果解包完成返回true
+!fsys_untarfile.lastError = 调用eachBlock解包时，可使用lastError获取错误信息
+!fsys_untarfile.complete = 所有文件是否解包完成
+end intellisense**/

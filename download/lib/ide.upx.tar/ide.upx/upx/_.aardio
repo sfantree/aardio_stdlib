@@ -1,0 +1,35 @@
+import fsys;
+import process.popen;
+namespace ide.upx;
+
+compress = function(exePath,upxPath){ 
+	
+	if( ..io.exist( exePath ) ){
+		var backupPath;
+		if(!upxPath){
+			backupPath = exePath + ".ex~";
+			..io.remove( backupPath );
+			..fsys.copy( exePath, backupPath);
+			upxPath = exePath;
+			exePath = backupPath; 
+		}
+		
+		..io.remove( upxPath ) 
+		var prcs = ..process.popen("~\lib\ide\upx\.upx\upx.exe", '-9 -q -k -o "'
+			+ ..io.fullpath(upxPath) + '" "'+ ..io.fullpath(exePath)  +'" ' );
+		var cmdOut = prcs.read(-1);
+		prcs.close()
+		
+		if( ! ..io.exist(upxPath) ){
+			if( backupPath ){
+				..fsys.copy( backupPath, upxPath);
+			}
+		}
+		if( backupPath ) ..io.remove(backupPath);
+	} 	
+}
+
+/**intellisense()
+ide.upx.compress(.(执行文件路径,压缩输出路径) = UPX压缩,\n省略参数2则直接压缩覆盖执行文件
+end intellisense**/
+

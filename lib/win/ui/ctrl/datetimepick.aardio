@@ -1,0 +1,160 @@
+//datetimepick 日期控件
+import win.ui.ctrl.metaProperty;//导入控件属性元表支持
+namespace win.ui.ctrl;  
+ 
+class datetimepick{
+    ctor(parent,tParam){
+    	if(tParam){
+    		tParam.cls  = "SysDateTimePick32";
+			if(tParam.edge) tParam.exstyle |= 0x200/*_WS_EX_CLIENTEDGE*/;	
+			if(tParam.updown) tParam.style |= 1/*_DTS_UPDOWN*/
+		}
+ 	
+		this.pos2 = 0;
+    }
+	@_metaProperty;
+}
+ 
+datetimepick._metaProperty = metaProperty(
+	getColor = function(ind){
+		::SendMessageInt(owner.hwnd,0x1007/*_DTM_GETMCCOLOR*/,ind,0);
+	};
+	setColor = function(ind,clr){
+		::SendMessageInt(owner.hwnd,0x1006/*_DTM_SETMCCOLOR*/,ind,clr);
+	};
+	bgcolor = {
+		_get = function(){
+			return owner.getColor(0/*_MCSC_BACKGROUND*/)
+		}
+		_set = function(v){
+			owner.setColor(0/*_MCSC_BACKGROUND*/,v)
+		} 
+	};
+	color = {
+		_get = function(){
+			return owner.getColor(1/*_MCSC_TEXT*/) 
+		}
+		_set = function(v){
+			owner.setColor(1/*_MCSC_TEXT*/,v) 
+		} 
+	};
+	time = {
+		_get = function(){  
+			var re,tm = ::SendMessageByStruct(owner.hwnd, 0x1001/*_DTM_GETSYSTEMTIME*/,0,..time(,owner.$setTimeFormat));
+			return tm;
+		}
+		_set = function( v ){
+			if(!v) return ::SendMessageByStruct(owner.hwnd, 0x1002/*_DTM_SETSYSTEMTIME*/,1, {});
+			if(! ..time.istime(v)) error("无效的time对象",2);
+			owner.$setTimeFormat = v.format;
+			
+		    ::SendMessageByStruct(owner.hwnd, 0x1002/*_DTM_SETSYSTEMTIME*/,0, v);
+		} 	
+	};
+	checked = {
+         _get = function(){  
+         	return ! ::SendMessageByStruct(owner.hwnd, 0x1001/*_DTM_GETSYSTEMTIME*/,0,{WORD T[8]});
+         }
+         _set = function( v ){
+             ::SendMessageByStruct(owner.hwnd, 0x1002/*_DTM_SETSYSTEMTIME*/,!v?1:0, owner.time);
+         }
+    };
+	setRange = function(tmMin,tmMax){ 
+		var flag = 0;
+		if( !tmMin )
+			tmMin = ..time();
+		elseif(! ..time.istime(tmMin) )
+			error("最小时间参数不正确",2)
+		else 
+			flag |= 1/*_GDTR_MIN*/
+			
+		if( !tmMax )
+			tmMax = ..time();
+		elseif(! ..time.istime(tmMax) )
+			error("最大时间参数不正确",2)
+		else 
+			flag |= 2/*_GDTR_MAX*/
+			
+		::SendMessageByStruct(owner.hwnd,0x1004/*_DTM_SETRANGE*/,flag,{struct tm[2]={tmMin;tmMax} });
+	}
+	getRange = function( ){
+		var tm =  ..time();
+		var tmRange = {struct array[2]={ ..time()  } }
+		var tmMin,tmMax;
+		var ret = ::SendMessageByStruct(owner.hwnd,0x1003/*_DTM_GETRANGE*/,0,tmRange);
+ 	 
+		if( ret & 1/*_GDTR_MIN*/ ){
+			tmMin = tmRange.array[1]; 
+		}
+		if( ret & 2/*_GDTR_MAX*/ ){
+			tmMax = tmRange.array[2]; 
+		}	
+		return tmMin,tmMax
+	}; 
+	setFormat  = function(format){
+		//http://msdn.microsoft.com/en-us/library/windows/desktop/bb761726(v=vs.85).aspx#dtp_format_chars
+		::User32.SendMessageW( owner.hwnd,0x1032/*_DTM_SETFORMATW*/, ,format);
+	}; 
+)
+
+/***intellisense() 
+?win.ui.ctrl.datetimepick =!datetimepick.
+win.ui.ctrl.datetimepick() = 时间控件\n!datetimepick.
+!datetimepick.cls = 设计时类名
+!datetimepick.className = 运行时类名
+!datetimepick.checked = 或取设置控件选中状态\n创建控件的参数中指定style=_DTS_SHOWNONE
+!datetimepick.time = 获取或设置时间,值为time对象,\n在读取此属性值时，保留上次设置此属性的时间对象使用的format字段\n!time.
+!datetimepick.setRange(.(时间下限,时间上限) = 设置时间范围,参数为time()对象\n可省略其中一个参数,仅指定下限或仅指定上限
+!datetimepick.getRange() = 返回两个time()对象:时间范围下限,时间范围上限\n如果未调用setRange()指定上限或下限,相应值返回为空
+!datetimepick.setFormat("'时间'hh':'m':'s ddddMMMdd', 'yyy") = 所有非格式化字符必须包含在单引号中
+!datetimepick.hwnd = 控件句柄
+!datetimepick.id = 控件ID
+!datetimepick.text = 控件文本,也就是格式化以后实际显示的时间字符串
+!datetimepick._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!datetimepick.getParent() = 返回父窗口\n!static.
+!datetimepick.setParent(__/*控件对象*/) = 改变父窗口 
+!datetimepick.hide = 控件是否隐藏
+!datetimepick.disabled = 是否禁用
+!datetimepick.left = 左侧坐标
+!datetimepick.right = 右侧坐标
+!datetimepick.top = 顶部坐标
+!datetimepick.bottom = 底部坐标
+!datetimepick.width = 宽度
+!datetimepick.height = 高度
+!datetimepick.redraw() = 刷新
+!datetimepick.show(true__) = 显示控件
+!datetimepick.getRect() = 控件区块位置(::RECT结构体)
+!datetimepick.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!datetimepick.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!datetimepick.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!datetimepick.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+!datetimepick.getFont() = 控件字体(::LOGFONT结构体)\n!logfont.
+!datetimepick.setFont(__/*指定字体*/) = 指定LOGFONT字体对象,或逻辑字体句柄 
+!datetimepick.setFont(混入字体属性) = @.setFont(point=10;name="宋体");
+!datetimepick.clientRect =  获取控件客户区块位置(::RECT结构体)
+!datetimepick.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!datetimepick.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!datetimepick.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!datetimepick.capture = 是否捕获全局鼠标消息
+!datetimepick.close() = 关闭控件窗口
+!datetimepick.invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+!datetimepick.invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+!datetimepick.update() = 重绘invalidate函数指定的区块 
+!datetimepick.setFocus() = 设置焦点 
+!datetimepick.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!datetimepick.getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd)
+!datetimepick.sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+!datetimepick.postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+end intellisense***/
+
+/**intellisense()   
+_DTS_SHOWNONE=@2/*_DTS_SHOWNONE*/
+_DTM_GETMONTHCAL=@0x1008/*_DTM_GETMONTHCAL*/
+_DTM_SETMCFONT=@0x1009/*_DTM_SETMCFONT*/
+_DTM_GETMCFONT=@0x100A/*_DTM_GETMCFONT*/
+_DTN_DROPDOWN=@0xFFFFFD0E/*_DTN_DROPDOWN*/
+_DTN_CLOSEUP=@0xFFFFFD0F/*_DTN_CLOSEUP*/
+_DTN_FIRST2=@0xFFFFFD0F/*_DTN_FIRST2*/
+_DTN_DATETIMECHANGE=@0xFFFFFD09/*_DTN_DATETIMECHANGE*/
+_DTN_WMKEYDOWN=@0xFFFFFD0B/*_DTN_WMKEYDOWN*/
+end intellisense**/

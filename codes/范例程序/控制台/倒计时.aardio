@@ -1,0 +1,14 @@
+import console;
+ 
+//打开控制台
+console.open();
+
+console.stdout.write("tick:",100/*先输入三个字符*/ );
+ 
+for(i=100;1;-1){ 
+	console.writeBack("%03d",i);//该函数写几格先退几格
+	sleep(10)
+}
+
+console.print();
+console.pause();

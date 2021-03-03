@@ -1,0 +1,88 @@
+//aardio调用js函数
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="Sciter 脚本调用本地函数";right=1014;bottom=523;parent=...)
+winform.add()
+/*}}*/
+
+import web.sciter;
+var wbSciter = web.sciter( winform );
+
+//下面2句用于将 js 的 console.log() 调用输出到控制台。
+import web.sciter.debug;
+wbSciter.attachEventHandler( web.sciter.debug );
+
+namespace web.sciter.behavior.button.command {  
+	
+ 	/*
+ 	ltOwner 参数是绑定behavior的节点,
+ 	实际上也就是指定了 behavior:command 的节点对象
+ 	
+ 	ltTarget 通常指的是实际触发事件的节点,
+ 	或者根据不同的事件,ltTarget的意义有所不同 
+ 	*/
+ 	onButtonClick = function (scTarget,scOwner,reason,behaviorParams) { 
+ 		
+ 		//调用节点的成员函数（ Javascript函数 ）
+ 		scOwner.customMethod("在 aardio 中调用节点上定义的JS函数：这是参数")
+	}
+	
+}
+
+wbSciter.html = /**
+<!doctype html>
+<html>
+<head>
+   <META http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <script type="text/tiscript">
+    
+    </script>
+    <style type="text/css">
+    html,body{ height:100%; margin:50; } 
+    
+    #my-button{  
+		behavior:"button.command clickable"; 
+	}
+    </style>
+</head>
+<body> 
+<button id="my-button">请点击这里</button> <span id="info"></span>
+<script> 
+
+document.getElementById("my-button").customMethod = function(str){
+	 document.getElementById("info").innerText = str;
+}
+
+// window(或globalThis) 前缀这里可以省略
+window.jsFunction = function(param) {  
+  document.getElementById("info").innerText = param;
+  return param;
+}
+
+</script>
+</body>
+</html>
+**/
+
+//访问并操作页面节点
+wbSciter.documentElement.querySelector("#info").insertAdjacentHTML("afterEnd","<br>测试insertAdjacentHTML")
+
+
+wbSciter.eval(`
+document.getElementById("info").innerText = "通过 wbSciter.eval 调用 javascript 函数 ";
+`)
+
+//参数"jsFunction"也可以写为 "globaThis.jsFunction"
+wbSciter.call("jsFunction", "通过 wbSciter.call 调用 javascript 函数")
+
+/*
+更简单的方法是直接获取 Javascript 函数对象,
+在 aardio 中能接收 Javascript 返回值的地方都支持直接返回Javascript 函数对象。
+*/
+var jsFunction = wbSciter.eval("jsFunction")
+
+//如果要指定this参数，请使用 jsFunction.xcall(urlOrScriptName,jsThisObject,...)
+jsFunction("直接在 aardio 中调用 Javascript 函数对象")
+ 
+winform.show()
+win.loopMessage();

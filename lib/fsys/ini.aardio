@@ -1,0 +1,171 @@
+//ini 配置文件
+import fsys;
+namespace fsys; 
+
+var getIniPath = function(path){
+	if(!path)
+		error("请指定ini文件路径",3)
+	var fullpath = ..io.exist(path) ;
+	if( fullpath) 
+		return fullpath;
+		
+	var defult = ..string.load(path)
+	
+	..fsys.createParentDir(path);
+	var file = ..io.open(path,"w+b")
+	if( ! file  )
+		error("ini文件路径错误:" + path,3) 
+	
+	file.write(defult);
+	file.close()
+	return ..io.exist(path); 
+}
+
+class ini{
+        ctor(path){  
+			path = getIniPath(path);
+        };         
+        read = function(app,key ,default = ""){
+			var getlen=512
+            var len,val = GetPrivateProfileString(app,key,default,getlen*2,getlen,path)
+            while(len >= getlen-2){
+                getlen+=512;
+                len,val = GetPrivateProfileString(app,key,default,getlen*2,getlen,path)
+            }
+            if(!len)
+                return;
+                
+            if(!key) {
+                return ..string.split(..string.fromUnicode(val,,len-1),'\0'); 
+            }
+            else {
+                return ..string.fromUnicode(val,,len);
+            }
+        };
+        write = function(app,key,str){ 
+        	WritePrivateProfileString(app,key,str?tostring(str):null,path); 
+        };
+        readSectionNames = function(){
+        	return this.read();
+        } 
+        readKeys = function(app){
+              return this.read(app);
+        }  
+        getSectionNames = function(){
+        	var getlen=512
+            var len,val = GetPrivateProfileSectionNames( getlen*2,getlen,path)
+            while(len >= getlen-2){
+                getlen+=512;
+                len,val = GetPrivateProfileSectionNames( getlen*2,getlen,path)
+            }
+            if(!len)
+            	return null;
+            	
+            val = ..string.fromUnicode( val,,(len-1) );
+            return ..string.split(val,'\0');
+        }
+        getSection = function(app){
+        	return app?section(path,app);
+        }  
+        eachSection = function(p){
+        	var secs = this.getSectionNames() : {};
+        	var i = 0;
+        	return function(){ 
+        		i++;
+        		if( p ){
+        			while(secs[i] && !..string.find(secs[i],p) ){
+        				i++;
+        			}
+        		}
+        		return secs[i]?section(path,secs[i]) ;
+        	} 
+        } 
+}
+
+namespace ini{   
+	GetPrivateProfileString = ::Kernel32.api("GetPrivateProfileStringW","int(ustring lpApplicationName,ustring lpKeyName,ustring lpDefault,string & lpReturnedstring,int nSize,ustring lpFileName)"); 
+	WritePrivateProfileString = Kernel32.api("WritePrivateProfileStringW","int(ustring lpAppName,ustring lpKeyName,usting lpString,ustring.lpFileName)");
+	GetPrivateProfileSectionNames = ::Kernel32.api("GetPrivateProfileSectionNamesW","int(string &buffer,int size,ustring file)"); 
+}
+
+class ini.section{
+	ctor(path,app){
+		if(!app )
+			error("请指定ini文件[小节名字]",2) 
+			
+		path = getIniPath(path);
+				
+		var getlen=512
+        var len,val = GetPrivateProfileSection(app, getlen*2,getlen,path)
+       
+        while(len >= getlen-2){
+            getlen+=512;
+            len,val = GetPrivateProfileSection(app, getlen*2,getlen,path)
+        }
+        if(len){
+        	val = ..string.fromUnicode( val,,(len-1));
+        	var tlist  =  ..string.split(val,'\0');
+        	var pos,k;
+            for( i,v in tlist){  
+        		pos = ..string.find(v,"@=");
+        		if(pos){ 
+        			k = ..string.trim(..string.left(v,pos-1));  
+        			this[k] = ..string.trim( ..string.slice(v,pos+1) );
+        		}
+    		}
+        	 
+        } 
+        
+        this@  = { 
+			save = function(){
+				var t = {}
+				for(k,v in this){
+					if(type(v)!=type.function){
+						..table.push(t,k);
+						..table.push(t,"=");
+						..table.push(t,v); 
+						..table.push(t,'\0');
+					}
+				}
+				..table.push(t,'\0'); 
+				..table.push(t,'\0'); 
+				var v = ..string.join(t ); 
+				WritePrivateProfileSection( app,..string.toUnicode(v),path); 
+			}
+			name = function(){
+				return app;
+			} 
+		} 
+		//将save函数放在元表中,这样当使用for in遍历ini.section对象时,就看不到save函数 
+        this@._get = this@ 
+	}
+	 
+}
+
+namespace ini.section{
+	GetPrivateProfileSection = ::Kernel32.api("GetPrivateProfileSectionW","int(ustring app,string &buffer,int size,ustring file)");
+	WritePrivateProfileSection = ::Kernel32.api("WritePrivateProfileSectionW","int(ustring app,
+	string buffer,ustring file)");
+}
+
+/**intellisense()
+fsys.ini = 用于ini文件读写
+fsys.ini("__") = 打开ini文件对象
+!fsysini.read("小节名","键名")= 读取ini指字小节的指键键\n可选使用参数@3指定默认值\n成功返回读取的值,失败返回null\n\n如果指定键名成功应返回字符串值\n不指定键名成功返回小节下所有键值组成的字符串数组\n返回字符串、数组、null时都可以使用#操作符取长度,nul的长度为0，\nnull,0转换为逻辑值都等价于false
+!fsysini.write("小节名","键名","新值") = 写ini文件\n健名为 null 删除指定的小节\n值为 null 删除指定的键名
+!fsysini.readSectionNames() = 返回小节名称组成的字符串数组
+!fsysini.readKeys("小节名") = 返回指定小节中所有键名组成的字符串数组 
+!fsysini.getSectionNames() = 获取所有小节名字,返回字符串数组.
+!fsysini.getSection("__/*小节名*/") = 读取或添加小节对象,可直接读写成员
+!inisection.name() = 返回小节名称
+!inisection.save() = 保存更改到ini文件
+!inisection.? = 可输入任意属性名,读写小节属性,\n成功返回字符串值,失败返回null
+!fsysini.getSection() = !inisection.
+!fsysini.eachSection()  = !inisection.
+!fsysini.eachSection() = @for section in ??.eachSection(__/*可选用模式匹配搜索*/) { 
+	for(k,v in section){
+		/*k为键,为值,section为当前遍历到的小节*/
+	}
+}
+fsys.ini() = !fsysini.
+end intellisense**/

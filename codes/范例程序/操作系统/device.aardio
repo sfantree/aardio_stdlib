@@ -1,0 +1,22 @@
+//查询硬件信息
+import console; 
+import sys.device;
+
+import sys.cpu;
+console.log("CPU:",sys.cpu.getBrand());
+
+import sys.mem;
+console.log("Total Memory:",sys.mem.getInfo().totalPhys.formatSize);
+
+import sys.display;
+console.log("Display Adapter:",sys.display.getAdapter().Description)
+
+var devInfo = sys.device(/*"{4d36e96c-e325-11ce-bfc1-08002be10318}"*/,"PCI");
+for( index,classGuid,deviceDesc in devInfo.each(
+    8/*_SPDRP_CLASSGUID*/,
+    0/*_SPDRP_DEVICEDESC*/
+    ) ){
+    console.log( index,classGuid,deviceDesc );
+}
+
+console.pause(true);

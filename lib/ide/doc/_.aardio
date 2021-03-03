@@ -1,0 +1,339 @@
+﻿import fsys;
+namespace ide;
+
+class doc{
+    ctor( path ){
+    	this.const = {}
+        this.define = {};
+        this.sections = {};
+        
+    	if( (path == "kernel") || (path == "global") ){
+    		path = "global"
+    		
+    		this.sections[path] = createList( this
+    			,..string.load("~\config\intellisense\kernel.txt"),""); 
+    		
+    		var preloadDoc = ..ide.doc( ..io.libpath("preload") );
+    		var preloadMathDoc = ..ide.doc( ..io.libpath("preload.math") );
+    		var preloadRawDoc = ..ide.doc( ..io.libpath("preload.raw") );
+    		var preloadStringDoc = ..ide.doc( ..io.libpath("preload.string") );
+    		var preloadTableDoc = ..ide.doc( ..io.libpath("preload.table") );
+    		var preloadThreadDoc = ..ide.doc( ..io.libpath("preload.thread") ); 
+    		
+    		..table.mix( this.const,preloadDoc.const
+    			,preloadMathDoc.const
+    			,preloadRawDoc.const
+    			,preloadStringDoc.const
+    			,preloadTableDoc.const
+    			,preloadThreadDoc.const);
+    			
+    		..table.mix( this.define ,preloadDoc.define
+    			,preloadMathDoc.define
+    			,preloadRawDoc.define
+    			,preloadStringDoc.define
+    			,preloadTableDoc.define
+    			,preloadThreadDoc.define);
+    			
+    		..table.assignDeep( this.sections ,preloadDoc.sections
+    			,preloadMathDoc.sections
+    			,preloadRawDoc.sections
+    			,preloadStringDoc.sections
+    			,preloadTableDoc.sections
+    			,preloadThreadDoc.sections);
+    		
+    		this.libPath = "global";
+    		this.filePath = "global";
+    		this.fileName = "global";
+    		return this;
+    	}
+        
+        var str = ..string.load(path);
+        if(!str) return;
+        
+        path = ..io.fullpath(path);
+        var libPath = ..fsys.path.relative(path,..io.fullpath("~\lib"),false);
+        if(!libPath) {
+            libPath = ..fsys.path.relative(path,..io.fullpath("\lib"),false);
+            if(!libPath) libPath = "global";
+            this.filePath = libPath;
+        }
+        else {
+            this.filePath = "~\" + libPath;
+        }
+        
+        
+        if(libPath) {
+            if( ..string.endWith(libPath,"_.aardio") ) { 
+                libPath = ..string.left(libPath,-10);
+                this.fileName = libPath + "/_";
+            }
+            elseif( ..string.endWith(libPath,".aardio") ) {
+                libPath = ..string.left(libPath,-8);
+                this.fileName = libPath;
+            }
+            else {
+                this.fileName = "global";
+            }
+            
+            
+            libPath = ..string.trim(libPath,"\/");
+            this.libPath = ..string.replace(libPath,"[/\\]",".") ;
+            if(this.libPath == "win.ui"){
+            	this.sections[""] = createList( this
+    				,..string.load("~\config\intellisense\winform.txt"),""); 
+            }
+            elseif(this.libPath == "sqlite"){
+            	this.sections[""] = createList( this
+    				,..string.load("~\lib\sqlite\base.aardio"),""); 
+            }
+           	
+            
+            for star,path,content in ..string.gmatch( str,"/(**)intellisense\((.*?)\)(.+?)end intellisense\1/") { 
+                path = camelObjectName(path);
+                this.sections[path] = ..table.mix(createList( this,content,path),this.sections[path]); 
+            }
+            
+            if( (this.libPath == "web.kit.form") || (this.libPath="web.kit.layeredWindow") ){
+            	this.sections["web.kit.view"] = createList( this
+    				,..string.load("~\lib\web\kit\view.aardio"),"webKitViewObject"); 
+            }
+            
+        }
+        else {
+            this.filePath = path;
+            this.libPath = "";
+            this.sections[""] = createList( this,str,"");
+        }
+        
+        this.sections["::"] = null;
+        for(path,section in this.sections){
+        	for(k,v in section){
+        		if( this.sections[k] ){
+        			section[k] = null;
+        			this.sections[k][k] = v;
+        		}
+        	} 
+        }
+        
+        
+        if( this.sections[""] ? ( !..table.next(this.sections[""]) ) ) this.sections[""] = null;
+        if( !..table.next(this.const) ) this.const = null;
+        if( !..table.next(this.define) ) this.define = null;
+    }; 
+}
+
+namespace doc{
+
+    camelObjectName = function(name){
+    	name = ..string.trim(name);
+    	if( name[1] != '!'#  ) return name;
+    	name = ..string.right(name,-2);
+    	
+        name = ..string.replace(name,"_(\w)",function(c){  return ..string.upper(c); } );
+        
+        if( !( ..string.find(name,"@@obj") ) ){
+        	if( ( name!="winform" )
+        		&& ( name!="wb" )
+        		&& ( name!="wbLayout" )
+        		&& ( name!="wbKit" )
+        	){
+        		name = ..string.replace(name,"^[^\.]+","\0Object");
+            }
+        }  
+                
+        if( ..string.startWith(name,"std") ) name = ..string.right(name,-4);
+        return name;
+    }
+    
+    createList = function(this,s,path) {
+        var list ={};
+        var trim = ..string.trim;
+        var trimleft = ..string.trimleft;
+        var find = ..string.find;
+        var left = ..string.left;
+        var sub = ..string.slice;
+        var intellisense = s;
+        
+        path = trim(path);
+        if(path[1] == '!'# ) path = ..string.right(path,-2);
+        
+        while( 
+            var i,j,vi,vj,si,sj,q,k,v ;
+            {
+                i,j = ..string.find(s, "^\s*\N+\s+=\s+" );
+                if(i){ i,j = ..string.find(s, "\s+=\s+" ); }
+                if(!i) i,j = ..string.find(s, "\s*=\s*" );
+            }; ( i ) 
+        ) {
+            k = trim( sub(s,1,i-1) );
+            s = trimleft( sub(s,j+1) ); 
+            si,sj = find(s,'\r\n'); 
+            
+            if( si ){ 
+                v = trim( sub(s,1,si-1) ); 
+                if( v[#v] =='{'# ){ 
+                    vi,vj = find(s,"%{}")
+                    if(vi){
+                        v = sub(s,1,vj-1);  
+                        si,sj = find(s,'\r\n',vj+1);
+                        if(!si) {
+                            v = s;
+                            s = "";
+                        }
+                        else{
+                            v = trim( sub(s,1,si-1) ); 
+                            s = sub(s,sj+1);  
+                        }
+                    }
+                    else { 
+                        break;
+                    } 
+                }
+                else {
+                    s = trimleft( sub(s,sj+1) ); 	
+                }
+            } 
+            else { 
+                v =  s; 
+            } 
+
+            while( 
+                var kl,kj;
+                kl,kj = find(k,'\r\n');
+                kl
+            ) {
+                k = ..string.slice(k,kj+1);//作为注释忽略
+            } 
+            
+            k = ..string.replace(k,"\(\.\(","(");
+            k = ..string.replace(k,"->",".");
+            if( #path && (path != "::") ){
+                k = ..string.concat(path,".",k);
+            }
+            v= ..string.replace(v,"\\n",'  \r\n');
+            
+            if(k[1] == '_'# && (#k > 2) ){
+            	var v2 = ..string.match(v,"\@(.+)\/\*.+\*\/");
+                if( v2 ){
+                    if(this.define[k]===null){
+                        this.define[k]=trim(v2);
+                    }
+                    continue  
+                } 
+            }
+            
+            if(k[1] == '?'# ){
+                continue;
+            }
+            
+            if(k[1] == '^'# ){
+                continue;
+            }
+            
+            if( k[#k] == '('# ) {
+            	k = ..string.left(k,-2);
+            }
+            
+            v  = trim(v);
+            if( v[#v] == '.'# ) {
+                var h,obj = ..string.match(v,"(.*)(\!\N+)\.$");
+                if(obj){
+                	obj = camelObjectName( obj );
+                	v = h;
+                	if(#v) v = v ++ '  \r\n';
+                	v = ..string.concat(v,`[返回对象:` + obj + "](#" + obj + ")" );
+                }
+            }
+            
+            v = trim(v);
+            if( v[1]== '@'# ) {
+                v = ..string.right(v,-2);
+                
+                var h = ..string.match(k,"(.+)\.[^.]+");
+                if(h){
+                    if( v[1] == '.'# ){ 
+                        if( h ) v = camelObjectName(h) + v;
+                    } 
+                    v = ..string.replace(v,"\?\?",camelObjectName(h));
+                }
+                
+                v =  ..string.replace(v,"__","");
+                v =  ..string.replace('\r\n' +v,'\r\n','\r\n    ');
+            }
+            elseif( ..string.startWith(v,"class ") ){
+            	v =  ..string.replace('\r\n' +v,'\r\n','\r\n    ');
+            }
+            elseif( !..string.find(v,":") ){
+            	v =  ..string.replace('\r\n' +v,'\r\n','\r\n    ');
+            }
+            
+            if(k[1] == '!'#){
+                var path;
+                k = ..string.replace(k,"^[^.]+",function(k){
+                    path = camelObjectName(k);
+                    return path;
+                });
+        
+                if( path ){
+                    if(!this.sections[path] ) this.sections[path] = {};
+                    this.sections[path][k] = v;
+                    continue;
+                }
+            }
+            
+            kpath = k;
+            var bracket = ..string.indexOf(kpath,'(');
+            if(bracket){
+            	kpath = ..string.left(kpath,bracket-1);
+            }
+            
+            var kpath = ..string.match(kpath,"^(.+[^\.])\.[^\.]*$");
+            if(kpath && (kpath!="global")){
+            	if( kpath ){
+                    if(!this.sections[kpath] ) this.sections[kpath] = {};
+                    this.sections[kpath][k] = v;
+                    continue;
+                }
+            }
+            
+            var kpath = ..string.match(k,"^([a-zA-Z]\w+)$") || ..string.match(k,"^([a-zA-Z]\w+)\(");
+            if(kpath && (kpath!="global") ){
+            	if( ..string.indexOf(intellisense,kpath + ".") ){ 
+            		if( kpath ){
+                    	if(!this.sections[kpath] ) this.sections[kpath] = {};
+                    	this.sections[kpath][k] = v;
+                    	continue;
+                	}
+            	}
+            }
+            
+            if(k[1] == ':'#){
+                this.const[k] = trim(v);
+                continue;
+            }
+            elseif( ..string.match(k,"^_[A-Z][A-Z_\d]+$")){
+                this.const[k]=trim( v ); 
+            }
+            
+           
+            if(!list[[k]])list[[k]] = v;
+            
+        }
+        
+        return list;
+    }	 
+}
+
+/*intellisense(ide)
+doc(.("库路径") = 用于自动提到库文档
+doc() = !libDocument.
+end intellisense*/
+
+/**intellisense()
+!libDocument.sections = 智能提示数据\n键为名字空间,值是一个名值对组成的表
+!libDocument.define = 智能提示中配置自动完成为字面值的全局常量列表\n一律为下划线开始,并大写的常量名
+!libDocument.const = ::开头的全局函数列表
+!libDocument.fileName = 移除后缀名的库文件相对路径
+!libDocument.filePath = 库文件路径
+!libDocument.libPath = 名字空间路径
+end intellisense**/

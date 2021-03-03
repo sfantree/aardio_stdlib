@@ -1,0 +1,38 @@
+//使用预处理命令对象
+import sqlite;
+
+//打开数据库连接
+var sqlConnection = sqlite("/testOrderParameters2.db")
+
+//创建表 
+if( not sqlConnection.existsTable("film") ){  
+	sqlConnection.exec( "CREATE TABLE film(title, length, year, starring);")  
+} 
+
+//sql里的问号表示参数
+var command = sqlConnection.prepare("INSERT INTO film VALUES (?,?, ?, 'Jodie Foster');" )
+
+//按参数顺序绑定多个参数
+command.bind.parameters(
+	 '用string.load读入二进制字符\0串', //设定第一个?号表示的参数
+	 null, //设定第二个?号表示的参数
+	 time.now()  //设定第三个?号表示的参数
+).step()
+
+//上面的代码等价于下面的代码
+/****
+command.bind.blob('用string.load读入二进制字符\0串').bind.double(123,2/*参数二*/ );
+command.bind.text( tostring( time.now() ),3/*参数三*/ );
+command.step();
+****/
+
+//释放命令对象,这句如果忘记写会在内存回收时自动调用
+command.finalize() 
+
+//迭代方式查询数据
+import console;
+for rowid,title, length, year, starring in sqlConnection.each("SELECT rowid,* from film") {
+	console.log( rowid,title, length, year, starring  )
+	break;
+}
+execute("pause")

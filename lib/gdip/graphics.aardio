@@ -1,0 +1,724 @@
+//graphics 画板对象
+import gdip.bitmap;
+namespace gdip 
+ 
+class graphics {
+	 
+	ctor(arg){
+		 
+		if(type(arg)==type.pointer)
+			this.pGraphics = gdip.assert2(gdip.CreateFromHDC(arg) );
+		else{
+			if(type(arg)!=type.table) {
+				error("无效参数",2)
+			}
+			if(arg.hwnd){
+				this.pGraphics = gdip.assert2(gdip.CreateFromHWND(arg.hwnd) );
+				this._hwnd = arg.hwnd;
+			}
+			else if(arg.hdc) {
+				this.pGraphics = gdip.assert2(gdip.CreateFromHDC(arg.hdc) );
+				this._hdc = arg.hdc;
+			}
+			else if(arg.pImage) {
+				this.pGraphics = gdip.assert2( gdip.GetImageGraphicsContext( arg.pImage ) ); 
+				this._image = arg;
+			}
+		}
+		
+		if(!this.pGraphics) error("无效参数)",2) 
+		 ..table.gc(this,"delete");	
+	}
+	 
+	@_metaProperty//元表指向属性表
+}
+ 
+
+namespace graphics { 
+
+	self.gdip = ..gdip;
+	var gdip = gdip;
+	
+	fromHdc = function(hdc){
+		return gdip.graphics( hdc = hdc ) 
+	}
+	
+	fromHwnd = function(hwnd){
+		return gdip.graphics( hwnd = hwnd ) 
+	}
+	
+	fromImage = function(image){
+		return gdip.graphics(image)	 
+	}   
+	
+	_metaProperty = ..util.metaProperty(
+	 	
+		interpolationMode = {
+			_get = function(){ 
+				var m = {int v}
+				gdip.assert2( ::Gdiplus.GdipGetInterpolationMode(owner[["pGraphics"]], m) ); 
+				return m.v;
+			} 
+			_set = function(v){ 
+				gdip.assert2( ::Gdiplus.GdipSetInterpolationMode(owner[["pGraphics"]], v) ); 
+			}  	
+		};
+		pixelOffsetMode = {
+			_get = function(){ 
+				var mode = {int value}
+				::Gdiplus.GdipGetPixelOffsetMode(owner[["pGraphics"]], mode); 
+				return mode.value;
+			} 
+			_set = function(v){ 
+				gdip.assert2( ::Gdiplus.GdipSetPixelOffsetMode(owner[["pGraphics"]], v) ); 
+			}  	
+		};
+		compositingQuality = {
+			_get = function(){ 
+				var m = {int v}
+				gdip.assert2( ::Gdiplus.GdipGetCompositingQuality(owner[["pGraphics"]], m) ); 
+				return m.v;
+			} 
+			_set = function(v){ 
+				gdip.assert2( ::Gdiplus.GdipSetCompositingQuality(owner[["pGraphics"]], v) ); 
+			}  	
+		};
+		compositingMode = {
+			_get = function(){ 
+				var m = {int v}
+				gdip.assert2( ::Gdiplus.GdipGetCompositingMode(owner[["pGraphics"]], m) ); 
+				return m.v;
+			} 
+			_set = function(v){ 
+				gdip.assert2( ::Gdiplus.GdipSetCompositingMode(owner[["pGraphics"]], v) ); 
+			}  	
+		};
+		smoothingMode = {
+			_get = function(){ 
+				var m = {int v}
+				gdip.assert2( ::Gdiplus.GdipGetSmoothingMode(owner[["pGraphics"]], m) ); 
+				return m.v;
+			} 
+			_set = function(v){ 
+				gdip.assert2( ::Gdiplus.GdipSetSmoothingMode(owner[["pGraphics"]], v) ); 
+			}  	
+		};  
+		textRenderingHint = {
+			_get = function(){ 
+				var m = {int v}
+				gdip.assert2( ::Gdiplus.GdipGetTextRenderingHint(owner[["pGraphics"]], m) ); 
+				return m.v;
+			} 
+			_set = function(v){ 
+				gdip.assert2( ::Gdiplus.GdipSetTextRenderingHint(owner[["pGraphics"]], v) ); 
+			}  	
+		};
+		clear = function(argb){
+			gdip.assert2( ::Gdiplus.GdipGraphicsClear(owner[["pGraphics"]],argb) );
+			return owner;
+		};
+		scale = function(sx,sy,order){
+			gdip.assert2( gdip.ScaleWorldTransform(owner[["pGraphics"]],sx,sy,order:0) );
+			return owner;
+		};
+		scaleRect = function(rc,sx,sy,order){
+			gdip.TranslateWorldTransform(owner[["pGraphics"]],rc.left, rc.top,order:0);
+			gdip.TranslateWorldTransform(owner[["pGraphics"]],rc.width()*(1-sx)/2,rc.height()*(1-sy)/2,order:0);
+			gdip.ScaleWorldTransform(owner[["pGraphics"]],sx,sy,order:0);
+			gdip.TranslateWorldTransform(owner[["pGraphics"]],-rc.left, -rc.top,order:0);
+			return owner;
+		};
+		rotate = function(angle,order){
+			gdip.assert2( gdip.RotateWorldTransform(owner[["pGraphics"]],angle,order:0) );
+			return owner;
+		};
+		rotateRect = function(rc,angle,order){
+			var width,height = rc.right - rc.left,rc.bottom - rc.top; 
+			gdip.TranslateWorldTransform(owner[["pGraphics"]],rc.left+ width/2, rc.top+height/2,order:0);
+			gdip.RotateWorldTransform(owner[["pGraphics"]],angle,order:0);
+			gdip.TranslateWorldTransform(owner[["pGraphics"]], -(rc.left+width/2), -(rc.top+height/2),order:0);
+			return owner;
+		};
+		translate = function(dx,dy,order){
+			gdip.assert2( gdip.TranslateWorldTransform(owner[["pGraphics"]],dx,dy,order:0) );
+			return owner;
+		};
+		resetTransform = function(){
+			::Gdiplus.GdipResetWorldTransform(owner[["pGraphics"]]);
+			return owner;
+		};
+		transform = function(repeat,bmp,rc,x,y){ 
+			var cxSrc = bmp.width;
+			var cySrc = bmp.height; 
+			var cxDst,cyDst = rc.right-rc.left,rc.bottom-rc.top;
+			
+    		if( repeat == "center" ){
+    			owner.translate(rc.left + ( cxDst - cxSrc ) /2,rc.top + ( cyDst - cySrc ) /2);
+    		}
+    		elseif( repeat == "point" ){ 
+				if( x <= 1 ){ if( x > 0 ) { x = ( cxDst - cxSrc ) * x } elseif(x<0) { x = ( cxDst - cxSrc ) +x } };
+				if( y <= 1 ){ if( y > 0 ){ y = ( cyDst - cySrc ) * y } elseif(y<0) { y = ( cyDst - cySrc ) + y  } };
+    			owner.translate(rc.left + x,rc.top + y);
+    		}
+    		elseif( repeat == "scale" ){ 
+				var w,h = cxDst,cyDst;
+				if ( cxDst / cxSrc < cyDst / cySrc ) 
+					h = cxDst * cySrc / cxSrc;
+				else
+					w = cyDst * cxSrc / cySrc;
+					
+				owner.translate(rc.left + ( ( cxDst - w ) /2 ) , rc.top+ ( (cyDst - h) /2 ) );
+				owner.scale(w/cxSrc,h/cySrc) 
+    		}
+    		elseif( repeat == "stretch" || repeat == "expand" ){
+    			owner.translate(rc.left,rc.top)
+    			owner.scale(cxDst/cxSrc,cyDst/cySrc)
+    		} 
+    		else {
+    		 	return;
+    		}
+    		
+			return owner;
+		};
+		setClipRect = function(x, y,width,height,combineMd){
+			gdip.assert2( gdip.SetClipRect(owner[["pGraphics"]],x, y,width,height,combineMd : 0/*_GdipCombineModeReplace*/ ) );
+			return owner;
+		};
+		setClipPath = function(path,combineMd){
+			if(!path[["pPath"]]) error("参数@1类型错误",2);
+			gdip.assert2( gdip.SetClipPath(owner[["pGraphics"]],path[["pPath"]],combineMd : 0/*_GdipCombineModeReplace*/) );
+			return owner;
+		};
+		resetClip = function(){
+			gdip.assert2( ::Gdiplus.GdipResetClip(owner[["pGraphics"]]) );
+			return owner;
+		};
+		fillPath = function(brush, path){
+			gdip.assert2( ::Gdiplus.GdipFillPath(owner[["pGraphics"]], brush, path) ); 
+			return owner;
+		} ;
+		drawPath = function(pen, strPath){
+			gdip.assert2( gdip.DrawPath(owner[["pGraphics"]], pen, strPath) ); 
+			return owner;
+		};
+		measureString = function(str, thefont, layoutRect,stringFormat){ 
+			var e,bound,codepoints,lines = gdip.MeasureString(owner[["pGraphics"]],str,-1, thefont, layoutRect,stringFormat,::RECTF(),0,0); 
+			if(e) return null,..gdip.errMsg[e]
+			return bound,codepoints,lines;
+		};
+		drawString = function( str, thefont, layoutRect,stringFormat,brush){
+			gdip.assert2( gdip.DrawString(owner[["pGraphics"]],str,-1, thefont, layoutRect,stringFormat,brush) ); 
+			return owner;
+		}; 
+		drawLine = function( pen,x1,y1,x2,y2){
+			gdip.assert2( gdip.DrawLine(owner[["pGraphics"]], pen,x1,y1,x2,y2 ) ); 
+			return owner;
+		};
+		fillPolygon  = function( brush,fillMode,...){
+			var points = #(...) ? ... : {...}
+			gdip.assert2( ::Gdiplus.GdipFillPolygon(owner[["pGraphics"]], brush,{struct v[]=points},#points,fillMode) ); 
+			return owner;
+		}; 
+		drawRectangle = function( pen,x1,y1,width,height){
+			gdip.assert2( gdip.DrawRectangle(owner[["pGraphics"]], pen,x1,y1,width,height) ); 
+			return owner;
+		}; 
+		fillRectangle = function( brush,x1,y1,width,height){
+			gdip.assert2( gdip.FillRectangle(owner[["pGraphics"]], brush,x1,y1,width,height) ); 
+			return owner;
+		}; 
+		fillEllipse = function( brush,x1,y1,width,height){
+			gdip.assert2( gdip.FillEllipse(owner[["pGraphics"]], brush,x1,y1,width,height) ); 
+			return owner;
+		};  
+		drawEllipse = function( pen,x1,y1,width,height){
+			gdip.assert2( gdip.DrawEllipse(owner[["pGraphics"]], pen,x1,y1,width,height) ); 
+			return owner;
+		}; 
+		fillPie = function( brush,x1,y1,width,height,startAngle,sweepAngle){
+			gdip.assert2( gdip.FillPie(owner[["pGraphics"]], brush,x1,y1,width,height,startAngle,sweepAngle) ); 
+			return owner;
+		}; 
+		drawPie = function( pen,x1,y1,width,height,startAngle,sweepAngle){
+			gdip.assert2( gdip.DrawPie(owner[["pGraphics"]], pen,x1,y1,width,height,startAngle,sweepAngle) ); 
+			return owner;
+		}; 
+		drawArc = function( pen,x1,y1,width,height,startAngle,sweepAngle){
+			gdip.assert2( gdip.DrawArc(owner[["pGraphics"]], pen,x1,y1,width,height,startAngle,sweepAngle) ); 
+			return owner;
+		};
+		drawBezier = function(pen,x1,y1,x2,y2,x3,y3,x4,y4){
+			gdip.assert2(
+				gdip.DrawBezier( owner[["pGraphics"]],pen,x1,y1,x2,y2,x3,y3,x4,y4)
+			);
+		};
+		drawImageWithDpi = function( img,x1=0,y1=0 ){
+			gdip.assert2( gdip.DrawImage(owner[["pGraphics"]], img,x1,y1) ); 
+			return owner;
+		}; 
+		drawImage = function( img,x1=0,y1=0,imgAttr){
+			var w,h = img.width,img.height;
+			gdip.assert2( gdip.DrawImageRectRect(owner[["pGraphics"]], img,x1,y1,w,h,0,0,w,h,2/*UnitPixel*/,imgAttr) ); 
+			return owner;
+		}; 
+		drawImageRect = function( img,x1,y1,width,height,imgAttr){
+			gdip.assert2( gdip.DrawImageRectRect(owner[["pGraphics"]], img,x1,y1,width,height,0,0,img.width,img.height,2/*UnitPixel*/,imgAttr) );
+			return owner;
+		};
+		drawImageStretch = function(img,rc,imgAttr){
+			gdip.assert2( gdip.DrawImageRectRect(owner[["pGraphics"]], img,rc.left, rc.top, rc.right-rc.left, rc.bottom-rc.top,0,0,img.width,img.height,2/*UnitPixel*/,imgAttr) );
+			return owner;
+		}; 
+		drawImageRectRect = function( img,dstX,dstY,dstWidth,dstHeight,srcx,srcy,srcwidth,srcheight,srcUnit=2/*UnitPixel*/,imgAttr,callback,callbackData){
+			gdip.assert2( gdip.DrawImageRectRect(owner[["pGraphics"]], img,dstX,dstY,dstWidth,dstHeight,srcx,srcy,srcwidth,srcheight,srcUnit,imgAttr ,callback,callbackData) ); 
+			return owner;
+		} ; 
+		drawImagePointRect = function( img,dstX,dstY,srcx,srcy,srcwidth,srcheight,srcUnit=2/*UnitPixel*/){
+			gdip.assert2( gdip.DrawImagePointRect(owner[["pGraphics"]], img ,dstX,dstY,srcx,srcy,srcwidth,srcheight,srcUnit  ) ); 
+			return owner;
+		};
+		drawImageScale = function( img,rc,imgAttr){
+			var pImg = img[["pImage"]];
+			if( !pImg ) error("参数@1类型错误",2);
+			
+			var cxSrc = img.width;
+			var cySrc = img.height; 
+			var cxDst,cyDst = rc.right - rc.left,rc.bottom-rc.top; 
+			var w,h = cxDst,cyDst; 
+			if ( cxDst / cxSrc < cyDst / cySrc ) {
+				h = cxDst * cySrc / cxSrc;
+			}
+			else {
+				w = cyDst * cxSrc / cySrc;
+			}
+			
+			gdip.DrawImageRectRect(owner[["pGraphics"]], img,rc.left + ( ( cxDst - w ) /2 ) , rc.top+ ( (cyDst - h) /2 ), w, h
+				,0,0,cxSrc,cySrc,2/*UnitPixel*/,imgAttr)
+			return owner;
+		};
+		drawImageCenter = function(img,rc,imgAttr,dpiScaleX,dpiScaleY){ 
+		 
+			var pImg = img[["pImage"]];
+			if( !pImg ) error("参数@1类型错误",2); 
+			
+			var x,y,xDst,yDst = 0,0,rc.left,rc.top;
+			var cx,cy = rc.right - rc.left,rc.bottom-rc.top;  
+			var cxSrc,cySrc = img.origWidth,img.origHeight;
+			var cxDst,cyDst = cxSrc,cySrc;
+			
+			if(dpiScaleX&&dpiScaleY){
+				cxDst = cxDst * dpiScaleX;
+				cyDst = cyDst * dpiScaleY;
+			}
+
+			if( cxDst > cx ){
+				x = ( (cxDst - cx)/dpiScaleX  ) /2;
+			}
+			else {
+				xDst = xDst + ( cx - cxDst ) /2 ; 
+			}
+			if( cyDst > cy ){
+				y = ( (cyDst - cy)/dpiScaleX  ) /2;
+			}
+			else {
+				yDst = yDst + ( cy - cyDst ) /2 ; 
+			} 
+
+			gdip.DrawImageRectRect( owner[["pGraphics"]], pImg
+				,xDst,yDst,cxDst,cyDst,x,y,cxSrc,cySrc,2,imgAttr); 
+			return owner;
+		};
+		drawBitmapTile = function(bmp,rc){ 
+			var pBmp = bmp[["pBitmap"]];
+			if( !pBmp ) error("参数@1类型错误",2); 
+			var pGrp = owner[["pGraphics"]];
+			
+			var e,cache = gdip.CreateCachedBitmap(pBmp,pGrp);
+			if( e ) return null,gdip.errMsg[e];
+			
+			var cx,cy = rc.right - rc.left,rc.bottom-rc.top;  
+			var cxSrc,cySrc = bmp.width,bmp.height; 
+			
+			owner.setClipRect(rc.left,rc.top,cx,cy,1/*_GdipCombineModeIntersect*/)
+			var draw = gdip.DrawCachedBitmap;
+			for(x=rc.left;rc.right;cxSrc){ 
+				for(y=rc.top;rc.bottom;cySrc){  
+					draw(pGrp,cache,x,y);
+				}
+			} 
+			gdip.DeleteCachedBitmap(cache)
+			owner.resetClip();
+			return owner;
+		}; 
+		drawBitmapRepeatX = function( bmp,rc,t,r,b,l){ 
+			var pBmp = bmp[["pBitmap"]];
+			if( !pBmp ) error("参数@1类型错误",2); 
+			var pGrp = owner[["pGraphics"]];
+			
+			var e,cache = gdip.CreateCachedBitmap(pBmp,pGrp);
+			if( e ) return null,gdip.errMsg[e]; 
+		  	
+		  	var cxSrc,cySrc = bmp.width,bmp.height; 
+			if(r) { rc.right = rc.right - r };
+			if(l) rc.left =  rc.left + l; 
+			if(b) { rc.bottom = rc.bottom - b; rc.top = rc.bottom - cySrc; }
+			else if(t) rc.top = rc.top + t; 
+			
+			var cx,cy = rc.right - rc.left,rc.bottom-rc.top;   
+			owner.setClipRect(rc.left,rc.top,cx,cy,1/*_GdipCombineModeIntersect*/)
+			var draw = gdip.DrawCachedBitmap;
+			
+			var y = rc.top;
+			for(x=rc.left;rc.right;cxSrc){ 
+				draw(pGrp,cache,x,y);
+			} 
+			gdip.DeleteCachedBitmap(cache)
+			owner.resetClip();
+			return owner;
+		};
+		drawBitmapRepeatY = function( bmp,rc,t,r,b,l){ 
+			var pBmp = bmp[["pBitmap"]];
+			if( !pBmp ) error("参数@1类型错误",2); 
+			var pGrp = owner[["pGraphics"]];
+			
+			var e,cache = gdip.CreateCachedBitmap(pBmp,pGrp);
+			if( e ) return null,gdip.errMsg[e];
+			 
+			var cxSrc,cySrc = bmp.width,bmp.height; 
+			if(r) { rc.right = rc.right - r; rc.left = rc.right - cxSrc; }
+			else if(l) rc.left =  rc.left + l;
+			if(b) { rc.bottom = rc.bottom - b; }
+			if(t) rc.top = rc.top + t;
+						
+			var cx,cy = rc.right - rc.left,rc.bottom-rc.top; 
+			//
+			owner.setClipRect(rc.left,rc.top,cx,cy,1/*_GdipCombineModeIntersect*/)
+			var draw = gdip.DrawCachedBitmap;
+			
+			var x = rc.left;
+			for(y=rc.top;rc.bottom;cySrc){  
+				draw(pGrp,cache,x,y);
+			}
+			gdip.DeleteCachedBitmap(cache)
+			owner.resetClip();
+			return owner;
+		};
+		drawImagePoint= function( bmp,rc,x=0,y=0,imgAttr,dpiScaleX,dpiScaleY){
+			var pGrp = owner[["pGraphics"]];
+			var pBmp = bmp[["pImage"]];
+			if( !pBmp ) error("参数@1类型错误",2); 
+			var cxSrc = bmp.origWidth;
+			var cySrc = bmp.origHeight;
+			if(dpiScaleX && dpiScaleY){
+				cxSrc = cxSrc * dpiScaleX;
+				cySrc = cySrc * dpiScaleY;
+			}
+			
+			var width = rc.right - rc.left;
+			var height = rc.bottom - rc.top;
+			if( x <= 1 ){ if( x > 0 ) { x = ( width - cxSrc ) * x } elseif(x<0) { x = ( width - cxSrc ) +x } };
+			if( y <= 1 ){ if( y > 0 ){ y = ( height - cySrc ) * y } elseif(y<0) { y = ( height - cySrc ) + y  } };
+
+			gdip.DrawImageRectRect(pGrp,pBmp,rc.left+x,rc.top+y,cxSrc,cySrc,0,0,bmp.origWidth,bmp.origHeight,2/*UnitPixel*/,imgAttr);
+			return owner;
+		}
+		drawImageExpand = function(img,rc,t,r,b,l,imgAttr){
+			var pGrp = owner[["pGraphics"]];
+			var pImg = img[["pImage"]]; if(!pImg) error("参数@1类型错误",2) 
+			var left,top,right,bottom = rc.left,rc.top,rc.right,rc.bottom;  
+			var width = right - left;
+			var height = bottom - top; 
+			var cxSrc = img.width;
+			var cySrc = img.height; 
+			
+			if( r + t + b + l == 0 ){
+				gdip.DrawImageRectRect(pGrp,pImg, left, top, width, height,0,0,cxSrc,cySrc,2/*UnitPixel*/,imgAttr);
+				return owner;
+			}
+			
+			var mCySrc = cySrc-t-b;
+			var mCxSrc = cxSrc-l-r;
+			var mCy = height-t-b;
+			var mCx = width-l-r;
+			
+			var stretch = gdip.DrawImageRectRect; 
+			stretch(pGrp, pImg ,left,top,l,t,0,0,l,t,2/*UnitPixel*/,imgAttr);
+			stretch(pGrp, pImg ,left,bottom-b,l,b,0,cySrc-b,l,b,2/*UnitPixel*/,imgAttr); 
+			stretch(pGrp, pImg ,right - r,top,r,t,cxSrc - r,0,r,t,2/*UnitPixel*/); 
+			stretch(pGrp, pImg ,right - r,bottom-b,r,b,cxSrc - r,cySrc-b,r,b,2/*UnitPixel*/,imgAttr); 
+			stretch(pGrp, pImg ,left + l ,top, mCx,t,l,0,mCxSrc,t,2/*UnitPixel*/,imgAttr); 
+			stretch(pGrp, pImg ,left + l ,bottom-b, mCx,b,l,cySrc-b,mCxSrc,b,2/*UnitPixel*/,imgAttr); 
+			stretch(pGrp, pImg ,left,top+t,l,mCy,0,t,l,mCySrc,2/*UnitPixel*/,imgAttr); 
+			stretch(pGrp, pImg ,right-r,top+t,r,mCy,cxSrc-r,t,r,mCySrc,2/*UnitPixel*/,imgAttr); 
+			stretch(pGrp, pImg ,left + l,top+t,mCx,mCy,l,t,mCxSrc,mCySrc,2/*UnitPixel*/,imgAttr);
+			return owner;
+		};
+		drawBackground = function(img,mode,rc,t,r,b,l,imgAttr,dpiScaleX,dpiScaleY){
+			if(!img[["pImage"]]) error("参数@1类型错误",2)  
+ 
+			select ( mode ) { 
+				case "expand" { 
+					owner.drawImageExpand(img,rc,t,r,b,l,imgAttr);
+				}
+				case "scale" { 
+					owner.drawImageScale(img,rc,imgAttr);
+				}
+				case "stretch" {
+					owner.drawImageStretch(img,rc,imgAttr);
+				}
+				case "center" {
+					owner.drawImageCenter(img,rc,imgAttr,dpiScaleX,dpiScaleY);
+				}
+				case "tile" {
+					owner.drawBitmapTile(img,rc);
+				}  
+				case "repeat-x" { 
+					owner.drawBitmapRepeatX(img,rc,t,r,b,l);
+				}
+				case "repeat-y" {
+					owner.drawBitmapRepeatY(img,rc,t,r,b,l);
+				} 
+				else {
+					owner.drawImageStretch(img,rc,imgAttr);
+				}
+			} 
+			return owner; 
+		}; 
+		createCachedBitmap = function(bmp){
+			var e,cache = gdip.CreateCachedBitmap(bmp[["pBitmap"]],owner[["pGraphics"]]);
+			if( e ) return null,gdip.errMsg[e];
+			return cache;
+		};
+		drawCachedBitmap = function(cache,x=0,y=0){ 
+			var e,cache = gdip.DrawCachedBitmap(owner[["pGraphics"]],cache,x,y);
+			if( e ) return null,gdip.errMsg[e];
+			return true;
+		};
+		deleteCachedBitmap = function(cache){ 
+			var e,cache = gdip.DeleteCachedBitmap(cache);
+			if( e ) return null,gdip.errMsg[e];
+			return true;
+		};
+		fastDrawBitmap = function(bmp,x=0,y=0){
+			var pGrp = owner[["pGraphics"]]
+			var pBmp = bmp[["pBitmap"]]; 
+			if(!pBmp) error("位图参数@1类型错误",2);
+			var e,cache = gdip.CreateCachedBitmap(pBmp,pGrp);
+			if( e ) return null,gdip.errMsg[e];
+			gdip.DrawCachedBitmap(pGrp,cache,x,y);
+			gdip.DeleteCachedBitmap(cache);
+			return owner;
+		}; 
+		drawCurve = function(pen,...){
+			var points = {...}
+			gdip.assert2( gdip.DrawCurve(owner[["pGraphics"]], pen ,{ float points[] = points },#points/2,0.5 ) ); 
+			return owner;
+		};
+		drawCurve2 = function(pen,tension,...){
+			var points = #(...) ? ... : {...}
+			gdip.assert2( gdip.DrawCurve(owner[["pGraphics"]], pen ,{ struct points[] = points },#points,tension ) ); 
+			return owner;
+		};
+		save = function(){
+			owner.lastSaveState = gdip.assert2( gdip.SaveGraphics(owner[["pGraphics"]], 0) ); 
+			return owner.lastSaveState;
+		};
+		restore = function( state ){
+			gdip.assert2( gdip.RestoreGraphics(owner[["pGraphics"]], state : owner.lastSaveState  ) );
+			return owner;
+		};
+		getDc = function(){
+			var e,hdc = gdip.GetDC( owner[["pGraphics"]] );
+			if( e ) return null,gdip.errMsg[e];
+			return hdc;
+		}; 
+		releaseDc = function(hdc){
+			gdip.assert2( ::Gdiplus.GdipReleaseDC(owner[["pGraphics"]],hdc) );
+			return true;
+		};
+		pageUnit = {
+			_get = function(){ 
+				var m = {int v}
+				gdip.assert2( ::Gdiplus.GdipGetPageUnit(owner[["pGraphics"]], m) ); 
+				return m.v;
+			} 
+			_set = function(v){ 
+				gdip.assert2( ::Gdiplus.GdipSetPageUnit(owner[["pGraphics"]], v) ); 
+			}  	
+		};
+		getDpi = function(){
+			var pGrp = owner[["pGraphics"]] ;
+			var e,x = gdip.GetDpiX(pGrp,0);
+			var e,y = gdip.GetDpiX(pGrp,0);
+			return x,y;
+		};
+		setInterpolationMode = function(v){
+			//废弃函数
+			gdip.assert2( ::Gdiplus.GdipSetInterpolationMode(owner[["pGraphics"]], v) );
+			return owner;
+		};
+		delete = function(){
+			if( owner[["pGraphics"]] ){
+				::Gdiplus.GdipDeleteGraphics(owner[["pGraphics"]])
+				owner[["pGraphics"]] = null;
+			}
+		};  
+		_topointer = function(){
+			return owner[["pGraphics"]];
+		} ;
+	)   
+} 
+
+var $ = _dll; 
+self.GetDC = $.api("GdipGetDC","int(PTR grph,pointer& hDC)")
+CreateFromHDC = $.api("GdipCreateFromHDC","int(POINTER hDc,ptr& grph)")
+CreateFromHWND = $.api("GdipCreateFromHWND","int(addr hwnd,ptr& grph)")
+GetImageGraphicsContext = $.api("GdipGetImageGraphicsContext","int(PTR img,ptr& grph)")
+DrawLine = $.api("GdipDrawLine","int(PTR grph,pointer pen,float x1,float y1,float x2,float y2)") 
+DrawRectangle = $.api("GdipDrawRectangle","int(PTR grph,pointer pen,float x,float y,float Width,float Height)")
+SetClipRect = $.api("GdipSetClipRect","int(PTR grph,float x,float y,float Width,float Height,int CombineMd)")
+SetClipPath = $.api("GdipSetClipPath","int(PTR grph,pointer Path,int CombineMd)") 
+SaveGraphics = $.api("GdipSaveGraphics","int(PTR grph,int& state)")
+RestoreGraphics = $.api("GdipRestoreGraphics","int(PTR grph,int state)")
+FillRectangle = $.api("GdipFillRectangle","int(PTR grph,pointer Brush,float x,float y,float Width,float Height)")
+FillEllipse = $.api("GdipFillEllipse","int(PTR grph,pointer Brush,float x,float y,float Width,float Height)")
+DrawEllipse = $.api("GdipDrawEllipse","int(PTR grph,pointer Pen,float x,float y,float Width,float Height)")
+FillPie = $.api("GdipFillPie","int(PTR grph,pointer Brush,float x,float y,float Width,float Height,float startAngle,float sweepAngle)")
+DrawPie = $.api("GdipDrawPie","int(PTR grph,pointer Pen,float x,float y,float Width,float Height,float startAngle,float sweepAngle)")
+DrawArc = $.api("GdipDrawArc","int(PTR grph,pointer Pen,float x,float y,float Width,float Height,float startAngle,float sweepAgle)")
+DrawBezier = $.api("GdipDrawBezier","int(PTR grph,pointer pen,float x1,float y1,float x2,float y2,float x3,float y3,float x4,float y4)")
+DrawCurve = $.api("GdipDrawCurve2","int(PTR grph,pointer pen,struct points,int count,float tension)")
+DrawImage = $.api("GdipDrawImage","int(PTR grph,pointer img,float x,float y)")
+DrawImagePointRect = $.api("GdipDrawImagePointRect","int(PTR grph,pointer img,float x,float y,float srcx,float srcy,float srcwidth,float srcheight,int srcUnit)")
+DrawImageRectRect = $.api("GdipDrawImageRectRect","int(PTR grph,pointer img,float dstX,float dstY,float dstWidth,float dstHeight,float srcx,float srcy,float srcwidth,float srcheight,int srcUnit,pointer imgattr ,pointer callback,pointer callbackData )")
+CreateCachedBitmap = $.api("GdipCreateCachedBitmap","int(POINTER Bitmap,pointer Graphics,pointer& cacheBmp)")
+DeleteCachedBitmap = $.api("GdipDeleteCachedBitmap","int(POINTER cacheBmp)")
+DrawCachedBitmap = $.api("GdipDrawCachedBitmap","int(PTR grph,PTR cacheBmp,int x,int y)")
+MeasureString = $.api("GdipMeasureString","int(PTR grph,ustring str,int len,pointer thefont,struct layoutRect,ptr strFmt,struct& boundingBox,int& codepoints,int& lines)")
+DrawString = $.api("GdipDrawString","int(PTR grph,ustring str,int len,pointer thefont,struct layoutRect,ptr strFmt,pointer Brush)")
+DrawPath = $.api("GdipDrawPath","int(PTR grph,pointer pen,pointer Path)")
+RotateWorldTransform = $.api("GdipRotateWorldTransform","int(PTR grph,float angle,int order)")
+TranslateWorldTransform = $.api("GdipTranslateWorldTransform","int(PTR grph,float dx,float dy,int order)")
+ScaleWorldTransform = $.api("GdipScaleWorldTransform","int(PTR grph,float sx,float sy,int order)")
+GetDpiX = $.api("GdipGetDpiX","int(PTR grph,float& dpi)")
+GetDpiY = $.api("GdipGetDpiY","int(PTR grph,float& dpi)")
+
+/**intellisense() 
+gdip.graphics.fromHwnd() = 使用指定的窗口创建画板
+gdip.graphics.fromImage() = 使用gdip.image对象创建画板
+gdip.graphics(.(hdc) =  使用GDI设备句柄创建画板
+gdip.graphics(.(winform) = 使用窗口或控件对象创建画板
+gdip.graphics(.(image) = 使用gdip.image对象创建画板
+gdip.graphics(.(bitmap) = 使用gdip.bitmap对象创建画板
+graphics = 该变量名仅适用于表示gdip.graphics对象\n!gdipgraphics.
+!gdipgraphics.pageUnit = @.pageUnit = _GdipUnit__/*页面单位,例如打印时指定_UnitPixel则使用像素作为单位*/ ;
+!gdipgraphics.compositingQuality = @.compositingQuality = _GdipCompositingQuality__/*合成图像质量*/ ;
+!gdipgraphics.compositingMode = @.compositingMode = _GdipCompositingMode__/*合成图像模式,SourceCopy为覆盖,SourceOver为叠加\n*/ ;
+!gdipgraphics.interpolationMode = @.interpolationMode = _GdipInterpolationMode__/*放大缩小时使用的插值模式*/ ;
+!gdipgraphics.pixelOffsetMode = @.pixelOffsetMode = _GdipPixelOffsetMode__/*像素偏移模式*/;
+!gdipgraphics.smoothingMode = @.smoothingMode = _GdipSmoothingMode__/*平滑模式,可用于抗锯齿, 文本抗锯齿请使用textRenderingHint*/;
+!gdipgraphics.textRenderingHint = @.textRenderingHint = _GdipTextRenderingHint__/*文本的呈现模式,可用于抗锯齿*/;
+!gdipgraphics.width = 宽度
+!gdipgraphics._image = 创建画板时使用的gdip.image对象\n!gdipimage.
+!gdipgraphics._hwnd = 创建画板时使用的句柄
+!gdipgraphics._bitmap = 创建画板时使用的gdip.bitmap对象\n!gdipbitmap.
+!gdipgraphics._hdc = 创建画板时使用的设备上下文 
+gdip.graphics() = !gdipgraphics.
+gdip.graphics.fromHwnd() = !gdipgraphics.
+gdip.graphics.fromImage() = !gdipgraphics.
+!gdipgraphics.getDpi() = 返回设备DPI\n默认为96,96
+!gdipgraphics.restore(__/*状态索引*) = 恢复到指定状态,\n状态索引值由save()函数的返回值获得\n不指定参数则撤消最近一次存储状态
+!gdipgraphics.save() = 存储状态,并返回状态索引( 可作为restore()函数的参数 )
+!gdipgraphics.delete() = 释放图像\n此对象支持自动释放,不必手工调用此函数\n!gdipgraphics.
+!gdipgraphics.setClipPath(.(路径对象,选项 = 设置剪切路径\n选项默认为 _GdipCombineModeReplace
+!gdipgraphics.resetClip() = 取消剪辑 \n!gdipgraphics.
+!gdipgraphics.rotate() = !gdipgraphics.
+!gdipgraphics.scale() = !gdipgraphics.
+!gdipgraphics.scaleRect() = !gdipgraphics.
+!gdipgraphics.translate() = !gdipgraphics.
+!gdipgraphics.setClipRect() = !gdipgraphics.
+!gdipgraphics.setClipPath() = !gdipgraphics.
+!gdipgraphics.drawImage() = !gdipgraphics.
+!gdipgraphics.drawImageWithDpi() = !gdipgraphics.
+!gdipgraphics.drawImageRect() = !gdipgraphics.
+!gdipgraphics.drawImageRectRect() = !gdipgraphics.
+!gdipgraphics.drawImagePointRect() = !gdipgraphics.
+!gdipgraphics.drawImageScale() = !gdipgraphics.
+!gdipgraphics.drawImageStretch() = !gdipgraphics.
+!gdipgraphics.drawImageCenter() = !gdipgraphics.
+!gdipgraphics.drawBitmapTile() = !gdipgraphics.
+!gdipgraphics.drawImagePoint() = !gdipgraphics.
+!gdipgraphics.drawImageExpand() = !gdipgraphics.
+!gdipgraphics.drawBitmapRepeatY() = !gdipgraphics.
+!gdipgraphics.drawBitmapRepeatX() = !gdipgraphics.
+!gdipgraphics.clear() = !gdipgraphics.
+!gdipgraphics.fillPath() = !gdipgraphics.
+!gdipgraphics.drawPath() = !gdipgraphics. 
+!gdipgraphics.drawString() = !gdipgraphics.
+!gdipgraphics.drawLine() = !gdipgraphics.
+!gdipgraphics.measureString() = !rectf.
+!gdipgraphics.drawRectangle() = !gdipgraphics.
+!gdipgraphics.fillRectangle() = !gdipgraphics.
+!gdipgraphics.fillEllipse() = !gdipgraphics.
+!gdipgraphics.drawEllipse() = !gdipgraphics.
+!gdipgraphics.fillPie() = !gdipgraphics.
+!gdipgraphics.drawPie() = !gdipgraphics.
+!gdipgraphics.drawArc() = !gdipgraphics.
+!gdipgraphics.drawBackground() = !gdipgraphics.
+!gdipgraphics.fastDrawBitmap() = !gdipgraphics.
+!gdipgraphics.createCachedBitmap(.(位图对象) = 创建缓存位图
+!gdipgraphics.drawCachedBitmap(.(缓存位图,x,y) = 输出缓存位图
+!gdipgraphics.deleteCachedBitmap(.(缓存位图) = 删除缓存位图
+!gdipgraphics.fastDrawBitmap(.(位图对象,x,y) = 快速绘图\nx,y为可选参数,默认为0\n返回自身
+!gdipgraphics.rotateRect( = 旋转画布
+!gdipgraphics.rotateRect(.(rc,angle,order) =  以rc指定的区块中点为参考点旋转画布,\nangle为旋转角度\n参数@3可省略,选项默认为 _GdipMatrixOrderPrepend
+!gdipgraphics.rotate( = 旋转画布
+!gdipgraphics.rotate(.(旋转角度,选项) = 以左上角坐标为参考点旋转画布\n参数@2可省略,选项默认为 _GdipMatrixOrderPrepend
+!gdipgraphics.scale( = 缩放画布
+!gdipgraphics.scale(.(宽度缩放比例,高度缩放比例,选项) = 缩放画布\n参数@3可省略,默认为 _GdipMatrixOrderPrepend
+!gdipgraphics.scaleRect( = 居中缩放画布
+!gdipgraphics.scaleRect(.(区块,宽度缩放比例,高度缩放比例,选项) = 在参数@1中使用::RECT结构体指定区块，并以该区块的中点为中心缩放画布\n参数@3可省略,默认为 _GdipMatrixOrderPrepend
+!gdipgraphics.translate( = 水平偏移画布
+!gdipgraphics.translate(.(水平偏移像素,垂直偏移像素,选项) = 平移画布\n参数@3可省略,默认为 _GdipMatrixOrderPrepend
+!gdipgraphics.resetTransform() = 重置所有画布变换\n用于恢复scale,rotate,translate等画布变换效果,\n!gdipgraphics.
+!gdipgraphics.transform() = !gdipgraphics.
+!gdipgraphics.transform(.(变换模式,图像,RECT区块,x,y) = 变换画布\n变换以后必须假定画布左上角坐标为0,画布大小为图像大小,\n变换模式为字符串参数,支持point,stretch,center,scale,含义与plus控件相同\n模式为"expand"时转换为"stretch",传入其他模式忽略并返回null，\n否则执行变换并返回画布对像自身,\n\n如果指定了point模式,必须同时指定x,y参数,用法与plus控件相同
+!gdipgraphics.setClipRect(.(左,上,宽,高,选项) = 设置一块剪辑区域，用于限制绘图范围\n选项使用_GdipCombineMode__前缀的常量指定
+!gdipgraphics.drawImage(.(图像,左,上,显示属性) = 绘图\n可使使用参数@2,参数@3指定输出坐标\n可选使用参数@4指定gdip.imageAttributes对象设置显示属性,\n注意此函数忽略原图DPI
+!gdipgraphics.drawImageWithDpi(.(图像,左,上) = 绘图\n可使使用参数@2,参数@3指定输出坐标\n注意该函数会受PNG,JPG的DPI设置影响输出大小
+!gdipgraphics.drawImageRect(.(图像,左,上,宽,高,显示属性) = 画图\n参数@2,@3,@4,@5指定目标区块,\n可选使用参数@6指定gdip.imageAttributes对象设置显示属性
+!gdipgraphics.drawImageRectRect(.(图像,输出左,输出上,输出宽,输出高,左,上,宽,高,显示属性) = 将图像的指定区块输出到指定区块\n参数@2,@3,@4,@5指定目标区块,\n参数@6,@7,@8,@9指定图像区块,\n可选使用参数@10指定gdip.imageAttributes对象设置显示属性
+!gdipgraphics.drawImagePointRect(.(图像, 输出左,输出上,左,上,宽,高) = 将图像的指定区块输出到指定坐标\n注意该函数会受PNG,JPG的DPI设置影响输出大小
+!gdipgraphics.drawImageScale(.(图像,RECT区块,显示属性) = 绘图\n保持比例缩放到合适大小\n可选使用参数@3指定gdip.imageAttributes对象设置显示属性
+!gdipgraphics.drawImageStretch(.(图像,RECT区块,显示属性) = 绘图\n拉伸图片到区块大小\n可选使用参数@3指定gdip.imageAttributes对象设置显示属性
+!gdipgraphics.drawImageCenter(.(图像,RECT区块,显示属性) = 绘图\n保持图片大小并绝对居中显示\n可选使用参数@3指定gdip.imageAttributes对象设置显示属性
+!gdipgraphics.drawBitmapTile(.(图像,RECT区块) = 绘图\n重复平铺显示\n注意该函数会在执行时设置裁剪区域\n执行完重置裁剪区域
+!gdipgraphics.drawImagePoint(.(图像,RECT区块,x,y) = 绘图\nx,y指定偏移坐标\n如果为0到1之间的值则为剩余空间百分比\n如果为负数则为右下角坐标
+!gdipgraphics.drawBitmapRepeatY(.(图像,绘图RECT,上,右,下,左) = 垂直平铺\n参数@1 为gdip.bitmap对象\n最后的四个参数指定坐标\n如果指定了右坐标则忽略左坐标,\n如果指定了下坐标则忽略上坐标
+!gdipgraphics.drawBitmapRepeatX(.(图像,绘图RECT,上,右,下,左) = 水平平铺\n参数@1 为gdip.bitmap对象\n最后的四个参数指定坐标\n如果指定了右坐标则忽略左坐标,\n如果指定了下坐标则忽略上坐标
+!gdipgraphics.drawImageExpand( = 九宫格绘图,九宫格切图后边角四格固定,中间五格拉伸\n该函数不会严格检查参数、并忽略执行错误,调用该函数前必须保证参数正确
+!gdipgraphics.drawImageExpand(.(图像,绘图RECT,上,右,下,左,显示属性) = 参数@1为gdip.image或gdip.bitmap对象\n参数@2使用::RECT结构体指定目标区块,\n参数@3,@4,@5,@6指定九宫格切图坐标\n可选使用参数@7指定gdip.imageAttributes对象设置显示属性
+!gdipgraphics.drawBackground( = 画背景图
+!gdipgraphics.drawBackground(.(位图对象,模式,绘图RECT,上,右,下,左) = 支持模式expand,stretch,center,scale,tile,repeat-x,repeat-y\n该函数不检查参数正确性,调用者有责任保证参数正确\n可选使用参数@8指定gdip.imageAttributes对象设置显示属性\ntile,repeat-x,repeat-y三种模式忽略显示属性,\n函数返回自身
+!gdipgraphics.drawCurve(.(画笔,任意个坐标数值参数) = 画曲线\n可添加任意个成对的数值参数指定曲线经过的坐标点
+!gdipgraphics.drawCurve2(.(画笔,曲线强度,任意个坐标参数) =  画曲线\n曲线强度为0画出来的就是直线，设为0.5则相当于调用drawCurve画出来的弯曲程度,\n参数@3开始可添加2个以上的::POINTF结构体参数指定曲线经过的坐标点，也可以在参数@3里用一个 ::POINTF 结构体数组替代\n\n注意drawCurve的参数是多个数值,而drawCurve2的参数是多个 ::POINTF 结构体,\n而且要注意是::POINTF，不是::POINT
+!gdipgraphics.clear(0xFFFFFFFF__) = 用指定的颜色清空画板 
+!gdipgraphics.fillPath(.(brush,path) = 填充路径  \nbrush为画刷对象,path为gdip.path路径对象
+!gdipgraphics.fillPolygon( = 画多边形
+!gdipgraphics.fillPolygon(.(brush,fillMode,->->->) = 画多边形\nbrush为画刷对象,fillMode使用_gdipFillMode前缀的常量指定,可省略\n可使用一个数组，或多个参数指定多个绘图时经过的::POINTF坐标对象
+!gdipgraphics.fillPolygon() = !gdipgraphics.
+!gdipgraphics.drawPath(.(pen,path) = 画路径 
+!gdipgraphics.measureString(.(str, thefont, layoutRect,stringFormat,brush) = 计算输出文本区块\n返回boundingBox,codepointsFitted,linesFilled 
+!gdipgraphics.drawString(.(str,font,rectf,format,brush) = 输出文本\nstr 参数为要输出的文本\nfont参数为 gdip.font字体对象,\nrectf 为RECTF结构体,也可以通过RECT结构体的float函数转换而得,\nformat 为gdip.stringformat对象,用于指定输出格式,\nbrush为 gdip.solidBrush创建的画刷对象
+!gdipgraphics.drawLine(.(pen,x1,y1,x2,y2) = 画线
+!gdipgraphics.drawRectangle(.(pen,x1,y1,width,height) = 画方块
+!gdipgraphics.fillRectangle(.(brush,x1,y1,width,height) = 填充方块 
+!gdipgraphics.drawBezier(.(pen,x1,y1,x2,y2,x3,y3,x4,y4) = 画贝塞尔曲线\n4个坐标点分别为：起始锚点，起始控制点，结束锚点，结束控制点
+!gdipgraphics.drawArc(.(pen,x,y,width,height,startAngle,sweepAngle) = 画圆弧\nx,y指定椭圆所在矩形的左上角,width指定宽度,height指定高度,\nstartAngle:起始角度,以度为单位从X轴顺时针测量,水平线右侧为0度,\nsweepAngle:startAngle和弧线末尾之间的扫描角度
+!gdipgraphics.drawPie(.(pen,x,y,width,height,startAngle,sweepAngle) = 画扇形、或椭圆\nstartAngle:起始角度,以度为单位从X轴顺时针测量,水平线右侧为0度,\nsweepAngle:startAngle和弧线末尾之间的扫描角度
+!gdipgraphics.fillPie(.(brush,x,y,width,height,startAngle,sweepAngle) = 填充扇形、或椭圆\nstartAngle:起始角度,以度为单位从X轴顺时针测量,水平线右侧为0度,\nsweepAngle:startAngle和弧线末尾之间的扫描角度
+!gdipgraphics.drawEllipse(.(pen,x,y,width,height) = 画圆形、或椭圆 \nx,y指定椭圆所在矩形的左上角,width指定宽度,height指定高度
+!gdipgraphics.fillEllipse(.(brush,x,y,width,height) = 填充圆形、或椭圆\nx,y指定椭圆所在矩形的左上角,width指定宽度,height指定高度
+!gdipgraphics.getDc() = 返回GDI兼容设备句柄\n注意返回的句柄一定要调用releaseDc函数释放
+!gdipgraphics.releaseDc(__/*hdc*/) = 释放GDI兼容设备句柄
+end intellisense**/

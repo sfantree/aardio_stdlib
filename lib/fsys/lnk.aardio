@@ -1,0 +1,435 @@
+//lnk 快捷方式
+import fsys; 
+import fsys.version;
+import util.metaProperty;
+import com.interface.IShellLink;
+import inet.url;
+import string.res;
+
+namespace fsys;
+ 
+class lnk {
+	ctor(){
+		this.$shellLink = ..com.interface.create("{00021401-0000-0000-C000-000000000046}",..com.interface.IShellLink );
+		this.$persistFile = this.$shellLink.QueryInterface(..com.interface.IPersistFile)  
+		this.$defaultExt = ".lnk";
+	};
+	@_metaProperty;
+} 
+
+lnk._metaProperty = ..util.metaProperty(
+
+	load = function(path){
+		if( !path ) error("请指定快捷方式文件路径",2);
+
+		var hr = owner.$persistFile.Load( ..io.fullpath( path ) ,0);
+		if( (hr)<0/*FAILED*/ )
+			return false,..lasterr(hr);
+
+		owner.filename = ..io.splitpath(path).file;
+		owner.filepath = path;
+		return owner;
+	};
+	save = function(path){
+		
+		if( !#path ) {
+			path = owner.filepath;
+			if( !#path ) error("请指定存储路径",2);
+		};
+		
+		if( ..fsys.isDir(path) ){
+			var filename = owner.filename;
+			if( !#filename ) error("未指定快捷方式存储文件名或目标路径",2);
+			path = ..fsys.joinpath(path,filename);
+		}
+		
+		var hr = owner.$persistFile.Save( ..io.fullpath(path) ,true);
+		if( (hr)<0/*FAILED*/ ) return false,..lasterr(hr);
+		
+		owner.filepath = path;
+		return true;
+	};
+ 	getIcon = function(){
+		var hr,location,index = owner.$shellLink.GetIconLocation(1024*2,1024,0);
+		if( (hr)<0/*FAILED*/ )
+			return false,..lasterr(hr); 
+		return location,index;
+	};  
+	setIcon = function(location,index){
+		if( ..io.localpath(location) ) target = ..io.fullpath(location);
+		var hr = owner.$shellLink.SetIconLocation(location,index : 0);
+		if( (hr)<0/*FAILED*/ )
+			return false,..lasterr(hr); 
+		return true;
+	};
+	resolve = function(hwnd,flags){
+		var hr = owner.$shellLink.Resolve(hwnd:0,flags : 0);
+		if( (hr)<0/*FAILED*/ )
+			return false,..lasterr(hr); 
+		return true
+	};
+	description = {
+		_get = function(){ 
+			var hr,value =  owner.$shellLink.GetDescription(256*2, 256);
+			if( (hr)>=0/*SUCCEEDED*/)
+				return value;
+		}
+		_set = function( value ){
+			owner.$shellLink.SetDescription(value);
+		} 	
+	};
+	arguments = {
+		_get = function(){ 
+			var hr,value =  owner.$shellLink.GetArguments(256*2, 256);
+			if( (hr)>=0/*SUCCEEDED*/)
+				return value;
+		}
+		_set = function( value ){
+			owner.$shellLink.SetArguments(value);
+		} 	
+	};
+	path = {
+		_get = function(){ 
+			var hr,value =  owner.$shellLink.GetPath(1024*2, 1024, {}, 0x2/*_SLGP_UNCPRIORITY*/);
+			if( (hr)>=0/*SUCCEEDED*/) return #value ? value : owner[["(urlpath)"]];
+			
+		}
+		_set = function( target ){
+			owner[["(urlpath)"]] = null;
+			if( #target ){
+				if( ..io.exist(target) ){
+					if( ..io.localpath(target) ) target = ..io.fullpath(target);
+					
+					if( !# owner.workDir ){
+						owner.$shellLink.SetWorkingDirectory( ..io.splitpath(target).dir );
+					}
+					
+					if( !# owner.description ){
+						var vesionInfo = ..fsys.version.getInfo( target );
+						if( vesionInfo ){
+							owner.description = vesionInfo.fileDescription;
+						};
+					}
+				}
+				elseif( ..inet.url.is(target,0x0/*_URLIS_URL*/) ){
+					owner[["(urlpath)"]] = target;
+				}
+			}
+			owner.$shellLink.SetPath(target);
+		} 	
+	};
+	
+	filename = {
+		_get = function(){
+			var path = owner.path;
+			if( !#path ) return;
+			
+			if( ..inet.url.is(path,0x0/*_URLIS_URL*/ ) ){
+				var turl = ..inet.url.split(path);
+				if( turl.path = "" || turl.path = "/" ) return ..string.concat( turl.host,owner.$defaultExt);
+				return ..string.concat( ..io.splitpath( ..string.trimright(turl.path,"/") ).name || turl.host,owner.$defaultExt);
+			}
+			
+			var vesionInfo = ..fsys.version.getInfo( path );
+			var productName = ..fsys.path.validName(vesionInfo.productName);
+			
+			if( (!vesionInfo) || (!#productName) ) 
+				return ..io.splitpath(path).name + owner.$defaultExt;
+				
+			return productName ++ owner.$defaultExt; 
+		}
+		_set = function( value ){ 
+			if( value ){
+				if( !..string.endWith(value,owner.$defaultExt,true) ) 
+					value = value + owner.$defaultExt;
+			}
+			owner[["filename"]] = value;
+		}
+	};
+	
+	workDir = {
+		_get = function(){ 
+			var hr,value =  owner.$shellLink.GetWorkingDirectory(1024*2, 1024);
+			if( (hr)>=0/*SUCCEEDED*/)
+				return value;
+		}
+		_set = function( value ){
+			owner.$shellLink.SetWorkingDirectory(value);
+		} 	
+	};
+ 
+	hotkey = {
+		_get = function(){ 
+			var hr,value =  owner.$shellLink.GetHotkey(0);
+			if( (hr)>=0/*SUCCEEDED*/)
+				return value;
+		}
+		_set = function( value ){
+			owner.$shellLink.SetHotkey(value);
+		} 	
+	};
+	
+	showCmd = {
+		_get = function(){ 
+			var hr,value =  owner.$shellLink.GetShowCmd(0);
+			if( (hr)>=0/*SUCCEEDED*/)
+				return value;
+		}
+		_set = function( value ){
+			owner.$shellLink.SetShowCmd(value);
+		} 	
+	};
+	pinToDesktop = function( pin,allUsers ){
+		var filename = owner.filename;
+		if( !#filename ) error("未指定快捷方式存储文件名或目标路径",2); 
+		
+	 	var commonPath = ..fsys.getSpecial( 0x19 /*_CSIDL_COMMON_DESKTOPDIRECTORY*/, filename );
+		var userPath = ..fsys.getSpecial( 0 /*_CSIDL_DESKTOP*/, filename ) 
+		  
+		if( pin ){
+			if( allUsers && commonPath ) {
+				if(userPath) ..fsys.delete( userPath );
+				return owner.save( commonPath );
+			}
+			else{ 
+				if(commonPath) ..fsys.delete( commonPath );
+				return owner.save( userPath );
+			}
+		}
+		else { 
+			if(commonPath) ..fsys.delete( commonPath );
+			if(userPath) ..fsys.delete( userPath );
+			
+			return ! ..io.exist( commonPath );
+		}
+	};
+	pinToPrograms = function( pin,sudir,allUsers ){
+		var filename = owner.filename;
+		if( !#filename ) error("未指定快捷方式存储文件名或目标路径",2); 
+
+		var commonPath = ..fsys.getSpecial( 0x17 /*_CSIDL_COMMON_PROGRAMS*/,sudir ); 
+		var userPath = ..fsys.getSpecial( 0x2 /*_CSIDL_PROGRAMS*/,sudir ); 
+		var userDelPath = #sudir ? userPath : ..fsys.joinpath(userPath,filename) 
+		var commonDelPath =  #sudir ? commonPath : ..fsys.joinpath(commonPath,filename) 
+		
+		if( pin ){
+			if( allUsers ) {
+				return owner.save( ..fsys.createDir( commonPath ) );
+			}
+			else{
+				return owner.save( ..fsys.createDir( userPath ) );
+			}
+		}
+		else {
+			..fsys.delete( commonDelPath );
+			..fsys.delete( userDelPath );
+			return ! ..io.exist( commonDelPath );
+		}
+	};
+	pinToTaskbar = function( pin ){
+		import process;
+		import win.version; 
+		if(  !#owner.filename ) error("未指定快捷方式存储文件名或目标路径",2); 
+    	
+    	var lnkpath = ..fsys.joinpath( 
+    		..fsys.getSpecial(0x1a /*_CSIDL_APPDATA*/) ,"\Microsoft\Internet Explorer\Quick Launch\" ,owner.filename 
+    	)	
+		if( ..win.version.isVistaLater ){
+			
+			if( ..win.version.isWin10Later ){
+				var tpath = ..io.splitpath(owner.path);
+				if(!tpath) return;
+				var shell = ..com.CreateObject("Shell.Application");
+				var target  = shell ? shell.NameSpace(tpath.dir).ParseName(tpath.file);   
+				if(target)target.InvokeVerb(pin?"taskbarpin":"taskbarunpin") 
+			}
+			else{ 
+				owner.save( lnkpath ); sleep(10); 
+    			..process.execute( lnkpath,,pin?"TaskbarPin":"TaskbarUnPin"); 
+    			..fsys.delete( lnkpath );
+    		}
+    	}
+    	else {
+    		if(  pin ) owner.save( lnkpath );
+    		else  ..fsys.delete( lnkpath );	
+    	} 
+	};
+	pinToStartMenu = function( pin ){
+		import process;
+		import win.version; 
+		if( !#owner.filename ) error("未指定快捷方式存储文件名或目标路径",2); 
+    	
+		if( ! ..win.version.isVistaLater ) {
+			return;
+		}
+		
+		if( ..win.version.isWin10Later ){
+		
+			var tpath = ..io.splitpath(owner.path);
+			if(!tpath) return;
+			
+			var shell = ..com.CreateObject("Shell.Application");
+			var target  = shell ? shell.NameSpace(tpath.dir).ParseName(tpath.file);   
+			if(!target)return; 
+			
+			var pinName = ..string.res( ::Shell32 ).load(pin ? 51201 : 51394 );
+			if(!pinName) return;
+			
+			for index,verb in ..com.each(target.verbs() ) { 
+				if( verb.name == pinName ){ verb.DoIt(); break;  } 
+			} 
+		}
+		else { 
+		
+			if( ..win.version.isWin8Later ){
+				return;
+			}
+    		
+    		var lnkpath = ..fsys.joinpath( 
+    			..fsys.getSpecial(0x1a /*_CSIDL_APPDATA*/) ,"\Microsoft\Internet Explorer\Quick Launch\" ,owner.filename 
+    		)	
+    		
+    		owner.save( lnkpath ); sleep(10);
+    		..process.execute( lnkpath,,pin?"startpin":"startunpin");
+    		..fsys.delete( lnkpath );	
+    	}
+	};
+	
+	free = function(){
+		if(owner.$shellLink){
+			..com.Release(owner.$persistFile);
+			..com.Release(owner.$shellLink);
+			owner.$persistFile = null;
+			owner.$shellLink = null;
+		} 
+	}
+)
+ 
+namespace lnk {
+
+	enum = function(proc,dirClsId,...){
+		var subloop = dirClsId = (0x17 /*_CSIDL_COMMON_PROGRAMS*/) || ( dirClsId == 2 /*_CSIDL_PROGRAMS*/);
+		
+		var lnk = ..fsys.lnk();
+		var dir = type(dirClsId) == type.number ? ..fsys.getSpecial(dirClsId,...) : dirClsId;
+		if(!dir) return;
+		
+    	..fsys.enum( dir , 
+            "*.lnk", 
+            function(dir,filename,fullpath){ 
+                if(filename){  
+                    var target = getMsiTarget(fullpath);
+                    if(!target){
+                    	 if( lnk.load( fullpath ) ){ 
+                    	 	target = lnk.path;
+                    	 } 
+                    } 
+                    
+                    if(target){  
+                    	return proc( dir,..string.lower(filename),fullpath, target) 
+                    } 
+                }    
+            },subloop 
+        )
+        
+        lnk.free();
+	}
+	  
+	searchLnk =function(pattern,label,dirClsId,...){
+    	pattern = pattern ? ..string.lower(pattern)  
+    	label = label ? ..string.lower(label);
+    	var retpath;
+    	enum( 
+            function(dir,filename,fullpath,target){ 
+                var targetLow  =  ..string.lower(target);
+                if( pattern && !..string.cmpMatch( ..io.splitpath(targetLow).file,pattern ) ) return ;
+                if( label && !..string.cmpMatch( filename,label ) ) return;
+                
+                retpath = target;
+                return false;   
+            },dirClsId,...
+        ); 
+   		return retpath;
+	}
+ 	
+	search = function(filename,label){ 
+		if( type(filename) == type.table ){
+			for(i=1;#filename;1){ 
+				var r = search(filename[i],label,dirtfq);
+				if( r ) return r;
+			} 
+			return;
+		}
+		
+		return ( filename ? ..fsys.searchFile(filename) )
+			|| searchLnk( filename,label, 0 /*_CSIDL_DESKTOP*/  )
+			|| searchLnk( filename,label, 2 /*_CSIDL_PROGRAMS*/ ) 
+			|| searchLnk( filename,label, 0x19 /*_CSIDL_COMMON_DESKTOPDIRECTORY*/  )
+			|| searchLnk( filename,label, 0x17 /*_CSIDL_COMMON_PROGRAMS*/ ) 
+			|| searchLnk( filename,label, 0x1a /*_CSIDL_APPDATA*/,"\Microsoft\Internet Explorer\Quick Launch\" )
+	}
+	
+	var msi = ..raw.loadDll("msi.dll");
+	getMsiTarget =  function(lnkPath){ 
+    	var product = ..raw.buffer(78);
+    	var component = ..raw.buffer(78);
+    	if (0 == msi.MsiGetShortcutTargetW(lnkPath,product,null,component)){
+	
+        	var target = ..raw.buffer(0x208/*_MAX_PATH_U16*/);
+        	var cchBuf = {INT value = #target/2 }
+        	var r = msi.MsiGetComponentPathW(product,component,target,cchBuf);
+        	if (r == 3/*INSTALLSTATE_LOCAL*/ || r == 4/*INSTALLSTATE_SOURCE*/){
+            	return ..string.fromUnicode(target,,-1);
+        	}
+    	}	
+	}
+	
+	getTarget = function(lnkPath){
+		var target  = getMsiTarget(lnkPath);
+		if(!target) {
+			var lnk = ..fsys.lnk();
+			lnk.load(lnkPath);
+
+			target = lnk.path;
+			lnk.free();
+		}
+		
+		return target;
+	}
+}
+
+/**intellisense(fsys.lnk) 
+searchLnk("文件名","快捷方式标题", 0 /*_CSIDL_DESKTOP*/) = 在桌面搜索快捷方式并返回路径\n参数@3可省略
+searchLnk("文件名","快捷方式标题", 2 /*_CSIDL_PROGRAMS*/) = 在程序目录搜索快捷方式并返回路径
+search(.("目标文件名","快捷方式标题") = 全部参数可选,至少输入一个参数\n参数@1也可以是指定多个文件名的数组,\n按下列顺序搜索文件: 桌面快捷方式、应用程序快捷方式\n查找支持模式匹配语法,忽略大小写\n快捷方式标题支持普通文本比较
+enum = @.enum( \n    function(dir,filename,fullpath,target){ \n        __/*return false 停止遍历*/  \n    },0/*_CSIDL_DESKTOP*/\n); 
+getMsiTarget(__/*lnk文件路径*/) = 获取MSI创建的Advertised快捷方式指向的实际目标路径
+getTarget(__/*lnk文件路径*/) = 获取快捷方式指向的目标路径,\n支持Advertised Shortcut
+end intellisense**/
+
+/**intellisense()
+!lnkfile.free() = 释放对象,\n释放对象以后不能再使用此对象
+!lnkfile.resolve(.(hwndParent,flags) = 如果目标路径移动或丢失,\n查找符合的目标,可能显示查找对话框
+!lnkfile.filepath = 快捷方式加载或保存成功的文件路径
+!lnkfile.filename = 快捷方式默认文件名,可省略后缀名,\n未指定则取版本信息中的产品名或目标文件名
+!lnkfile.description = 附加说明
+!lnkfile.arguments = 参数
+!lnkfile.path = 目标路径,设置该属性时:\n如果workDir为空则设workDir为目标路径所在目录\n如果description为空则设为版本信息中的文件描述
+!lnkfile.workDir = 工作目录
+!lnkfile.hotkey = 热键
+!lnkfile.showCmd = 显示参数
+!lnkfile.getIcon() = 返回图标文件路径,以及图标索引
+!lnkfile.setIcon(.(文件路径,图标索引) = 设置图标文件路径\n可以指定ico文件路径,也可指定EXE文件路径用于获取EXE图标\n图标索引可省略,默认为0
+!lnkfile.load(__/*lnk文件路径*/) = 载入快捷方式,返回fsys.lnk对象自身
+!lnkfile.load() = !lnkfile.
+!lnkfile.save(__/*lnk文件存储路径*/) = 保存快捷方式\n如果指定了filename或path属性,参数也可以指定存储目录
+!lnkfile.pinToStartMenu(true) = 快捷方式钉到开始菜单\n不支持的操作系统忽略不执行\n此函数无返回值
+!lnkfile.pinToTaskbar(true) = 锁定到任务栏\n此函数无返回值
+!lnkfile.pinToTaskbar(false) = 解除任务栏锁定\n此函数无返回值
+!lnkfile.pinToPrograms(.(true,"子目录路径") = 添加到开始菜单程序组\n可选指定子目录路径,参数@3如果为true则添加到所有用户程序组
+!lnkfile.pinToPrograms(.(false,"子目录路径") = 自开始菜单程序组移除\n可选指定多个子目录参数\n如果指定了子目录则直接移除快捷方式所在父目录
+!lnkfile.pinToDesktop(true) = 添加快捷方式到桌面\n,参数@2如果为true则添加到所有用户程序组
+!lnkfile.pinToDesktop(false) = 自桌面移除快捷方式
+?fsys.lnk = !lnkfile.
+fsys.lnk() = 创建快捷方式\n!lnkfile.
+end intellisense**/

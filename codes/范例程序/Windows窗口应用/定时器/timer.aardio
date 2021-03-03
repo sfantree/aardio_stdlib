@@ -1,0 +1,38 @@
+//定时管理器
+import win.ui;
+/*DSG{{*/
+var winform = win.form(parent=...; text="可启用、禁用、调整时间隔的定时管理器";right=412;bottom=198 )
+winform.add( 
+trackbar={ bottom=166;max=1000;right=383;left=26;top=136;z=4;min=1;cls="trackbar" };
+lbIntervalMax={ bottom=135;align="right";right=373;left=286;top=121;z=6;text="间隔1000毫秒";transparent=1;cls="static" };
+btnDisable={ bottom=97;text="禁用定时器";left=221;top=62;z=3;right=375;cls="button" };
+static={ right=375;bottom=50;nWrap=1;left=39;top=19;center=1;transparent=1;z=2;text="...........";cls="static" };
+lbIntervalMin={ bottom=135;right=103;left=40;top=120;transparent=1;z=5;text="间隔1毫秒";cls="static" };
+btnEnable={ bottom=98;text="启用定时器";left=36;top=63;z=1;right=190;cls="button" }
+)
+/*}}*/
+
+import win.timer
+var timer = win.timer( winform );
+timer.onTimer = function(hwnd,msg,id,tick){
+	winform.static.text = time.tick();
+} 
+
+winform.btnDisable.oncommand = function(id,event){
+    timer.disable()
+} 
+
+winform.btnEnable.oncommand = function(id,event){
+    timer.enable();
+}
+ 
+winform.trackbar.setFrequency(10)
+winform.trackbar.oncommand = function(id,event,pos){
+	if( pos ){
+		 timer.setInterval(pos) 
+	}
+}
+
+winform.show() 
+win.loopMessage();
+

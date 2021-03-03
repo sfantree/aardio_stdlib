@@ -1,0 +1,19 @@
+import tcc;
+import console;
+
+vm = tcc();  
+vm.addIncludePath("/")
+
+import fsys;
+fsys.enum( "/", "*.c",
+	function(dir,filename,fullpath,findData){ 
+		if(filename){ 
+           	vm.addFile(fullpath)
+           	console.log(filename)
+		} 
+	} 
+);
+vm.output("/sundown.dll","") 
+ 
+console.log("编译完成") 
+console.pause(true);

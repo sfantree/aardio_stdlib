@@ -1,0 +1,82 @@
+//字符串列表 
+/*
+aardio 字符串列表格式说明
+
+一、字符串列表本格式
+
+'键名=值\r\n键名2=值2\r\n键名3=值3'
+
+其中行分隔符(lineDelimiter)默认为 '\r\n',可修改设置为其他字符串 
+键值对分隔符(nameValueSeparator)默认为 '=',等号前后忽略空格。可修改设置为其他字符串,
+键值都忽略首尾空格。
+键值都必须是字符串
+
+二、注释
+
+当一个行中不包含键值对分隔符(nameValueSeparator),
+则该行在解析时被忽略键名中不允许出现行分隔符
+
+三、引用段
+
+在字符串列表中的值文本中,
+可以指定由两个引用符(引号或括号)括起来的引用段,引用段中忽略分隔符。
+引用符号必须在值文本首尾匹配。
+*/
+import console;
+import string.list;
+ 
+var str =  
+/*============================================
+示例一: 遍历配置列表文件所有字段
+============================================*/
+console.log( str );
+
+
+var tlist = string.list( "~/config/use.cfg" );  
+for i,k,v in tlist.each() { 
+	console.log( i,  k + tlist.mark + v ) 
+}
+ 
+var str = 
+/*============================================
+示例二: 使用字符串列表
+============================================*/
+console.log( str );
+
+var str = /*
+姓名 = 张三
+年龄 = 30
+住址 = 北京
+
+*/
+
+//创建字符串列表
+var tstringlist = string.list(str)
+
+//保存到文件
+tstringlist.save("/test.txt")
+
+//从文件读取字符串列表
+tstringlist.load("/test.txt")
+
+//访问成员
+console.log( tstringlist.姓名 ) 
+//添加新成员
+tstringlist.工作单位 = "aardio论坛"
+
+//转换为普通字符串
+str = tostring(tstringlist)
+
+//拼接成网址参数格式
+var str = tostring(tstringlist,'&' );
+console.log( str  )
+
+//如果是简单的字符串列表,可以自已拆分也很简单 
+var list = {};
+for line in string.lines(str,'\&') { 
+	var nv = string.splitEx(line,"=",2);
+	list[ nv[1] ] = nv[2];
+}
+console.dump(list)
+
+console.pause()

@@ -1,0 +1,43 @@
+//JSON解析器
+import web.json;
+import console;
+
+var json = '
+	{ 
+		"action":"","flag1":true, "flag2":null, "result":"success", "itemid":"865691", "url":"", "message":"1件产品下载成功", "total": -3.5E+5 , 
+		"redirection":"/distributor/product/my_product_list.htm?pageNo=1&download=-1&pageTotal=0&supplierId=-1&needPageTotal=true&productNumber=" 
+	} 
+';
+ 
+//json字串解码成table对象
+var tab  = web.json.parse(json);
+console.dumpJson( tab ) 
+console.more(1);
+
+//时间对象跟JS一样格式化为ISO 8601格式的时间字符串
+tab.datetime = time.now();
+
+/*
+buffer对象转换为node.js兼容的格式，
+例如下面的buffer转换为JSON以后是这样的
+
+{"data":[97,98,99],"type":"Buffer"} 
+*/
+tab.buffer = raw.buffer("abc")
+
+// table对象转换为JSON字符串,参数2为true时格式化JSON
+var json = web.json.stringify(tab,true);
+console.dump(json);
+
+//再次使用JSON转换为对象
+var jsonObject  = web.json.parse(json);
+
+//可以用 raw.buffer() 还原buffer对象，例如：
+var buffer = raw.buffer(jsonObject.buffer);
+console.log( buffer,type(buffer) )
+
+//可以用 time()  还原时间对象，例如：
+var datetime = time(jsonObject.datetime)
+console.log( datetime,type(datetime) )
+
+console.pause(true);

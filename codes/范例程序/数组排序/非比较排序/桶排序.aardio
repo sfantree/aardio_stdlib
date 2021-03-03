@@ -1,0 +1,78 @@
+import console;
+
+/*
+ *-------------------------------------------------------
+ * 桶排序
+ **------------------------------------------------------
+ */
+ 
+/*
+桶排序假设输入元素均匀而独立分布在区间[0,1) 即  0 <= x and x < 1;
+将区间划分成n个相同大小的子区间(桶),然后将n个输入按大小分布到各个桶中去,对每个桶内部进行排序。
+最后将所有桶的排序结果合并起来.
+*/
+ 
+//插入排序算法
+insert_sort = function( array ){
+
+	for( right=2;#array ) {
+		var top = array[right];
+		
+		//Insert array[right] into the sorted seqquence array[1....right-1]
+		var left = right -1;
+		while( left and array[left]>top){
+			array[left+1] = array[left];
+			left--;
+		}
+		array[left+1] = top;
+		 
+	}
+	return array;  
+}
+
+//桶排序算法
+bucket_sort = function( array ){
+	var n = #array;
+	
+	var bucket ={}
+	for(i=0;n;1){
+		bucket[i] = {} //创建一个桶
+	}
+	
+	var bucket_index
+	for(i=1;n;1){
+		bucket_index =  math.floor(n * array[i]); 
+		table.push( bucket [ bucket_index ],array[i] );//放到桶里去
+	}
+	
+	for(i=1;n;1){
+		insert_sort( bucket[i] ); //对每个桶进行插入排序
+	}
+	 
+	return table.concat( table.unpack(bucket) ) 
+	 
+}
+
+
+console.log("----------------")
+console.log("桶排序")
+console.log("----------------")
+
+array={};
+
+//桶排序假设输入是由一个随机过程产生的小数.
+math.randomize()
+for(i=1;20;1){
+	table.push( array,math.random() )
+}
+  
+
+//排序
+array = bucket_sort( array )
+
+//输出结果
+for(i=1;#array;1){
+	console.log( array[i] )
+}
+ 
+execute("pause");

@@ -1,0 +1,315 @@
+﻿//jsonServer RPC服务端
+import web.json;
+import web.socket.server;
+import string.aasdl;
+
+namespace web.socket;
+
+class jsonServer{
+	ctor( wsServer,external ){
+		this._wsServer = wsServer;
+		this.version = "2.0"; 
+		this.external = external;
+		this.xcallback = {};
+		
+		this._wsServer._translateMessage = function(hSocket,msg){
+			if( msg.type == 1 ){
+				var client = this._wsServer.client(hSocket);
+				if(!client[["jsonrpcClient"]])return;
+				
+				try{
+					if( this.beforeJsonParse ) {
+						msg.data = this.beforeJsonParse(hSocket,msg.data);
+						if(!msg.data) return true;
+					}
+					
+					var req,err = ..web.json.tryParse(msg.data);
+					if( type(req) != "table" ) req = null; 
+					
+					if( ! req  ){
+						this.send(hSocket,{ 
+							error = {
+								code = -32700;
+								message = "Invalid JSON was received by the server."
+							}
+						})
+						
+						if( (type(err) == "string") && this._wsServer.onError ) {
+							this._wsServer.onError(hSocket,..string.concat(err,'\nInvalid JSON:',msg.data));
+						}
+						return;
+					};
+			
+					if(#req){
+ 						for(i=1;#req ) {
+ 							if( type(req[i]) == type.table ){
+ 								this._beginRpcResponse(hSocket,req[i]); 
+ 							}
+ 							else {
+ 								this.send(hSocket,{ 
+									error = {
+										code = -32700;
+										message = "Invalid JSON was received by the server."
+									}
+								})	
+ 							} 
+ 						}
+ 					}
+ 					else {
+ 						this._beginRpcResponse(hSocket,req);
+ 					}
+				}
+				catch(e){
+					if( this._wsServer.onError ) {
+						this._wsServer.onError(hSocket,..string.concat(e,'\nmsg.data:',msg.data));
+					}
+					this.send(hSocket,{ 
+						jsonrpc = "2.0";
+						error = {
+							code = -32603/*_JSONRPC_INTERNAL_ERROR*/;
+							message = ..string.concat( "Internal JSON-RPC Error:",e);
+						};
+					})
+				};
+				
+				return true;
+    		}
+		}; 
+	}; 
+	start = function(hSocket){
+		var client = this._wsServer.client(hSocket);
+		client.jsonrpcClient = true;
+	};
+	send = function(hSocket,rep){
+		rep.jsonrpc = this.version;
+		
+		var jsonData = ..web.json.stringify(rep);
+		if( this.afterJsonStringify ) {
+			jsonData = this.afterJsonStringify(jsonData);
+			if(!jsonData) return true;
+		}
+		return this._wsServer.send(hSocket,jsonData);
+	}; 
+	notify = function(hSocket,method,...){ 
+		var rep = { 
+			jsonrpc = this.version;
+			method = method; 
+			params = {@{_type="array"};...}
+		}
+		
+		this.send(hSocket,rep);
+	}; 
+	xcall = function(hSocket,method,...){ 
+		var rep = { 
+			jsonrpc = this.version;
+			method = method; 
+			params = {@{_type="array"};...};
+			id = method;
+		}
+		
+		this.send(hSocket,rep);
+	};
+	publish = function(method,...){ 
+		var rep = { 
+			jsonrpc = this.version;
+			method = method; 
+			params = {@{_type="array"};...}
+		}
+		
+		var jsonData = ..web.json.stringify(rep);
+		if( this.afterJsonStringify ) {
+			jsonData = this.afterJsonStringify(jsonData);
+			if(!jsonData) return true;
+		};
+		this._wsServer.publish(jsonData);
+	};
+	survey  = function(method,...){ 
+		var rep = { 
+			jsonrpc = this.version;
+			method = method; 
+			params = {@{_type="array"};...};
+			id = method;
+		}
+		
+		var jsonData = ..web.json.stringify(rep);
+		if( this.afterJsonStringify ) {
+			jsonData = this.afterJsonStringify(jsonData);
+			if(!jsonData) return true;
+		};
+		this._wsServer.publish(jsonData);
+	};
+	isClosed = function(hSocket){
+	    return this._wsServer.isClosed(hSocket); 
+	};
+	isConnected = function(hSocket){
+		 return this._wsServer.isConnected(hSocket); 
+	};
+	_beginRpcResponse = function(hSocket,req){
+		this.hActiveSocket = hSocket;
+		
+		if( req.id && (! req.method) ){
+			var c = this.xcallback[req.id];
+			if( c) c(hSocket,req.result,req.error); 
+			return;
+		}
+		
+		var rep  = owner._rpcResponse(hSocket,req);
+		if( rep && (req.id!=null) ) {
+			rep.id = req.id;
+			this.send(hSocket,rep);
+		}
+	};
+	_rpcResponse = function(hSocket,req){
+	 	
+			if( ! req  ){
+				return { 
+					error = {
+						code = -32700;
+						message = "Parse error - Invalid JSON was received by the server." 
+					};
+				};  
+			};
+		  	
+			if( ! (req[["method"]] && req[["jsonrpc"]] ) ){
+				return { 
+					error = {
+						code = -32600;
+						message = "Invalid Request - The JSON sent is not a valid Request object."
+					};
+				}
+			};
+			
+			if(!owner.external){
+				return {
+					error = {
+						code = -32601;
+						message = "Method not found - The method does not exist / is not available.."
+					};
+				}
+			}
+
+			var result,err; 
+			var method = req[["method"]];
+			if(method=="?"){
+				if(!this.aasdl){
+					this.aasdl = ..string.aasdl(owner.external);
+				}
+				
+				return {
+					result = this.aasdl;
+					id = req.id;
+				}
+			}
+			
+			var ns,m = ..string.match(method,"(.+)\.([^.]+)$");
+			if( ns && m ){
+				var obj = ..table.getByNamespace(ns,owner.external);
+				if( (type(obj) == type.table ) && obj[m] ){ 
+					if( m[1] == '$'# ){
+						if(req.params) result,err = invoke(obj[m],obj,hSocket,..table.unpackArgs(req.params) );
+						else result,err= invoke(obj[m],obj,hSocket);
+					}
+					else {
+						if(req.params) result,err = invoke(obj[m],obj,..table.unpackArgs(req.params) );
+						else result,err= invoke(obj[m],obj);
+					}
+				}
+				else {
+					return {
+						error = {
+							code = -32601;
+							message = "The method does not exist / is not available.."
+						};
+					}
+				}
+				
+			}
+			else {
+				if(owner.external[method] ){ 
+					if( method[1] == '$'# ){
+						if(req.params) result,err = invoke(owner.external[method],owner.external,hSocket,..table.unpackArgs(req.params) );
+						else result,err = invoke(owner.external[method],owner.external,hSocket);
+					}
+					else {
+						if(req.params) result,err = invoke(owner.external[method],owner.external,..table.unpackArgs(req.params) );
+						else result,err = invoke(owner.external[method],owner.external);
+					}
+				}
+				else {
+					return {
+						error = {
+							code = -32601;
+							message = "The method does not exist / is not available.."
+						};
+					}
+				}	
+			} 
+			
+			if((result === null) && (err!==null)){ 
+				if( type(err) == type.string ){
+					err = {
+						code =-32603;
+						message = err;
+					} 
+				}
+				elseif( type(err) == type.number ){
+					err = {
+						code = err;  
+					} 
+				}	
+				elseif( err[["code"]] || err[["message"]] ){
+				 	
+				}
+				else {
+					err = {
+						code =-32603;  
+					}
+				} 
+			}
+			else {
+				err = null;
+			}
+			
+			
+			return {
+				error = err;
+				result = result;
+				id = req.id;
+			}
+		}
+}
+
+/**intellisense()
+web.socket.jsonServer( = 创建WebSocket/JSON-RPC 2.0服务端
+web.socket.jsonServer(.(wsServer,external) = 创建WebSocket/JSON-RPC 2.0服务端\n参数@1应当是一个 web.socket.server对象\n参数@2指定客户端可以调用的表对象\nexternal也可以在创建对象以后,使用对象的external属性指定
+web.socket.jsonServer() = !stdwebsocketjsonserver.
+end intellisense**/
+
+/**intellisense(!stdwebsocketjsonserver)
+web.socket.jsonServer( = 创建WebSocket/JSON-RPC 2.0服务端
+external = 指定包含客户端可以调用的远程函数的表对象,可嵌套子表\n\n如果远程函数名第一个字符是$,则第一个回调参数为hSocket,用于表示当前发送请求的客户端套接字,\n\n如果客户端请求方法名为"?"时，并且服务端没有指定aasdl属性\n服务端会根据aasdl协议将对象序列化为json并返回客户端， \n[关于aasdl](http://bbs.aardio.com/doc/aasdl)
+aasdl = 指定自定义的aasdl\n如果客户端请求的方法名为"?"时,返回此属性,\n[关于aasdl](http://bbs.aardio.com/doc/aasdl)
+start(hSocket) = 对指定的套接字启动JSON-RPC服务\n参数hSocket指定客户端套接字句柄,\nhSocket参数必须在web.socket.server服务端对象\n的onUpgradeToWebsocket事件中获取
+send(.(hSocket,rep) = 对指定的套接字发送数据,\n参数hSocket指定客户端套接字句柄,\nrep应当是符合JSON-RPC 2.0编码协议的响应对象\n不建议直接调用此函数发送消息
+notify(.(hSocket,method,->->->) = 主动向客户端发送通知\n参数hSocket指定客户端套接字句柄,\nmethod指定客户端方法名,\n可添加任意个调用参数
+xcall(.(hSocket,method,->->->) = 主动调用客户端函数\n参数hSocket指定客户端套接字句柄,\nmethod指定客户端方法名,\n可添加任意个调用参数\n\n客户端会触发xcallback的成员函数，\n请参考xcallback的说明
+xcallback = 服务端通过xcall函数调用客户端函数时\n客户端如果返回应答会自动回调xcallback的成员函数
+xcallback.? = @.__/*出错时err为错误对象,\n否则result为客户端返回的值\nhSocket为客户端套接字*/ = function(hSocket,result,err){
+    
+}
+publish(.(method,->->->) = 主动向所有客户端发送通知\nmethod指定客户端方法名,\n可添加任意个调用参数
+survey(.(method,->->->) = 发起调查任务,\n调用所有客户端的同名函数,\nmethod指定客户端方法名,\n可添加任意个调用参数\n\n客户端会触发xcallback的成员函数，\n请参考xcallback的说明
+wsServer = web.socket.server服务端对象
+version = JSON-RPC版本号，不应改动
+isClosed(hSocket) = 连接是否已关闭
+isConnected(hSocket)  = 是否已连接并准备就绪可以发送数据
+hActiveSocket = 获取当前活动的客户端套接字句柄,\n应当在RPC回调的第一句代码中获取此句柄,\n因为执行其他代码都有可能导致其他客户端变为活动客户端
+beforeJsonParse = @.beforeJsonParse = function(hSocket,jsonData){
+    __/*可以在这里解密客户端数据,返回null中止本次调用*/
+	return jsonData;
+}
+afterJsonStringify = @.afterJsonStringify = function(jsonData){
+    __/*可以在这里加密服务端数据,返回null中止本次调用*/
+	return jsonData;
+}
+end intellisense**/

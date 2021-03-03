@@ -1,0 +1,17 @@
+﻿import com.interface; 
+namespace  com.interface;
+
+class IAudioMeterInformation{
+	ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer GetPeakValue = "int(float &peak)";
+	pointer GetMeteringChannelCount = "int(INT &count)"; 
+	pointer GetChannelsPeakValues = "int(INT count,struct &peak)"; 
+	pointer QueryHardwareSupport = "int(INT &mask)"; 
+}
+IAudioMeterInformation.IID = "{C02216F6-8C67-4B5B-9D00-D008E73E0064}";
+
+/**intellisense()
+com.interface.IAudioMeterInformation = 获取实时音量信息,仅支持WIN7以及WIN7以上系统\n此接用法请参考sys.audioVolume扩展库源码
+end intellisense**/

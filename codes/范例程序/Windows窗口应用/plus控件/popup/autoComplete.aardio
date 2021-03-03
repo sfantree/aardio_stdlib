@@ -1,0 +1,68 @@
+//自动完成
+import fonts.fontAwesome;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="win.ui.tabs实现自动完成";right=759;bottom=469)
+winform.add(
+dropdown={cls="plus";left=323;top=104;right=593;bottom=135;align="right";bgcolor=15132390;border={color=-3546113;width=2};editable=1;font=LOGFONT(h=-13);forecolor=16777215;iconStyle={align="right";font=LOGFONT(name='FontAwesome');padding={right=8}};iconText='\uF078';notify=1;paddingRight=28;textPadding={left=2;top=6;right=7;bottom=2};z=1};
+menuItem={cls="plus";text="测试菜单三";left=323;top=135;right=593;bottom=180;align="right";bgcolor=11525002;border={left=1;right=1;bottom=1;color=-3546113};tabstop=1;textPadding={right=20};z=2};
+menuItem2={cls="plus";text="测试菜单三";left=323;top=180;right=593;bottom=225;align="right";bgcolor=11525002;border={left=1;right=1;bottom=1;color=-3546113};ont=LOGFONT(name='FontAwesome';charset=0);tabstop=1;textPadding={right=20};z=3};
+menuItem3={cls="plus";text="测试菜单三";left=323;top=225;right=593;bottom=270;align="right";bgcolor=11525002;border={left=1;right=1;bottom=1;color=-3546113};tabstop=1;textPadding={right=20};z=4}
+)
+/*}}*/
+
+import win.ui.tabs;
+var menu = win.ui.tabs(winform.menuItem,winform.menuItem2,winform.menuItem3)
+menu.skin( { 
+	foreground={
+		default = 0xFFFFFFFF;
+		hover= 0xFF8ADBAF;
+	};
+	checked = { 
+		foreground={
+			default = 0xFFDB8A8E;
+			hover= 0xFF8ADBAF;
+		}; 
+	}
+})
+
+// 切换到弹出列表模式,并使用参数指定的控件处理键盘事件
+menu.initPopup(winform.dropdown.editBox)
+
+// 禁止共享编辑框外观状态(focus状态除外)
+winform.dropdown.editState = false
+winform.dropdown.skin({
+	background = { hover = 0xFFF78987 }
+	checked = { 
+		iconText = '\uF077';
+	}  
+})
+
+import web.rest.jsonLiteClient;
+var http = web.rest.jsonLiteClient();
+var suggestion = http.api("http://suggestion.baidu.com/su?cb=&wd={0}") //{0}会替换为请求关键字并以UTF8编码
+winform.dropdown.editBox.onChange = function(){ 
+    if(owner.text === menu.selText){ return;  } 
+    
+    var result = suggestion[ owner.text ].get();
+    if(result){
+    	menu.setItemTexts(result.s,10) //更新下拉列表	
+    	menu.popup(true,winform.dropdown)	
+    }
+}
+
+// 用户点选菜单项触发此事件,strip参数是点选的控件
+menu.onOk = function(strip){ 
+	winform.dropdown.setFocus(strip.text);
+}
+
+// 显示弹出菜单，弹出菜单会自动修改winform.dropdown的checked属性为菜单打开状态
+winform.dropdown.oncommand = function(id,event){ 
+	if(winform.dropdown.checked ){
+		menu.selText = winform.dropdown.text
+		menu.popup(true,winform.dropdown)
+	}  
+}
+
+winform.show() 
+win.loopMessage();

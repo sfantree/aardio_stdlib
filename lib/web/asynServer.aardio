@@ -1,0 +1,12 @@
+﻿//asynServer 网页服务端
+
+import wsock.tcp.asynHttpServer;
+
+namespace web;
+
+asynServer = ..wsock.tcp.asynHttpServer();
+asynServer.run();
+
+/**intellisense(web)
+asynServer = 单线程异步HTTP服务端,仅适用于界面主线程,\nwsock.tcp.asynHttpServer对象\n!stdasynHttpServer.
+end intellisense**/

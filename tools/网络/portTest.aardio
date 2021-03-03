@@ -1,0 +1,121 @@
+//端口检测
+import win.ui;
+import win.ui.menu;
+import fonts.fontAwesome;
+/*DSG{{*/
+var winform = win.form(text="端口检测工具";right=685;bottom=473;border="dialog frame";max=false;parent=...)
+winform.add(
+btnAdd={cls="button";text="添加";left=507;top=9;right=593;bottom=38;font=LOGFONT(h=-13);z=6};
+btnTest={cls="button";text="检测";left=492;top=422;right=631;bottom=462;font=LOGFONT(h=-15;name='FontAwesome');z=7};
+editHost={cls="edit";left=126;top=11;right=336;bottom=35;edge=1;font=LOGFONT(h=-13);z=2};
+editPort={cls="edit";left=412;top=11;right=488;bottom=35;edge=1;font=LOGFONT(h=-13);num=1;z=3};
+editTimeout={cls="edit";text="1";left=414;top=431;right=446;bottom=457;edge=1;num=1;z=8};
+listview={cls="listview";left=37;top=46;right=664;bottom=415;acceptfiles=1;asel=false;bgcolor=16777215;dl=1;dr=1;edge=1;font=LOGFONT(h=-13;name='宋体');fullRow=1;gridLines=1;hscroll=1;msel=false;vscroll=1;z=1};
+static={cls="static";text="检测超时:";left=308;top=435;right=405;bottom=459;align="right";font=LOGFONT(h=-13);transparent=1;z=9};
+static2={cls="static";text="主机:";left=58;top=16;right=111;bottom=35;align="right";font=LOGFONT(h=-13);transparent=1;z=4};
+static3={cls="static";text="端口：";left=356;top=16;right=412;bottom=35;align="right";font=LOGFONT(h=-13);transparent=1;z=5};
+static4={cls="static";text="秒";left=452;top=435;right=478;bottom=459;font=LOGFONT(h=-13);transparent=1;z=10}
+)
+/*}}*/
+
+winform.listview.insertColumn("主机",200) 
+winform.listview.insertColumn("端口",100) 
+winform.listview.insertColumn("可用",-1)
+
+import fsys.config;
+config  = fsys.config( io.appData("/aardio/tools/tcp-port-test") ); 
+if( !config.default.hosts ) {
+	config.default.hosts = {}
+}
+
+loadHosts = function(){
+	winform.listview.clear();
+	for i,info in table.eachIndex(config.default.hosts){
+		winform.listview.addItem({info.host;tostring(info.port)})
+	}
+}
+loadHosts()
+
+winform.btnAdd.oncommand = function(id,event){
+	var host = winform.editHost.text;
+	var port = winform.editPort.text;
+	
+	if(!#host){
+		return winform.editHost.showErrorTip("端口检测工具","请指定主机域名或IP")
+	}
+	
+	if(!#port){
+		return winform.editPort.showErrorTip("端口检测工具","请指定端口")
+	}
+	
+	table.push(config.default.hosts,{host=host;port=port});
+	loadHosts();
+}
+
+
+winform.popmenu = win.ui.popmenu(winform);//创建弹出菜单
+winform.popmenu.add('删除',function(id){ 
+	table.remove(config.default.hosts,winform.listview.selIndex);
+	winform.listview.delItem( winform.listview.selIndex );
+});
+
+//双击listview控件添加下面的代码 
+import win.util.tray;
+winform.listview.onnotify = function(id,code,ptr){ 
+	
+	select(code) { 
+		case 0xFFFFFFFB/*_NM_RCLICK*/  {
+			var x,y = win.getCursorPos();
+			winform.popmenu.popup(x,y,true);//弹出菜单
+		}
+	}
+}
+
+import thread.works;
+var works = thread.works( 20,
+	function(arguments,...) {
+		import wsock.tcp.client; 
+		
+		var timeout = 0;
+		for(i=1;4;1){
+			var client = wsock.tcp.client(); 	
+			var tickBegin = time.tick(); 
+			if(client.connectTimeout(arguments.host,tonumber(arguments.port),arguments.timeout)){
+				var ret = client.send("."); 
+				if( ret != 1){ return arguments }
+				timeout =  timeout + (time.tick() - tickBegin);
+			}
+			else {
+				return arguments;
+			} 
+		}
+		
+		arguments.ok = true;
+		arguments.timeout = timeout / 4;
+		return arguments;
+	} 
+); 
+
+winform.btnTest.oncommand = function(id,event){
+	
+	winform.btnTest.disabledText = {'\uF254';'\uF251';'\uF252';'\uF253';'\uF250'}
+	
+	var timeout = tonumber(winform.editTimeout.text);
+	for i,info in table.eachIndex(config.default.hosts){ 
+		info.timeout = timeout;
+		works.push(info);
+	}
+	
+	works.wait(function(result){
+		for i,info in table.eachIndex(config.default.hosts){ 
+			if( (info.host = result.host ) && (info.port = result.port ) ){
+				winform.listview.setItemText(result.ok ?( math.round((result.timeout / 1000),2) + "秒") : "连接出错",i,3);
+			}
+		}	
+	})
+	
+	winform.btnTest.disabledText = null;
+}
+
+winform.show() 
+win.loopMessage();

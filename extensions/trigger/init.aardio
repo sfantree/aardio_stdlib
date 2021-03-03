@@ -1,0 +1,56 @@
+//IDE初始化触发器
+//下面的代码在aardio开发环境初始完成以后触发
+//修改下面的代码会导致开发环境无法正常工作
+
+import win;
+import ide;
+import ide.command;
+
+ide.command.join( ide.processGroup() );
+var command = ide.command();
+command.dispatchIdeCommand = function( method,...) {
+	return ide[method](...);
+}
+
+thread.invoke( 
+	function(){
+		import win.version;
+		import web.rest.jsonClient;	
+		import ide;
+		import ide.command;
+		ide.command.join( ide.processGroup() );
+		
+		sleep(500);
+		if( ..io.exist("~\extensions\trigger\init-user.aardio") ){
+    		ide.createProcess("~\extensions\trigger\init-user.aardio");
+		};
+		
+		if( ide.getConfig("statusBarPlugin") == "true" ){
+			ide.createProcess("~\tools\开发环境\statusBar.aardio");
+		}
+		
+		sleep(1000);
+		var cfgVersion = ide.getConfig("version");
+		var http = web.rest.jsonClient("aardio/v" + _AARDIO_VERSION + "(IDE "  + cfgVersion + "," + win.version.name + ")");
+		var versionInfo = http.get("http://api.aardio.com/v10.update/");
+		if( ! versionInfo ) return;
+		
+		if(  ( cfgVersion != versionInfo.version )  && ( ide.getConfig("ignore_update") != versionInfo.version)  ){  
+			import fsys.version;
+			if( fsys.version(cfgVersion ) >= fsys.version( versionInfo.version ) ){
+				return;
+			}
+		
+			ide.startpage();
+			import thread.event;
+			var event = thread.event( ide.processGroup(".startPage") ) 
+			if( !event.conflict ){
+				event.waitOne();
+			}
+		
+			ide.command.post("aardioQuickerUpdated",versionInfo.version );
+		} 
+	}
+)
+
+win.loopMessage();

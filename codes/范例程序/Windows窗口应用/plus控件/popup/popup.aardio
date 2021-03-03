@@ -1,0 +1,47 @@
+//实现弹出菜单
+import fonts.fontAwesome;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add(
+button={cls="button";text="弹出列表";left=390;top=363;right=517;bottom=410;z=3};
+menuItem={cls="plus";text='\uF0AE 测试菜单一';left=523;top=167;right=676;bottom=212;bgcolor=-6960024;font=LOGFONT(name='FontAwesome';charset=0);tabstop=1;z=1};
+menuItem2={cls="plus";text='\uF0AE 测试菜单二';left=523;top=214;right=676;bottom=259;bgcolor=-6960024;font=LOGFONT(name='FontAwesome');ont=LOGFONT(name='FontAwesome';charset=0);tabstop=1;z=2}
+)
+/*}}*/
+
+import win.ui.tabs;
+var menu = win.ui.tabs(winform.menuItem,winform.menuItem2)
+menu.skin({
+	background={
+		default=0xFF68CC95;
+		disabled=0xFFC4CCC8;
+		hover=0xFF4A522F;
+	};
+	color={
+		default=0xFF000000;
+		disabled=0xFF8A8A8A;
+		hover=0xFFFFFFFF
+	};
+	checked={
+		border={default={color=0xFF0E64E7;right=4}}
+	}
+})
+
+menu.onOk = function(strip){ 
+	winform.msgbox(strip.text)
+}
+
+winform.button.oncommand = function(id,event){
+	menu.popup(true,winform.button)
+}
+
+menu.add({
+	text='\uF0AE 测试菜单三'; 
+})
+
+// 调用这句代码切换到弹出列表显示模式
+menu.initPopup()
+
+winform.show() 
+win.loopMessage();

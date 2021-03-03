@@ -1,0 +1,79 @@
+//COM对象常量导出工具
+
+import win.ui;
+import win.ui.menu;
+import com.picture;
+/*DSG{{*/
+var winform = win.form(text="com常量导出工具";right=547;bottom=481;parent=...)
+winform.add(
+btnExport={cls="button";text="导出常量定义";left=387;top=6;right=506;bottom=34;dr=1;dt=1;z=1};
+static={cls="static";text="com.CreateObject";left=8;top=11;right=112;bottom=31;align="right";dl=1;dt=1;transparent=1;z=3};
+static2={cls="static";text="com对象的常量也可以在代码中使用 com对象.常量名字 直接访问";left=15;top=453;right=534;bottom=472;db=1;dl=1;transparent=1;z=5};
+tab={cls="tab";left=9;top=37;right=539;bottom=441;db=1;dl=1;dr=1;dt=1;edge=1;z=4};
+txtProgID={cls="edit";text="CDO.Message";left=124;top=9;right=375;bottom=34;dl=1;dr=1;dt=1;edge=1;z=2}
+)
+/*}}*/
+
+//定义第一个选项卡页
+var formConst = winform.tab.add(  text="常量";right=535;bottom=442 )
+formConst.add(
+txtResult={ vscroll=1;left=1;multiline=1;top=1;right=532;bottom=419;hscroll=1;dl=1;dt=1;dr=1;db=1;edge=1;cls="edit" }
+) 
+formConst.txtResult.text = /**
+
+
+//在aardio中使用COM对象的成员常量必须加上对象前缀,例如:
+
+import com;
+var cdoMessage = com.CreateObject("CDO.Message")
+io.print( cdoMessage.cdoWestCentralAfrica )
+**/
+
+//定义第二个选项卡页
+var formEnum = winform.tab.add(  text="枚举";right=535;bottom=442 )
+formEnum.add(
+txtResult={ vscroll=1;left=1;multiline=1;top=1;right=532;bottom=419;hscroll=1;dl=1;dt=1;dr=1;db=1;edge=1;cls="edit" }
+)  
+
+getString = function( tab ){
+	var strResult = ..table.tostring(tab);
+	strResult = string.replace(strResult,";",';\r\n');
+	strResult = string.replace(strResult,"\{ *",'{\r\n');
+	strResult = string.replace(strResult,"\}",'\r\n}');
+	
+	strResult = string.trim(strResult,"{}");//去掉首尾的构造符
+	return strResult;
+}
+
+
+winform.btnExport.oncommand = function(id,event){
+	 
+	var obj = com.CreateObject(winform.txtProgID.text );
+	assert(obj,"创建com对象失败");
+	
+	var typeinfo = com.GetTypeInfo(obj)
+	var typelib = typeinfo.GetTypeLib()
+	var enums = typelib.ExportEnumerations() 
+	formEnum.txtResult.text = "//枚举定义开始 " 
+		+ winform.txtProgID.text +';\r\n' 
+		+ getString(enums) 
+		+ "//枚举定义结束 " 
+		+ winform.txtProgID.text 
+		+';' 
+
+	
+	var const = {}
+	typelib.ExportConstants(const) 
+	formConst.txtResult.text = "//常量定义开始 " 
+		+ winform.txtProgID.text +';\r\n' 
+		+ getString(const) 
+		+ "//常量定义结束 " 
+		+ winform.txtProgID.text 
+		+';' 
+	 
+}
+
+winform.enableDpiScaling();
+winform.show(true) 
+win.loopMessage();
+return winform;

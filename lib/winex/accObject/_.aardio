@@ -1,0 +1,239 @@
+﻿import com;
+
+namespace winex;
+
+class accObject{
+	ctor( accObject,childId ){
+		this = element(accObject,childId);
+		if(!childId){
+			this.unkAccessible = ..com.GetIUnknown(this.accObject,"{618736E0-3C3D-11CF-810C-00AA00389B71}")
+			this.type = "object";	
+		}
+	};
+	selection = function(){
+		var r;
+		try{ r = this.accObject.accSelection() }
+		
+		var result = {};
+		if(type(r)==type.number){ 
+			..table.push(result,element(this.accObject,r))
+		}
+		elseif(..com.IsObject(r)){ 
+			..table.push(result,..winex.accObject(r)); 
+		}
+		elseif(r){  
+			for index,item in ..com.each(r) {
+				if(type(item)==type.number){
+					..table.push(result,element(this.accObject,item))
+				}
+				elseif(..com.IsObject(item)){ 
+					..table.push(result,..winex.accObject(item)); 
+				}
+			}  
+		} 
+		else {
+			return;
+		}
+		
+		return result;
+		
+	};
+	hitTest = function(x,y){
+		var r;
+		try{
+			r = this.accObject.accHitTest(x,y)
+		}
+		
+		if(type(r)==type.number){
+			return element(this.accObject,r)
+		}
+		elseif(..com.IsObject(r)){ 
+			return ..winex.accObject(r); 
+		}
+		else {
+			return r;
+		}
+	};
+	focus = function(){
+		var r;
+		try{
+			r = this.accObject.accFocus()
+		}
+		if(type(r)==type.number){
+			return element(this.accObject,r)
+		}
+		elseif(..com.IsObject(r)){ 
+			return ..winex.accObject(r); 
+		}
+		else {
+			return r;
+		}
+	};
+	childCount = function(){
+		return this.accObject.accChildCount;
+	}
+	each =  function(options){
+		var childCount = this.accObject.accChildCount;
+		var children = ..raw.buffer( 16/*sizeof(Variant)*/ * childCount ); 
+		var obtained = {int size}; 
+		if(!childCount || !this.unkAccessible){
+			return function(){}; 
+		}
+		
+		var hr,obtained = ::OleAcc.AccessibleChildren(this.unkAccessible, 0,childCount, children,obtained);
+		if( hr < 0 ) return function(){};
+
+		var i = 0;
+		var size = obtained.size;
+		var next = function(){
+			i++;
+			if(i>size) return;
+
+			var p = ..raw.toPointer(children,16*(i-1)); 
+			var variant = ..com.Variant( p,true);
+			::OleAut32.VariantClear(p);  
+			 
+			if(variant.vt!= 9/*_VT_DISPATCH*/ ){
+				return element(this.accObject,variant.value)
+			}
+			else{
+				var accChild = ..com.QueryObject( variant.pdispVal ); 
+				if(accChild) {
+					return ..winex.accObject(accChild);
+				} 
+			} 
+		}
+		
+		return function(){
+			while( var element = next() ) {
+				if(!options){ return element;}
+				
+				if(#options.name && !..string.match(accChild.name():"",options.name) ){
+					continue;
+				}
+				
+				if(#options.state && !..string.match(accChild.stateText():"",options.state ) ){
+					continue;
+				}
+				
+				if(#options.value && !..string.match(accChild.value():"",options.value) ){
+					continue;
+				}
+				
+				if(#options.shortcut && !..string.match(accChild.keyboardShortcut():"",options.keyboardShortcut) ){
+					continue;
+				}
+				
+				return element;	
+			}
+		}
+	};
+	find = function(options){
+		var accResult;
+		this.enum(
+			function(accChild,accParent){
+				accResult = accChild; 
+				return false;
+			},options
+		) 
+		
+		return accResult;	
+	};
+}
+
+import ..winex.accObject.element;
+
+namespace accObject{
+		
+	::OleAut32  := ..raw.loadDll("OleAut32.dll")
+	::OleAcc := ..raw.loadDll("OLEACC.DLL");
+
+	IID_IAccessible = '\xE0\x36\x87\x61\x3D\x3C\xCF\x11\x81\x0C\x00\xAA\x00\x38\x9B\x71'
+	fromWindow = function(hwnd,iid,objId){ 
+		if(!hwnd){
+			hwnd = ::User32.GetForegroundWindow();
+		}
+		
+		var pvObject = {ptr p} 
+		if( 0 == ::OleAcc.AccessibleObjectFromWindow(hwnd,objId:0,iid:IID_IAccessible,pvObject) ){
+			var accObject = ..com.QueryObject( pvObject.p ); //转换为COM对象(COM.IDispatch)
+			..com.Release(pvObject.p);
+			
+			return ..winex.accObject( accObject );
+		}   	
+	}  
+	
+	focus = function(){
+		var obj = fromWindow();
+		if(obj){
+			return obj.focusElement();
+		}
+	}
+	
+	fromPoint = function(x,y){ 
+		
+		var pvObject = {ptr p} 
+		var varElement  = ..com.Variant(0);
+		if( 0 == ::OleAcc.AccessibleObjectFromPoint(
+			//传值结构体{int x;int y}需要展开为x,y参数
+			x,y,pvObject,varElement) ){
+		 
+			var accObject = ..com.QueryObject( pvObject.p ); //转换为COM对象(COM.IDispatch)
+			..com.Release(pvObject.p);
+			
+			return ..winex.accObject( accObject,varElement.value );
+		}   	
+	}  
+	
+	version = function(){
+		var ver = {WORD minor;WORD major}
+		var build = {WORD minor;WORD major}
+		::OleAcc.GetOleaccVersionInfo(ver,build);
+		return ver.major +"."+ ver.minor +"."+  build.major +"."+  build.minor;
+	} 
+}
+
+/**intellisense()
+winex.accObject = Microsoft Active Accessibility 自动化接口\n[微软接口文档]( https://docs.microsoft.com/en-us/windows/win32/api/oleacc/nn-oleacc-iaccessible )\n[ACC对象浏览工具]( http://download.aardio.com//v10.files/tool/AccExplorer32.7z )
+winex.accObject.fromWindow(.(hwnd,iid) = 自hwnd窗口句柄返回AccessibleObject,\n省略hwnd参数时取前台窗口句柄,\niid参数可省略
+winex.accObject.fromWindow() = !winex_accObject.
+winex.accObject.fromPoint(.(x,y) = 自屏幕坐标返回AccessibleObject
+winex.accObject.fromPoint() = !winex_accObject.
+winex.accObject.focus() = 返回前台窗口输入焦点元素\n!winex_accObject.
+accObject = !winex_accObject.
+winex.accObject.version() = 返回MSAA组件版本
+end intellisense**/
+
+/**intellisense(!winex_accObject)
+type = 节点类型，可包含子元素的容器元素返回"object"，否则返回"element"
+name() = 元素的名字
+setName(_) = 设置元素的名字,\n参数指定文本，成功返回true，\n注意有些控件没有实现这个接口时会返回null
+value() = 元素的文本值
+setValue(__) = 设置文本值,\n参数指定文本，成功返回true，\n注意有些控件没有实现这个接口时会返回null
+takeFocus() = 设置为焦点
+takeSelection() = 设置为选定，成功返回true
+extendSelection() = 扩展到选区，成功返回true
+addSelection() = 添加到选区，成功返回true
+removeSelection() = 自选区移除，成功返回true
+selection() = 返回包含选区元素数组\n!winex_accObject.
+focus() = 返回输入焦点元素，仅在子级查找。\n!winex_accObject.
+focusElement() = 返回输入焦点元素\n!winex_accObject.
+hitTest(.(x,y) = 自屏幕坐标查找子元素
+childCount() =  子元素总数
+role() =  返回表示角色的数值
+roleText() = 返回表示角色的文本
+state() =  返回表示状态的数值
+stateText() = 返回表示状态的文本
+location() =  返回4个值x,y,cx,cy，用于描述元素的屏幕位置，\nx为横坐标，y为纵坐标，cx为宽，cy为高。
+keyboardShortcut() =  返回文本用于描述元素的快捷键
+doDefaultAction() = 执行默认操作
+defaultAction() = 返回描述默认元素的文本
+hwnd() = 返回对象所在的窗口句柄
+find(options) = @.find(\n	name = "";\n	role = "";\n	type = "";\n	state = "";\n	value = "__/*可指定一个或多个查找元素属性值的模式匹配表达式,\n成功返回找到的元素对象，细节请参考本函数源码。*/";\n	shortcut = "";\n)
+enum(proc,options) = @.enum(\n	function(accChild,accParent){\n		__/*枚举所有下级元素，\naccChild为当前元素，\naccParent为当前元素的父元素*/\n	}\n)
+each = @for accChild in ??.each(){\n	__/*遍历所有子级元素，\naccChild为当前元素*/\n}
+each() = !winex_accObject.
+parent() = 返回父元素\n!winex_accObject.
+hitTest() = !winex_accObject.
+find() = !winex_accObject.
+end intellisense**/

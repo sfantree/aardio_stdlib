@@ -1,0 +1,76 @@
+//watch 监视文件
+namespace fsys 
+
+class watch { 
+	ctor( ... ){
+		this.path = ... ;
+		if( type(this.path ) != type.table)
+			this.path ={ ... } 
+			
+		for(k,v in this.path){ 
+	    	this.path[ k ] = ..io.fullpath( v ) //将相对路径转换为绝对路)径
+		} 
+		
+		var m_running;
+	};  
+	run = function ( flag = 0x5F/*_FILE_NOTIFY_CHANGE_NORMAL_ALL*/ )  {  
+		var tNotificationHandle = {};   
+		for( i,v in  this.path ){  
+	    	var dwChangeHandle   = FindFirstChangeNotification( v , 0x1/*_TRUE*/ , flag ); 
+			if( dwChangeHandle == -1 ) { 
+				return false;
+			};   
+			tNotificationHandle[i] = dwChangeHandle;
+		}  	
+		 
+		m_running = true;
+		while( m_running ) {  
+			dwWaitStatus = ..thread.waitOne(tNotificationHandle); 
+			if( dwWaitStatus && ( dwWaitStatus > 0 ) and ( dwWaitStatus <= #(this.path) ) ){ 
+				if(this.onChange){
+					var result = this.onChange(this.path[dwWaitStatus],flag) ;
+    				if( result===null || result ){
+        			 	FindNextChangeNotification(tNotificationHandle[dwWaitStatus])  ;
+        			}
+    				else{
+        				break;
+        			}
+        		};
+			};
+		};
+		
+		for( i,hv in  tNotificationHandle){ 
+            FindCloseChangeNotification(hv)
+            return true;
+        };   
+	} 
+	stop = function(){
+		m_running = false;
+	};
+}
+
+namespace watch{ 
+	FindFirstChangeNotification = ::Kernel32.api("FindFirstChangeNotification", "pointer(ustring lpPathName,int bWatchSubtree,INT dwNotifyFilter)");
+	FindCloseChangeNotification = ::Kernel32.api("FindCloseChangeNotification", "int(pointer hChangeHandle)");
+	FindNextChangeNotification = ::Kernel32.api("FindNextChangeNotification", "int(pointer hChangeHandle)"); 
+}
+ 
+/**intellisense()
+fsys.watch =  文件监视支持库\n该对象必须在包含消息循环的线程中使用
+fsys.watch(监视路径) = 参数可以是一个或多个一个或多个要监视的目录路径\n也可以是包含多个目录路径的数组对象,注意不能是文件路径
+!watch.run() = 启动监控程序,\n可选使用一个或多个_FILE_NOTIFY_前缀常量指定临视参数,默认临视增、删、改等操作
+!watch.onChange =  @.onChange = function(path) { \nio.print("改变了" + path)  ;\nreturn false; /*停止监视*/   \n}
+!watch.stop() = 停止监视
+?fsys.watch = !watch.
+
+_FILE_NOTIFY_CHANGE_FILE_NAME = @0x1/*_FILE_NOTIFY_CHANGE_FILE_NAME*/
+_FILE_NOTIFY_CHANGE_DIR_NAME = @0x2/*_FILE_NOTIFY_CHANGE_DIR_NAME*/
+_FILE_NOTIFY_CHANGE_ATTRIBUTES = @0x4/*_FILE_NOTIFY_CHANGE_ATTRIBUTES*/
+_FILE_NOTIFY_CHANGE_SIZE = @0x8/*_FILE_NOTIFY_CHANGE_SIZE*/  
+_FILE_NOTIFY_CHANGE_LAST_WRITE = @0x10/*_FILE_NOTIFY_CHANGE_LAST_WRITE*/
+_FILE_NOTIFY_CHANGE_LAST_ACCESS= @0x20/*_FILE_NOTIFY_CHANGE_LAST_ACCESS*/
+_FILE_NOTIFY_CHANGE_CREATION = @0x40/*_FILE_NOTIFY_CHANGE_CREATION*/
+_FILE_NOTIFY_CHANGE_SECURITY = @0x100/*_FILE_NOTIFY_CHANGE_SECURITY*/
+_FILE_NOTIFY_CHANGE_NORMAL_ALL = @0x5F/*_FILE_NOTIFY_CHANGE_NORMAL_ALL*/
+//尽可能不要使用 _FILE_NOTIFY_CHANGE_LAST_ACCESS 标志监控大的目录
+end intellisense**/

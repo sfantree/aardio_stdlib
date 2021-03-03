@@ -1,0 +1,356 @@
+import win; 
+namespace mouse;
+
+//转换为65535坐标
+screenHeight = ::GetSystemMetrics( 0x1 );
+screenWidth = ::GetSystemMetrics( 0x0 );
+var m_perY = (65535.00 / screenHeight);
+var m_perX = (65535.00 / screenWidth);
+var function yToDy( y ){
+	return  ..math.ceil(   y * m_perY  ) ;
+}
+var function xToDx( x ){
+	return  ..math.ceil( x * m_perX );
+} 
+
+INPUTDATA = class {
+    INT type; 
+    union input = {
+        struct  mi = MOUSEINPUT(); 
+    };
+} 
+INPUTDATA.MOUSEINPUT = class {
+    INT dx;
+    INT dy;
+    INT mouseData;
+    INT dwFlags;
+    INT time;
+    INT dwExtraInfo;
+} 
+extraInfo = 0;
+
+//处理鼠标事件( x坐标,y坐标,是否绝对坐标值,事件标志 )
+var send = function( x=0, y=0, abs , dwFlags = 0,mouseData = 0){
+    
+	if(!abs) { 
+		var pt = ::POINT() ;
+		::User32.GetCursorPos(pt);
+
+		x  = pt.x + x;
+		y = pt.y + y; 
+	}
+
+ 	var sendData = {
+		struct array[] = {}
+	} 
+	sendData.array[1] = INPUTDATA(); 
+    sendData.array[1].type = 0/*_INPUT_MOUSE*/;
+    
+    var input = sendData.array[1].input;
+    
+    if( ! mouseData ) { 
+		input.mi.dx  = xToDx(x)+1;
+		input.mi.dy = yToDy(y)+1;
+		input.mi.dwFlags =  0x1/*_MOUSEEVENTF_MOVE*/ | dwFlags | 0x8000/*_MOUSEEVENTF_ABSOLUTE*/;
+	}
+	else{ 
+    	input.mi.dwFlags = 0x800/*_MOUSEEVENTF_WHEEL*/
+    	input.mi.mouseData = mouseData;
+	}
+	input.mi.dwExtraInfo = extraInfo;
+	
+	::User32.SendInput(1,  sendData, ..raw.sizeof( sendData ) ) ;
+ }
+ 
+ var waitCmd = function( vkeyCode ){
+     
+ 	//必须放开
+	while( ( ::GetAsyncKeyState( vkeyCode ) < 0))  {
+		delay(1)
+	}
+	
+     //必须按下
+ 	while( ::GetAsyncKeyState( vkeyCode ) >= 0 ) {
+ 			delay(1)
+	}
+	
+	//必须再次放开
+	while( ( ::GetAsyncKeyState( vkeyCode ) < 0))  {
+		delay(1) //就一直等待
+	}
+  
+ }
+ 
+ var dbSpanTk = ::User32.GetDoubleClickTime() +  10;
+ var waitCmdDb = function(vk){
+     
+	if(dbSpanTk < 300)
+		dbSpanTk = 300;
+
+	var nTick ,nTick_new = 0 , 0; 
+	var pt ,pt_new  = ::POINT() ,::POINT()
+
+	while( true ) {
+		waitCmd( vk );
+		var nTick_new = ..time.tick();
+		if(( nTick_new - nTick )  < dbSpanTk ) {
+				break;
+		}
+			
+		nTick = nTick_new; 
+		delay(1);
+	}
+}
+ 
+delay = ..win?..win.delay: sleep;
+delayDown = 5;
+delayUp = 1;
+delayDb =10;
+delayMove = 5
+delayClick = 10;
+
+var downDelay = function(){
+	delay( delayDown )
+}
+var upDelay = function(){
+	delay( delayUp )	
+}
+var dbDelay = function(){
+	delay( delayDb )	
+}
+var clickDelay = function(){
+	if( delayClick > delayUp )
+		delay( delayClick - delayUp )	
+}
+  
+
+getPos = function(){
+	var ptCurPos = ::POINT();
+	::User32.GetCursorPos(ptCurPos);
+	return ptCurPos.x,ptCurPos.y;
+}
+
+setPos = function( x=0, y=0 ){
+	::User32.SetCursorPos( x, y );
+}
+
+wait  = function(){
+	waitCmd( 1 );
+}
+	
+waitDb = function(){
+	waitCmdDb( 1 ); 
+}
+
+moveTo = function(x2=0,y2=0,abs,step=3,tk=2)	{ 
+	var x1,y1 = getPos();
+	if(!abs){
+		x2 = x1 + x2;
+		y2 = y1 + y2;
+	}
+	var x,y;
+	var xx = x2-x1;
+	var yy = y2-y1;
+	var k;
+	if(..math.abs(xx) > ..math.abs(yy) ) {
+		if(x2<x1) 
+			step = -step;
+		k = yy / xx ; //计算斜率
+		for x=x1;x2;step {
+				y = k * (x - x1) + y1  
+				send( x,y, 1, 0x1/*_MOUSEEVENTF_MOVE*/ );
+				delay(tk)
+		} 
+	}
+	else {
+		if(y2<y1) 
+			step = -step;
+		k = xx / yy  //计算斜率
+		for y=y1;y2;step {
+				x = k * (y - y1) + x1  
+				send( x,y, 1, 0x1/*_MOUSEEVENTF_MOVE*/ );
+				delay(tk)
+		} 
+	} 
+	send( x2,y2, 1, 0x1/*_MOUSEEVENTF_MOVE*/ );
+	return x2,y2;
+} 
+
+drag = function(x2,y2,abs,step,tk){
+	down()
+	moveTo(x2,y2,abs,step,tk)
+	up()
+}
+
+move = function( x=0, y=0, abs ){
+	send( x, y, abs, 0x1/*_MOUSEEVENTF_MOVE*/ );
+	delay(delayMove);
+}
+
+down = function( x=0,y=0,abs ){
+	send( x, y, abs,0x2/*_MOUSEEVENTF_LEFTDOWN*/ );
+	downDelay();
+} 
+
+up = function( x=0,y=0,abs ){
+	send( x, y, abs,0x4/*_MOUSEEVENTF_LEFTUP*/ );
+	upDelay()
+}
+
+click = function( x=0,y=0,abs ){
+	down( x,y,abs);
+	up( x,y,abs);
+	clickDelay()
+}
+
+clickDb = function( x=0,y=0,abs ){
+	down( x,y,abs);
+	up( x,y,abs);
+	dbDelay()
+	down( x,y,abs);
+	up( x,y,abs);
+	clickDelay()
+}
+
+namespace mb begin
+	wait = function(){
+		waitCmd( 4 );
+	}
+	
+	waitDb = function(){
+		waitCmdDb( 4 ); 
+	}
+	
+	down = function(x=0,y=0,abs ){
+		send(x,y,abs, 0x20/*_MOUSEEVENTF_MIDDLEDOWN*/);
+		downDelay()
+	}
+		
+		
+	up = function(x=0,y=0,abs ){
+		send(x,y,abs, 0x40/*_MOUSEEVENTF_MIDDLEUP*/);
+		upDelay()
+	} 
+		
+	click = function( x=0,y=0,abs ){
+		down(x,y,abs);
+		up(x,y,abs);
+		clickDelay()
+	}
+	
+	
+	roll = function( x = -120 ){
+		send(,,,,x); 
+		clickDelay()
+	}
+end;
+
+namespace rb begin
+	wait = function(){
+		waitCmd( 2 );
+	}
+	
+	waitDb = function(){
+			waitCmdDb( 2 ); 
+	}
+	
+	down = function(x=0,y=0,abs ){
+    	send(x,y,abs, 0x8/*_MOUSEEVENTF_RIGHTDOWN*/);
+    	downDelay()
+	}
+		
+	up = function(x=0,y=0,abs ){
+    	send(x,y,abs, 0x10/*_MOUSEEVENTF_RIGHTUP*/);
+    	upDelay()
+	} 
+		
+	click = function(x=0,y=0,abs ){
+		down(x,y,abs);
+		up(x,y,abs);
+		clickDelay()
+	}
+		
+	clickDb = function(x=0,y=0,abs ){
+		down(x,y,abs);
+		up(x,y,abs);
+		dbDelay()
+		down(x,y,abs);
+		up(x,y,abs);
+		clickDelay()
+	}
+end;
+
+
+/*intellisense(mouse)
+extraInfo = 发送消息的自定义附加值\n该值会传入鼠标钩子的extraInfo参数
+delay = 指定延时函数
+delayDown = 鼠标键按下延时,默认为5毫秒;
+delayUp = 鼠标弹起延时,默认为1毫秒
+delayDb = 鼠标键双击间隔时间,默认为10毫秒;
+delayMove = move函数鼠标移动间隔时间,默认为5毫秒
+delayClick = 鼠标击键延时,默认为10毫妙
+getPos() = 返回鼠标当前坐标(x,y)
+setPos(.(x,y) = 设置鼠标位置
+move(.(x,y) = 按相对坐标移动
+move(.(x,y,true) = 按绝对坐标移动
+moveTo(.(x,y) = 按相对坐标移动,显示移动轨迹
+moveTo(.(x,y,true) = 按绝对坐标移动,显示移动轨迹 
+moveTo(.(x坐标,y坐标,是否绝对坐标,步进,延时) = 移动显示移动轨迹
+drag(.(x,y) = 按相对坐标拖动鼠标
+drag(.(x,y,true) = 按绝对坐标拖动鼠标
+drag(.(x,y,true,步进) = 按绝对坐标拖动鼠标
+drag(.(x,y,true,步进,延时) = 按绝对坐标拖动鼠标
+down() = 左键按下
+up() = 左键弹起
+down(x,y) = 左键在相对坐标按下
+up(x,y) = 左键在相对坐标弹起
+down(x,y,true) = 左键在绝对坐标按下
+up(x,y,true) = 左键在绝对坐标弹起
+click() = 左键单击 
+click(x,y) = 左键在相对坐标单击 
+click(x,y,true) = 左键在绝对坐标单击
+clickDb() = 左键双击 
+clickDb(x,y) = 左键在相对坐标双击 
+clickDb(x,y,true) = 左键在绝对坐标双击
+wait() = 等待左键单击
+waitDb() = 等待左键双击
+end intellisense*/
+
+/*intellisense(mouse.mb)
+move(.(x,y) = 按相对坐标移动
+move(.(x,y,true) = 按绝对坐标移动
+down() = 中键按下
+up() = 中键弹起
+down(x,y) = 中键在相对坐标按下
+up(x,y) = 中键在相对坐标弹起
+down(x,y,true) = 中键在绝对坐标按下
+up(x,y,true) = 中键在绝对坐标弹起
+click() = 中键单击 
+click(x,y) = 中键在相对坐标单击 
+click(x,y,true) = 中键在绝对坐标单击
+clickDb() = 中键双击 
+clickDb(x,y) = 中键在相对坐标双击 
+clickDb(x,y,true) = 中键在绝对坐标双击
+roll(-10__) = 参数为负数向下滚,正数向上滚动
+wait() = 等待中键单击
+waitDb() = 等待中键双击
+end intellisense*/
+
+/*intellisense(mouse.rb)
+move(.(x,y) = 按相对坐标移动
+move(.(x,y,true) = 按绝对坐标移动
+down() = 右键按下
+up() = 右键弹起
+down(x,y) = 右键在相对坐标按下
+up(x,y) = 右键在相对坐标弹起
+down(x,y,true) = 右键在绝对坐标按下
+up(x,y,true) = 右键在绝对坐标弹起
+click() = 右键单击 
+click(x,y) = 右键在相对坐标单击 
+click(x,y,true) = 右键在绝对坐标单击
+clickDb() = 右键双击 
+clickDb(x,y) = 右键在相对坐标双击 
+clickDb(x,y,true) = 右键在绝对坐标双击
+wait() = 等待中键单击
+waitDb() = 等待中键双击
+end intellisense*/

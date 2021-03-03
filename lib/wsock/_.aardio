@@ -1,0 +1,772 @@
+//wsock 套接字
+namespace wsock;
+ 
+::Ws2_32 := ..raw.loadDll("Ws2_32.dll");
+
+/*intellisense(wsock)*/  
+_INVALID_SOCKET = _INVALID_HANDLE_VALUE;
+htons  = Ws2_32.api("htons","WORD(WORD hostshort)" );
+ntohs = Ws2_32.api("ntohs","WORD(WORD netshort)");
+htonl = Ws2_32.api("htonl","INT(INT hostlong)");
+ntohl = Ws2_32.api("ntohl","INT(INT netlong)"); 
+inet_addr = Ws2_32.api("inet_addr","INT(string s)");  
+gethostname  = Ws2_32.api("gethostname","int(str &szHost,int len)" );
+gethostbyname  = Ws2_32.api("gethostbyname","pointer(string szHost)" ); 
+gethostbyaddr = Ws2_32.api("gethostbyaddr","pointer(string addr,int length,int thetype)")
+getpeername = Ws2_32.api("getpeername","int(POINTER s,struct& sockaddr,int& len)")
+getsockname = Ws2_32.api("getsockname","int(POINTER s,struct& sockaddr,int& len)")
+shutdown = Ws2_32.api("shutdown","int(POINTER s,int how)")
+getsockoptByInt = Ws2_32.api("getsockopt","int(POINTER s,int level,int optname,int&optval,int& optlen)")
+setsockoptByInt = Ws2_32.api("setsockopt","int(POINTER s,word level,word optname,int& optval,int optlen)")
+getsockopt = Ws2_32.api("getsockopt","int(POINTER s,int level,int optname,struct&optval,int& optlen)")
+setsockopt = Ws2_32.api("setsockopt","int(POINTER s,word level,word optname,struct optval,int optlen)")
+ioctlsocket = Ws2_32.api("ioctlsocket","int(POINTER s,int cmd, INT &argp)")
+recvfrom = Ws2_32.api("recvfrom","int(POINTER s,string& Buf,int length,int flags, struct& sad, int& fromlen)")
+sendto = Ws2_32.api("sendto","int(POINTER s,pointer Buf,int length,int flags, struct& sad, int& tolen)") 
+socket = Ws2_32.api("socket","pointer(int af,int type,int protoco)" );
+recv = Ws2_32.api("recv","int(POINTER s,string& buf,int len,int flags)" );  
+recvbyte = Ws2_32.api("recv","int(POINTER s,BYTE& b,int len,int flags)");   
+bind = Ws2_32.api("bind","int(POINTER s, struct name,int namelen)" );  
+connect = Ws2_32.api("connect","int(POINTER s,struct& sockstruct,int structlen)");
+send = Ws2_32.api("send","int(POINTER s,string msg,int msglen,int flag)"); 
+listen = Ws2_32.api("listen","int(POINTER s,int backlog)");
+closesocket = Ws2_32.api("closesocket","int(POINTER s)");
+WSAAsyncSelect = Ws2_32.api("WSAAsyncSelect","int(POINTER s,int hwnd,int Message,int event)");
+WSAFDIsSet = Ws2_32.api("__WSAFDIsSet","int(POINTER s,struct& passed_set)");
+WSAIoctl = Ws2_32.api("WSAIoctl","int(POINTER s,INT dwIoControlCode, struct lpvInBuffer,INT cbInBuffer, struct lpvOutBuffer,INT cbOutBuffer,INT & lpcbBytesReturned,  pointer lpOverlapped,  pointer lpCompletionRoutine )");
+/*end intellisense*/
+
+/*IP地址使用的结构体{{*/
+
+in_addr = class {
+	union S_un = {
+		struct S_un_b = { BYTE s_b1;BYTE s_b2;BYTE s_b3;BYTE s_b4 } ;
+		struct S_un_w = { WORD s_w1;WORD s_w2; } ;
+		INT S_addr;
+	} 
+	@_meta;
+} 
+in_addr._meta = {  _tostring = function(){ return ..wsock.inet_ntoa(owner); } }  
+var in_addr =  in_addr;
+
+in6_addr = class {
+	union u = {
+		BYTE Byte[16];
+		WORD Word[8];
+	} 
+	@_meta;
+}  
+in6_addr._meta = {  
+	_tostring = function(){ 
+		var buf = {BYTE addr[65]}
+		if( ::Ws2_32.inet_ntop  ){
+			if(  ::Ws2_32.inet_ntop(23/*_AF_INET6*/,owner,buf,65 ) ){ 
+				return ..string.str(buf.addr);
+			} 	
+		}
+		else {
+			if( 0 === ::Ws2_32.WSAAddressToString(owner,..raw.sizeof(owner),null,buf,#buf) ){
+				return ..string.str(buf.addr);
+			}
+		}
+	} 
+} 
+var in6_addr = in6_addr;
+
+sockaddr = class{ 
+  WORD sa_family; 
+  BYTE sa_data[14];
+}
+
+class sockaddr_in {
+	ctor(ip,port){
+		this.sin_addr = in_addr();
+		if( ip ){
+			var t = type(ip);
+			if( t == "string" ) {
+				if( !port ){
+					var i,p = ..string.match(ip,"^([^\:]+)\:(\d*)$");
+					if(i && p) {
+						ip = i;
+						port = tonumber(p);	
+					} 	
+				}
+				
+				if( !..string.find(ip,"^\d+\.\d+\.\d+\.\d+$") ){
+					ip = ..wsock.getIp(ip);
+					if(!ip)return;
+				}
+				
+				this.sin_addr.S_un.S_addr = ..wsock.inet_addr( ip );
+			}
+			elseif( t == "number" ){
+				this.sin_addr.S_un.S_addr = ip;
+			}
+			elseif( ip[["sin_addr"]] ){
+				return ip;
+			}
+			else{
+				return null;
+			}
+		}
+		if( port ){ this.sin_port = ..wsock.htons(port)  }
+	}
+    word sin_family = 0x2/*_AF_INET*/;   
+    WORD sin_port;
+    struct sin_addr;
+    BYTE sin_zero[8]; 
+}
+var sockaddr_in = sockaddr_in;
+
+class sockaddr_in6 {
+	ctor(ip,port){
+		this = {
+			WORD sin6_family = 23/*_AF_INET6*/;   
+    		WORD sin6_port;
+    		INT sin6_flowinfo;
+    		struct sin6_addr = in6_addr();
+    		INT sin6_scope_id; 
+		}
+	
+		if( ip ){
+			var t = type(ip);
+			if( t == "string" ) {
+				if( ! port ){
+					var i,p = ..string.match(ip,"^\[(.+)\]\:(\d*)$");
+					if(i && p) {
+						ip = i;
+						port = tonumber(p);	
+					} 
+				}
+				 
+				if( !..string.find(ip,"\:") ){
+					ip = ..wsock.getIp(ip);
+					if(!ip)return;
+				}
+				
+				if( !..string.find(ip,"\:") ) return; 
+				  
+				if(::Ws2_32.inet_pton)::Ws2_32.inet_pton(23/*_AF_INET6*/, ip,this.sin6_addr );
+				else ::Ws2_32.WSAStringToAddressW(ip,23/*_AF_INET6*/,null,this,{INT len = ..raw.sizeof(this) } ); 
+			} 
+			elseif( ip[["sin6_addr"]] ){
+				return ip;
+			}
+			else{
+				return null;
+			}
+		}
+		if( port ){ this.sin6_port = ..wsock.htons(port) }
+		this.sin_family = family;
+	}
+}
+/*}}*/
+ 
+
+/*初始化套接字组件{{*/
+versionRequired = 0x202; 
+_wsadata = {
+	WORD version;
+	WORD highVersion; 
+	byte description[257];
+	byte systemStatus[257];
+	WORD maxSockets;
+	WORD maxUdpDg;
+	string vendorInfo; 
+}
+var openCount = 0;
+open = function(){
+	var err = ::Ws2_32.WSAStartup(versionRequired , _wsadata) & 0xFFFFFFFF;
+	if( err == 0x0/*_ERROR_SUCCESS*/ ) {
+		openCount++;
+		return true;
+	}
+	return false,err;
+} 
+
+close = function(){
+	if(openCount<=0)return;
+	::Ws2_32.WSACleanup();//WSAStartup配对调用增减WS2_32.DLL内部引用计数
+	openCount--;
+}
+
+closeAll = function(){
+	while( 
+	    var r;
+	    r = ::Ws2_32.WSACleanup(); 
+	    r >= 0 && r !=0x276D/*_WSANOTINITIALISED*/
+	) {
+		
+	} 
+	openCount=0;
+}
+
+..table.gc(self,function(){
+	for(i=openCount;1;-1){
+		::Ws2_32.WSACleanup();
+		openCount--;
+	} 
+})
+/*}}*/
+ 
+class fd_set{
+  	INT fd_count = 0;
+  	pointer fd_array[0x40/*_FD_SETSIZE*/] = {};
+  	set = function(hSocket){
+  		var arr = this.fd_array;
+  		for(i=1;this.fd_count;1){
+  			if( arr[i] == hSocket ) return this;
+  		} 
+  		if( this.fd_count < 0x40/*_FD_SETSIZE*/ ){
+  			this.fd_count = this.fd_count + 1;
+  			arr[this.fd_count] = hSocket;
+  			return this;
+  		} 
+  	}
+}
+
+self.select = function(nfds,readfds,writefds,exceptfds,seconds,microseconds){
+    if(microseconds===null){
+    	seconds,microseconds = ..math.modf(seconds);
+    	microseconds = microseconds * 1000000;
+    }
+    
+	return (::Ws2_32.select(nfds,readfds,writefds,exceptfds,{
+		int tv_sec = seconds; 
+		int tv_usec = microseconds;
+	}) )
+}
+
+accept = function(sock,sockaddr,len){
+	if (!sockaddr) return ::Ws2_32.acceptP(sock,null,0);
+	return ::Ws2_32.acceptP(sock,sockaddr,{int len = len});
+}
+acceptAddr = function(sock){
+	var h,sad,sadLen = ::Ws2_32.accept(sock,sockaddr_in() ,{int len = 16} );
+	return { sock = topointer( h ); sad = sad; sadLen = sadLen.len; }
+} 
+
+inet_ntoaApi  = Ws2_32.api("inet_ntoa","string(INT in_addr )" ); 
+inet_ntoa = function(addr){
+	if( addr[["_struct"]] ) addr = ..raw.convert(addr,{INT S_addr}).S_addr
+	return inet_ntoaApi(addr)
+}
+
+getFreePort = function(ip,t=1,p=6){
+	var port;
+	if( open() ){  
+		var s = socket(2,1,6 )
+		if( s != _INVALID_SOCKET ){ 
+			var addr = sockaddr_in();  
+			var cbSize = ..raw.sizeof(addr);
+			if bind( s,addr,cbSize)  !=-1/*_SOCKET_ERROR*/	{ 
+				getsockname(s, addr,cbSize );
+				port = ntohs( addr.sin_port );
+			}
+			closesocket(s);
+		} 	
+	}
+	close();
+	return port;	
+};
+
+/*DNS解析{{*/
+hostent = class{  
+	string h_name;
+	pointer h_aliases;
+	word h_addrtype;
+	word h_length;
+	pointer h_addr_list;
+};  
+
+getIpAddr = function(domain) { 
+ 
+	var h = gethostbyname(domain);
+	if(!h){return;}; 
+	
+	var entity = ..raw.convert(h,hostent());
+	select( entity.h_addrtype ) { 
+		case 0x2/*_AF_INET*/,23/*_AF_INET6 */ begin  
+			var outAddrList = {};
+	    	var addrlist =  ..raw.convertArray(entity.h_addr_list,entity.h_length);
+	     
+	    	for(i=1;entity.h_length;1){
+	       		var int_addr_ptr = addrlist[i];
+	       		if(!int_addr_ptr) break ;  
+	       		 
+	       		var int_addr = ..raw.convert( int_addr_ptr, entity.h_addrtype == 2/*_AF_INET*/ ? in_addr() : in6_addr() );
+	       		..table.push( outAddrList ,int_addr );
+	    	} 
+	    	return outAddrList,entity.h_addrtype;
+		end;
+	} 
+}
+
+getIp = function(domain) { 
+	self.open();
+  
+	var addrList,addrtype = getIpAddr(domain)
+	if( addrList ){
+		for(k,v in addrList) addrList[k] = tostring(v);  
+		self.close(); return ..table.unpack(addrList);
+	}
+	
+	self.close();
+}
+/*}}*/
+
+getLocalIp = function(){
+	var ips = { getIp() }; 
+	for(i=1;#ips){ 
+		if(..string.startWith(ips[i],"192.168.")){ return ips[i]; } 
+	} 
+	
+	return ips[1];	
+}
+
+/**intellisense(wsock)
+open() = 使用wsock库其他函数以前必须调用此函数
+close() = 与wsock.open()配对使用,\n使用wsock库以后必须调用此函数释放资源,\n如果忘记配对调用此函数,在线程结束时将自动调用
+getFreePort(.(ip,套接字类型,协议类型)  =  获取空闲服务端口，\n可选在参数中指定IP地址,其他参数不必指定\n\n分配的端口即使没有马上使用，\n系统下次分配的空闲端口仍然是递增分配下一个端口号，\n自动空闲端口为49152到65535之间的值，\nXP系统则为 1025到5000之间的值
+versionRequired = 支持的版本,\n用于在open函数中WSAStartup的第一个参数
+_wsadata.version = 版本
+_wsadata.highVersion = 支持的最高版本
+_wsadata.description = 描述
+_wsadata.systemStatus = 状态和配置
+_wsadata.maxSockets = 单进程可打开的最大套接字数
+_wsadata.maxUdpDg = 最大数据包大小,0为无限制
+accept(__/*套接字句柄*/) = 创建一个新的套接字来与客户套接字创建连接通道,\n如果连接成功,就返回新创建的套接字句柄
+select(.(nfds,readfds,writefds,exceptfds,tv_sec,tv_usec) = 所有参数可选,\n成功返回套接字数目,超时返回0,出错返回-1/*_SOCKET_ERROR*/
+inet_ntoa(__/*in_addr*/) = in_addr结构体或数值转换为字符串格式IP地址
+getIp("__/*请输入域名*/") = 解析域名,可返回一个或多个IP\n如果不指定任何参数,返回内网IP
+getIpAddr(__/*请输入域名*/) = 解析域名,\n返回in_addr或in_addr结构体数组\n返回值2为AF_INET或AF_INET6
+getLocalIp() = 返回内网IP，优先取192.168.开头的IP
+hostent = 记录主机信息的结构体
+end intellisense**/
+
+/**intellisense()
+wsock.fd_set() = !wsock_fd_set.
+!wsock_fd_set.set(.(hSocket) = 设置文件描述符,成功返回对象自身
+!wsock_fd_set.set() = !wsock_fd_set.
+!wsock_fd_set.fd_count = 文件句柄数
+!wsock_fd_set.fd_array = 文件句柄数组
+
+!in_addr.S_un.S_addr = S_addr
+!in_addr.S_un.S_un_b.s_b1 = s_b1
+!in_addr.S_un.S_un_b.s_b2 = s_b2
+!in_addr.S_un.S_un_b.s_b4 = s_b4
+!in_addr.S_un.S_un_w.s_w1 = s_w1
+!in_addr.S_un.S_un_w.s_w2 =  s_w2
+wsock.in_addr()  = !in_addr.
+!sockaddr_in.sin_family = IPv4地址类型,\n值为_AF_INET
+!sockaddr_in.sin_port =  端口
+!sockaddr_in.sin_addr = 地址\n!in_addr.
+!sockaddr_in.sin_zero = 对齐数据
+wsock.sockaddr_in() = !sockaddr_in.
+wsock.sockaddr_in(.("主机",端口) = 返回sockaddr_in结构体,所有参数可选\n参数@1可以使用域名、IP、数值,\n如果参数@1是字符串,可在IP或域名后指定端口号\n如果参数@1传入sockaddr_in则直接返回该结构体\n参数错误返回null
+wsock.in6_addr() = IPv6地址结构\n!in6_addr.
+!in6_addr.u.Word = 8个16位字数组
+!in6_addr.u.Byte = 16个8位字节数组
+!sockaddr_in.sin6_family = IPv6地址类型,\n值为_AF_INET6
+!sockaddr_in.sin6_port =  端口
+!sockaddr_in.sin6_addr = 地址\n!in6_addr.
+!sockaddr_in.sin6_flowinfo = IPv6的流信息
+!sockaddr_in.sin6_scope_id = 标识地址范围
+wsock.sockaddr_in6() = !sockaddr_in.
+wsock.sockaddr_in6(.("主机",端口) = 返回sockaddr_in6结构体,所有参数可选\n参数@1可以使用域名、IPv6地址,\n如果IPv6地址包含端口号,IPv6地址应置于中括号内部,\n域名后不允许指定端口号\n如果参数@1传入sockaddr_in6则直接返回该结构体\n参数错误返回null
+
+_AF_INET6=@23/*_AF_INET6*/
+_FD_SETSIZE=@0x40/*_FD_SETSIZE*/
+_IOCPARM_MASK=@0x7F/*_IOCPARM_MASK*/
+_IOC_VOID=@0x20000000/*_IOC_VOID*/
+_IOC_OUT=@0x40000000/*_IOC_OUT*/
+_IOC_IN=@0x80000000/*_IOC_IN*/
+_IPPROTO_HOPOPTS=@0x0/*_IPPROTO_HOPOPTS*/
+_IPPROTO_ICMP=@0x1/*_IPPROTO_ICMP*/
+_IPPROTO_IGMP=@0x2/*_IPPROTO_IGMP*/
+_IPPROTO_GGP=@0x3/*_IPPROTO_GGP*/
+_IPPROTO_IPV4=@0x4/*_IPPROTO_IPV4*/
+_IPPROTO_ST=@0x5/*_IPPROTO_ST*/
+_IPPROTO_TCP=@0x6/*_IPPROTO_TCP*/
+_IPPROTO_CBT=@0x7/*_IPPROTO_CBT*/
+_IPPROTO_EGP=@0x8/*_IPPROTO_EGP*/
+_IPPROTO_IGP=@0x9/*_IPPROTO_IGP*/
+_IPPROTO_PUP=@0xC/*_IPPROTO_PUP*/
+_IPPROTO_UDP=@0x11/*_IPPROTO_UDP*/
+_IPPROTO_IDP=@0x16/*_IPPROTO_IDP*/
+_IPPROTO_RDP=@0x1B/*_IPPROTO_RDP*/
+_IPPROTO_IPV6=@0x29/*_IPPROTO_IPV6*/
+_IPPROTO_ROUTING=@0x2B/*_IPPROTO_ROUTING*/
+_IPPROTO_FRAGMENT=@0x2C/*_IPPROTO_FRAGMENT*/
+_IPPROTO_ESP=@0x32/*_IPPROTO_ESP*/
+_IPPROTO_AH=@0x33/*_IPPROTO_AH*/
+_IPPROTO_ICMPV6=@0x3A/*_IPPROTO_ICMPV6*/
+_IPPROTO_NONE=@0x3B/*_IPPROTO_NONE*/
+_IPPROTO_DSTOPTS=@0x3C/*_IPPROTO_DSTOPTS*/
+_IPPROTO_ND=@0x4D/*_IPPROTO_ND*/
+_IPPROTO_ICLFXBM=@0x4E/*_IPPROTO_ICLFXBM*/
+_IPPROTO_PIM=@0x67/*_IPPROTO_PIM*/
+_IPPROTO_PGM=@0x71/*_IPPROTO_PGM*/
+_IPPROTO_L2TP=@0x73/*_IPPROTO_L2TP*/
+_IPPROTO_SCTP=@0x84/*_IPPROTO_SCTP*/
+_IPPROTO_RAW=@0xFF/*_IPPROTO_RAW*/
+_IPPROTO_MAX=@0x100/*_IPPROTO_MAX*/
+_IPPROTO_RESERVED_RAW=@0x101/*_IPPROTO_RESERVED_RAW*/
+_IPPROTO_RESERVED_IPSEC=@0x102/*_IPPROTO_RESERVED_IPSEC*/
+_IPPROTO_RESERVED_IPSECOFFLOAD=@0x103/*_IPPROTO_RESERVED_IPSECOFFLOAD*/
+_IPPROTO_RESERVED_MAX=@0x104/*_IPPROTO_RESERVED_MAX*/
+_IPPORT_ECHO=@0x7/*_IPPORT_ECHO*/
+_IPPORT_DISCARD=@0x9/*_IPPORT_DISCARD*/
+_IPPORT_SYSTAT=@0xB/*_IPPORT_SYSTAT*/
+_IPPORT_DAYTIME=@0xD/*_IPPORT_DAYTIME*/
+_IPPORT_NETSTAT=@0xF/*_IPPORT_NETSTAT*/
+_IPPORT_FTP=@0x15/*_IPPORT_FTP*/
+_IPPORT_TELNET=@0x17/*_IPPORT_TELNET*/
+_IPPORT_SMTP=@0x19/*_IPPORT_SMTP*/
+_IPPORT_TIMESERVER=@0x25/*_IPPORT_TIMESERVER*/
+_IPPORT_NAMESERVER=@0x2A/*_IPPORT_NAMESERVER*/
+_IPPORT_WHOIS=@0x2B/*_IPPORT_WHOIS*/
+_IPPORT_MTP=@0x39/*_IPPORT_MTP*/
+_IPPORT_TFTP=@0x45/*_IPPORT_TFTP*/
+_IPPORT_RJE=@0x4D/*_IPPORT_RJE*/
+_IPPORT_FINGER=@0x4F/*_IPPORT_FINGER*/
+_IPPORT_HTTP=@0x50/*_IPPORT_HTTP*/
+_IPPORT_TTYLINK=@0x57/*_IPPORT_TTYLINK*/
+_IPPORT_SUPDUP=@0x5F/*_IPPORT_SUPDUP*/
+_IPPORT_EXECSERVER=@0x200/*_IPPORT_EXECSERVER*/
+_IPPORT_LOGINSERVER=@0x201/*_IPPORT_LOGINSERVER*/
+_IPPORT_CMDSERVER=@0x202/*_IPPORT_CMDSERVER*/
+_IPPORT_EFSSERVER=@0x208/*_IPPORT_EFSSERVER*/
+_IPPORT_BIFFUDP=@0x200/*_IPPORT_BIFFUDP*/
+_IPPORT_WHOSERVER=@0x201/*_IPPORT_WHOSERVER*/
+_IPPORT_ROUTESERVER=@0x208/*_IPPORT_ROUTESERVER*/
+_IPPORT_RESERVED=@0x400/*_IPPORT_RESERVED*/
+_IMPLINK_IP=@0x9B/*_IMPLINK_IP*/
+_IMPLINK_LOWEXPER=@0x9C/*_IMPLINK_LOWEXPER*/
+_IMPLINK_HIGHEXPER=@0x9E/*_IMPLINK_HIGHEXPER*/
+_IN_CLASSA_NET=@0xFF000000/*_IN_CLASSA_NET*/
+_IN_CLASSA_NSHIFT=@0x18/*_IN_CLASSA_NSHIFT*/
+_IN_CLASSA_HOST=@0xFFFFFF/*_IN_CLASSA_HOST*/
+_IN_CLASSA_MAX=@0x80/*_IN_CLASSA_MAX*/
+_IN_CLASSB_NET=@0xFFFF0000/*_IN_CLASSB_NET*/
+_IN_CLASSB_NSHIFT=@0x10/*_IN_CLASSB_NSHIFT*/
+_IN_CLASSB_HOST=@0xFFFF/*_IN_CLASSB_HOST*/
+_IN_CLASSB_MAX=@0x10000/*_IN_CLASSB_MAX*/
+_IN_CLASSC_NET=@0xFFFFFF00/*_IN_CLASSC_NET*/
+_IN_CLASSC_NSHIFT=@0x8/*_IN_CLASSC_NSHIFT*/
+_IN_CLASSC_HOST=@0xFF/*_IN_CLASSC_HOST*/
+_INADDR_ANY=@0x0/*_INADDR_ANY*/
+_INADDR_LOOPBACK=@0x7F000001/*_INADDR_LOOPBACK*/
+_INADDR_BROADCAST=@-1/*_INADDR_BROADCAST*/
+_INADDR_NONE=@-1/*_INADDR_NONE*/
+_WSADESCRIPTION_LEN=@0x100/*_WSADESCRIPTION_LEN*/
+_WSASYS_STATUS_LEN=@0x80/*_WSASYS_STATUS_LEN*/
+_IP_OPTIONS=@0x1/*_IP_OPTIONS*/
+_SOCK_STREAM=@0x1/*_SOCK_STREAM*/
+_SOCK_DGRAM=@0x2/*_SOCK_DGRAM*/
+_SOCK_RAW=@0x3/*_SOCK_RAW*/
+_SOCK_RDM=@0x4/*_SOCK_RDM*/
+_SOCK_SEQPACKET=@0x5/*_SOCK_SEQPACKET*/
+_SO_DEBUG=@0x1/*_SO_DEBUG*/
+_SO_ACCEPTCON=@0x2/*_SO_ACCEPTCONN*/
+_SO_REUSEADDR=@0x4/*_SO_REUSEADDR*/
+_SO_KEEPALIVE=@0x8/*_SO_KEEPALIVE*/
+_SO_DONTROUTE=@0x10/*_SO_DONTROUTE*/
+_SO_BROADCAST=@0x20/*_SO_BROADCAST*/
+_SO_USELOOPBACK=@0x40/*_SO_USELOOPBACK*/
+_SO_LINGER=@0x80/*_SO_LINGER*/
+_SO_OOBINLINE=@0x100/*_SO_OOBINLINE*/
+_SO_SNDBUF=@0x1001/*_SO_SNDBUF*/
+_SO_RCVBUF=@0x1002/*_SO_RCVBUF*/
+_SO_SNDLOWAT=@0x1003/*_SO_SNDLOWAT*/
+_SO_RCVLOWAT=@0x1004/*_SO_RCVLOWAT*/
+_SO_SNDTIMEO=@0x1005/*_SO_SNDTIMEO*/
+_SO_RCVTIMEO=@0x1006/*_SO_RCVTIMEO*/
+_SO_ERROR=@0x1007/*_SO_ERROR*/
+_SO_TYPE=@0x1008/*_SO_TYPE*/
+_TCP_NODELAY=@0x1/*_TCP_NODELAY*/
+_AF_UNSPEC=@0x0/*_AF_UNSPEC*/
+_AF_UNIX=@0x1/*_AF_UNIX*/
+_AF_INET=@0x2/*_AF_INET*/
+_AF_IMPLINK=@0x3/*_AF_IMPLINK*/
+_AF_PUP=@0x4/*_AF_PUP*/
+_AF_CHAOS=@0x5/*_AF_CHAOS*/
+_AF_NS=@0x6/*_AF_NS*/
+_AF_ISO=@0x7/*_AF_ISO*/
+_AF_OSI=@0x7/*_AF_OSI*/
+_AF_ECMA=@0x8/*_AF_ECMA*/
+_AF_DATAKIT=@0x9/*_AF_DATAKIT*/
+_AF_CCITT=@0xA/*_AF_CCITT*/
+_AF_SNA=@0xB/*_AF_SNA*/
+_AF_DECNET=@0xC/*_AF_DECNET*/
+_AF_DLI=@0xD/*_AF_DLI*/
+_AF_LAT=@0xE/*_AF_LAT*/
+_AF_HYLINK=@0xF/*_AF_HYLINK*/
+_AF_APPLETALK=@0x10/*_AF_APPLETALK*/
+_AF_NETBIOS=@0x11/*_AF_NETBIOS*/
+_AF_MAX=@0x12/*_AF_MAX*/
+_PF_UNSPEC=@0x0/*_PF_UNSPEC*/
+_PF_UNIX=@0x1/*_PF_UNIX*/
+_PF_INET=@0x2/*_PF_INET*/
+_PF_IMPLINK=@0x3/*_PF_IMPLINK*/
+_PF_PUP=@0x4/*_PF_PUP*/
+_PF_CHAOS=@0x5/*_PF_CHAOS*/
+_PF_NS=@0x6/*_PF_NS*/
+_PF_ISO=@0x7/*_PF_ISO*/
+_PF_OSI=@0x7/*_PF_OSI*/
+_PF_ECMA=@0x8/*_PF_ECMA*/
+_PF_DATAKIT=@0x9/*_PF_DATAKIT*/
+_PF_CCITT=@0xA/*_PF_CCITT*/
+_PF_SNA=@0xB/*_PF_SNA*/
+_PF_DECNET=@0xC/*_PF_DECNET*/
+_PF_DLI=@0xD/*_PF_DLI*/
+_PF_LAT=@0xE/*_PF_LAT*/
+_PF_HYLINK=@0xF/*_PF_HYLINK*/
+_PF_APPLETALK=@0x10/*_PF_APPLETALK*/
+_PF_NETBIOS=@0x11/*_PF_NETBIOS*/
+_PF_MAX=@0x12/*_PF_MAX*/
+_SOL_SOCKET=@0xFFFF/*_SOL_SOCKET*/
+_SOMAXCONN=@0x5/*_SOMAXCONN*/
+_MSG_OOB=@0x1/*_MSG_OOB*/
+_MSG_PEEK=@0x2/*_MSG_PEEK*/
+_MSG_DONTROUTE=@0x4/*_MSG_DONTROUTE*/
+_MSG_MAXIOVLEN=@0x10/*_MSG_MAXIOVLEN*/
+_FD_READ=@0x1/*_FD_READ*/
+_FD_WRITE=@0x2/*_FD_WRITE*/
+_FD_OOB=@0x4/*_FD_OOB*/
+_FD_ACCEPT=@0x8/*_FD_ACCEPT*/
+_FD_CONNECT=@0x10/*_FD_CONNECT*/
+_FD_CLOSE=@0x20/*_FD_CLOSE*/
+_WSABASEERR=@0x2710/*_WSABASEERR*/
+_WSAEINTR=@0x2714/*_WSAEINTR*/
+_WSAEBADF=@0x2719/*_WSAEBADF*/
+_WSAEACCES=@0x271D/*_WSAEACCES*/
+_WSAEFAULT=@0x271E/*_WSAEFAULT*/
+_WSAEINVAL=@0x2726/*_WSAEINVAL*/
+_WSAEMFILE=@0x2728/*_WSAEMFILE*/
+_WSAEWOULDBLOCK=@0x2733/*_WSAEWOULDBLOCK*/
+_WSAEINPROGRESS=@0x2734/*_WSAEINPROGRESS*/
+_WSAEALREADY=@0x2735/*_WSAEALREADY*/
+_WSAENOTSOCK=@0x2736/*_WSAENOTSOCK*/
+_WSAEDESTADDRREQ=@0x2737/*_WSAEDESTADDRREQ*/
+_WSAEMSGSIZE=@0x2738/*_WSAEMSGSIZE*/
+_WSAEPROTOTYPE=@0x2739/*_WSAEPROTOTYPE*/
+_WSAEPROTOOPT=@0x273A/*_WSAEPROTOOPT*/
+_WSAEPROTONOSUPPORT=@0x273B/*_WSAEPROTONOSUPPORT*/
+_WSAESOCKTNOSUPPORT=@0x273C/*_WSAESOCKTNOSUPPORT*/
+_WSAEOPNOTSUPP=@0x273D/*_WSAEOPNOTSUPP*/
+_WSAEPFNOSUPPORT=@0x273E/*_WSAEPFNOSUPPORT*/
+_WSAEAFNOSUPPORT=@0x273F/*_WSAEAFNOSUPPORT*/
+_WSAEADDRINUSE=@0x2740/*_WSAEADDRINUSE*/
+_WSAEADDRNOTAVAIL=@0x2741/*_WSAEADDRNOTAVAIL*/
+_WSAENETDOWN=@0x2742/*_WSAENETDOWN*/
+_WSAENETUNREACH=@0x2743/*_WSAENETUNREACH*/
+_WSAENETRESET=@0x2744/*_WSAENETRESET*/
+_WSAECONNABORTED=@0x2745/*_WSAECONNABORTED*/
+_WSAECONNRESET=@0x2746/*_WSAECONNRESET*/
+_WSAENOBUFS=@0x2747/*_WSAENOBUFS*/
+_WSAEISCONN=@0x2748/*_WSAEISCONN*/
+_WSAENOTCONN=@0x2749/*_WSAENOTCONN*/
+_WSAESHUTDOWN=@0x274A/*_WSAESHUTDOWN*/
+_WSAETOOMANYREFS=@0x274B/*_WSAETOOMANYREFS*/
+_WSAETIMEDOUT=@0x274C/*_WSAETIMEDOUT*/
+_WSAECONNREFUSED=@0x274D/*_WSAECONNREFUSED*/
+_WSAELOOP=@0x274E/*_WSAELOOP*/
+_WSAENAMETOOLONG=@0x274F/*_WSAENAMETOOLONG*/
+_WSAEHOSTDOWN=@0x2750/*_WSAEHOSTDOWN*/
+_WSAEHOSTUNREACH=@0x2751/*_WSAEHOSTUNREACH*/
+_WSAENOTEMPTY=@0x2752/*_WSAENOTEMPTY*/
+_WSAEPROCLIM=@0x2753/*_WSAEPROCLIM*/
+_WSAEUSERS=@0x2754/*_WSAEUSERS*/
+_WSAEDQUOT=@0x2755/*_WSAEDQUOT*/
+_WSAESTALE=@0x2756/*_WSAESTALE*/
+_WSAEREMOTE=@0x2757/*_WSAEREMOTE*/
+_WSASYSNOTREADY=@0x276B/*_WSASYSNOTREADY*/
+_WSAVERNOTSUPPORTED=@0x276C/*_WSAVERNOTSUPPORTED*/
+_WSANOTINITIALISED=@0x276D/*_WSANOTINITIALISED*/
+_WSAHOST_NOT_FOUND=@0x2AF9/*_WSAHOST_NOT_FOUND*/
+_HOST_NOT_FOUND=@0x2AF9/*_HOST_NOT_FOUND*/
+_WSATRY_AGAIN=@0x2AFA/*_WSATRY_AGAIN*/
+_TRY_AGAIN=@0x2AFA/*_TRY_AGAIN*/
+_WSANO_RECOVERY=@0x2AFB/*_WSANO_RECOVERY*/
+_NO_RECOVERY=@0x2AFB/*_NO_RECOVERY*/
+_WSANO_DATA=@0x2AFC/*_WSANO_DATA*/
+_NO_DATA=@0x2AFC/*_NO_DATA*/
+_WSANO_ADDRESS=@0x2AFC/*_WSANO_ADDRESS*/
+_NO_ADDRESS=@0x2AFC/*_NO_ADDRESS*/ 
+_SOCK_ERROR=@-1/*_SOCK_ERROR*/
+_SOCKET_ERROR=@-1/*_SOCKET_ERROR*/
+_IOC_INOUT=@0xC0000000/*_IOC_INOUT*/
+_SO_DONTLINGER=@0xFFFFFF7F/*_SO_DONTLINGER*/ 
+_WSAIOW = @_WSAIOW=function(x,y) {return (0x80000000/*_IOC_IN*/|(x)|(y)) }    
+_SIO_RCVALL=@0x98000001/*_SIO_RCVALL*/
+_SIO_RCVALL_MCAST=@0x98000002/*_SIO_RCVALL_MCAST*/
+_SIO_RCVALL_IGMPMCAST=@0x98000003/*_SIO_RCVALL_IGMPMCAST*/
+_SIO_KEEPALIVE_VALS=@0x98000004/*_SIO_KEEPALIVE_VALS*/
+_SIO_ABSORB_RTRALERT=@0x98000005/*_SIO_ABSORB_RTRALERT*/
+_SIO_UCAST_IF=@0x98000006/*_SIO_UCAST_IF*/
+_SIO_LIMIT_BROADCASTS=@0x98000007/*_SIO_LIMIT_BROADCASTS*/
+_SIO_INDEX_BIND=@0x98000008/*_SIO_INDEX_BIND*/
+_SIO_INDEX_MCASTIF=@0x98000009/*_SIO_INDEX_MCASTIF*/
+_SIO_INDEX_ADD_MCAST=@0x9800000A/*_SIO_INDEX_ADD_MCAST*/
+_SIO_INDEX_DEL_MCAST=@0x9800000B/*_SIO_INDEX_DEL_MCAST*/
+_SIO_RCVALL_MCAST_IF=@0x9800000D/*_SIO_RCVALL_MCAST_IF*/
+_SIO_RCVALL_IF=@0x9800000E/*_SIO_RCVALL_IF*/ 
+_FIONREAD=@0x8004667F/*_FIONREAD*/
+_FIONBIO=@0x8004667E/*_FIONBIO*/
+_FIOASYNC=@0x8004667D/*_FIOASYNC*/
+end intellisense**/
+
+
+/**intellisense(::)
+::Ws2_32=Ws2_32.dll在wsock支持库中加载\n!ws2_32dll.
+end intellisense**/
+
+/**intellisense(!ws2_32dll)
+accept(__)=accept
+AcceptEx(__)=AcceptEx
+bind(__)=bind
+closesocket(__)=closesocket
+connect(__)=connect
+ConnectEx(__)=ConnectEx
+DisconnectEx(__)=DisconnectEx
+EnumProtocols(__)=EnumProtocols
+freeaddrinfo(__)=freeaddrinfo
+FreeAddrInfoEx(__)=FreeAddrInfoEx
+FreeAddrInfoW(__)=FreeAddrInfoW
+gai_strerror(__)=gai_strerror
+GetAcceptExSockaddrs(__)=GetAcceptExSockaddrs
+GetAddressByName(__)=GetAddressByName
+getaddrinfo(__)=getaddrinfo
+GetAddrInfoEx(__)=GetAddrInfoEx
+GetAddrInfoExCancel(__)=GetAddrInfoExCancel
+GetAddrInfoExOverlappedResult(__)=GetAddrInfoExOverlappedResult
+GetAddrInfoW(__)=GetAddrInfoW
+gethostbyaddr(__)=gethostbyaddr
+gethostbyname(__)=gethostbyname
+gethostname(__)=gethostname
+GetHostNameW(__)=GetHostNameW
+GetNameByType(__)=GetNameByType
+getnameinfo(__)=getnameinfo
+getipv4sourcefilter(__)=getipv4sourcefilter
+GetNameInfoW(__)=GetNameInfoW
+getpeername(__)=getpeername
+getprotobyname(__)=getprotobyname
+getprotobynumber(__)=getprotobynumber
+getservbyname(__)=getservbyname
+getservbyport(__)=getservbyport
+GetService(__)=GetService
+getsockname(__)=getsockname
+getsockopt(__)=getsockopt
+getsourcefilter(__)=getsourcefilter
+GetTypeByName(__)=GetTypeByName
+htond(__)=htond
+htonf(__)=htonf
+htonl(__)=htonl
+htonll(__)=htonll
+inet_addr(__)=inet_addr
+inet_ntoa(__)=inet_ntoa
+InetNtop(__)=InetNtop
+InetPton(__)=InetPton
+ioctlsocket(__)=ioctlsocket
+listen(__)=listen
+ntohd(__)=ntohd
+ntohf(__)=ntohf
+ntohl(__)=ntohl
+ntohll(__)=ntohll
+recv(__)=recv
+recvfrom(__)=recvfrom
+RIOCloseCompletionQueue(__)=RIOCloseCompletionQueue
+RIOCreateCompletionQueue(__)=RIOCreateCompletionQueue
+RIOCreateRequestQueue(__)=RIOCreateRequestQueue
+RIODequeueCompletion(__)=RIODequeueCompletion
+RIODeregisterBuffer(__)=RIODeregisterBuffer
+RIONotify(__)=RIONotify
+RIOReceive(__)=RIOReceive
+RIOReceiveEx(__)=RIOReceiveEx
+RIORegisterBuffer(__)=RIORegisterBuffer
+RIOResizeCompletionQueue(__)=RIOResizeCompletionQueue
+RIOResizeRequestQueue(__)=RIOResizeRequestQueue
+RIOSend(__)=RIOSend
+RIOSendEx(__)=RIOSendEx
+select(__)=select
+send(__)=send
+sendto(__)=sendto
+SetAddrInfoEx(__)=SetAddrInfoEx
+setipv4sourcefilter(__)=setipv4sourcefilter
+SetService(__)=SetService
+SetSocketMediaStreamingMode(__)=SetSocketMediaStreamingMode
+setsockopt(__)=setsockopt
+setsourcefilter(__)=setsourcefilter
+shutdown(__)=shutdown
+socket(__)=socket
+TransmitFile(__)=TransmitFile
+TransmitPackets(__)=TransmitPackets
+WSAAccept(__)=WSAAccept
+WSAAddressToString(__)=WSAAddressToString
+WSAAsyncGetHostByAddr(__)=WSAAsyncGetHostByAddr
+WSAAsyncGetHostByName(__)=WSAAsyncGetHostByName
+WSAAsyncGetProtoByName(__)=WSAAsyncGetProtoByName
+WSAAsyncGetProtoByNumber(__)=WSAAsyncGetProtoByNumber
+WSAAsyncGetServByName(__)=WSAAsyncGetServByName
+WSAAsyncGetServByPort(__)=WSAAsyncGetServByPort
+WSAAsyncSelect(__)=WSAAsyncSelect
+WSACancelAsyncRequest(.(taskhandle)=WSACancelAsyncRequest
+WSACancelBlockingCall()=WSACancelBlockingCall
+WSACleanup()=WSACleanup
+WSACloseEvent(.(hEvent)=WSACloseEvent
+WSAConnect(__)=WSAConnect
+WSAConnectByList(__)=WSAConnectByList
+WSAConnectByName(__)=WSAConnectByName
+WSACreateEvent()=WSACreateEvent
+WSADeleteSocketPeerTargetName(__)=WSADeleteSocketPeerTargetName
+WSADuplicateSocket(__)=WSADuplicateSocket
+WSAEnumNameSpaceProviders(__)=WSAEnumNameSpaceProviders
+WSAEnumNameSpaceProvidersEx(__)=WSAEnumNameSpaceProvidersEx
+WSAEnumNetworkEvents(__)=WSAEnumNetworkEvents
+WSAEnumProtocols(__)=WSAEnumProtocols
+WSAEventSelect(__)=WSAEventSelect
+__WSAFDIsSet(__)=__WSAFDIsSet
+WSAGetLastError()=WSAGetLastError
+WSAGetOverlappedResult(__)=WSAGetOverlappedResult
+WSAGetQOSByName(__)=WSAGetQOSByName
+WSAGetServiceClassInfo(__)=WSAGetServiceClassInfo
+WSAGetServiceClassNameByClassId(__)=WSAGetServiceClassNameByClassId
+WSAHtonl(__)=WSAHtonl
+WSAImpersonateSocketPeer(__)=WSAImpersonateSocketPeer
+WSAInstallServiceClass(__)=WSAInstallServiceClass
+WSAIoctl(__)=WSAIoctl
+WSAIsBlocking()=WSAIsBlocking
+WSAJoinLeaf(__)=WSAJoinLeaf
+WSALookupServiceBegin(__)=WSALookupServiceBegin
+WSALookupServiceEnd(__)=WSALookupServiceEnd
+WSALookupServiceNext(__)=WSALookupServiceNext
+WSANSPIoctl(__)=WSANSPIoctl
+WSANtohl(__)=WSANtohl
+WSAPoll(__)=WSAPoll
+WSAQuerySocketSecurity(__)=WSAQuerySocketSecurity
+WSAProviderConfigChange(__)=WSAProviderConfigChange
+WSARecv(__)=WSARecv
+WSARecvDisconnect(__)=WSARecvDisconnect
+WSARecvEx(__)=WSARecvEx
+WSARecvFrom(__)=WSARecvFrom
+WSARecvMsg(__)=WSARecvMsg
+WSARemoveServiceClass(__)=WSARemoveServiceClass
+WSAResetEvent(__)=WSAResetEvent
+WSARevertImpersonation(__)=WSARevertImpersonation
+WSASend(__)=WSASend
+WSASendDisconnect(__)=WSASendDisconnect
+WSASendMsg(__)=WSASendMsg
+WSASendTo(__)=WSASendTo
+WSASetBlockingHook(.(lpBlockFunc)=WSASetBlockingHook
+WSASetEvent(__)=WSASetEvent
+WSASetLastError(.(iErrorCode)=WSASetLastError
+WSASetService(__)=WSASetService
+WSASetSocketPeerTargetName(__)=WSASetSocketPeerTargetName
+WSASetSocketSecurity(__)=WSASetSocketSecurity
+WSASocket(__)=WSASocket
+WSAStartup(__)=WSAStartup
+WSAStringToAddress(__)=WSAStringToAddress
+WSAUnhookBlockingHook()=WSAUnhookBlockingHook
+WSAWaitForMultipleEvents(__)=WSAWaitForMultipleEvents
+end intellisense**/

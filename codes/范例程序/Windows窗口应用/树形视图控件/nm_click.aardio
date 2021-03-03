@@ -1,0 +1,47 @@
+//鼠标单击取当前节点
+import win.ui;
+import win.ui.menu
+/*DSG{{*/
+var winform = win.form( bottom=372;parent=...;text="aardio form";right=577 )
+winform.add( 
+static={ bottom=77;text="请点击左侧节点";left=268;right=530;top=47;z=2;transparent=1;cls="static" };
+treeview={ dl=1;bgcolor=15793151;vscroll=1;infoTip=1;right=217;left=10;dt=1;db=1;cls="treeview";bottom=361;top=10;z=1;hscroll=1;edge=1;asel=false }
+)
+/*}}*/
+ 
+winform.treeview.onnotify = function(id,code,ptr){
+ 
+	if( code == 0xFFFFFFFE/*_NM_CLICK*/ ){  
+		var hItem = winform.treeview.hitTest()  
+		if( hItem ){ 
+			 winform.static.text =  winform.treeview.getItemText(hItem);
+			  
+		}
+	}
+	elseif(code = 0xFFFFFFFB/*_NM_RCLICK*/){ 
+		var x,y = win.getMessagePos();
+		var hItem,tvht = winform.treeview.hitTest(x,y,true);
+		var menu = win.ui.popmenu(winform)
+		menu.add("删除",
+			function(){
+				winform.treeview.delItem(hItem)
+			}
+		)
+		menu.popup(x,y,true);
+	} 
+} 
+ 
+hitem = winform.treeview.insertItem( {
+	"节点一";
+	"节点二";
+	{ 	text = "目录";
+		children = {
+			
+			"节点三";
+			"节点四"
+		}
+	}
+} ) 
+  
+winform.show() 
+win.loopMessage();

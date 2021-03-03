@@ -1,0 +1,38 @@
+//C语言调用aardio函数
+ 
+import tcc; 
+import win;
+
+//必须使用最新版tcc扩展库才能支持UTF8,UTF16字符串
+vm = tcc();  
+vm.c = /*** 
+	#include <stdio.h>
+	#include <windows.h>
+	
+	//该函数在C语言中声明,在aardio中定义 
+	void func_aardio(const wchar_t *u16,const char * u8);
+	
+	int main ()
+	{      
+   		func_aardio(L"这是C语言中的Unicode(UTF16)字符串","这是C语言中的UTF8字符串");  
+		return 1;
+	} 
+***/
+
+
+//定义一个aardio函数
+aardio_func = function(u16,u8){ 
+    win.msgbox(u16,u8);
+} 
+
+//导入为C语言函数定义
+vm.setCdecl(
+	aardio_func, //aardio函数名字
+	"func_aardio", //在C语言中调用的函数名字 
+	"void(ustring u16,str u8)" //函数原型,与C语言中的声明必须一致.
+)
+ 
+//链接并运行C语言main()函数
+vm.run();
+ 
+vm.close(); 

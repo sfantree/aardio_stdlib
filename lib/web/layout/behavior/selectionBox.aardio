@@ -1,0 +1,60 @@
+//selectionBox 鼠标选框
+namespace web.layout.behavior.selectionBox;
+
+sinking = {  
+ 
+    onMouseMove = function (ltTarget,ltOwner,x,y,ltMouseParams) { 
+    
+    	if( ltMouseParams.button_state != 1/*_HL_MAIN_MOUSE_BUTTON*/ ) return; 
+    	if( ltMouseParams.dragging ) return;
+    	
+    	var x,y = ltMouseParams.pos_document.x,ltMouseParams.pos_document.y; 
+        var ltBox = ltOwner.root().getElementById("drag-selection-box");
+        if( !ltBox ){
+        	if( ltTarget != ltOwner ) return;
+            ltBox = ltOwner.root().createElement("popup");
+            ltBox.setAttribute("id","drag-selection-box");
+            ltOwner.capture = true;
+            rcTracking = ::RECT(x,y,x,y)
+        };
+        
+        if( x <= rcTracking.left + rcTracking.width() / 2 ){
+            rcTracking.left =  x;
+        }
+        else {
+            rcTracking.right = x;
+        }
+        
+        if( y < rcTracking.top + rcTracking.height() / 2 ){
+            rcTracking.top  = y;
+        }
+        else {
+            rcTracking.bottom = y;
+        }
+          
+        ltBox.setPos(rcTracking.left,rcTracking.top,rcTracking.width(),rcTracking.height() ) ; 
+    }
+    
+    onMouseUp = function (ltTarget,ltOwner,x,y,ltMouseParams) {
+    	if( ltMouseParams.button_state != 1/*_HL_MAIN_MOUSE_BUTTON*/ ) return;
+    	
+    	var ltBox = ltOwner.root().getElementById("drag-selection-box");
+    	if( !ltBox ) return;
+    	ltBox.delete();
+    	
+		for(i,ltItem in ltOwner.eachChild() ){
+			var rc = ltItem.getRect(4/*_HL_VIEW_RELATIVE*/) 
+  			if( rc ? rcTracking.intersectsWith( rc ) ){  
+  				ltItem.selected = "true";
+  				ltItem.state.checked = true;
+  			} 
+  			else {
+  				ltItem.selected = null;
+  				ltItem.state.checked = false;	
+  			}
+		}
+		
+		ltOwner.capture = false;
+    	return true;
+    } 
+} 

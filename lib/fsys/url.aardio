@@ -1,0 +1,71 @@
+//url 快捷方式
+import com.interface.IUniformResourceLocator;
+import fsys.lnk;
+
+namespace fsys;
+ 
+class url {
+	ctor(){
+		this._uniformResourceLocator = ..com.interface.create("{fbf23b40-e3f0-101b-8488-00aa003e56f8}",..com.interface.IUniformResourceLocator );
+		this._persistFile = this._uniformResourceLocator.QueryInterface(..com.interface.IPersistFile )  
+		this._shellLink = this._uniformResourceLocator.QueryInterface(..com.interface.IShellLink ) 
+		this._defaultExt = ".url"; 
+	};  
+ 	getUrl = function(){
+		var hr,pUrl = this._uniformResourceLocator.GetURL();
+		if( (hr)<0/*FAILED*/ ) return false,..lasterr(hr); 
+		return pUrl ? ..raw.str(pUrl);
+	};  
+	setUrl = function(url,flags){
+		if( url && !..inet.url.is(url,0x0/*_URLIS_URL*/) && ..io.exist(url) )
+			url = "file:///" + url;
+			
+		if( flags === null ) flags = 1/*_IURL_SETURL_FL_GUESS_PROTOCOL*/;	
+		var hr = this._uniformResourceLocator.SetURL( url,flags : 0 );
+		if( (hr)<0/*FAILED*/ ) return false,..lasterr(hr); 
+		return true;
+	};  
+	invokeCommand = function(verb,hwndParent){
+		var info = {
+   			INT cbSize = 16;
+   			INT flags = 0;   
+   			addr hwndParent = hwndParent; 
+   			str verb = verb;  
+		}
+		if( hwndParent ) info.flags = info.flags | 1/*IURL_INVOKECOMMAND_FL_ALLOW_UI*/
+		if( !verb ) info.flags = info.flags | 2/*IURL_INVOKECOMMAND_FL_USE_DEFAULT_VERB */
+		
+		var hr = this._uniformResourceLocator.InvokeCommand( info );
+		if( (hr)<0/*FAILED*/ ) return false,..lasterr(hr); 
+		return ture;
+	};
+	@_metaProperty
+} 
+url._metaProperty = ..fsys.lnk._metaProperty;
+
+/**intellisense()
+!urllnk.invokeCommand(.(verb,hwndParent) = 执行指令,参数省略则打开网址\nverb默认为"open"
+!urllnk.getUrl() = 返回网址
+!urllnk.setUrl(.("网址") = 设置网址
+!urllnk.path = 目标网址
+!urllnk.filename = 快捷方式默认文件名,可省略后缀名,\n未指定则自URL中获取文件名或域名
+!urllnk.description = 附加说明
+!urllnk.arguments = 参数
+!urllnk.path = 目标路径,设置该属性时:\n如果workDir为空则设workDir为目标路径所在目录\n如果description为空则设为版本信息中的文件描述
+!urllnk.workDir = 工作目录
+!urllnk.hotkey = 热键
+!urllnk.showCmd = 显示参数
+!urllnk.getIcon() = 返回图标文件路径,以及路标索引
+!urllnk.setIcon(.(文件路径,图标索引) = 设置图标\n索引可省咯,默认为0
+!urllnk.load(__/*url文件路径*/) = 载入快捷方式
+!urllnk.save(__/*url文件存储路径*/) = 保存快捷方式\n如果指定了filename或path属性,参数也可以指定存储目录
+!urllnk.pinToPrograms(true,->->->) = 添加到开始菜单程序组\n可选指定多个子目录参数
+!urllnk.pinToPrograms(false,->->->) = 自开始菜单程序组移除\n可选指定多个子目录参数\n如果指定了子目录则直接移除快捷方式所在父目录
+!urllnk.pinToDesktop(true) = 添加快捷方式到桌面
+!urllnk.pinToDesktop(true) = 自桌面移除快捷方式
+fsys.url() = 创建URL快捷方式\n!urllnk.
+fsys.url = 网页快捷方式
+_IURL_SETURL_FL_GUESS_PROTOCOL=@1/*_IURL_SETURL_FL_GUESS_PROTOCOL*/
+_IURL_SETURL_FL_USE_DEFAULT_PROTOCOL=@2/*_IURL_SETURL_FL_USE_DEFAULT_PROTOCOL*/
+_ALL_IURL_SETURL_FLAGS=@3/*_ALL_IURL_SETURL_FLAGS*/
+end intellisense**/

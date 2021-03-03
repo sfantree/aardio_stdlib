@@ -1,0 +1,103 @@
+﻿//html5Form 网页控件
+import web.form.util;
+
+if( web.form.util.getMajorVersion() < 11 ){ 
+
+	if(web.kit) error("在导入web.html5以前不应导入web.kit",2)
+ 
+	var dllPath = ..io.appData("aardio/std/wke/1.2.1.4/wke.dll");  
+	var dllPathX = ..io.appData("aardio/std/wke/1.2.1.4/wkex.dll"); 
+	
+	if(!( ..io.exist(dllPath) && ..io.exist(dllPathX) )){
+		import sevenZip.lzma.httpFile; 
+ 		var tmpDownDir  = io.tmpname();
+ 		var tmpDownPath = io.joinpath(tmpDownDir,"/wke.7z") 
+		if( sevenZip.lzma.httpFile.download("http://download.aardio.com/v10.files/dll/wke.tar.lzma","正在下载HTML5支持组件", tmpDownDir) ){ 
+			
+		}
+	}
+	
+	if(( ..io.exist(dllPath) && ..io.exist(dllPathX) )){
+		namespace web.kit{
+			_dllPath = dllPath;
+			_dllPathX = dllPathX; 
+		}
+		import web.kit;
+		import web.kit.form;
+		web.html5Form = ..web.kit.form; 
+		web.html5Form.html5Supported  = true;
+	}
+} 
+else {
+	web.html5Form = web.form;
+	web.html5Form.html5Supported  = true;
+	web.form.emulation(11001);
+}
+
+if(!web.html5Form){
+	web.html5Form = web.form;
+	web.html5Form.html5Supported  = false;
+	web.form.emulation(11001);
+}
+
+/***intellisense()
+web.html5Form = HTML5窗体
+web.html5Form(.(winform) = 参数为窗口对象
+web.html5Form() = !webhtml5Form.
+web.html5Form.html5Supported = 判断是否支持HTML5\n如果用户系统安装了IE11、或按需下载了wke组件即返回true
+end intellisense***/
+
+/***intellisense(!webhtml5Form)
+html = @.html = /**\n<!doctype html>\n<html>\n<head>\n    <meta charset="utf-8">\n    <meta http-equiv="X-UA-Compatible" content="IE=edge" />\n    <style type="text/css">\n    html,body{ height:100%; margin:0; } __\n    </style>\n    <script type="text/javascript"></script>\n</head>\n<body>\n    <div id="header"></div>\n    <div id="container"> \n        <div class="lside"> </div> \n        <div class="rside"> </div>  \n    </div>\n</body>\n</html>\n**/
+write(.(html) = 写入HTML
+post(.(网址,POST数据) = POST提交数据
+go("__/*网址*/") = 打开网址
+wait( = 该函数等待网页完全加载完成,\n因为部份网页遇到问题可能部份内容无法完全加载,\n建议大家尽可能使用等待部份加载的waitEle或waitDoc等函数替代
+wait(.("网址",超时值) = 等待指定的网页加载完成,所有参数可选,\n等待的网址支持模式语法,参数@2指定最大超时值,单位毫秒
+waitDoc() = 等待文档对象准备就绪,并返回文档对象\ndocument.
+getEle("__") = 返回一个节点对象,参数指定id或name属性
+waitEle(.("ID或名称",,超时值) = 返回一个节点对象,除参数一以外,其他能数可选\n第三个参数指定超时值(单位为毫秒)\n参数@2必须为空
+getEle() = !ele.
+dispatchEvent("__/*节点ID*/","click") = 触发事件
+setEle(.(控件名字,属性值,属性名) = 更新控件值,成节返回节点,失败返回null空值\n第一个参数也可以是ele对象,\n属性名,框架名为可选参数.\n属性值可以是一个指定多个属性键值对的table对象
+select("控件名字",__/*输入选项索引,或选项值、选项文本*/) = 查找下拉选框的指定选项,选中并返回选项节点\n第一个参数也可以是ele对象
+click(.(控件名字,随机延时最小值,延时最大值,框架名) = 模拟点击控件,\n第一个参数也可以是ele对象,\n随机延时值为可选参数,默认为1,500.\n框架名为可选参数
+location = 当前网址
+querySelectorAll(.("CSS选择器") = 查询并返回节点集合,length属性获取节点个数
+querySelector(.("CSS选择器") = 查询并返回节点
+querySelectorAll() = !ele.
+querySelector() = !ele.
+wait() = 等待页面加载完成
+reload() = 重新载入
+external = @.external = {\n	__/*external的成员函数可在JS中调用*/\n};
+document=document.
+window = js全局对象\n!jsGlobal.
+script = js全局对象\n!jsGlobal.
+getForm() = 返回该视图所在窗体对象\n!winform.
+canGoBack() = 能否后退
+canGoForward() = 能否前进
+goBack() = 后退
+goForward() = 前进
+reload() = 重新载入
+doScript(.(js代码) = 执行JS脚本
+eval(.(JS表达式) = 计算JS表达式并返回值
+onURLChanged = @.onURLChanged = function(url){ 
+	if(#url) owner.getForm().msgbox( url )
+}
+onTitleChanged = @.onTitleChanged = function(title){ 
+	owner.getForm().text = title;
+}
+onNavigation = @.onNavigation = function(url){ 
+	return true;
+}
+onDocumentReady = @.onDocumentReady = function(url,mainFrameState,frameState){
+	if( mainFrameState == frameState ){
+		__/*主框架加载完成*/
+	}
+}
+attach = @.attach(\n	function(event){\n		io.print("点击坐标", event.screenX,event.screenY )\n		io.print("触发节点", event.srcElement.innerText )\n	}\n	,"onclick__",ele/*也可输入getEle()所需参数,省略表示doc*/ \n)
+attachAll = @.attachAll(  \n	/* html节点ID = 事件触发函数表 */\n	caption_button_min = {\n		onclick = function(event){\n			wb._form.hitMin();	\n		} \n	}\n)  
+loadScript("js地址","","utf-8") = 动态加载js文件\N可选用第三个参数指定文件编码
+jQuery("__") = jQuery选择器,并可自动载入jQuery库\nn首次调用按需加载jQuery v1.9:\n "/res/js/jQuery/jQuery.min.js"\n失败则通过网络CDN服务器下载jquery-1.9.0.min.js
+jQuery() = 无参数时返回jQuery类对象\n首次调用按需加载 jQuery v1.9:\n "/res/js/jQuery/jQuery.min.js"\n失败则通过网络CDN服务器下载jquery-1.9.0.min.js\n!jQuery.
+end intellisense***/

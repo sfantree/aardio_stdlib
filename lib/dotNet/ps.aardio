@@ -1,0 +1,94 @@
+﻿//ps PowerShell组件
+
+import dotNet; 
+namespace dotNet;
+
+class ps{
+	ctor(command,useLocalScope){
+		var powerShellRunner,err = getRunner();
+		if( !powerShellRunner ){ return null,err:"当前系统未安装.Net Framework 2.0 以上版本";}
+		
+		return powerShellRunner.InvokeScript(command,!!useLocalScope);//useLocalScope参数必须是布尔类型，以匹配C#函数签名
+	};
+}
+
+namespace ps {
+    
+    command = function( command,params,useLocalScope,... ) {
+		var powerShellRunner,err = getRunner();
+		if( !powerShellRunner ){ return null,err:"当前系统未安装.Net Framework 2.0 以上版本";}
+		
+		if(type(params)==type.string){
+			params = {params;useLocalScope;...}
+			useLocalScope = false;
+		}
+		
+		var paramNames = {};
+		var paramValues = {};
+		for k,v in ..table.eachName(params){
+			..table.push(paramNames,k);
+			..table.push(paramValues,tostring(v));
+		}
+		
+		for(i=1;#params;1){
+			..table.push(paramNames,tostring(params[i]));
+		}
+		
+		return powerShellRunner.InvokeCommand(command,false,!!useLocalScope 
+			,#paramNames?paramNames:null,#paramValues?paramValues:null);//参数必须是非空数组，以匹配C#函数签名
+	};
+	
+	var powerShellRunner,appDomain;
+	getRunner = function(){
+		if( powerShellRunner ){
+			return powerShellRunner;
+		}
+		
+		var clr = ..dotNet.clr(); 
+		if( !clr ){ return null,"系统未安装 Net Framework 2.0 以上版本";}
+		
+		appDomain = clr.createAppDomain();
+		var compile = appDomain.createCompiler("C#");
+		compile.Reference("System.Core")
+		compile.Reference("System.Management.Automation");
+		 
+		/*
+		PowerShellRunner.cs 参考代码:
+		https://github.com/leechristensen/UnmanagedPowerShell/blob/master/PowerShellRunner/PowerShellRunner.cs
+		
+		改进如下：
+		1、不需要带上体积较大的特定版本System.Management.Automation.dll，改用自动获取系统dll。
+		2、兼容并自适应低版本 .Net 2.0 PowerShell 1.0。
+		3、支持动态添加参数等。
+		*/
+		compile.Source = $"~/lib/dotNet/.res/PowerShellRunner.cs";
+		var assembly = compile.Compile()  
+		var err = compile.getLastError();
+	
+		if(#err){
+			return null,err;
+		}
+		
+		if(!assembly){
+			appDomain.unload();
+			appDomain = null;
+			return null,"系统未安装 PowerShell"
+		}
+		powerShellRunner = assembly.createInstance("PowerShellRunner.PowerShellRunner");
+		return powerShellRunner;	
+	} 
+	
+	..subscribe("beforeUnload",function(){
+		if(appDomain){
+			appDomain.unload();
+			appDomain = null;
+		}
+	} );
+}
+
+/**intellisense()
+dotNet.ps(  = 仅支持 .Net 2.0 以上，Win7,Win10 已自带。
+dotNet.ps(.(script,useLocalScope) = 执行PowerShell脚本，返回输出字符串。\n@script 参数指定PowerShell脚本或脚本路径，\n@useLocalScope为可选参数。
+dotNet.ps.command(.(command,parameters,useLocalScope) = 执行PowerShell命令，返回输出字符串。\n可选用@parameters参数指定一个表，包含调用参数名值对，\n@useLocalScope为可选参数。
+end intellisense**/
+

@@ -1,0 +1,54 @@
+//提示控件
+import fonts.fontAwesome;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="控件提示 - 鼠标悬停在超链接上试试";right=492;bottom=254;bgcolor=4448391;max=false)
+winform.add(
+plus={cls="plus";text="http://www.aardio.com";left=80;top=79;right=404;bottom=107;color=15793151;font=LOGFONT(h=-24);notify=1;z=1};
+plusTracking={cls="plus";text="手动控制的汽泡提示";left=187;top=201;right=442;bottom=238;bgcolor=-5197169;font=LOGFONT(h=-16;name='FontAwesome';charset=0);z=2}
+)
+/*}}*/
+
+import win.ui.tooltip; 
+var tooltipCtrl = win.ui.tooltip( winform );//在窗口上创建tooltip控件 
+tooltipCtrl.addTool(winform.plus,"这是一个超链接" )
+
+import process;
+winform.plus.oncommand = function( id,event ){ 
+	process.openUrl(owner.text);//打开网页
+	
+	//这个函数可以重复调用没有关系(会自动删除原来的控件)
+	var tiPlus = tooltipCtrl.addTool(winform.plus,"已经点过的超链接")
+	
+	//这样写也可以改控件提示
+	tiPlus.setText("已经点过的超链接")
+	
+	//这样写也可以改控件提示
+	tooltipCtrl.setText("已经点过的超链接2",winform.plus);
+} 
+
+var trackingToolTip = win.ui.tooltip.tracking(winform)
+winform.plusTracking.onMouseEnter = function(wParam,lParam){ 
+    var x,y,cx,cy = winform.plusTracking.getPos(true)
+	trackingToolTip.setInfo("标题").setText("内容").trackPopup(true,x+20,y+cy);
+}
+
+winform.plusTracking.onMouseLeave = function(wParam,lParam){ 
+    trackingToolTip.getTool().trackPopup(false)
+}
+
+winform.plusTracking.skin({
+	background = {
+		default=0xFF8FB2B0;
+		hover=0xFF928BB3
+	}
+})
+
+winform.plus.skin(
+	color = {  
+		hover = 0xFFFF0000; //鼠标移上去的颜色
+		active = 0xFF00FF00; //鼠标按下去的颜色
+	}
+)
+winform.show() 
+win.loopMessage(); 

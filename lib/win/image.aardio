@@ -1,0 +1,203 @@
+//image 图像
+import fsys.localfile;
+namespace win.image;
+
+loadIcon = function(id,hinst){  
+	if(type(id)==type.number){
+		id = topointer(id)
+	}
+	return ::LoadIcon(hinst,id); 
+}
+
+loadCursor = function(id,hinst){   
+	if(type(id)==type.number){
+		id = topointer(id)
+	}
+	return ::LoadCursor(hinst,id); 
+}
+
+loadImage = function(path,hinst){   
+	if(type(path)==type.number){
+		path = topointer(path)
+	} 
+	return ::LoadImage( hinst, path,0x0/*_IMAGE_BITMAP*/,0,0,0 ); 
+}
+
+loadIconFromFile = function( path,gc=true ){
+    var resfile = ..fsys.localfile(path)
+	assert( resfile,'错误的图标文件路径\n'+path);
+	
+	var hicon  = ::LoadImage( ,resfile.path(),0x1/*_IMAGE_ICON*/,0,0,0x10/*_LR_LOADFROMFILE*/ );
+	assert(hicon,"加载图标失败"+path);
+	resfile.free();
+
+	if(!gc) return hicon;
+	
+	return ..gcdata(  
+		_topointer = hicon;
+		_gc = function(){
+			::DestroyIcon(hicon);
+		} 
+	);
+}
+
+loadCursorFromFile = function(path){
+	var resfile = ..fsys.localfile(path)
+	assert( resfile,'错误的图标文件路径\n'+path)  
+	
+	hcur = ::User32.LoadCursorFromFileW( resfile.path() );
+	if(!hcur) error("加载图标失败:"+ path,2);
+	resfile.free();
+
+	return hcur; 
+}
+
+loadImageFromFile  = function(path,gc=true){  
+ 
+	var resfile = ..fsys.localfile(path)
+	var hBmp = ::LoadImage( , resfile.path(),0x0/*_IMAGE_BITMAP*/,0,0,0x10/*_LR_LOADFROMFILE*/ );
+	resfile.free();
+	
+	if(! (gc && ret ) ) return hBmp;	
+	return ..gcdata(  
+		_topointer = hBmp;
+		_gc = function(){
+			::DeleteObject(hBmp)
+		} 
+	);   
+}
+
+extractIcon = function(fileName,ind=1,gc=true){
+	var ret = ::Shell32.ExtractIconP(_HINSTANSE,..io.localpath(fileName) or fileName,ind-1);
+	if( ind <= 0 ) return tonumber(ret);;
+ 
+	if(! (gc && ret ) ) return ret;	
+	return ..gcdata(  
+		_topointer = ret;
+		_gc = function(){
+			::DestroyIcon(ret)
+		} 
+	);
+}
+
+class IconHeader {
+	word idreserved; 
+	word idtype; 
+	word idcount; 
+}
+
+class IconDirEntry{
+	byte bWidth;
+	byte bHeight;
+	byte bColorCount;
+	byte bReserved;
+	word wPlanes;
+	word wBitCount;
+	int dwBytesInRes;
+	int dwImageOffset;
+}
+
+queryIconFromResource = function(iconData,fIcons,queryProc,flags){ 
+	if( fIcons === null ) fIcons = true; 
+	if ( (#iconData <= 0x410/*_MAX_PATH_U8*/ ) ) {
+		if( ( ..string.endWith(iconData,".ico",true) || ..string.endWith(iconData,".cur",true) ) ) { 
+			iconData = ..string.load( iconData ); 
+		}
+	} 
+	if( #iconData < 6 ) return;
+	  
+	var count = ..raw.convert( iconData, IconHeader() ).idcount; 
+	if( #iconData < 6 + count * 16 ) return;
+
+	var entrys = {};
+	for (i = 0; count - 1) {
+		var entry = ..raw.convert( iconData, IconDirEntry(),6 + i * 16 ); 
+		..table.push( entrys,entry ); 
+	}
+	..table.sort( entrys,function(b){
+		if( owner.bWidth == b.bWidth ) return owner.bColorCount > b.bColorCount
+		return owner.bWidth < b.bWidth  ;
+	} ) 
+
+	for (i = 1; #entrys) { 
+		var entry = entrys[i];
+		if( queryProc(count,i,entry.bWidth,entry.bHeight,entry.wBitCount,entry.bColorCount,entry.wPlanes) ){
+			var hIcon;
+			if(!fIcons && entry.bColorCount == 2){
+				var offset = entry.dwImageOffset + 48;//BITMAPINFOHEADER,crColors
+				var size = entry.bHeight * entry.bWidth / 8;
+				hIcon = ::User32.CreateCursorP(_HINSTANSE,
+  					entry.wPlanes,entry.wBitCount,entry.bWidth,entry.bHeight,
+  					..raw.toPointer(iconData,offset+size),
+  					..raw.toPointer(iconData,offset)
+				);
+			}
+			else {
+				hIcon= ::User32.CreateIconFromResourceExP(..raw.toPointer(iconData,entry.dwImageOffset),entry.dwBytesInRes
+					, fIcons,0x30000/*format version*/,entry.bWidth,entry.bHeight,flags)
+			}
+			 
+			return hIcon,entry ;
+		}
+	}	
+} 
+
+
+createIcon = function(iconData,fIcons,mWidth,mBpp,flags){
+	if( mBpp === null ) mBpp = 32
+	if( !fIcons ) mBpp = null;
+	return queryIconFromResource(iconData,fIcons,
+		function(count,index,width,height,bpp,colorCount,planes){
+			if ( ( mWidth && width >= mWidth ) || index = count) { 
+				if( mBpp && ( bpp > mBpp )  ) return;
+				return true;
+			}
+		},flags
+	)	
+}
+
+createSharedIcon = function(iconData,fIcons,mWidth,mBpp,flags){
+	return createIcon(iconData,fIcons,mWidth,mBpp,0x00008000/*_LR_SHARED*/);
+}
+
+createAniCursor = function(buf){ 
+	var buf = ..raw.buffer(#buf+8,buf); 
+	return ::User32.CreateIconFromResource(buf,#buf,false,0x00030000);
+}
+
+setIcon = function(hwnd,hIcon,big){
+	hwnd = hwnd[["hwnd"]] : hwnd;
+	if( type.isString(hIcon) ) hIcon = loadIconFromFile(hIcon,false); 
+    
+    var smallPrev,bigPrev;		 
+	if( !big ){  
+		smallPrev = ::User32.SendMessageP( owner.hwnd,0x80/*_WM_SETICON*/,0,hIcon); 
+		if( big !== null  ) return smallPrev;
+	}
+	
+	return smallPrev,::User32.SendMessageP( owner.hwnd,0x80/*_WM_SETICON*/,0,hIcon);  
+}
+
+getIcon = function( hwnd,big){
+	return ::User32.SendMessageP( hwnd[["hwnd"]] : hwnd,0x80/*_WM_SETICON*/,big ? 1/*_ICON_BIG*/ : 2/*_ICON_SMALL2*/,0) ;
+}
+
+self.DestroyIcon = ::DestroyIcon;
+self.DestroyCursor = ::DestroyCursor;
+
+/**intellisense(win.image)
+loadIconFromFile(.(位图路径,是否自动释放) = 自文件载入图标,支持aardio资源文件\n参数二默认为true
+loadImageFromFile(.(位图路径,是否自动释放) = 自文件载入位图,支持aardio资源文件\n参数二默认为true
+loadCursorFromFile(.(位图路径) = 自文件载入光标,支持资源文件
+loadIcon(__/*请输入资源名*/,模块句柄) = 自图标资源载入图标,\n返回句柄无需释放
+loadImage(__/*请输入资源名*/,模块句柄) = 自位图资源载入位图,\n返回句柄无需释放
+loadCursor(__/*请输入资源名*/,模块句柄) = 自光标资源载入光标,\n返回句柄无需释放
+extractIcon(.(EXE文件路径,图标索引,是否自动释放) = 索引默认为1,如果为0,则返回图标总数,\n参数二默认为true
+queryIconFromResource(图标数据,是否图标,回调函数,选项) = @.queryIconFromResource(__/*图标数据或路径*/,true,\n\n	function(count,index,width,height,bpp,colorCount,planes){\n		if ( width == 48 && bpp == 32 ) {  \n			return true;\n		}\n	}\n)	
+createIcon( = 在图标数据中加载指定像素的图标,失败返回空值
+createIcon(.(图标数据,是否图标,适配大小,最大位宽,选项) = 自内存创建图标,失败返回空值,\n图标数据:也可以是路径,或资源文件路径,\n是否图标:可省略,默认为true,载入光标请指定为false,仅支持单色光标\n适配大小:可省略,如果不匹配则取最接近大小的图标,\n最大位宽:可省略,默认值为32位\n选项:保留参数,不必指定\n\n如果选项不指定_LR_SHARED，返回的句柄不再使用时必须调用 ::DestroyIcon销毁
+createSharedIcon(.(图标数据,是否图标,适配大小,最大位宽) = 自内存创建共享图标,失败返回空值,\n图标数据:也可以是路径,或资源文件路径,\n是否图标:可省略,默认为true,载入光标请指定为false,仅支持单色光标\n适配大小:可省略,如果不匹配则取最接近大小的图标,\n最大位宽:可省略,默认值为32位\n选项:保留参数,不必指定\n\返回的句柄不能调用 ::DestroyIcon销毁,注意这种图标不应大量创建
+createAniCursor(.(动画光标数据) = 自内存加载*.ani格式的动画光标\n参数也可以是文件、或资源文件路径
+setIcon(.(窗口对象或句柄,图标句柄或路径,是否大图标) = 设置窗口图标,窗口负责释放图标句柄,\n参数@3设为true仅设置大图标,设为false仅设置小图标\n如果省略该参数l则同时设置大图标和小图标\n如果替换了小图标,返回值1为窗口原来的小图标,如果替换了大图标,返回值为窗口原来的大图标
+getIcon(.(窗口对象或句柄,是否大图标) = 获取窗口图标句柄\n返回的句柄不应被释放,共享图标返回空值
+end intellisense**/

@@ -1,0 +1,106 @@
+import win;
+import com.picture;
+import win.region;
+namespace win.region;
+
+class bitmap { 
+
+	ctor( hBmp,transparentColor1,transparentColor2=0,stepTolerance=0x050505){ {
+	
+		this.updateWindow = function( hwnd,bRedraw = true,copy){
+			if(!this.hRegion) return;
+			
+			hwnd = hwnd || this.hwnd ;
+			if(!hwnd) error("请指定句柄参数",2)
+			
+			if(  ::SetWindowRgn( hwnd || this.hwnd  ,this.hRegion,bRedraw) ){
+				this.hRegion = copy ? ..win.region.getWindowRgn(hwnd) : null;
+			}
+		}  
+		
+		var tArg1 = type(hBmp);
+		if( tArg1 == "string" ){
+			this.hRegion = createFromFile(hBmp,transparentColor1,transparentColor2,stepTolerance);
+			if( type(this.hRegion) != "pointer" ){
+				error("参数@1指定了无效位图",2)
+			}  
+		}
+		elseif( tArg1 == "pointer") {
+			this.hRegion = BitmapToRegion(hBmp,transparentColor1===null
+				,transparentColor1:0,transparentColor2,stepTolerance); 
+				
+			if( type(this.hRegion) != "pointer" ){
+				error("参数@1指定了无效位图",2)
+			}  
+		} 
+		elseif( tArg1 == "table" && hBmp.hwnd ){ 
+			var form = hBmp;
+			var hBmp = form.getBitmap();
+			if(!hBmp) error("请先设置窗体背景图",2);
+			
+			if( ..win.getStyle(form.hwnd,0x800000/*_WS_BORDER*/) ) error("请设置窗体属性为无边框样式",2)
+			this.hRegion = BitmapToRegion( hBmp,transparentColor1===null
+				,transparentColor1:0,transparentColor2,stepTolerance);
+			this.hwnd = form.hwnd; 
+			
+			//禁止九宫格拉伸
+			form.bkLeft = null;
+			form.bkTop = null;
+			form.bkRight = null;
+			form.bkBottom = null;
+			
+			if( this.hRegion ){
+				this.updateWindow(); 
+			}
+		} 
+		 
+		..table.gc(this,"delete");
+	} };
+	
+	restore = function(){
+		if(!this.hwnd) return;
+		
+		var hwnd = this.hwnd;
+		if( hwnd ){
+			if(!this.hRegion){
+				this.hRegion = ..win.region.getWindowRgn( hwnd ) 
+				::SetWindowRgn( hwnd ,null ); 
+				::RedrawWindow(hwnd,{},null,0x105 /*_RDW_INVALIDATE | _RDW_UPDATENOW  | _RDW_ERASE*/); 
+			}
+			else {
+				this.updateWindow(); 
+			}
+			
+		}
+	}
+	
+	delete = function(){
+		if(this.hRegion){
+			::DeleteObject( this.hRegion );
+			this.hRegion = null;
+		}
+	}  
+}
+
+namespace bitmap{
+	var dll = ..raw.loadDll( $"~/lib/win/region/bitmap/.res/c.dll","regionBitmap.dll" );   
+	BitmapToRegion = dll.api( "BitmapToRegion","pointer(POINTER hBmp,bool autoTransparent,int transparentColor1,int transparentColor2,int stepTolerance)", "cdecl" );    
+
+	createFromFile = function(path,transparentColor1,transparentColor2,stepTolerance){
+		var pic = ..com.picture.load(path); 
+		if( !pic )  return null,"无效的位图";
+		var hRgn = BitmapToRegion(pic.Handle,transparentColor1===null,transparentColor1:0,transparentColor2,stepTolerance);  
+		..com.Release(pic);
+		return hRgn;
+	} 
+}
+  
+/**intellisense()
+win.region.bitmap = 使用位图创建窗体绘图区域
+win.region.bitmap( = 创建窗体显示区域
+win.region.bitmap(.(窗体,透明色,透明色2,容差) = 参数@1也可以是位图或位图句柄\n透明色,透明色2指定透明范围\n如果不指定透明色则自动获取\n如果是黑白二色的掩码位图,容差请设置为0
+win.region.bitmap() = !winRgnBitmap.
+!winRgnBitmap.restore() = 恢复最后一次设置绘图区域的窗口到默认值
+!winRgnBitmap.delete() = 删除对象\n不需要调用此函数
+!winRgnBitmap.updateWindow(.(窗体句柄,是否重绘,是否备份HRGN) = 设置为窗体的绘图区域,该函数不可重复调用\n如果创建区域时指定了窗体,可以省略参数1,\n参数2为可选参数,默认为true\n\n默认此函数执行后HRGN交由窗体管理生存期,并清空HRGN句柄,\n如果需要设置多个窗口,必须指定第3个参数为true
+end intellisense**/

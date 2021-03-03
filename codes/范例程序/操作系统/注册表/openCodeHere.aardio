@@ -1,0 +1,33 @@
+﻿//右键添加打开VSCode
+import win;
+import win.reg;
+import process.code; 
+
+var codePath = process.code.path;
+if(!codePath){
+	win.msgboxErr("未安装 Visual Studio Code");
+	return;
+}
+
+var reg = win.reg("HKEY_CURRENT_USER\Software\Classes\*\shell\VSCode")
+reg.setSzValue("","Open with Code")
+reg.setSzValue("Icon",codePath+",0")
+
+var reg = win.reg("HKEY_CURRENT_USER\Software\Classes\*\shell\VSCode\command")
+reg.setSzValue("",`"`+codePath+`" "%1"`)
+
+var reg = win.reg("HKEY_CURRENT_USER\Software\Classes\Directory\shell\VSCode")
+reg.setSzValue("","Open with Code")
+reg.setSzValue("Icon",codePath+",0")
+
+var reg = win.reg("HKEY_CURRENT_USER\Software\Classes\Directory\shell\VSCode\command")
+reg.setSzValue("",`"`+codePath+`" "%V"`)
+
+var reg = win.reg("HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\VSCode")
+reg.setSzValue("","Open with Code")
+reg.setSzValue("Icon",codePath+",0")
+
+var reg = win.reg("HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\VSCode\command")
+reg.setSzValue("",`"`+codePath+`" "%v."`)
+
+win.msgbox("已添加菜单")

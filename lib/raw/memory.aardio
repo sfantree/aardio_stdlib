@@ -1,0 +1,86 @@
+//memory 全局堆内存
+namespace raw;
+
+class memory{
+	ctor( size,defVal,flag = 0x42/*_GHND*/,gc){{ 
+		var lenVal;
+		if( defVal[["_struct"]] ) lenVal = ..raw.sizeof(defVal);
+		else lenVal = #defVal;
+		 
+		if(size===null) size = lenVal;
+		size = size + ( 16 - ( size % 16 )  ); //must be multiple of 16 bytes
+		this.hMemory = ::GlobalAlloc(size,flag);
+		this.flag = flag;
+		
+		if(!this.hMemory) return null,..lasterr()
+		
+		if( defVal ){
+			var p = ::GlobalLock( this.hMemory );
+			if( defVal[["_struct"]] ){
+				::CopyMemoryByStruct(p,defVal,..math.min(lenVal,size )  );
+			}
+			else {
+				::CopyMemory(p,defVal,..math.min(lenVal,size ) );
+			}
+				
+			::GlobalUnlock( this.hMemory )
+		}
+		
+		if( gc ) ..table.gc(this,"free")
+	} };
+	realloc = function(size,flag){
+		size = size + ( 16 - ( size % 16 )  )
+		
+		if( flag !== null )this.flag = flag;
+		this.hMemory = ::GlobalReAlloc( this.hMemory,size,this.flag );
+		
+		if(!this.hMemory) return null,..lasterr()
+		return this;
+	}
+	lockPointer = function(){
+		return ::GlobalLock( this.hMemory );
+	}
+	unLockPointer = function(){
+		return ::GlobalUnlock( this.hMemory );
+	}
+	size  = function(){
+		return ::GlobalSize( this.hMemory );
+	}
+	free = function(){
+		if(this.hMemory){
+			::GlobalFree( this.hMemory )
+			this.hMemory = null;
+		}
+	} 
+	@{ _topointer = this.hMemory }
+}
+
+var memory = memory;
+ 
+namespace memory{
+	allocPointer = function(size,defVal,gc=true){
+		return memory(size,defVal,0x40/*_GPTR*/,gc )
+	}
+	allocHandle = function(size,defVal,gc){
+		return memory(size,defVal,0x42/*_GHND*/,gc )
+	} 
+}
+
+/**intellisense(raw)
+memory = 调用::GlobalAlloc分配内存
+memory.allocPointer(.(内存大小,填充数据) = 分配内存并返回指针\n无需lock即可直接使用指针,\n可选使用结构体或字符串等指定默认填充数据\n指定默认值时可以省略参数@1\n可选使用参数3指定是否自动析构,默认值为true
+memory.allocHandle(.(内存大小,填充数据) = 分配全局堆内存并返回句柄,\n可选使用结构体或字符串等指定默认填充数据\n指定默认值时可以省略参数@1
+memory(.(内存大小,填充数据) = 分配全局堆内存并返回句柄,\n可选使用结构体或字符串等指定默认填充数据\n指定默认值时可以省略参数@1
+memory.allocPointer() = !raw_memory.
+memory.allocHandle() = !raw_memory.
+memory() = !raw_memory.
+end intellisense**/
+
+/**intellisense(!raw_memory) 
+realloc(.(内存大小) = 调整内存大小,\n内存指针只能缩小,而内存句柄可以任意调整大小
+realloc() = !raw_memory.
+lockPointer() = 返回可用内存指针
+unLockPointer() = 释放内存指针
+size() = 返回内存大小
+free() = 释放内存
+end intellisense**/

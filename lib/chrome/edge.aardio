@@ -1,0 +1,34 @@
+﻿import chrome.path;
+import chrome.app;
+
+namespace chrome.edge;
+
+class app{
+	ctor(winform){
+		var path = ..chrome.edge.getPath();
+		if(path) this = ..chrome.app(winform,path);
+		else {
+			return null;
+		}
+	}; 
+}
+
+
+getPath = function(){
+    if(!_WIN7_LATER) return;
+    
+	var path = ..chrome.path.findPath({"msedge.exe"})
+	if(!path){
+		..chrome.path.installChrome();
+		path = ..chrome.path.findPath({"msedge.exe"})
+	}
+	
+	return path;	
+} 
+
+/**intellisense()
+chrome.edge.app = 调用系统已安装的 Edge Chromium 创建应用程序，\n如果没有该浏览器会自动下载安装，\n仅支持 WIN7 以及 WIN7 以后的系统，不支持 WIN XP
+chrome.edge.app(.(父窗口) = 调用系统已安装的 Edge Chromium 创建应用程序，\n如果没有该浏览器会自动下载安装\n!processchromeapp.
+chrome.edge.app() = !processchromeapp.
+chrome.edge.getPath() = 返回Edge Chromium路径，\n如果没有该浏览器会自动下载安装
+end intellisense**/

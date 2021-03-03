@@ -1,0 +1,22 @@
+//重置解释器 
+import php;
+import console;
+
+console.open();
+
+php.begin()
+
+	php.eval("$a=123");
+	console.log( php.a );
+	
+php.end()
+
+php.begin()
+
+	php.eval("$b=456");
+	console.log( php.a,php.b );//注意这里PHP中的变量$a已经失效
+	
+php.end()
+
+
+console.pause();

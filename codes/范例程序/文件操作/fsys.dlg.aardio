@@ -1,0 +1,46 @@
+//文件对话框
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=757;bottom=217;border="dialog frame";max=false;min=false)
+winform.add(
+btnDir={cls="button";text="打开目录(简洁版)";left=379;top=127;right=530;bottom=162;z=4};
+btnIFileOpenDir={cls="button";text="打开目录(新接口)";left=550;top=127;right=671;bottom=162;z=5};
+btnOpen={cls="button";text="打开文件";left=129;top=127;right=235;bottom=162;z=2};
+btnSave={cls="button";text="保存文件";left=254;top=127;right=360;bottom=162;z=3};
+editPath={cls="edit";left=61;top=77;right=691;bottom=109;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+import fsys.dlg;
+winform.btnOpen.oncommand = function(id,event){
+	var path = fsys.dlg.open('所有文件|*.*|文本文件|*.txt||',,,winform);
+	if(path){
+		winform.editPath.text = path;
+	}
+}
+
+winform.btnSave.oncommand = function(id,event){
+	var path = fsys.dlg.save('所有文件|*.*|文本文件|*.txt||',,,winform);
+	if(path){
+		winform.editPath.text = path;
+	}	
+}
+
+winform.btnDir.oncommand = function(id,event){
+	var path = fsys.dlg.opendir(,winform);
+	if(path){
+		winform.editPath.text = path;
+	}		
+}
+
+//仅支持WIN7以后版本,XP上自动降级为fsys.dlg.opendir
+import fsys.dlg.dir;
+winform.btnIFileOpenDir.oncommand = function(id,event){
+	var path = fsys.dlg.dir(,winform,'请选择目录')
+	if(path){
+		winform.editPath.text = path;
+	}	
+}
+
+winform.show();
+win.loopMessage();

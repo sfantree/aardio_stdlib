@@ -1,0 +1,132 @@
+﻿//device 硬件设备列表
+import win.guid;
+
+namespace sys;
+
+class device{
+    ctor( classGuid,enumerator,flags = 2/*_DIGCF_PRESENT*/,hwndParent){
+    
+        if( classGuid === null ) flags = flags | 4/*_DIGCF_ALLCLASSES*/
+        else classGuid = ..win.guid.fromString(classGuid);
+        
+        this.hDevInfo  =  ::Setupapi.SetupDiGetClassDevs(classGuid, enumerator,  hwndParent,  flags); 
+        if(!this.hDevInfo) return;
+        
+        ..table.gc(this,"destroy");
+    };
+    each = function(...){
+        var adapterData = SP_DEVINFO_DATA()
+        adapterData.cbSize = ..raw.sizeof(adapterData);  
+        
+        var idx = 0;
+        var propertyType = {...}
+        return function(){
+             
+            if(::Setupapi.SetupDiEnumDeviceInfo(this.hDevInfo,idx,adapterData)){
+            
+                var property = {};
+                for(i=1;#propertyType;1){
+                    var ret,dataType,propertyBuffer,requiredSize = SetupDiGetDeviceRegistryProperty(this.hDevInfo,adapterData,propertyType[i],0,0,0,0);
+                    if(requiredSize) {
+                        ret,dataType,propertyBuffer,requiredSize =  SetupDiGetDeviceRegistryProperty(this.hDevInfo,adapterData,propertyType[i],0,requiredSize,requiredSize,0);
+
+                        select(dataType) { 
+                             case 0x1/*_REG_SZ*/,0x2/*_REG_EXPAND_SZ*/ {
+                                 property[i] = ..string.fromUnicode(propertyBuffer);
+                                 property[i] = ..string.trimright(property[i],'\0');
+                             }
+                             case 0x4/*_REG_DWORD*/ {
+                                 property[i] = ..raw.convert(propertyBuffer ,{INT v }).v; 
+                             }
+                             case 0x5/*_REG_DWORD_BIG_ENDIAN*/ {
+                                 property[i] = ..raw.swap(  ..raw.convert(propertyBuffer ,{INT v }).v );  
+                             }
+                             case 0x3/*_REG_BINARY*/ {
+                                  property[i] = propertyBuffer;
+                             } 
+                             case 0x7/*_REG_MULTI_SZ*/ {
+                                 var p = ..string.fromUnicode(propertyBuffer,,requiredSize/2);
+                                 p = ..string.trimright(p,'\0');
+                                 property[i] = ..string.split(p,'\0'); 
+                             }
+                             else {
+                                 property[i] = propertyBuffer;
+                             } 
+                         } 
+                     }
+                }
+                
+                idx ++;
+                return idx,..table.unpackArgs( property )
+            }
+        }
+    }
+    destroy = function(){
+        if(this.hDevInfo ){
+            ::Setupapi.SetupDiDestroyDeviceInfoList(this.hDevInfo );
+            this.hDevInfo = null;
+        };
+    }
+    
+    
+}
+
+namespace device{
+    ::Setupapi := ..raw.loadDll("Setupapi.dll");
+    SetupDiGetDeviceRegistryProperty = ::Setupapi.api("SetupDiGetDeviceRegistryProperty"
+    ,"bool(addr deviceInfoSet,struct deviceInfoData,INT property,INT &dataType,string &propertyBuffer,INT propertyBufferSize,INT &requiredSize)" );
+    
+    class SP_DEVINFO_DATA {
+          INT cbSize;
+          struct classGuid = ..win.guid();
+          INT devInst;
+          ADDR reserved;
+    }
+}
+
+/**intellisense()
+sys.device = 用于获取硬件设备列表
+sys.device(.("设备类名","枚举键名",选项,父窗口句柄) = 获取设备列表，所有参数可选，\n设备类名可以设备管理器中查看,枚举键名可以是PCI,USB等等,也可以省略\n参数请参考SetupDiGetClassDevs这个API的文档
+sys.device() = !stdsysdevice.
+!stdsysdevice.each(任意个字段类型参数) = @for( index,classGuid,deviceDesc in ??.each(\n    8/*_SPDRP_CLASSGUID*/,\n    0/*_SPDRP_DEVICEDESC*/\n    ) ){\n    __/*可用_SPDRP前缀的常量指定任意个查询字段,\n相应增加对应个数的迭代器返回值,但第一个index总是表示位置索引*/\n\n}
+!stdsysdevice.destroy() = 删除设备列表\n此函数不是必须调用,内存回收器会自动调用此函数
+
+_SPDRP_DEVICEDESC=@0/*_SPDRP_DEVICEDESC*/
+_SPDRP_HARDWAREID=@1/*_SPDRP_HARDWAREID*/
+_SPDRP_COMPATIBLEIDS=@2/*_SPDRP_COMPATIBLEIDS*/
+_SPDRP_UNUSED0=@3/*_SPDRP_UNUSED0*/
+_SPDRP_SERVICE=@4/*_SPDRP_SERVICE*/
+_SPDRP_UNUSED1=@5/*_SPDRP_UNUSED1*/
+_SPDRP_UNUSED2=@6/*_SPDRP_UNUSED2*/
+_SPDRP_CLASS=@7/*_SPDRP_CLASS*/
+_SPDRP_CLASSGUID=@8/*_SPDRP_CLASSGUID*/
+_SPDRP_DRIVER=@9/*_SPDRP_DRIVER*/
+_SPDRP_CONFIGFLAGS=@0xA/*_SPDRP_CONFIGFLAGS*/
+_SPDRP_MFG=@0xB/*_SPDRP_MFG*/
+_SPDRP_FRIENDLYNAME=@0xC/*_SPDRP_FRIENDLYNAME*/
+_SPDRP_LOCATION_INFORMATION=@0xD/*_SPDRP_LOCATION_INFORMATION*/
+_SPDRP_PHYSICAL_DEVICE_OBJECT_NAME=@0xE/*_SPDRP_PHYSICAL_DEVICE_OBJECT_NAME*/
+_SPDRP_CAPABILITIES=@0xF/*_SPDRP_CAPABILITIES*/
+_SPDRP_UI_NUMBER=@0x10/*_SPDRP_UI_NUMBER*/
+_SPDRP_UPPERFILTERS=@0x11/*_SPDRP_UPPERFILTERS*/
+_SPDRP_LOWERFILTERS=@0x12/*_SPDRP_LOWERFILTERS*/
+_SPDRP_BUSTYPEGUID=@0x13/*_SPDRP_BUSTYPEGUID*/
+_SPDRP_LEGACYBUSTYPE=@0x14/*_SPDRP_LEGACYBUSTYPE*/
+_SPDRP_BUSNUMBER=@0x15/*_SPDRP_BUSNUMBER*/
+_SPDRP_ENUMERATOR_NAME=@0x16/*_SPDRP_ENUMERATOR_NAME*/
+_SPDRP_SECURITY=@0x17/*_SPDRP_SECURITY*/
+_SPDRP_SECURITY_SDS=@0x18/*_SPDRP_SECURITY_SDS*/
+_SPDRP_DEVTYPE=@0x19/*_SPDRP_DEVTYPE*/
+_SPDRP_EXCLUSIVE=@0x1A/*_SPDRP_EXCLUSIVE*/
+_SPDRP_CHARACTERISTICS=@0x1B/*_SPDRP_CHARACTERISTICS*/
+_SPDRP_ADDRESS=@0x1C/*_SPDRP_ADDRESS*/
+_SPDRP_UI_NUMBER_DESC_FORMAT=@0x1D/*_SPDRP_UI_NUMBER_DESC_FORMAT*/
+_SPDRP_DEVICE_POWER_DATA=@0x1E/*_SPDRP_DEVICE_POWER_DATA*/
+_SPDRP_REMOVAL_POLICY=@0x1F/*_SPDRP_REMOVAL_POLICY*/
+_SPDRP_REMOVAL_POLICY_HW_DEFAULT=@0x20/*_SPDRP_REMOVAL_POLICY_HW_DEFAULT*/
+_SPDRP_REMOVAL_POLICY_OVERRIDE=@0x21/*_SPDRP_REMOVAL_POLICY_OVERRIDE*/
+_SPDRP_INSTALL_STATE=@0x22/*_SPDRP_INSTALL_STATE*/
+_SPDRP_LOCATION_PATHS=@0x23/*_SPDRP_LOCATION_PATHS*/
+_SPDRP_BASE_CONTAINERID=@0x24/*_SPDRP_BASE_CONTAINERID*/
+_SPDRP_MAXIMUM_PROPERTY=@0x25/*_SPDRP_MAXIMUM_PROPERTY*/
+end intellisense**/

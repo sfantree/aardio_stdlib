@@ -1,0 +1,9 @@
+﻿//fontAwesome 图标字体
+import fonts.fontAwesome;
+namespace gdip.fontAwesome{
+    create = ..fonts.fontAwesome.createFont;
+}
+ 
+/**intellisense()
+gdip.fontAwesome = 已废弃,请改用 fonts.fontAwesome
+end intellisense**/

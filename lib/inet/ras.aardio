@@ -1,0 +1,433 @@
+//ras 拔号连接
+import win.guid;
+import inet.conn;
+namespace inet.ras;
+	
+RASDIALPARAMS = class{
+	INT size = 2104;
+	WORD entryName[257];
+	WORD phoneNumber[129];
+	WORD callbackNumber[129];
+	WORD user[257];
+	WORD password[257];
+	WORD domain[16];
+	INT subEntry;
+	INT callbackId;
+};
+
+var RASEAPINFO = class{
+	INT sizeofEapInfo;
+	POINTER eapInfo;
+}; 
+
+RASDIALEXTENSIONS = class{
+	INT size = 28;
+	INT options;
+	int hwndParent;
+	int reserved;
+	int reserved1;
+	struct eapInfo = RASEAPINFO(); 
+};
+
+RASCONNSTATUS = class{
+	INT size = 564;
+	int state;
+	INT err;
+	WORD deviceType[17];
+	WORD deviceName[129];
+	WORD phoneNumber[129]; 
+};
+
+var RASCONN = class {
+	INT dwSize = 816;
+	pointer hConn;
+	WORD entryName[257];
+	WORD deviceType[17];
+	WORD deviceName[129];
+	WORD byte[1]
+}
+
+var RASIPADDR = class {
+	ctor(s){
+		if(s){
+			var ip = ..string.map(s);
+			this.a = ip[1];
+			this.b = ip[2];
+			this.c = ip[3];
+			this.d = ip[4];
+		}
+	}
+	BYTE a;
+	BYTE b;
+	BYTE c;
+	BYTE d;
+	@{ _tostring = lambda() ..string.format("%d.%d.%d.%d", owner.a,owner.b,owner.c,owner.d) }
+};
+
+class RASENTRY {
+	INT size = 5616;
+	INT fOptions = 0;
+	INT countryId = 86;
+	INT countryCode = 86;
+	WORD areaCode[ 11/*RAS_MaxAreaCode*/   ];
+	WORD localPhoneNumber[ 129/*RAS_MaxPhoneNumber*/ ];
+	INT alternatesOffset;
+	struct ipaddr = RASIPADDR();
+	struct ipaddrDns = RASIPADDR();
+	struct ipaddrDnsAlt = RASIPADDR();
+	struct ipaddrWins = RASIPADDR();
+	struct ipaddrWinsAlt = RASIPADDR();
+	INT frameSize;
+	INT fNetProtocols = 4/*_RASNP_Ip*/;
+	INT framingProtocol = 1/*_RASFP_Ppp*/;
+	WORD script[ 0x104/*_MAX_PATH*/ ];
+	WORD autoDialDll[ 0x104/*_MAX_PATH*/ ];
+	WORD autoDialFunc[ 0x104/*_MAX_PATH*/ ];
+	WORD deviceType[ 17/*RAS_MaxDeviceType*/ ];
+	WORD deviceName[ 129/*RAS_MaxDeviceName*/  ];
+	WORD x25PadType[ 33/*RAS_MaxPadType*/ ];
+	WORD x25Address[ 201/*RAS_MaxX25Address*/ ];
+	WORD x25Facilities[ 201/*RAS_MaxFacilities*/ ];
+	WORD x25UserData[ 201/*RAS_MaxUserData*/ ];
+	INT channels;
+	INT reserved1;
+	INT reserved2; 
+	INT subEntries;
+	INT dialMode = 1/*RASEDM_DialAll*/;
+	INT dialExtraPercent = 75;
+	INT dialExtraSampleSeconds = 120;
+	INT hangUpExtraPercent = 10;
+	INT hangUpExtraSampleSeconds = 120;
+	INT idleDisconnectSeconds; 
+	INT type; 
+	INT encryptionType = 3/*_ET_Optional*/;  
+	INT cCustomAuthKey; 
+	struct guidId = ..win.guid();
+	WORD customDialDll[0x104/*_MAX_PATH*/]; 
+	INT vpnStrategy; 
+	INT fOptions2; 
+	INT fOptions3;
+	WORD dnsSuffix[256/*RAS_MaxDnsSuffix*/];
+	INT tcpWindowSize;
+	WORD prerequisitePbk[0x104/*_MAX_PATH*/];
+	WORD prerequisiteEntry[257]; 
+	INT redialCount = 30; 
+	INT redialPause = 60; 
+}
+
+class RASCREDENTIALS {
+	INT size = 1068;
+	INT mask = 3/*_RASCM_UserName | _RASCM_Password*/;
+	WORD userName[257];
+	WORD password[257];
+	WORD domain[16];
+}
+
+var dll = ..raw.loadDll("RASAPI32.DLL")
+RasDial = dll.api("RasDial","INT(struct rsextensions,ustring,struct raslparams,INT,int hwndNotifier,pointer & rasConn )");
+RasHangUp = dll.api("RasHangUp","INT(pointer rasConn)");
+RasGetConnectStatus = dll.api("RasGetConnectStatus","INT(pointer rasConn,struct &connStatus)"); 
+RasGetErrorString = dll.api("RasGetErrorString","INT(INT errValue,str& msg,INT size)");
+RasEnumEntries = dll.api("RasEnumEntries","INT(str reserved,str phonebook,struct& entryname,INT& cbsize,INT& count)");
+RasEnumConnections = dll.api("RasEnumConnections","int(pointer lpRasCon,int& lpcb,int& lpnc)") 
+RasSetEntryProperties = dll.api("RasSetEntryProperties","INT(str phonebook,str entry,struct lpRasEntry,INT entrySize,ustring deviceInfo,INT deviceInfoSize)")
+RasGetEntryProperties = dll.api("RasGetEntryProperties","INT(str phonebook,str entry,struct &entry,INT &entrySize,ustring &deviceInfo,INT &deviceInfoSize)")
+RasSetCredentials = dll.api("RasSetCredentials","INT(str phonebook,str entry,struct credentials,bool clearCredentialse)")
+
+lasterr = function(hr){
+	var hr,msg = RasGetErrorString(hr,200,200) 
+	if(!hr) return msg,hr; 
+	return "未知错误",hr;
+}
+
+setCredentials = function(args){
+	var cred = ..table.assign( RASCREDENTIALS(),args ); 
+	if( cred.domain ) domain.mask = domain.mask | 4/*_RASCM_Domain*/;
+	var hr = RasSetCredentials(args.phonebook,args.entryName,cred,cred.clearCredentials);
+	if( hr == 0 ) return true;
+	return null,hr;
+}
+
+getEntry = function(args){
+	var rasEntry = RASENTRY();
+	var hr,entry,entrySize,deviceInfo,deviceInfoSize = RasGetEntryProperties(args.phonebook,args.entryName,rasEntry,rasEntry.size,0,0)
+	if(deviceInfoSize){
+		hr,entry,entrySize,deviceInfo,deviceInfoSize = RasGetEntryProperties(args.phonebook,args.entryName,rasEntry,rasEntry.size,deviceInfoSize,deviceInfoSize)
+	}
+
+	if( hr == 0 ){
+		return rasEntry;
+	}
+	return null,hr;
+}
+
+setEntry = function(args){
+	var rasEntry = ..table.assign( RASENTRY(),args );
+	if( args[["ipaddrDns"]] || args[["ipaddrDnsAlt"]] || args[["ipaddrWins"]] || args[["ipaddrWinsAlt"]]){
+		rasEntry.fOptions = rasEntry.fOptions | 4/*_RASEO_SpecificNameServers*/;
+		rasEntry.ipaddrDns = RASIPADDR(args.ipaddrDns);
+		rasEntry.ipaddrDnsAlt = RASIPADDR(args.ipaddrDnsAlt);
+		rasEntry.ipaddrWins = RASIPADDR(args.ipaddrWins);
+		rasEntry.ipaddrWinsAlt = RASIPADDR(args.ipaddrWinsAlt);
+	} 
+	
+	if( args[["ipaddr"]] ) {
+		rasEntry.fOptions = rasEntry.fOptions | 2/*_RASEO_SpecificIpAddr*/;	
+		rasEntry.ipaddr = RASIPADDR(args.ipaddr);
+	}
+	
+	var hr = RasSetEntryProperties(args.phonebook,args.entryName,rasEntry,rasEntry.size,args.deviceInfo ,#args.deviceInfo)
+	if( hr == 0 ) return true; 
+	return null,hr;
+}
+
+//可使用arg.hwnd指定接收WM_RASDIALEVENT消息的窗口
+dial = function(arg){ 
+	if(! arg.entryName){
+		var entries = getEntries();
+		if(#entries ) arg.entryName =  entries[1].entryName;
+		else return null,"缺少连接名参数";
+	}
+	var params = ..table.assign(RASDIALPARAMS(),arg );
+	
+	var ret,hConn = RasDial( {},null,params,0xFFFFFFF,arg.hwnd:0); 
+	if( ret) return null,lasterr(ret);
+		
+	return hConn;
+}
+
+hangUp = function(conn){
+	if( !conn ) {
+		conn = getConnection()[["hConn"]];
+		if(!conn) return;
+	}
+	var ret = RasHangUp(conn)
+	if( ret) return null,lasterr(ret);
+	return true;
+}
+
+RASENTRYNAME = class{
+	INT size =  1048;
+	WORD entryName[257]; 
+	INT flags;
+	WORD phonebookPath[261];  
+}; 
+
+getEntries = function(){
+	var phoneEntries = {  struct entryName[20] = { RASENTRYNAME() } };
+	var ret, , ,count =  RasEnumEntries( , ,phoneEntries,..raw.sizeof(phoneEntries),0)
+	if(!ret){
+		..table.pop(phoneEntries.entryName,#phoneEntries.entryName-count);
+		return phoneEntries.entryName; 
+	}
+	else
+		return null,lasterr(ret);
+}
+
+eachEntry = function(){
+	var names = getEntries();
+	var k,v;
+	return function(){
+		k,v = ..table.next(names,k);
+		if(k && v){
+			return v.entryName,v.flags,v.phonebookPath;
+		}
+	} 
+}
+
+status = function(conn){
+	if( !conn ) {
+		conn = getConnection()[["hConn"]];
+		if(!conn) return;
+	}
+	var stat = RASCONNSTATUS();
+	var ret = RasGetConnectStatus(conn,stat)
+	if( ret) return null,lasterr(ret);
+	return stat;	
+}
+
+getConnection = function(){
+	var lpRasCon = ..raw.buffer(816,RASCONN());
+	var ret,cbSize,nc = RasEnumConnections(lpRasCon,816,0)
+	if(ret==603){ 
+		lpRasCon = ..raw.buffer(cbSize,RASCONN());
+		ret,cbSize,nc = RasEnumConnections(lpRasCon,cbSize,0)
+	}
+		
+	if(ret==0){ 
+		var conn = ..raw.convert(lpRasCon,RASCONN() ); 
+		if( conn.hConn ) return conn;
+	}
+	return null,ret;
+}
+	
+var dll = ..raw.loadDll("sensapi.dll")
+IsNetworkAlive = dll.api("IsNetworkAlive","INT(INT& flags)" ) 
+isAlive = function(){
+	var ok,flag = IsNetworkAlive(2)
+	if(ok)
+		return flag & 2,flag & 1;
+}
+
+setProxy = function(conn,proxy,proxyBypass){ 
+	if(!conn){
+			for name,flags,phonebook in eachEntry(){
+				..inet.conn.setProxy(name,,proxy,proxyBypass)
+			}
+	}
+	
+	..inet.conn.setProxy(conn,,proxy,proxyBypass)  
+};
+	
+setProxyAutoConfig = function(conn,url){ 
+	return setProxy(conn,url,"<pac>"); 
+};
+	
+/**intellisense(inet.ras)
+lasterr(.(错误代码) = 返回错误信息,错误代码
+getEntry(参数表) = @.getEntry(\n	entryName = "连接名"\n)
+setEntry(VPN连接参数) = @.setEntry(\n	type = 2/*_RASET_Vpn*/; \n	fOptions =  0x10/*_RASEO_RemoteDefaultGateway*/ | 0x100/*_RASEO_ModemLights*/ | 0x200/*_RASEO_SwCompression*/ | 0x800/*_RASEO_RequireMsEncryptedPw*/ | 0x1000000/*_RASEO_PreviewUserPw*/ | 0x400/*_RASEO_RequireEncryptedPw*/ | 0x20000000/*_RASEO_RequireMsCHAP2*/;\n	fOptions2 = 0x2000000/*_RASEO2_CacheCredentials*/;\n	ipaddrDns = "8.8.8.8";\n	ipaddrDnsAlt = "1.1.1.1";\n	vpnStrategy = 2/*_VS_PptpFirst*/;\n	deviceType = "VPN";\n	deviceName = "VPN"; \n	localPhoneNumber = "服务器地址__";\n	entryName = "VPN连接"\n)  
+setEntry(宽带连接参数) = @.setEntry(\n	type = 5/*_RASET_Broadband*/; \n	fOptions = 0x10/*_RASEO_RemoteDefaultGateway*/\n		| 0x1000000/*_RASEO_PreviewUserPw*/\n		| 0x4000000/*_RASEO_ShowDialingProgress*/\n		| 0x100/*_RASEO_ModemLights*/\n		| 0x100/*_RASEO2_ReconnectIfDropped*/ ;\n	fOptions2 = 0x2000000/*_RASEO2_CacheCredentials*/ \n		| 4/*_RASEO2_DontNegotiateMultilink*/;\n	deviceType = "PPPoE";\n	deviceName = "WAN 微型端口 (PPPOE)";  \n	entryName = "ADSL宽带连接__"\n)
+setCredentials(登录信息) = @.setCredentials(\n	entryName = "连接名"; \n	userName = "用户名"; \n	password = "密码"; \n)
+dial(连接参数) = @.dial( \n	entryName =  "拔号连接名";\n	user =  "拔号用户名";\n	password = "拔号密码"\n)
+status(.(连接句柄) = 返回拔号连接状态信息\n省略连接句柄则获取当前活动连接
+hangUp(.(连接句柄) = 挂断\n省略连接句柄则获取当前活动连接
+status() = !rasconnstatus.
+getConnection() = 获取当前拔号连接,失败返回空,错误代码\n!rasconn.
+isAlive() = 返回两个值: 是否存在远程连接,是否存在本地连接
+getEntries() = 返回所有拔号连接
+eachEntry() = @for name,flags,phonebook in inet.ras.eachEntry(){\n	__/*遍历拔号连接,name为连接名*/\n}
+setProxy(.() = 默认连接以及所有拔号连接不使用代理\n设置进程内代理请使用 inet.setProxy 函数
+setProxy(.("连接名") = 指定连接不使用代理
+setProxy(.("连接名","SOCKS=代理服务器地址:端口","绕过代理地址") = 省略连接名表示默认连接以及所有拔号连接,\n设置SOCKS4代理服务器,不支持登录\n绕过代理地址可在域名或IP中使用通配符,多个以分号分隔
+setProxy(.("连接名","被代理协议=代理协议://主机地址:端口号","绕过代理地址") = 省略连接名表示默认连接以及所有拔号连接,\n参数@2可以直接写代理服务器域名或IP,\n省略协议则默认为HTTP,省略端口则默认为80,\n绕过代理地址可在域名或IP中使用通配符,多个以分号分隔
+setProxyAutoConfig(.("连接名", "HTTP://主机地址:端口号") = 为指定连接设置自动配置代理（PAC）地址，\n省略连接名表示默认连接以及所有拔号连接
+end intellisense**/
+
+/**intellisense(!rasconn)
+hConn = 连接句柄
+entryName = 连接名
+deviceType = 设备类型
+deviceName = 设备名
+end intellisense**/
+
+/**intellisense(!rasconnstatus) 
+state = _RASCS_前缀常量表示连接状态
+err = 错误代码
+deviceType = 设备类型
+deviceName = 设备名
+phoneNumber = 连接号码
+end intellisense**/ 
+
+/**intellisense()
+_RASET_Phone=@1/*_RASET_Phone*/
+_RASET_Vpn=@2/*_RASET_Vpn*/
+_RASEO_UseCountryAndAreaCodes=@1/*_RASEO_UseCountryAndAreaCodes*/
+_RASEO_SpecificIpAddr=@2/*_RASEO_SpecificIpAddr*/
+_RASEO_SpecificNameServers=@4/*_RASEO_SpecificNameServers*/
+_RASEO_IpHeaderCompression=@8/*_RASEO_IpHeaderCompression*/
+_RASEO_RemoteDefaultGateway=@0x10/*_RASEO_RemoteDefaultGateway*/
+_RASEO_DisableLcpExtensions=@0x20/*_RASEO_DisableLcpExtensions*/
+_RASEO_TerminalBeforeDial=@0x40/*_RASEO_TerminalBeforeDial*/
+_RASEO_TerminalAfterDial=@0x80/*_RASEO_TerminalAfterDial*/
+_RASEO_ModemLights=@0x100/*_RASEO_ModemLights*/
+_RASEO_SwCompression=@0x200/*_RASEO_SwCompression*/
+_RASEO_RequireEncryptedPw=@0x400/*_RASEO_RequireEncryptedPw*/
+_RASEO_RequireMsEncryptedPw=@0x800/*_RASEO_RequireMsEncryptedPw*/
+_RASEO_RequireDataEncryption=@0x1000/*_RASEO_RequireDataEncryption*/
+_RASEO_NetworkLogon=@0x2000/*_RASEO_NetworkLogon*/
+_RASEO_UseLogonCredentials=@0x4000/*_RASEO_UseLogonCredentials*/
+_RASEO_PromoteAlternates=@0x8000/*_RASEO_PromoteAlternates*/
+_RASEO_SecureLocalFiles=@0x10000/*_RASEO_SecureLocalFiles*/
+_RASEO_RequireEAP=@0x20000/*_RASEO_RequireEAP*/
+_RASEO_RequirePAP=@0x40000/*_RASEO_RequirePAP*/
+_RASEO_RequireSPAP=@0x80000/*_RASEO_RequireSPAP*/
+_RASEO_Custom=@0x100000/*_RASEO_Custom*/
+_RASEO_PreviewPhoneNumber=@0x200000/*_RASEO_PreviewPhoneNumber*/
+_RASEO_SharedPhoneNumbers=@0x800000/*_RASEO_SharedPhoneNumbers*/
+_RASEO_PreviewUserPw=@0x1000000/*_RASEO_PreviewUserPw*/
+_RASEO_PreviewDomain=@0x2000000/*_RASEO_PreviewDomain*/
+_RASEO_ShowDialingProgress=@0x4000000/*_RASEO_ShowDialingProgress*/
+_RASEO_RequireCHAP=@0x8000000/*_RASEO_RequireCHAP*/
+_RASEO_RequireMsCHAP=@0x10000000/*_RASEO_RequireMsCHAP*/
+_RASEO_RequireMsCHAP2=@0x20000000/*_RASEO_RequireMsCHAP2*/
+_RASEO_RequireW95MSCHAP=@0x40000000/*_RASEO_RequireW95MSCHAP*/
+_RASEO_CustomScript=@0x80000000/*_RASEO_CustomScript*/
+_RASEO2_SecureFileAndPrint=@1/*_RASEO2_SecureFileAndPrint*/
+_RASEO2_SecureClientForMSNet=@2/*_RASEO2_SecureClientForMSNet*/
+_RASEO2_DontNegotiateMultilink=@4/*_RASEO2_DontNegotiateMultilink*/
+_RASEO2_DontUseRasCredentials=@8/*_RASEO2_DontUseRasCredentials*/
+_RASEO2_UsePreSharedKey=@0x10/*_RASEO2_UsePreSharedKey*/
+_RASEO2_Internet=@0x20/*_RASEO2_Internet*/
+_RASEO2_DisableNbtOverIP=@0x40/*_RASEO2_DisableNbtOverIP*/
+_RASEO2_UseGlobalDeviceSettings=@0x80/*_RASEO2_UseGlobalDeviceSettings*/
+_RASEO2_ReconnectIfDropped=@0x100/*_RASEO2_ReconnectIfDropped*/
+_RASEO2_SharePhoneNumbers=@0x200/*_RASEO2_SharePhoneNumbers*/
+_RASEO2_SecureRoutingCompartment=@0x400/*_RASEO2_SecureRoutingCompartment*/
+_RASEO2_IPv6SpecificNameServer=@0x800/*_RASEO2_IPv6SpecificNameServer*/
+_RASEO2_IPv6RemoteDefaultGateway=@0x1000/*_RASEO2_IPv6RemoteDefaultGateway*/
+_RASEO2_RegisterIpWithDNS=@0x2000/*_RASEO2_RegisterIpWithDNS*/
+_RASEO2_UseDNSSuffixForRegistration=@0x4000/*_RASEO2_UseDNSSuffixForRegistration*/
+_RASEO2_IPv4ExplicitMetric=@0x8000/*_RASEO2_IPv4ExplicitMetric*/
+_RASEO2_IPv6ExplicitMetric=@0x10000/*_RASEO2_IPv6ExplicitMetric*/
+_RASEO2_DisableIKENameEkuCheck=@0x20000/*_RASEO2_DisableIKENameEkuCheck*/
+_RASEO2_CacheCredentials=@0x2000000/*_RASEO2_CacheCredentials*/
+_RASFP_Ppp=@1/*_RASFP_Ppp*/
+_RASFP_Slip=@2/*_RASFP_Slip*/
+_RASFP_Ras=@4/*_RASFP_Ras*/
+_RASET_Broadband=@5/*_RASET_Broadband*/;
+_VS_Default=@0/*_VS_Default*/
+_VS_PptpOnly=@1/*_VS_PptpOnly*/
+_VS_PptpFirst=@2/*_VS_PptpFirst*/
+_VS_L2tpOnly=@3/*_VS_L2tpOnly*/
+_VS_L2tpFirst=@4/*_VS_L2tpFirst*/
+_RASNP_NetBEUI=@1/*_RASNP_NetBEUI*/
+_RASNP_Ipx=@2/*_RASNP_Ipx*/
+_RASNP_Ip=@4/*_RASNP_Ip*/
+_RASNP_Ipv6=@8/*_RASNP_Ipv6*/
+_ET_None=@0/*_ET_None*/
+_ET_Require=@1/*_ET_Require*/
+_ET_RequireMax=@2/*_ET_RequireMax*/
+_ET_Optional=@3/*_ET_Optional*/
+_RASCM_UserName=@1/*_RASCM_UserName*/
+_RASCM_Password=@2/*_RASCM_Password*/
+_RASCM_Domain=@4/*_RASCM_Domain*/
+_RASCM_DefaultCreds=@8/*_RASCM_DefaultCreds*/
+_RASCM_PreSharedKey=@0x10/*_RASCM_PreSharedKey*/
+_RASCM_ServerPreSharedKey=@0x20/*_RASCM_ServerPreSharedKey*/
+_RASCM_DDMPreSharedKey=@0x40/*_RASCM_DDMPreSharedKey*/
+_RASCS_PAUSED=@0x1000/*_RASCS_PAUSED*/
+_RASCS_DONE=@0x2000/*_RASCS_DONE*/
+_RASCS_Connected=@0x2000/*_RASCS_Connected*/
+_RASCS_Disconnected=@0x2001/*_RASCS_Disconnected*/
+_RASCS_OpenPort=@0/*_RASCS_OpenPort*/
+_RASCS_PortOpened=@1/*_RASCS_PortOpened*/
+_RASCS_ConnectDevice=@2/*_RASCS_ConnectDevice*/
+_RASCS_DeviceConnected=@3/*_RASCS_DeviceConnected*/
+_RASCS_AllDevicesConnected=@4/*_RASCS_AllDevicesConnected*/
+_RASCS_Authenticate=@5/*_RASCS_Authenticate*/
+_RASCS_AuthNotify=@6/*_RASCS_AuthNotify*/
+_RASCS_AuthRetry=@7/*_RASCS_AuthRetry*/
+_RASCS_AuthCallback=@8/*_RASCS_AuthCallback*/
+_RASCS_AuthChangePassword=@9/*_RASCS_AuthChangePassword*/
+_RASCS_AuthProject=@0xA/*_RASCS_AuthProject*/
+_RASCS_AuthLinkSpeed=@0xB/*_RASCS_AuthLinkSpeed*/
+_RASCS_AuthAck=@0xC/*_RASCS_AuthAck*/
+_RASCS_ReAuthenticate=@0xD/*_RASCS_ReAuthenticate*/
+_RASCS_Authenticated=@0xE/*_RASCS_Authenticated*/
+_RASCS_PrepareForCallback=@0xF/*_RASCS_PrepareForCallback*/
+_RASCS_WaitForModemReset=@0x10/*_RASCS_WaitForModemReset*/
+_RASCS_WaitForCallback=@0x11/*_RASCS_WaitForCallback*/
+_RASCS_Projected=@0x12/*_RASCS_Projected*/
+_RASCS_StartAuthentication=@0x13/*_RASCS_StartAuthentication*/
+_RASCS_CallbackComplete=@0x14/*_RASCS_CallbackComplete*/
+_RASCS_LogonNetwork=@0x15/*_RASCS_LogonNetwork*/
+_RASCS_SubEntryConnected=@0x16/*_RASCS_SubEntryConnected*/
+_RASCS_SubEntryDisconnected=@0x17/*_RASCS_SubEntryDisconnected*/
+_RASCS_ApplySettings=@0x18/*_RASCS_ApplySettings*/
+_RASCS_Interactive=@0x1000/*_RASCS_Interactive*/
+_RASCS_RetryAuthentication=@0x1001/*_RASCS_RetryAuthentication*/
+_RASCS_CallbackSetByCaller=@0x1002/*_RASCS_CallbackSetByCaller*/
+_RASCS_PasswordExpired=@0x1003/*_RASCS_PasswordExpired*/
+_RASCS_InvokeEapUI=@0x1004/*_RASCS_InvokeEapUI*/
+end intellisense**/

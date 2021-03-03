@@ -1,0 +1,188 @@
+﻿//multipartFormData 上传文件数据
+namespace fsys;
+
+class multipartFormData{
+
+	ctor( path,boundary,blockSize){ {
+	
+		var file,err = ..io.open(path,"rb");
+		if(!file) return null,err;
+		
+		path = path;
+		blockSize = blockSize : 0x100000;
+		this.getPath = function(){
+			return path;
+		}
+		
+		var current;
+		var multipart = {};
+		var outBuffer = ..raw.buffer(blockSize);
+		var readSize = file.readBuffer(outBuffer);
+		if(!boundary){
+			boundary = ..string.match(outBuffer,"^--([^\r]+)");
+			if(!boundary) return;
+		}
+		var nextboundary = '@\r\n--' + boundary + '\r\n';
+		var boundarylen = #nextboundary -1;
+		var bound,boundEnd = ..string.find(outBuffer,'@--' + boundary + '\r\n');
+
+		while(readSize){
+				if(! ( bound && ( (bound+boundarylen) <= readSize) ) ){
+					if(!current) return;
+					
+					if( readSize < blockSize){
+						if( readSize < boundarylen + 2 ) return;
+					} 
+					
+					bound = ..string.find(outBuffer,'@\r\n--' +  boundary + '--');
+					if(( bound && ( (bound+boundarylen-1) <= readSize) ) ){
+						current.length = ( (file.seek() - readSize) + (bound - 1 )) - current.offset ;
+						if( bound - 1 >= current.length ){
+							current["contentValue"] = ..string.slice(outBuffer,(bound)-current.length,bound- 1);
+						}
+						break ;
+					}
+					
+					if( ! file.read(0) ){
+						return;
+					}
+					
+					file.seek("cur",-(boundarylen+2)  );
+					
+					::Ntdll.RtlZeroMemory(outBuffer,blockSize);
+					readSize = file.readBuffer(outBuffer);
+					bound,boundEnd = ..string.find(outBuffer,nextboundary);
+					continue;
+				}
+
+				if(current){
+					current.length = ( (file.seek() - readSize) + (bound - 1 ) ) - current.offset;
+					if( bound - 1 >= current.length ){
+						current["contentValue"] = ..string.slice(outBuffer,bound-current.length,bound-1);
+					}
+				}
+				current = {}
+			
+				boundEnd++;
+				var offset = ..string.find(outBuffer,'@\r\n\r\n',boundEnd);
+				if(!offset){
+					var right = ..math.min(4,readSize - boundEnd);
+					if( readSize-right > boundEnd )
+						current.header = ..string.slice(outBuffer,boundEnd,readSize-right);
+					
+					file.seek("set", -right );
+					::Ntdll.RtlZeroMemory(outBuffer,blockSize);
+					readSize = file.readBuffer(outBuffer);
+					if(!readSize) return null;
+					
+					boundEnd = 0; 
+					offset = ..string.find(outBuffer,'@\r\n\r\n');
+					if(!offset)  return; 
+				}			
+				
+				current.header = ..string.concat(current.header,..string.slice(outBuffer,boundEnd,offset-1) );
+				file.seek("cur",-(readSize -(offset+ 3 )) );
+				current.offset = file.seek() ;
+				..table.push(multipart,current);
+				
+				::Ntdll.RtlZeroMemory(outBuffer,blockSize);
+				readSize = file.readBuffer(outBuffer);
+				bound,boundEnd = ..string.find(outBuffer,nextboundary);
+		}
+
+		for(k,part in multipart){
+			var formData = {};
+		
+			for line in ..string.lines(part.header) { 
+				var nv = ..string.split(line,":",2);
+				if(nv[2]){
+					formData[ ..string.trim(..string.lower(nv[1])) ] = ..string.trim(nv[2]);
+				}
+			} 
+			
+			var dp = formData["content-disposition"];
+			if(!dp) continue;
+				
+			for k,v in ..string.gmatch( dp,`([^=;\s]+)\s*=\s*(<"[^"]+">|<[^;]+>)`) { 
+				k = ..string.lower(k);
+				formData[k] = ..string.trim(v,`'"`);
+			}
+			
+			if(!formData.name) continue; 
+			
+			formData["contentType"] = formData["content-type"];
+			formData["contentOffset"] = part.offset;
+			formData["contentLength"] = part.length;
+			formData["contentValue"] = part["contentValue"];
+			formData.value = function(){
+				if( !owner["contentValue"] ){
+					var file,err = ..io.open(this.getPath(),"r+b");
+					if(!file) return;
+					
+					file.seek("set",owner["contentOffset"])
+					owner["contentValue"] = file.read(owner["contentLength"] )
+					file.close();
+				}
+				return owner["contentValue"];
+			}
+			formData.save = function(savePath){
+				if(owner["contentValue"] ){
+					..string.save(savePath,owner["contentValue"]);
+					return true;
+				}
+				var fileR,err = ..io.open(this.getPath(),"rb");
+				if(!fileR) return null,err;
+					
+				var fileW,err = ..io.open(savePath,"w+b");
+				if(!fileW) {
+					fileR.close();
+					return null,err;
+				}
+				
+				fileR.seek("set",owner["contentOffset"])
+				
+				var len = owner["contentLength"];
+				var outBuffer = ..raw.buffer(blockSize);
+				var readSize = fileR.readBuffer(outBuffer,..math.min(len,blockSize));
+				while(readSize){
+					fileW.writeBuffer(outBuffer,readSize);
+					len = len - readSize;
+					if(len<=0) break;
+					readSize = fileR.readBuffer(outBuffer,..math.min(len,blockSize));
+				} 
+				fileR.close();
+				fileW.close();
+				return true; 
+			} 
+			
+			this[formData.name] = formData;
+		}
+			
+		file.close();
+		outBuffer = null;
+		return this;
+	} };
+}
+
+::Ntdll := ..raw.loadDll("Ntdll.dll");
+
+/**intellisense()
+fsys.multipartFormData = multipart/form-data格式文件解析器
+fsys.multipartFormData(.("文件路径","分隔符") = 解析文件返回表对象\n可选在参数@3中指定读写缓冲区大小
+fsys.multipartFormData() = !stdfsysmultipartFormData
+end intellisense**/
+
+/**intellisense(!stdfsysmultipartFormData)
+? = multipart/form-data对象的每个键名下保存每个字段的信息\n!stdfsysmultipartFormField.
+getPath() = 参数中指定的文件路径
+end intellisense**/
+
+/**intellisense(!stdfsysmultipartFormField)
+name = 字段名称
+filename = 文件名\n如果不是文件则为空
+value() = 此函数直接读取并返回此字段的数据\n较大文件应使用save函数转存文件
+save(.("文件路径") = 保存文件\n上传文件数据如果不保存,在请求结束将被自动删除
+contentType = MIME类型
+contentLength = 数据长度
+contentOffset = 偏移位置
+end intellisense**/

@@ -1,0 +1,135 @@
+//adapter 网卡
+namespace inet.adapter
+
+var ipHlpApi = ..raw.loadDll("IPHlpApi.dll")
+GetAdaptersInfo = ipHlpApi.api("GetAdaptersInfo","int(pointer info,int& size)")
+
+var IP_ADDR_STRING;
+IP_ADDR_STRING = class{
+	pointer next;
+	byte ipAddress[16];
+	byte ipMask[16];
+	int context;
+	getNextIpAddrString = function(){
+		if( owner.next ){
+			var addr = IP_ADDR_STRING();
+			 ..raw.convert(owner.next,addr );
+			addr._string_str();
+			return addr;
+		}
+	};
+	eachAddress = function(){
+		return function(cur){
+			if( !cur ) return owner;
+			return cur.getNextIpAddrString();
+		},owner
+	};
+	_string_str = function(){
+		owner.ipAddress = ..string.str(owner.ipAddress )
+		owner.ipMask = ..string.str(owner.ipMask )
+	} 
+}
+
+IP_ADAPTER_INFO = class{
+	pointer next;
+	int comboIndex;
+	byte adapterName[260];
+	byte description[132];
+	INT addressLength;
+	byte address[8];
+	INT index;
+	INT type;
+	INT dhcpEnabled; 
+	pointer currentIpAddress;
+	struct ipAddressList = IP_ADDR_STRING();
+	struct gatewayList = IP_ADDR_STRING();
+	struct dhcpServer = IP_ADDR_STRING();
+	int haveWins;
+	struct primaryWinsServer = IP_ADDR_STRING();
+	struct secondaryWinsServer = IP_ADDR_STRING();
+	int leaseObtained;
+	int leaseExpires;
+}
+
+//迭代遍历所有网卡
+each =function(){
+	var ret,size = GetAdaptersInfo( ,0 );
+	if( ret != 111/*ERROR_BUFFER_OVERFLOW*/ ) return function(){ };
+
+	var pBuf = ..raw.buffer( size );
+	ret = GetAdaptersInfo(pBuf,size)
+	if( ret  )
+		error(..string.format("GetAdaptersInfo Faild! errCode:%0x",ret) ,2  )
+ 
+	 
+	var ptr =  pBuf; 
+	return function(){ 
+		if( !ptr){
+			pBuf = null;
+			return null;
+		}
+		
+		var info = IP_ADAPTER_INFO();
+		..raw.convert(ptr,info);
+		info.mac =  ..string.format("%02X-%02X-%02X-%02X-%02X-%02X",
+			info.address[1],
+			info.address[2],
+			info.address[3],
+			info.address[4],
+			info.address[5],
+			info.address[6]
+		)
+		info.adapterName = ..string.str(info.adapterName)
+		info.description = ..string.str(info.description)
+		info.ipAddressList._string_str()
+		info.gatewayList._string_str()
+		info.dhcpServer._string_str()
+		if(info.haveWins){
+			info.primaryWinsServer._string_str()
+			info.secondaryWinsServer._string_str()
+		}
+		
+		ptr = pBuf;//for gc;
+		ptr = info.next;
+		return info; 
+	};
+}
+/**intellisense()
+
+inet.adapter.each() =  @//遍历所有网卡\nfor adptInfo in inet.adapter.each() { \n	__\n} 
+?inet.adapter.each = !net_adptInfo. 
+!net_adptInfo.mac = MAC地址,文本格式
+!net_adptInfo.address  = MAC地址,数值格式
+ 
+!net_adptInfo.adapterName = 网卡名称
+!net_adptInfo.description = 网卡描述
+!net_adptInfo.addressLength = 网卡地址长度
+!net_adptInfo.index = 网络接口索引号
+!net_adptInfo.type = 网络接口类型\n例如 _MIB_IF_TYPE_ETHERNET
+!net_adptInfo.dhcpEnabled = 是否启用DHCP
+!net_adptInfo.currentIpAddress = 当前IP地址
+!net_adptInfo.haveWins = 是否启动了Wins服务
+!net_adptInfo.leaseObtained = DHCP租赁时间
+!net_adptInfo.leaseExpires = DHCP租赁失效时间
+
+!net_adptInfo.ipAddressList = !ipaddr_string.
+!net_adptInfo.gatewayList = !ipaddr_string.
+!net_adptInfo.dhcpServer = !ipaddr_string.
+!net_adptInfo.primaryWinsServer = !ipaddr_string.
+!net_adptInfo.secondaryWinsServer = !ipaddr_string.
+
+?.getNextIpAddrString = !ipaddr_string.
+!ipaddr_string.getNextIpAddrString() = 获取下一个IP地址\n!ipaddr_string.
+!ipaddr_string.eachAddress() = 遍历IP列表\n!ipaddr_string.
+!ipaddr_string.ipAddress = IP地址
+!ipaddr_string.ipMask = 掩码
+!ipaddr_string.context =  
+ 
+_MIB_IF_TYPE_OTHER=@1/*_MIB_IF_TYPE_OTHER*/
+_MIB_IF_TYPE_ETHERNET=@6/*_MIB_IF_TYPE_ETHERNET*/
+_MIB_IF_TYPE_TOKENRING=@9/*_MIB_IF_TYPE_TOKENRING*/
+_MIB_IF_TYPE_FDDI=@0xF/*_MIB_IF_TYPE_FDDI*/
+_MIB_IF_TYPE_PPP=@0x17/*_MIB_IF_TYPE_PPP*/
+_MIB_IF_TYPE_LOOPBACK=@0x18/*_MIB_IF_TYPE_LOOPBACK*/
+_MIB_IF_TYPE_SLIP=@0x1C/*_MIB_IF_TYPE_SLIP*/
+end intellisense**/

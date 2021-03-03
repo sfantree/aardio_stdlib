@@ -1,0 +1,98 @@
+//popup 屏幕右下通知窗口
+import win.ui.tracker;
+namespace win.util; 
+
+class popup {
+
+    ctor( winform,delayClose=10000,clickClose=true,marginRight=25,tick=1,step=4 ){
+        this = winform;  
+        var x,y,width,height = this.getPos();
+        var sRight = ::GetSystemMetrics(0x10/*_SM_CXFULLSCREEN*/);
+        var sBottom = ::GetSystemMetrics(0x11/*_SM_CYFULLSCREEN*/) + ::GetSystemMetrics(0x4/*_SM_CYCAPTION窗口标题的高度*/) ;
+        sRight -= marginRight; 
+        x = sRight - width;
+        
+        var topmost = sBottom -  height; 
+        y = sBottom - 39;
+        winform.setPos(x,y,width,39,,0x18/*_SWP_NOREDRAW | _SWP_NOACTIVATE*/  ); 
+        
+        var tickstart;
+        var remaintime;
+        var remaintime_pre;
+        
+        var waitClick = function(){ 
+            this.capture = true;
+            var tracker = ..win.ui.tracker(winform);
+            tracker.onMouseDown = function(wParam,lParam){
+                var x,y = ..win.getMessagePos(lParam);
+				if( x < 0 || y < 0 || x > width || y > height ){
+            		this.close();
+            	}
+            }
+           	tracker.onMouseLeave = function(wParam,lParam){
+           		var x,y = ..win.getMessagePos();
+           		var rc = winform.getRect();
+				if( !::PtInRect(rc,x,y) ){
+            		this.capture = true;
+            	}
+           	} 
+           	tracker.onMouseEnter = function(wParam,lParam){
+           		this.capture = false;
+           	}
+        }
+        
+        var tmid = this.setInterval( tick,
+            function(hwnd,msg,id,tick){
+            	if( tickstart ){
+            		var span = ..time.tick()-tickstart
+            		if( span > delayClose) { 
+            			this.clearInterval(id); 
+            			if(clickClose){
+            				waitClick();
+            			}
+            			else{ 
+            				this.close();
+            			}
+            		}
+            		else {
+            			remaintime = ..math.floor( (delayClose - span) /1000 )
+            			if( remaintime != remaintime_pre ){
+            				remaintime_pre = remaintime;
+            				if(this[["countdown"]])
+            					this.countdown( remaintime )
+            			}
+            		}
+            		return;
+            	}
+            
+                if( y <= topmost  ) { 
+                	tickstart = ..time.tick() 
+                	if(delayClose < 0){
+                		this.clearInterval(id);
+                		
+                		if(clickClose){
+            				waitClick();
+            			}
+                	}
+                		
+                    return;
+                }
+                else{
+                	y -= step;
+                	winform.setPos(x,y,width,sBottom-y,,0x18/*_SWP_NOREDRAW | _SWP_NOACTIVATE*/ ); 
+                }
+            }
+        );
+        ..win.setTopmost(this.hwnd)
+        this.show(); 
+    }
+}
+
+/**intellisense() 
+win.util.popup(.(winform对象,显示超时,点击是否关闭,屏幕右侧边距,移动速度,移动步进) = 创建一个通知窗口,在屏幕右下角弹出\n除参数一以外,所有参数可选,\n显示延时: 以毫秒为单位,延时为-1表示一直显示\n点击是否关闭: 为true则在显示超时以后点击窗口范围外时关闭自身\n移动速度:每次向上移动显示的间隔,以毫秒为单位\n移动步进:每次向上移动的距离
+!utilpopup.countdown = @.countdown=function(remaintime){
+	..io.print("剩余时间：",remaintime  + "秒")
+}
+
+win.util.popup() = !utilpopup.
+end intellisense**/

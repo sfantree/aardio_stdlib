@@ -1,0 +1,493 @@
+//appDomain 应用程序域
+namespace dotNet;
+
+class appDomain{
+
+	ctor( clr,domainName ){
+	
+		var appDomain;
+		 
+		if(!domainName) domainName = "Aardio.CLR.AppDomain";   
+		if( __appDomainCache[domainName] ) return __appDomainCache[domainName];
+		__appDomainCache[domainName] = this;
+		
+		var hr,pAppDomain = clr.corRuntimeHost.CreateDomainEx( ..string.toUnicode(domainName),clr.AppDomainSetup ); 
+		
+		this.queryObject = function(obj){
+			if(!..com.IsObject(obj) ) {
+				if( type(obj) == type.function ) {
+					return function(...){
+						return this.queryObject(obj(...));
+					}
+				}
+				return obj;
+			}
+			
+			return { _dotNetObject = obj; _dotNetAppDomain = this; 	@_objectMeta; 	}
+		};
+	
+		var wrapAssembly = function(asm,...){
+			if(!asm) return asm,...;
+			asm = unWrapDotNetObject(asm);
+			
+			asm[["Name"]] = asm.GetName().Name;
+			asm[["_createInstance"]] = asm.CreateInstance;
+			asm[["__createInstanceTest"]] = function(typeName,...){
+				if(!...) return this.queryObject(asm._createInstance(typeName));
+				var arrlist = this.createArrayList({...}); 
+				var ok,result  = call(this.utility.getInvokeMember,this.utility, asm ,typeName,""
+					, 512 /*BindingFlags.CreateInstance*/
+					,arrlist,null );
+				if( !ok ) return null,result;
+				return this.queryObject(result);
+			}
+			asm[["new"]] = function(typeName,...){
+				if( type(typeName)!=type.string )error("请指定类名称,参数@2",2);
+				var obj,err = asm.__createInstanceTest(typeName,...);
+				if(obj) return obj;
+				
+				if(!..string.startWith(typeName,asm.Name +".") && !(..string.indexOf(typeName,".")) )
+					return asm.__createInstanceTest( asm.Name +"."+ typeName,...);
+					
+				return null,err;
+			}
+			asm[["createInstance"]] = asm[["new"]];
+			
+			asm[["invokeMember"]] = function(typeName,bindingFlags,...){
+				var typeName,methodName = ..string.match(typeName,"(.+)\.([^.]+)$");
+				var arrlist = this.createArrayList({...}); 
+				
+				var ok,result  = call(this.utility.getInvokeMember,this.utility, asm ,typeName,methodName
+					,bindingFlags : 0 ,arrlist,null); 
+				if( !ok ) return null,result;
+				return this.queryObject(result);
+			} 
+			asm[["invokeStaticMember"]] = function(typeName,...){
+				var typeName,methodName = ..string.match(typeName,"(.+)\.([^.]+)$"); 
+				
+				var arrlist = this.createArrayList({...});
+				
+				var ok,result  = call(this.utility.getInvokeMember,this.utility, asm ,typeName,methodName
+					,16 | 8 | 256 /*Public|Static|InvokeMethod*/
+					,arrlist,null); 
+				if( !ok ) return null,result;
+				return this.queryObject(result);
+			}
+			asm[["getStaticMember"]] = function(typeName,...){
+				var typeName,methodName = ..string.match(typeName,"(.+)\.([^.]+)$");  
+				var arrlist = this.createArrayList({...});
+				
+				var ok,result  = call(this.utility.getInvokeMember,this.utility, asm ,typeName,methodName
+					,16 | 8 | 4096 | 1024 /*Public|Static|GetProperty|GetField*/
+					,arrlist,null); 
+				if( !ok ) return null,result;
+				return this.queryObject(result);
+			}
+			asm[["getEnum"]] = function(typeName){
+				var typeName,methodName = ..string.match(typeName,"(.+)\.([^.]+)$");  
+				var ok,result  = call(this.utility.getParseEnum,this.utility, asm ,typeName,methodName ); 
+				if( !ok ) return null,result;
+				return result;
+			} 
+			
+			asm[["import"]] = function(typeName){
+				if( type(typeName)!=type.string )error("参数@1请指定类型名称",2);
+				
+				return {
+					@{
+						_tostring = lambda() typeName;
+						_get = function(methodName,ownerCall){
+							if( type(typeName)!=type.string ) return owner[[methodName]]; 
+							
+							if(!ownerCall){ 
+								var arrlist = this.createArrayList();
+								var ok,result  = call(this.utility.getInvokeMember,this.utility, asm ,typeName,methodName
+									,16 | 8 | 4096 | 1024 /*Public|Static|GetProperty|GetField*/
+									,arrlist,null); 
+								
+								if( !ok ) {
+									if(result){
+										return asm[["import"]](typeName + "." + methodName); 
+									}
+									return null,result;	
+								}
+								return this.queryObject(result);	
+							}
+							else {
+								return function(...){
+									 
+									var arrlist = this.createArrayList({...}); 
+									var ok,result  = call(this.utility.getInvokeMember,this.utility, asm ,typeName,methodName
+										,16 | 8 | 256 /*Public|Static|InvokeMethod*/
+										,arrlist,null); 
+									if( !ok ) return null,result;
+									return this.queryObject(result);
+								}
+							}
+							
+						};
+						_call = function(...){ 
+							var obj,err = asm.__createInstanceTest(typeName,...);
+							if(obj) return obj;
+							
+							if(!..string.startWith(typeName,asm.Name +".") && !(..string.indexOf(typeName,".")) ){
+								var obj,err = asm.__createInstanceTest( asm.Name +"."+ typeName,...);
+								if(obj){
+									typeName = asm.Name +"."+ typeName;
+								}
+								
+								return obj,err;
+							}
+								
+							return null,err;
+						}
+					}
+				}
+			} 
+			
+			return asm,...;
+		}
+		
+		if(  (hr)>=0/*_SUCCEEDED*/ ){
+			appDomain = ..com.QueryObject( pAppDomain);
+			..com.Release(pAppDomain);
+			
+			this.loadFile  = function( rawAssembly,pdbData ){    
+				if(type(rawAssembly)!=type.string )error("请指定程序集",2);
+				
+				if( #rawAssembly < 0x410/*_MAX_PATH_U8*/ ){
+					rawAssembly = ..string.load(rawAssembly) : rawAssembly;
+				}
+				
+				if( pdbData ){
+					if(#pdbData < 0x410/*_MAX_PATH_U8*/ ){
+						pdbData = ..string.load(pdbData) : pdbData;
+					}
+					
+					return wrapAssembly( appDomain.Load_4(rawAssembly,pdbData) )
+				}
+				
+				return wrapAssembly( appDomain.Load_3( rawAssembly ) );
+			}; 
+			this.load = function( assemblyName ){  
+				if(!assemblyName) error("请指定程序集名称",2);  
+				return wrapAssembly( this.utility.loadAssembly( ..io.localpath(assemblyName) : assemblyName ) );
+			};
+			 
+			this.interop = this.loadFile($"~/lib/dotNet/.res/Aardio.InteropServices.dll");  
+			//this.interop = this.loadFile( "~\lib\dotNet\.res\bin\Debug\Aardio.InteropServices.dll" ,"~\lib\dotNet\.res\bin\Debug\Aardio.InteropServices.pdb" ); 			
+			this.utility = unWrapDotNetObject( this.interop.createInstance("Aardio.InteropServices.Utility") ); 
+		 
+			this.mscorlib = this.load("mscorlib");
+			this.system = this.load("System");
+		}
+		else {
+			return null;
+		}
+		
+		
+		this.appDomainReal = appDomain;
+	};
+	createArrayList = function( tab ){ 
+		var list = this.mscorlib.CreateInstance("System.Collections.ArrayList"); 
+		if( tab ){
+			for(i=1;#tab;1){
+				list.Add(unWrapDotNetObject(tab[i])); 
+			} 
+		}
+		return list;
+	}; 
+	invokeMember = function(assemblyName,typeName,methodName,bindingFlags,target,...){
+		var arrlist = this.createArrayList({...});
+		var ok,result  = call(this.utility.getInvokeMember,this.utility, ..io.localpath(assemblyName) : assemblyName 
+				,typeName,methodName ,bindingFlags : 0 ,arrlist,unWrapDotNetObject(target)); 
+		if( !ok ) return null,result;
+		return this.queryObject(result);
+	}; 
+	invokeObjectMember = function(target,methodName,bindingFlags,...){
+		var arrlist = this.createArrayList({...});
+		var ok,result  = call(this.utility.getInvokeObjectMember,this.utility,unWrapDotNetObject(target),methodName ,bindingFlags : 0 ,arrlist); 
+		if( !ok ) return null,result;
+		return this.queryObject(result);
+	};
+	invokeInstanceMember = function(target,methodName,...){
+		var arrlist = this.createArrayList({...});
+		var ok,result  = call(this.utility.getInvokeObjectMember,this.utility,unWrapDotNetObject(target),methodName 
+			,16 | 8 | 4 | 64| 256 /*Public|Static|Instance|InvokeMethod*/,arrlist); 
+		if( !ok ) return null,result;
+		return this.queryObject(result);
+	};
+	setInstanceMember = function(target,methodName,...){
+		var arrlist = this.createArrayList({...});
+		var ok,result  = call(this.utility.getInvokeObjectMember,this.utility,unWrapDotNetObject(target),methodName 
+			,16 | 8 | 4 | 64| 8192 | 2048 /*Public|Static|Instance|FlattenHierarchy|SetProperty|SetField*/ ,arrlist); 
+		if( !ok ) return null,result;
+		return this.queryObject(result);
+	};
+	getInstanceMember = function(target,methodName,...){
+		var arrlist = this.createArrayList({...});
+		var ok,result  = call(this.utility.getInvokeObjectMember,this.utility,unWrapDotNetObject(target),methodName 
+			,16 | 8 | 4 | 64| 4096 | 1024 /*Public|Static|Instance|FlattenHierarchy|GetProperty|GetField*/ ,arrlist); 
+		if( !ok ) return null,result;
+		return this.queryObject(result);
+	};
+	invokeStaticMember = function(assemblyName,typeName,...){
+		var typeName,methodName = ..string.match(typeName,"(.+)\.([^.]+)$"); 
+		
+		var arrlist = this.createArrayList({...}); 
+		var ok,result  = call(this.utility.getInvokeMember,this.utility, ..io.localpath(assemblyName) : assemblyName 
+				,typeName,methodName ,16 | 8 | 256 /*Public|Static|InvokeMethod*/
+				,arrlist,null); 
+		if( !ok ) return null,result;
+		return this.queryObject(result);
+	};
+	getStaticMember = function(assemblyName,typeName,...){
+		var typeName,methodName = ..string.match(typeName,"(.+)\.([^.]+)$"); 
+			
+		var arrlist = this.createArrayList({...}); 
+		var ok,result  = call(this.utility.getInvokeMember,this.utility, ..io.localpath(assemblyName) : assemblyName 
+				,typeName,methodName ,16 | 8 | 64 | 4096 | 1024 /*Public|Static|FlattenHierarchy|GetProperty|GetField*/
+				,arrlist,null); 
+		if( !ok ) return null,result;
+		return this.queryObject(result);
+	};
+	invokeCreateInstance = function(assemblyName,typeName,...){ 
+		if( !assemblyName ) error("请指定程序集,参数@1",2);
+		if( type(typeName)!=type.string )error("请指定类名称,参数@2",2);
+		
+		var arrlist = this.createArrayList({...});
+		var ok,result  = call(this.utility.getInvokeMember,this.utility, ..io.localpath(assemblyName) : assemblyName 
+				,typeName,"", 512 /*BindingFlags.CreateInstance*/
+				,arrlist,null); 
+		if( !ok ) return null,result;
+		return this.queryObject(result);
+	};
+	createInstance = function(assemblyName,typeName,...){
+		if( !assemblyName ) error("请指定程序集,参数@1",2); 
+		if(type(typeName)!=type.string )error("请指定类名称,参数@2",2);
+		if( ... !== null )  return this.invokeCreateInstance( assemblyName,typeName,... ); 
+		
+		if(type(assemblyName)!=type.string )error("请指定程序集名称,参数@1",2);
+		var handle = appDomain.CreateInstance(assemblyName,typeName);  
+		return this.queryObject(handle.UnWrap());
+	};
+	createInstanceFrom  = function(assemblyName,typeName ){   
+		if(type(typeName)!=type.string )error("请指定类名称,参数@2",2);
+		if(type(assemblyName)!=type.string )error("请指定程序集名称,参数@1",2);
+		assemblyName = ..io.localpath(assemblyName) or assemblyName  ;  
+		
+		var handle = appDomain.CreateInstanceFrom(assemblyName,typeName);
+		return this.queryObject(handle.UnWrap());
+	};  
+	createWebService = function(url,strNamespace,protocol,dllPath){
+		var compile = this.createCompiler("C#");
+		if(dllPath){ 
+			compile.Parameters.OutputAssembly  =  ..io.fullpath(dllPath)
+			compile.Parameters.GenerateExecutable =  false;
+		}
+		
+		var assembly = compile.CompileWebService(url,strNamespace,protocol : "Soap");
+		return assembly,compile.getLastError();
+	}; 
+	createCompiler = function(lang){ 
+		
+		var providers = {
+			["C#"] = "Microsoft.CSharp.CSharpCodeProvider";
+			["VB"] = "Microsoft.VisualBasic.VBCodeProvider";
+		}
+		var providerType = providers[lang];
+		if( ! providerType ) error("请正确指定编译器语言",2)
+		
+		var compile = this.utility.CreateCompiler(providerType); 
+		if( compile ){
+			compile[["_Reference"]] = compile.getReference;
+			compile[["Reference"]] = function(path,...){
+				if(path=="System"){
+					path = "System.dll"; //默认已引用，避免冲突
+				}
+				
+				if(!(..string.endWith(path,".dll",true) || ..io.exist(path) ) ){
+					var location;
+					var asms = appDomain.GetAssemblies();
+					for(i,asm in asms){
+						var name = ..string.match(asm.FullName,"^[^\s\,]+") 
+						if( name  == path ){
+							location = asm.Location;	
+						}
+					}
+					
+					if(!location){
+						var asm = this.load(path);
+						location = asm.Location;
+					}
+					
+					if(location){
+						path = location;
+					} 
+				}
+				var ret = owner._Reference( ..io.localpath(path) : path )
+				if(!...) return ret;
+				return owner.Reference(...);
+			} 
+			compile[["_Compile"]] = compile.getCompile;
+			compile[["Compile"]] = function(...){ 
+				return wrapAssembly( owner._Compile(...) );
+			} 
+			
+		}
+		return compile;
+	} 
+	unload = function(){
+		if(appDomain){
+			__appDomainCache[domainName] = null;
+			
+			var pAppDomain = ..com.GetPointer(appDomain);
+			var hr = clr.corRuntimeHost.UnloadDomain(pAppDomain)
+			..com.Release(pAppDomain)
+			
+			appDomain = null;
+			this.appDomainReal = null;
+			
+			if(  (hr)>=0/*_SUCCEEDED*/ ) return true;
+			return null,..lasterr(hr);
+		}
+	}; 
+}
+
+namespace appDomain{
+
+	__appDomainCache = {} 
+	
+	_objectMeta = {
+		_get = function(k,ownerCall){
+		 	if(k=="_struct") return;
+		 	if(k=="Item") {
+				return { _dotNetObject = owner._dotNetObject; _dotNetAppDomain = owner._dotNetAppDomain;@_objectItemMeta; 	}
+			}
+				
+			var object = owner._dotNetObject;
+			var appDomain = owner._dotNetAppDomain;
+			/*
+			var ret,robj = call(object@._get,object,k,ownerCall);
+			if( ret ? ( robj !== null) ) return appDomain.queryObject( robj );
+			*/
+			
+			if(ownerCall){
+				return function(...){
+					var obj,err = appDomain.invokeInstanceMember(object,k,...);
+					if( (!obj) && err ) error(err,2)
+					return appDomain.queryObject( obj );
+				}
+			}
+			
+			return appDomain.queryObject( appDomain.getInstanceMember(object,k) );
+		}
+		_set = function(k,v){
+			return owner._dotNetAppDomain.queryObject( owner._dotNetAppDomain.setInstanceMember(owner._dotNetObject,k,v) );
+		}
+		_topointer = function(){
+			return owner._dotNetObject;
+		}
+		_eq = function(v){
+			return unWrapDotNetObject(owner) == unWrapDotNetObject(v);
+		}
+		
+	} 
+	_objectItemMeta = {
+		_get = function(k,ownerCall){
+		 	if(k=="_struct") return;
+			var object = owner._dotNetObject;
+			var appDomain = owner._dotNetAppDomain;
+			return appDomain.queryObject( appDomain.getInstanceMember(object,"Item",k) );
+		}
+		_set = function(k,v){
+			return owner._dotNetAppDomain.queryObject( owner._dotNetAppDomain.setInstanceMember(owner._dotNetObject,"Item",k,v) );
+		}
+		_topointer = function(){
+			return owner._dotNetObject;
+		}
+		_eq = function(v){
+			return unWrapDotNetObject(owner) == unWrapDotNetObject(v);
+		}
+	} 
+	
+	unWrapDotNetObject = function(v){
+		return v[["_dotNetObject"]] : v;
+	}
+
+	
+	..subscribe("beforeUnload",function(){
+		for(k,appDomain in __appDomainCache){
+			appDomain.unload(); 
+		}	
+	} ); 
+}
+
+getObject = function(v){
+	return v[["_dotNetObject"]];
+}
+
+
+/**intellisense()
+dotNet.getObject(__) = 如果对象是.Net对象\n返回被封装的原始.Net对象,\n原始的.Net对象在aardio中是一个COM对象
+end intellisense**/
+
+/**intellisense(!dotNetAppDomain)
+appDomainReal = AppDomain 托管对象
+mscorlib = mscorlib.dll程序集\n!dotNetCrlAssembly.
+system = Systme.dll程序集\n!dotNetCrlAssembly.
+interop = Aardio.InteropServices.dll程序集\n!dotNetCrlAssembly.
+utility = Aardio.InteropServices.Utility对象
+invokeMember(.(程序集,"类名","方法名",BindingFlags,目标对象,其他调用参数) = 调用类方法,目标对象可省略,\n失败返回空值,以及错误信息
+invokeObjectMember(.(目标对象,"方法名",BindingFlags,其他调用参数) = 调用对象的成员方法,支持传入多个调用参数并返回值	\n失败返回空值,以及错误信息	
+invokeStaticMember(.(程序集,"类型名->方法名",其他调用参数) = 参数一可以是程序集对象,名称或路径都可以,\n调用类的静态方法,支持传入多个调用参数并返回值。	\n失败返回空值,以及错误信息		
+getStaticMember(.(程序集,"类型名->字段名") = 参数一可以是程序集对象,名称或路径都可以,\n获取静态字段、属性值、枚举值等。
+invokeCreateInstance(.(程序集,"类名",其他调用参数) = 参数一可以是程序集对象,名称或路径都可以,\n调用类的构造函数,支持传入多个调用参数并返回创建的对象。	\n失败返回空值,以及错误信息		
+createInstance(.("程序集名称","类名") = 创建实例对象\n可传入多个构造参数
+createInstanceFrom(.("程序集跃径","类名") = 创建实例对象
+invokeInstanceMember(.(目标对象,"方法名",其他调用参数) = 调用类的成员方法,支持传入多个调用参数并返回值	\n失败返回空值,以及错误信息	
+getInstanceMember(.(目标对象,"字段名") = 获取对象字段或属性\n失败返回空值,以及错误信息	
+setInstanceMember(.(目标对象,"字段名",值) = 设置对象实例的字段或属性\n成功返回空值,失败返回空值,以及错误信息
+load(.("程序集名") = 载入程序集,\n参数可以是程序集名称或路径。\n此函数会按以下顺序调用下列函数尝试加载程序集：Assembly.LoadWithPartialName,Assembly.Load,Assembly.LoadFrom,Assembly.LoadFile
+loadFile(.("程序集跃径") = 自内存载入程序集,\n参数可以是路径,或内存资源,\n可选在第2个参数中指定pdb调试数据或pdb调试文件路径。
+load() = !dotNetCrlAssembly.
+loadFile() = !dotNetCrlAssembly.
+unload() = 卸载应用程序域
+createWebService( = 创建Web服务程序集
+createWebService(.(服务网址,名字空间,协议名,DLL路径) = 创建Web服务程序集,可选在参数@2中指定一个自定义的名字空间\n协议名默认为"Soap",可选值"Soap12",\n如果使用参数@4指定输出DLL路径则在内存中编译程序集
+createWebService() = !dotNetCrlAssembly.
+createCompiler("C#") = 创建C#编译器
+createCompiler("VB") = 创建VB编译器
+createCompiler() = !dotNetCompiler.
+createArrayList(.(初始化数组) = 创建 System.Collections.ArrayList 对象\n可传递到C#函数中,C#中应声明为object类型,然后强制转换为ArrayList,\n使用圆括号访问数组成员,0为初始下标,\n可选参数一指定table数组用于初始化对象
+createArrayList() = !dotNetCrlArrayList.
+end intellisense**/
+
+/**intellisense(!dotNetCrlArrayList) 
+Add(.(添加对象) = 添加成员到数组中
+Clear() = 添空数组
+ToArray() = 转换并返回普通table数组,\n返回数组起始下标为1
+end intellisense**/
+
+/****intellisense(!dotNetCompiler)
+Parameters = 编译参数
+Parameters.OutputAssembly  = 指定输出文件路径,\n参数需要调用io.fullpath()转换为绝对路径,\n需要设GenerateInMemory为false取消内存编译,\n调用setGenerateExecutable指定编译为DLL或者EXE
+Parameters.GenerateExecutable = 是否编译为EXE执行文件\n编译为DLL设为false
+Parameters.GenerateInMemory = 是否内存编译
+getProvider() = 编译器
+getLastError()  = 获取编译错误信息
+Reference("System->dll") = 引用程序集,\n可指定任意多个程序集路径或名称参数,\n如果指定不含dll后缀名的程序集名，则加载程序集并转换为完整路径。
+Source = @.Source = /***\nusing System;\nusing System.Runtime.InteropServices;\n[assembly: IDispatchImpl(IDispatchImplType.CompatibleImpl)]\n\nnamespace CSharpLibrary  \n{\n    [IDispatchImpl(IDispatchImplType.InternalImpl)]\n    [ComVisible(true), ClassInterface(ClassInterfaceType.AutoDual)]\n    public class CSharpObject  \n    {\n        public CSharpObject()\n        {\n			__\n        } \n    }\n} \n***/
+Compile() = 编译并返回程序集\n!dotNetCrlAssembly.
+end intellisense****/
+
+/**intellisense(!dotNetCrlAssembly)
+Location = 获取完整路径
+FullName = 获取程序集的全名
+import("__") = 参数指定类名或名字空间，\n返回一个 aardio 对象，该对象可作为函数调用直接构建类对象，\n也可以用成员操作符返回静态成员，或调用静态函数。
+new(.("类名",->->-> ) = 创建对象实例,\n可添加不定个数构造参数\n失败返回空值,以及错误信息
+invokeStaticMember(.("类名->方法名",->->-> ) = 调用类的静态方法,\n可添加不定个数调用参数\n失败返回空值,以及错误信息
+invokeMember(.("类名->方法名",BindingFlags) = 调用类的方法,\n可添加不定个数调用参数\n失败返回空值,以及错误信息
+getStaticMember(.("类名->字段名") = 获取字段或属性值、或枚举值
+getEnum(.("枚举类型名->枚举字段名") = 获取枚举值
+end intellisense**/

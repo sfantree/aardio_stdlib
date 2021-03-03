@@ -1,0 +1,126 @@
+//6)类
+import console;
+console.open();
+
+/*
+python中对象属性的名字中下划线有特殊用途，这一点与aardio相似。
+不过python的下划线规则复杂一些：
+
+1、__名字__  两个下划线开始结束为系统保留
+2、__名字 两个下划线开始为私有属性
+3、_名字 保护类型属性
+
+在aardio中则只有两种规则：
+1、下划线开头的变量（不论是几个）一律是只读的赋值后不能修改。
+2、下划线开始且完全大写的变量，只读且全局有效。
+也就是说只限制写，不限制读取使用的权限。
+
+相同的是在语义上都强调下划线开头的属性不要在外部使用。
+但是在python的代码里还是经常能看到下划线到处飞使用的非常频繁。
+但是在aardio里下划线开头的变量一般只在库内部使用，普通aardio代码中一般看不到下划线到处飞的现象。
+*/
+
+import py; 
+pyCode = /***
+
+#定义类,object是基类
+class Stack(object): 
+    def __init__(self): # 类似aardio中的 ctor()构造函数
+        #python中的self类似aardio中的this表示当前创建的对象实例,
+        #而aardio中的self表示的则是所有类创建的实例共享的私有名字空间,即类似于Python中的 类名.静态变量名字 
+        #aardio中的 self.stack(可以省略前面的self.) 等价于 python中的 Stack.stack
+        self.stack = [ ]  #每个对象实例的成员
+        Stack.stack = 123 #类的静态共享成员
+        self.__x = None;
+
+    def push(self,object): #成员函数要显示的声明self参数,而aardio并不需要这样做
+        self.stack.append(object)
+
+    def pop(self):
+        return self.stack.pop()
+
+    def length(self):
+        return len(self.stack)
+
+    #定义Python专用类方法，这个功能类似于aardio的元方法,区别是aardio会把元方法写在对象的元表中，而不是直接写在类或对象里
+    def __str__(self): 
+        print( "print,str 会调用到，类似aardio中的_tostring元方法" )
+        return repr(self.data)
+        
+    #下面定义的是“属性存取器”,在aardio中类似的东西是：util.metaProperty （也是使用元表元方法实现的功能）
+    @property
+    def x(self):
+        return self.__x
+
+    @x.setter
+    def x(self,value):
+        self.__x=value
+
+    @x.deleter
+    def x(self):
+        del self.__x
+        
+s = Stack() #创建对象,与aardio相同不需要 new关键字
+s.push("Dave") #调用对象成员函数
+x = s.pop()  #调用对象成员函数
+
+#在python里不能象对付字典那样直接改用下标访问对象属性,aardio里可以这样写,aardio里所有对象、数组、字典都是表，用法都一样
+#print( s["pop"] )
+
+#del s #删除对象,在aardio里写为 s = null;
+
+print( x )
+print( "|||",s.__class__ is Stack )
+
+***/
+py.exec( pyCode ) //运行python代码
+
+ 
+//下面是类似的aardio代码
+//=========================================================
+import util.metaProperty;
+class stack {
+
+    ctor(){
+        this.stack = {}; //每个对象实例的成员
+        self.stack = 123; //类的静态共享成员
+    };
+    push = function(object){
+        //aardio中类拥有私有的名字空间, 
+        //访问全局名字空间的成员要在前面加上两点,例如 ..table (  实际上是global.table 的缩写形式 )
+        ..table.push(this.stack ,object);
+    }
+    bb = function(){
+        var str = /*
+        pytho属于强类型语言,对类型的要求严格并且不能随意转换，
+        定义的类创建的实例都可以在运行时使用 对象.__class__ is 类名 检测类型.
+        
+        而 aardio 则是弱类型语言，典型的 duck type 方式，
+        一句在 aardio 中很常见的代码 hwnd = hwnd[["hwnd"]] : hwnd，
+        aardio才不管你的 __class__是什么，只要你能提供 hwnd就可以了，
+        至于火星撞地球的机率hwnd不是一个窗口句柄谁在乎呢？！
+        aardio里的class也不是类型，也没有严格的限制。
+        */
+        ..console.log(str)
+    }
+    @_metaProperty; //创建属性存取表
+}
+
+namespace stack {
+
+    _metaProperty = ..util.metaProperty(
+    
+        //aardio中的属性表非常方便,如果有大量的属性字段,这种写法代码可以很清晰
+        length = {
+            _get = function(){  
+                return #owner.stack; //属性表里用owner代替this,这里的owner等价于python中的self参数
+            } 
+        }; 
+    )
+}
+
+//aardio中一般不会大写类名,所有命名风格都是统一小写开始( 外部API以及COM函数通常首字母大写 )
+var s = stack(); 
+s.bb( s.length );
+
+console.pause();

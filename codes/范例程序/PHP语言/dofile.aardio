@@ -1,0 +1,33 @@
+//解析PHP文件,捕获输出
+import web.form;
+/*DSG{{*/
+var winform = ..win.form( bottom=652;scroll=1;text="aardio form";right=713;parent=...)
+winform.add(  )
+/*}}*/
+
+//创建web窗体
+var wb = web.form( winform  );
+wb.go("about:blank")
+ 
+import php;
+php.print = function( msg ) {
+	wb.document.write(msg)
+}
+
+//生测测试的PHP文件
+phpcode = /*
+<?php 
+	echo "<p>Hello World</p>"; 
+	phpinfo(INFO_ALL); 
+?>
+*/
+
+string.save("/test.php",phpcode )
+php.dofile("/test.php")
+
+//直接写 php.exec( phpcode ) 也可以
+php.exec( phpcode ) 
+
+//显示窗体
+winform.show() 
+win.loopMessage();

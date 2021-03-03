@@ -1,0 +1,114 @@
+﻿//progress 进度条
+import console;
+
+class console.progress{
+	ctor(backText,foreText){
+		this.backTextColor = ..console.color.darkGray;
+		this.foreTextColor = ..console.color.yellow;
+		this.doneColor = ..console.color.green;
+		this.doneText = "Done!";
+		this.backText = backText : "─";
+		this.foreText = foreText : backText : "─"; 
+		this.percent = 0;
+	};
+	addProgress = function(percent,msg){
+		return this.setProgress(this.percent+percent,msg);
+	};
+	setProgress = function(percent,msg){
+		
+		if(!this.running || !..console.getWindow() || ..console.isCursorVisible() ){
+			..console.open();
+			..console.setCursorVisible(false);
+			this.running = true;
+		}
+		elseif(this.running) {
+			var x,y = ..console.getPos(); 
+			..console.setPos(0,y-1); 
+			if(this.message){ ..console.setPos(0,y-2); }
+		}
+		
+		var width = ..console.getSize() - 2;
+		
+		if( percent > 100 ) percent = 100;
+		if( percent < 0 ) percent = 0;
+		if(percent){
+			if(this.percent === percent){return;}
+			
+			var foreTextColor = percent>=100 ? this.doneColor : this.foreTextColor;
+			
+			var line = '\r' + this.foreText:"─"
+			..console.writeColorText(line,foreTextColor,this.foreColor); 
+			
+			var x,y = ..console.getPos();
+			var len = ..math.floor( (width/100*percent) / x )-1;
+			if(len>0){
+				line = ..string.repeat(len,this.foreText:"─");
+				..console.writeColorText(line,foreTextColor,this.foreColor); 
+			} 
+		}
+		this.percent = percent;
+		
+		var x,y = ..console.getPos();
+		if( (percent <100 ) && width>x ){
+			width = width - x;
+			var line = this.backText:"─"
+			..console.writeColorText(line,this.backTextColor,this.backColor); 
+			
+			var x2,y = ..console.getPos();
+			var len = ..math.floor( width / (x2-x) ) - 1;
+			
+			if(len>0){
+				line = ..string.repeat(len,this.backText:"─");
+				..console.writeColorText(line,this.backTextColor,this.backColor); 
+			} 
+		}
+		
+		if((percent>=100) && this.doneText && (this.message != this.doneText)){
+			msg = this.doneText;
+		}
+		
+		var x,y = ..console.getPos();
+		..console.setPos(0,y+1);
+		if(msg){
+			this.message = msg;
+			..console.writeText(msg);
+			..console.eraseToEndOfLine(); 
+		}
+			
+		if(this.message) {
+			..console.setPos(0,y+2);
+		}
+		this.running = true;
+		
+		if(percent>=100){
+			this.reset();
+		}
+	}
+	reset = function(){
+		..console.setCursorVisible(true);
+		this.running = false;
+	}
+}
+
+/**intellisense()
+console.progress = 控制台简单进度条
+console.progress( = 创建控制台简单进度条
+console.progress(.(背景字符,前景字符) = 所有参数可选，默认值都设为"─"字符
+console.progress() = !stdConsoleProgress.
+end intellisense**/
+
+/**intellisense(!stdConsoleProgress)
+reset() = 重置进度条\n如果上次进度没有完成,\n要显示新的进度条前必须调用此函数
+addProgress( = 增加进度
+addProgress(.(百分比,状态文本) = 百分比为0到100的数值，状态文本为可选参数
+setProgress( = 设置进度
+setProgress(.(百分比,状态文本) = 百分比为0到100的数值，状态文本为可选参数
+backText = 背景字符，默认为"─"\n可以为空格，但不能为空字符串
+foreText = 前景字符，默认为"─"\n可以为空格，但不能为空字符串
+backTextColor = 背景字符颜色,\n请使用console.color下面的值指定
+foreTextColor = 前景字符颜色,\n请使用console.color下面的值指定
+backColor = 背景颜色,\n请使用console.color下面的值指定
+foreColor = 前景颜色,\n请使用console.color下面的值指定
+doneColor = 进度完成后的字符颜色,\n请使用console.color下面的值指定
+doneText = 进度完成后的显示文本
+end intellisense**/

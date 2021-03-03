@@ -1,0 +1,64 @@
+//hmac 算法
+import crypt;
+namespace crypt
+
+class hmac{
+	ctor(key,data,algId = 0x8004/*_CALG_SHA1*/) {
+		var csp = ..crypt(); 
+		
+		//不会真的用到RC2
+		var ret,err = csp.setPlainPassword(key,0x6602/*_CALG_RC2*/,0x100/*_CRYPT_IPSEC_HMAC_KEY*/);
+		if(!ret) return null,err;
+		 
+		var hashMac,err = csp.createHashByKey(0x8009/*_CALG_HMAC*/); 
+		if( !hashMac ) return null,err; 
+		
+		var hmacInfo = HMAC_INFO();
+		hmacInfo.hashAlgid = algId; 
+		hashMac.setParamStruct( 5/*_HP_HMAC_INFO*/, hmacInfo );
+		
+		if( data ){
+			hashMac.hashData(data);
+		} 
+		
+		this = hashMac;
+	} 
+}
+
+namespace hmac{
+	sha1 = function(key,data){
+		return ..crypt.hmac(key,data,0x8004/*_CALG_SHA1*/);
+	}
+	sha256 = function(key,data){
+		return ..crypt.hmac(key,data,0x800C/*_CALG_SHA_256*/);
+	}
+	sha512 = function(key,data){
+		return ..crypt.hmac(key,data,0x800E/*_CALG_SHA_512*/);
+	}
+	sha384 = function(key,data){
+		return ..crypt.hmac(key,data,0x800D/*_CALG_SHA_384*/);
+	}
+	md5 = function(key,data){
+		return ..crypt.hmac(key,data,0x8003/*_CALG_MD5*/);
+	}
+	
+	class HMAC_INFO {
+    	INT hashAlgid;
+    	pointer pbInnerString;
+    	INT cbInnerString;
+    	pointer pbOuterString;
+    	INT cbOuterString;
+	};
+}
+
+/**intellisense()
+crypt.hmac(.("密钥","源数据",算法ID) = 返回HMAC哈希对象,算法ID默认为 _CALG_SHA1
+crypt.hmac.sha1(.("密钥","源数据") = 返回 HMAC-SHA1 哈希对象
+crypt.hmac.sha256(.("密钥","源数据") = 返回 HMAC-SHA256 哈希对象
+crypt.hmac.sha512(.("密钥","源数据") = 返回 HMAC-SHA512 哈希对象
+crypt.hmac.sha384(.("密钥","源数据") = 返回 HMAC-SHA384 哈希对象
+crypt.hmac.md5(.("密钥","源数据") = 返回 HMAC-MD5 哈希对象
+crypt.hmac() = !crypt_hash.
+crypt.hmac.sha1() = !crypt_hash.
+crypt.hmac.md5() = !crypt_hash.
+end intellisense**/

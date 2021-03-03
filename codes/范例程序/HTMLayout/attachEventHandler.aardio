@@ -1,0 +1,55 @@
+//节点绑定事件
+import win.ui;
+/*DSG{{*/
+winform = ..win.form(text="节点绑定事件";right=599;bottom=399;parent=...)
+winform.add()
+/*}}*/
+
+import web.layout;
+wbLayout = web.layout(winform);
+ 
+wbLayout.html = /**
+<!doctype html>
+<html>
+<head>
+    <style type="text/css">
+    html,body{ height:100%; margin:0; } 
+    body widget { size:*; }
+    </style>
+</head>
+<body>
+    <widget #dd type="tree" treelines>
+    <option expanded >Metals
+      <option>Alkaline Metals
+        <option>Lithium <code>Li</code></option>
+        <option>Sodium <code>Na</code></option>
+        <option>Potassium <code>K</code></option>
+      </option>
+      <option expanded>Transition Metals
+        <option>Scandium <code>Sc</code></option>
+        <option>Titanium <code>Ti</code></option>
+        <option>Vanadium <code>V</code></option>
+      </option>
+    </option>
+    <option expanded>Halogens
+        <option>Fluorine <code>F</code></option>
+        <option>Chlorine <code>Cl</code></option>
+        <option>Bromine <code>Br</code></option>
+    </option>
+  </widget> 
+</body>
+</html>
+**/
+ 
+var layoutEle = wbLayout.getEle("dd")
+layoutEle.onSelectSelectionChanged = function (ltTarget,ltOwner,reason,behaviorParams) {
+	var ltOption = ..web.layout.element( behaviorParams.he );
+	
+	winform.text = ( ltOption.state.expanded ? "选中(展开) " : "选中 " )++ ltOption.innerText
+}
+
+//调用此函数启用事件函数
+layoutEle.attachEventHandler();
+
+winform.show() 
+win.loopMessage(); 

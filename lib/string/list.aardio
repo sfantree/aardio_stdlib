@@ -1,0 +1,266 @@
+//list 字符串列表 
+namespace string;
+ 
+class list{ 
+    ctor(str,lineDelimiter,nameValueSeparator,quoteChar) {   
+    	this[-1] = { 
+    		lineDelimiter = lineDelimiter : '\r\n';
+    		nameValueSeparator = nameValueSeparator : '=';
+    		quoteChar = '""';
+    		quoteChars = {
+    			 ['\''#] = "''";
+				 ['"'#] = '""'; 
+				 ['{'#] = '{}';
+				 ['('#] = '()';
+				 ['['#] = '[]';
+			} 
+			
+			keys = {};
+			reserve = { each = 1; load = 1; save = 1;find=1;mixin=1}
+			reserveData = {};
+		};
+		if( quoteChar ){
+			this[-1].quoteChar = quoteChar;
+			this[-1].quoteChars[ quoteChar[1] ] = quoteChar;
+		}
+		
+        if( ( #str < 0x410/*_MAX_PATH_U8*/ ) && ( ..io.exist(str) ) ){
+        	this[-1].path = str;
+        	str = ..string.load(str);
+        }
+         
+        if(str) createList(this,str); 
+    };  
+    @ _metaProperty;  
+}
+ 
+namespace list {
+	import util.metaProperty;
+	
+	var push = ..table.push
+	var trim = ..string.trim;
+	var trimleft = ..string.trimleft;
+	var find = ..string.find;
+	var left = ..string.left;
+	var slice = ..string.slice;
+	var match = ..string.match;
+	
+	createList = function( this,s) {  
+		if(!#s) return;
+		var lineDelimiter = this[-1].lineDelimiter;
+		var nameValueSeparator = this[-1].nameValueSeparator;
+		var quoteChars = this[-1].quoteChars;
+		var keys = this[-1].keys;
+		var reserve = this[-1].reserve;
+		var reserveData = this[-1].reserveData;
+		if(lineDelimiter=='\r\n' || lineDelimiter=='\n' || lineDelimiter=='\n\r'){ lineDelimiter = "[\r\n]+" }
+		elseif( (lineDelimiter!="\s") && (lineDelimiter!="\s+") && lineDelimiter[1]!='['# ) lineDelimiter = "@" + lineDelimiter;
+		
+		nameValueSeparator = "@" + nameValueSeparator;
+		if(s[1] == 0xEF && s[2] == 0xBB & s[3] ==0xBF){
+			s = ..string.right(s,-4);
+		} 
+		
+		while( 
+    		var i,j,vi,vj,si,sj,q,k,v ;
+    		i,j = find(s, nameValueSeparator ); 
+    		i 
+		) {
+			k = trim( slice(s,1,i-1) );
+			s = trimleft( slice(s,j+1) ); 
+			si,sj = find(s,lineDelimiter); 
+			
+			if( si ){
+				q = quoteChars[s[1]]; 
+				if( q ){ 
+					vi,vj = find(s,"%\" + q )
+					if(vi){
+						v = slice(s,1,vj-1);  
+						si,sj = find(s,lineDelimiter,vj+1);
+						if(!si) {
+							v = s;
+							s = "";
+						}
+						else{
+							v = trim( slice(s,1,si-1) ); 
+							s = slice(s,sj+1);  
+						}
+					}
+					else { 
+						break;
+					} 
+				}
+				else {
+					v = trim( slice(s,1,si-1) );
+					s = trimleft( slice(s,sj+1) ); 	
+				}
+			} 
+			else { 
+				v =  s; 
+			} 
+
+			while( 
+			    var kl,kj;
+			    kl,kj = find(k,lineDelimiter);
+			    kl
+			) {
+				k = slice(k,kj+1);//作为注释忽略
+			} 
+			
+			if( !reserve[k] ){
+				if( !this[[k]] ) push(keys,k);
+				this[[k]] = trim(v);
+			}
+			else {
+				if( !reserveData[[k]] ) push(keys,k);
+				reserveData[[k]] = trim(v);
+			}
+			
+		}
+	}	 
+	
+	_metaProperty = ..util.metaProperty( 
+		_type = "object";
+		save = function(filepath){ 
+			if(filepath) owner[-1].path  = filepath;   
+    		..string.save(owner[-1].path  ,tostring(owner) )   
+    		return owner;
+    	}
+    	load = function(filepath){  
+    		if( ! #filepath ){
+    			error("请指定正确的文件路径",2)
+    		}  
+    		var str = ..string.load( filepath ) 
+    		if(!str) return;
+    		
+    		owner[-1].keys = {};
+    		owner[-1].reserveData = {}; 
+       		owner[-1].path  = filepath; 
+       		
+       		var cfg = owner[-1];
+       		for(k,v in owner){ owner[[k]]= null }
+       		owner[[-1]] = cfg;
+       		
+       		createList(owner,str);  
+       		return owner;
+    	};
+    	mixin = function(...){
+    		var cfg = owner[-1];
+    		var r = ..table.assign(owner,...);
+    		owner[-1] = cfg;
+    		return r;
+    	};
+		set = function(k,v) {   
+			k = tostring(k)
+			var keys = owner[-1].keys;
+			if( owner[[k]] === null ) ..table.push(keys,k);
+				
+			owner[[k]] = v;
+			return owner ; 
+		}; 
+		find = function(k,...){
+			var keys = owner[-1].keys;
+    		for(i=1;#keys){
+    			if( ..string.cmp( keys[i],k ) == 0) {
+    				k = keys[i];
+    				var v = owner[[k]];
+					if(owner[-1].reserve[k]) v = owner[-1].reserveData[k]; 
+    				return i,k,v; 
+    			}
+    		} 
+    		if(...) return owner.find(...);
+    	};  
+		each = function(){
+			var this = owner;
+			var keys = this[-1].keys;
+			var reserveData = owner[-1].reserveData; 
+			var reserve = owner[-1].reserve; 
+			
+			return function(i=0){
+				i++;
+				var k = keys[i]; 
+				if(!k)return;
+				
+				var v = this[[k]];
+				if(reserve[k]) v = reserveData[k]; 
+				return i,k,v
+			} 
+		}; 
+		_tostring = function(delimiter) {
+			var reserve = owner[-1].reserve; 
+			var reserveData = owner[-1].reserveData; 
+			var nameValueSeparator = owner[-1].nameValueSeparator; 
+			var lineDelimiter = owner[-1].lineDelimiter;
+			var quoteChars = owner[-1].quoteChars; 
+			var quoteChar = owner[-1].quoteChar; 
+			var keys = owner[-1].keys; 
+			if( not #keys ) return "";
+			
+			var lineDelimiter2 = lineDelimiter;
+			if( (lineDelimiter!="\s") && (lineDelimiter!="\s+") && lineDelimiter[1]!='['# ){
+				lineDelimiter = "@" + lineDelimiter;
+			}
+			else {
+				lineDelimiter2 = " ";
+			}
+			if(!delimiter) delimiter = lineDelimiter2;
+			
+			var k,v; 
+			var t = {};
+			for( i= 1 ; #keys){
+				k = keys[i];
+				v = owner[[ k ]];
+				if( reserve[k] ) v = reserveData[k];
+				
+				v = trim( tostring( v ) );
+				if( (!quoteChars[v[1]]) && quoteChar && ..string.find(v, lineDelimiter) ){
+					v = quoteChar[[1]] ++ v ++ quoteChar[[2]];
+				}
+    			push(t, ..string.concat( k,nameValueSeparator,v ) );
+			} 
+			return ..string.join(t,delimiter) ;
+		};
+		getConfiguration = function(){
+    		return owner[-1];
+    	} 
+    	separator = {
+    		_get = function(){
+    			return owner[-1].lineDelimiter
+    		};
+    		_set = function(v){
+    			owner[-1].lineDelimiter = v;
+    		} 
+    	}
+    	mark = {
+    		_get = function(v){
+    			return owner[-1].nameValueSeparator
+    		};
+    		_set = function(v){
+    			owner[-1].nameValueSeparator = v;
+    		}
+    	}
+	)
+}
+
+/**intellisense()
+string.list = 字符串列表
+string.list( = 创建字符串列表
+string.list(.(字符串,行分隔符,键值分隔符,引用符) = 第一个参数也可以是文件路径,所有参数可选\n行分隔符为"\s","\s+",或开始于"["字符时使用模式匹配语法\n如果使用了模式匹配,可在tostring的参数中指定拼接为字符串的行分隔符,不指定使用空格拼接,\n行分隔符不指定时默认为回车换行,\n\n键值分隔符默认为等号,\n\n引用符必须指字含两个单字节字符的字符串,例如两个引号，\n对于包含了分隔符的值,在生成字符串时自动置入引用符内。\n关于引用符请参考getConfiguration()函数说明，\n这里如果指定引用符则覆盖默认的quoteChar,quoteChars配置
+!stringlist.load("__/*文件路径*/") = 加载配置文件 
+!stringlist.save("__/*文件路径*/") = 保存配置文件
+!stringlist.save() = 保存配置文件\n!stringlist.
+!stringlist.mixin = @.mixin(\n	键 = 值__;\n)
+!stringlist.find("__/*键名*/") = 查找指定键所在位置,忽略大小写\n支持使用多个能有数指定多个查找键名,此函数将逐个查找,\n找到即返回返回三个值: 位置索引,键名,键值
+!stringlist.getConfiguration() = 返回配置\n!stringlistcfg.
+!stringlistcfg.lineDelimiter = 行分隔符,默认为回车换行
+!stringlistcfg.nameValueSeparator  = 键值对分隔符,默认为等号
+!stringlistcfg.quoteChars = 解析字符串时支持的引用符号\n默认为单双引号、大中小括号,\n可设为空表清空所有引用符号,\n引用符号内忽略行分隔符
+!stringlistcfg.quoteChar = 生成字符串使用的引用符号,默认为双引号\n如果某个键名对应的字符串值包含换行符,且没有包含在其他引用符内,\n在转换为文本格式的字符串列表时,自动添加此引用符
+!stringlistcfg.reserve = 保留名字表,不可修改
+!stringlistcfg.reserveData = 保留数据,不可手动修改
+!stringlist.each = @for i,k,v in ??.each() { 
+	io.print("顺序:"+i,"名字:"+k,"值:"+v )__ 
+}
+string.list() = !stringlist.
+!stringlist.load() = !stringlist.
+end intellisense**/

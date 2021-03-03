@@ -1,0 +1,42 @@
+//简单向导窗口
+
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=599;bottom=399;parent=...)
+winform.add()
+/*}}*/
+
+import win.wizard; 
+wiz = win.wizard( text = "向导窗口标题" )
+
+wiz.onFinish = function () {
+	..io.open()
+	io.print(  wiz.items[1].checkbox.checked );
+	io.print(  wiz.items[2].button.text ); 
+}
+ 
+wiz.add("标题").loader = function (hwnd) {
+	var form = win.form( hwnd = hwnd; );
+	form.add( 
+		button={cls="button";text="按钮";left=45;top=28;right=261;bottom=112;dt=1;z=1};
+checkbox={cls="checkbox";text="允许下一步";left=45;top=180;right=182;bottom=205;dt=1;z=2}
+	)  
+	form.onNext = function(){
+		if(!form.checkbox.checked){
+			form.msgboxErr("请选中上面的复选框","向导窗口")
+			return false;
+		} 
+	} 
+	return form;
+} 
+ 
+wiz.add("标题2").loader = function (hwnd) {
+	var form = win.form( hwnd = hwnd; );
+	form.add( 
+		button={ bottom=85;text="按钮2";left=27;top=1;z=1;right=243;cls="button" } 
+	)   
+	return form;
+} 
+
+wiz.doModal(winform)  
+win.loopMessage();

@@ -1,0 +1,51 @@
+﻿//savePosition 保存窗口位置
+namespace win.util;
+
+class savePosition{
+	ctor( winform ){ {
+		
+		var loading = false;
+		winform.afterConfigLoad = function(cfg){
+			var rc = cfg["(rect)"];
+			if( rc ){
+				loading = true;
+				if( rc == "MAXIMIZE" ){
+					winform.show(0x3/*_SW_MAXIMIZE*/)
+				}
+				else{
+					rc = ::RECT( rc.left,rc.top,rc.right,rc.bottom );
+					var area = ..win.getWorkArea();
+					if( ( rc.left < area.right - rc.width() ) && ( rc.top < area.bottom - 100 )
+						&& ( rc.bottom > area.top + rc.height() ) && ( rc.right >  area.left + 100 ) )
+						
+					if( winform.dpiScaleX && winform.dpiScaleY){
+						rc.right = rc.left + rc.width() * winform.dpiScaleX;
+						rc.bottom = rc.top + rc.height() * winform.dpiScaleY;
+					}
+					winform.setRect(rc,true);
+				}
+				loading = false;
+			}
+		}
+		
+		winform.beforeConfigSave = function(cfg){
+			if(loading) return; 
+			
+			cfg["(rect)"] = null;
+			if( ! ( ..win.getParent( winform.hwnd )|| ..win.getOwner(winform.hwnd) ) && !..win.isIconic(winform.hwnd) ){ 
+				var rc = ..win.isZoomed(winform.hwnd) ?  "MAXIMIZE" : winform.getRect(true);  
+				if( rc[["left"]] && winform.dpiScaleX && winform.dpiScaleY ){
+					rc.right = rc.left + rc.width() / winform.dpiScaleX;
+					rc.bottom = rc.top + rc.height() / winform.dpiScaleY;
+				}
+				cfg["(rect)"] = rc;
+			} 
+		} }
+	};
+}
+
+/**intellisense()
+win.util.savePosition(.(winform) = 只能在调用winform.bindConfig函数之前使用\n允许winform.bindConfig保存上次关闭时的窗口位置,并在下次打开时恢复位置,\n用户每次打开程序屏幕上的窗口布局都会变化,添加此功能可能会给用户带来不必要的困扰,\n例如用户关闭时窗口是最大化的,不等于用户期望下次打开也是最大化状态,\n建议不要滥用
+end intellisense**/
+
+

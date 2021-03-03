@@ -1,0 +1,48 @@
+import win.ui;
+import win.ui.menu;
+/*DSG{{*/
+var winform = win.form(text="aardio form";left=0;top=0;right=330;bottom=156;parent=...)
+winform.add(
+button={cls="button";text="弹出汽泡提示";left=97;top=37;right=248;bottom=68;z=1}
+)
+/*}}*/
+
+import win.util.tray;
+winform.button.oncommand = function(id,event){ 
+	var tray = win.util.tray(winform)
+	tray.pop("欢迎使用托盘图标","aardio")
+	tray.message = 0xACCF/*_WM_TRAYMESSAGE*/
+	tray.tip = "鼠标提示" //设置鼠标提示 
+}
+
+winform.onMinimize = function(lParam){
+	var tray = win.util.tray(winform) //创建托盘图标 
+	tray.pop("我最小化并跑到托盘来了" )
+	winform.show(false); //隐藏窗口
+	return true;//阻击默认消息传递,取消最小化过程
+}
+
+winform.wndproc = {
+	[0xACCF/*_WM_TRAYMESSAGE*/ ] = function(hwnd,message,wParam,lParam){
+		if( lParam = 0x205/*_WM_RBUTTONUP*/ ){ 
+	    	var pt = ::POINT();
+			::User32.GetCursorPos(pt);
+	    	
+	    	
+	    	//弹出托盘菜单以前,一定要前置主窗口中,不然不点击菜单不会消失
+	    	win.setForeground(winform.hwnd)
+	    	winform.popmenu.popup(pt.x,pt.y,true )
+	    }	
+	}
+}
+
+winform.popmenu = win.ui.popmenu(winform);//创建弹出菜单
+winform.popmenu.add('&open',function(id){
+	//在下面输入菜单响应代码
+	
+});
+winform.popmenu.add();//分隔线
+winform.popmenu.add('&exit',function(id){ winform.close() })	
+
+winform.show(true) 
+win.loopMessage();

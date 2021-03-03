@@ -1,0 +1,168 @@
+//maker 生成更新文件
+import fsys;
+import fsys.version;
+import sevenZip.lzma;
+import web.json;
+
+namespace fsys.update;
+
+class maker { 
+
+	validate = function(){
+	
+		if( ! ..fsys.isDir( this.appDir) ){
+			return null,"请指定有效的应用程序文件目录";
+		}
+		
+		this.outDir  = this.outDir ? ..fsys.createDir( this.outDir );
+		if( !this.outDir ) {
+			return null,"请指定有效的升级文件生成目录";
+		}
+		
+		if( ..fsys.isSystem(this.outDir) ){
+			return null,"升级文件生成目录不能是系统目录";
+		}
+		
+		if( ..fsys.isHidden(this.outDir) ){
+			return null,"升级文件生成目录不能是隐藏目录";
+		}
+		
+		if( ..fsys.isReadonly(this.outDir) ){
+			return null,"升级文件生成目录不能是只读目录";
+		} 
+		
+		if( ..fsys.path.relative(this.outDir,this.appDir) ){
+			return null,"升级文件生成目录不能在应用程序目录下";
+		}
+		
+		if( ..fsys.path.relative(this.appDir,this.outDir) ){
+			return null,"升级文件生成目录不能是应用程序目录的父目录";
+		}
+		
+		if( !this.main ){ 
+			..fsys.enum( this.appDir, "*.exe",
+				function(dir,filename,fullpath,findData){ 
+					if(filename){ 
+			           	this.main = ..fsys.path.relative(fullpath,this.appDir);
+			           	return false;
+					} 
+				}  
+			);
+		}
+		
+		if( ! ( this.main && ..io.exist( ..fsys.joinpath(this.appDir,this.main)) ) ){
+			return null,"请指定主程序文件路径";
+		}
+		
+		var srcExeFile = ..fsys.joinpath(this.appDir,this.main);
+		if( !this.version ){
+			var v = ..fsys.version.getInfo(srcExeFile)
+			if( v ) this.version = tostring(v.productVersion);
+		}
+		
+		if( !this.version ){
+			return null,"请指定应用程序产品版本号";
+		}
+		
+		if( ! ..fsys.version(this.version).valid() ){
+			return null,"应用程序产品版本号格式错误";
+		} 
+		
+		return true;
+	}
+	
+	compress = function(singleFile){ 
+		
+		var valid,err = this.validate();
+		if(!valid) return null,err;
+		
+		var chksum = {};
+		var buffer = ..raw.buffer(1024 * 1024); 
+		var filesOutDir = ..fsys.joinpath(this.outDir,"files");
+	 	..fsys.delete(filesOutDir);
+	 	..fsys.createDir(filesOutDir);
+	 	
+	 	if(!this.onFile) this.onFile = ..io.print;
+	 	
+		..fsys.enum( this.appDir, singleFile ? this.main : "*.*",
+			function(dirname,filename,fullpath,findData){ 
+				var path = ..fsys.path.relative(fullpath,this.appDir,false);
+				
+				if(filename){     
+	        		var outpath = ..fsys.path.replaceDir(fullpath,this.appDir,filesOutDir);
+	        		..fsys.createParentDir(outpath)
+	      		
+	      			var crc32;  
+	           		var file = ..io.open(fullpath,"rbS");	
+	           		var size = file.size(1);
+	        		file.seek("set",0); 
+	        		this.onFile(path,size);
+	        		
+	           		while( 
+	    				var readSize;
+	    				readSize = file.readBuffer(buffer); //读文件
+	    				readSize
+					) { 
+						crc32 = ..string.crc32(buffer,crc32,readSize); 
+					}  
+					file.close();   
+	        		
+	        		
+	        		if( !..sevenZip.lzma.encodeFile(fullpath,outpath + ".lzma",this.onCompress) ){
+	        			return null,"压缩文件失败:" + path;
+	        		}
+	        		
+	        		var file = ..io.open(outpath + ".lzma","rbS");	
+	           		var sizeLzma = file.size(1);
+	        		file.close();    
+	        		
+	        		..table.push(chksum, ..string.format("%d|%d|%d|%s", crc32:-1,size,sizeLzma,path) );
+	        		
+	        		if(singleFile){
+	        			return false;
+	        		}
+				}
+				else{
+					..table.push(chksum, ..string.format("0|0|0|%s",..fsys.path.addBackslash(path)) );
+				}
+			}  
+		);
+		
+		..sevenZip.lzma.save( ..string.join(chksum,'\r\n') 
+			, ..fsys.joinpath(this.outDir,"checksum.lzma") ); 
+			
+		if( !this.updater ){ 
+			this.updater = this.main;
+		} 
+		
+		..string.save(..fsys.joinpath(this.outDir,"version.txt"),..web.json.stringify( {
+			version = this.version; //tostring( ..fsys.version(this.version) );
+			url = this.url;
+			description = this.description;
+			updater = this.updater;
+			main = this.main;
+			format = ".lzma";
+		},true) )
+		
+		return true;
+	}; 
+}
+
+/**intellisense()
+fsys.update.maker = 用于生成自动更新文件\n成功返回true,失败返回空值,以及错误信息
+fsys.update.maker() = 更新文件生成工具\n!fsys_up_maker.
+!fsys_up_maker.main = 主输出文件
+!fsys_up_maker.updater = 可选用于指定更新工具相对路径\n不指定则默认指定为main属性
+!fsys_up_maker.appDir = 应用程序源目录
+!fsys_up_maker.outDir = 更新文件输出目录
+!fsys_up_maker.version = 应用程序版本号,\n不指定则自动获取
+!fsys_up_maker.url = 更新文件目录上传后的url,\n必须指定该参数
+!fsys_up_maker.description = 更新说明,\n可以不设置 
+!fsys_up_maker.onFile = @.onFile = function(path,size){
+    __/*开始处理文件*/
+}
+!fsys_up_maker.onCompress = @.onCompress = function(size,outSize){
+    __/*开始处理文件*/
+}
+!fsys_up_maker.compress(.(是否仅添加单个主EXE文件) = 压缩并生成更新文件\n成功返回true, 失败返回null,错误信息
+end intellisense**/

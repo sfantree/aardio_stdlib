@@ -1,0 +1,44 @@
+//鼠标指针函数演示
+import win.ui;
+import win.ui.menu;
+import com.picture;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=349;bottom=249;parent=...)
+winform.add(
+button={cls="button";text="光标等待";left=110;top=114;right=229;bottom=155;z=2};
+static={cls="static";text="www.aardio.com";left=93;top=41;right=266;bottom=72;align="center";color=16711680;edge=1;font=LOGFONT(name='Microsoft Sans Serif';underline=1);notify=1;transparent=1;z=1}
+)
+/*}}*/
+
+import win.cur;
+winform.button.oncommand = function(id,event){
+	winform.button.text = "请稍候......"
+	winform.button.disabled = true;
+	
+	win.cur.beginWaitCur();//鼠标指针进入等待状态
+	win.delay(2000) 
+	win.cur.endCur();//还原鼠标指针
+	
+	winform.button.text = "已完成"
+	winform.button.disabled = false;
+}
+
+//鼠标回到窗体上时,切换鼠标为箭头
+winform.wndproc = function(hwnd,message,wParam,lParam){
+	if(message =  0x20/*_WM_SETCURSOR*/){
+		win.cur.load(0x7F00/*_IDC_ARROW*/)
+		win.cur.setCur();
+	} 
+}
+
+//当鼠标指针移到静态控件上是,切换鼠标为手形
+var hand = win.cur.load(32649/*_IDC_HAND*/)
+winform.static.wndproc = function(hwnd,message,wParam,lParam){
+	if(message = 0x200/*_WM_MOUSEMOVE*/) { 
+		win.cur.setCur(hand);
+	} 
+}
+
+winform.show(true) 
+win.loopMessage();
+return winform;

@@ -1,0 +1,81 @@
+var filepath = ...;
+
+import com;
+import process;
+import fsys.mime;
+import fsys.wow64;
+import process.cache;
+import fsys.lnk;
+
+if(fsys.isDir(filepath)){
+	import process.code;
+	var codePath = ..process.code.path;
+	if(io.exist(codePath)){
+		process.code(filepath);
+		return;
+	}
+	else {
+		process.explore(filepath)
+	} 	
+}
+
+var m = fsys.mime.fromFile(filepath);
+if( ..string.startWith(m,"image/",true)){
+
+    var opened;
+    fsys.wow64.disableRedirection(
+        function(){
+            var path = fsys.lnk.search("photoshop.exe");
+            if(path){
+                ..process.execute(path,process.escapeArgument(filepath)); 
+                opened = true;
+            }
+        }
+    ) 
+    if(opened) return;
+    
+    try{
+        var psApp = com.CreateObject("Photoshop.Application");
+        psApp.open(filepath);
+        opened = true;
+    }
+    if(opened) return; 
+}
+
+var tpath = io.splitpath( string.lower(filepath) );
+if( ..string.startWith(m,"text/",true)  
+	|| tpath.ext ==".js"
+	|| tpath.ext ==".ts"
+	|| tpath.ext ==".html"
+	|| tpath.ext ==".htm"
+	|| tpath.ext ==".css"
+	|| tpath.ext ==".py" 
+	|| tpath.ext ==".txt" 
+	|| tpath.ext ==".json"
+	|| tpath.ext ==".yaml"
+	|| tpath.ext ==".md" ){ 
+
+	import process.code;
+	var codePath = ..process.code.path;
+	if(io.exist(codePath)){
+		process.code(filepath);
+		return;
+	}
+
+    var editor = process.cache.find( ,"Sublime Text") || fsys.lnk.search("sublime" )
+    if( editor ){
+        process.execute(editor,..fsys.shortpath(filepath) )
+        return;
+    } 
+ 
+    var editor = process.cache.find( ,"@@notepad++.exe") || fsys.lnk.search("@@notepad++.exe" ) 
+    if( editor ){
+        process.execute(editor, '"' + filepath + '"')
+        return;
+    }
+} 
+
+if(!process.execute(filepath,,"edit") ){
+	import process.rundll;
+	process.rundll("shell32","OpenAs_RunDLL " + filepath )
+}

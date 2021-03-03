@@ -1,0 +1,25 @@
+﻿//control 控制面板
+import process;
+namespace process;
+
+class control{
+	ctor( a, b,... ){
+		if( (...!==null) || (b!==null) ){
+			a = ..string.join({a;b; ... },",");
+		}
+		
+		if( ..string.startWith(a,"ms-settings:") ){
+			..process.execute(a,,,1/*_SW_NORMAL*/);
+		}
+		else {
+			..process.execute("control.exe",a,,1/*_SW_NORMAL*/);
+		}
+	};
+}
+
+/**intellisense(process)
+control = 用于打开控制面板\n[Windows相关文档] ( https://docs.microsoft.com/en-us/windows/win32/shell/executing-control-panel-items )
+control("ncpa->cpl")=显示所有网络连接
+control("desk->cpl",,2)=显示属性 外观选项
+control("ms-settings:__") = Win10系统下打开设置页,\n[可用设置页面]( https://docs.microsoft.com/en-us/windows/uwp/launch-resume/launch-settings-app )
+end intellisense**/

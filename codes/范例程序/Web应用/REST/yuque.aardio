@@ -1,0 +1,22 @@
+﻿//调用语雀API
+import console; 
+import web.rest.jsonLiteClient;
+
+var http = web.rest.jsonLiteClient(); 
+http.addHeaders = { ["X-Auth-Token"] = "点击语雀个人头像->个人设置->Token获取Token填到这里" }
+var yuque = http.api("https://www.yuque.com/api/v2");
+
+//当前登录用户信息 
+var userInfo = yuque.user.get();  
+if(!userInfo){
+	return console.pause(,'请点击语雀个人头像->个人设置->Token获取Token填到代码里，\n按任意键退出'); 
+}
+ 
+//获取知识库
+var repos = yuque.users[userInfo.data.login].repos.get();
+
+//获取知识库文档列表
+var docs = yuque.repos[repos.data[1].id].docs.get();
+console.dumpJson(docs); 
+ 
+console.pause(true); 

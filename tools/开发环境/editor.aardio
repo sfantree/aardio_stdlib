@@ -1,0 +1,90 @@
+//编辑器外观
+import win.ui;
+import win.ui.ctrl.pick;
+/*DSG{{*/
+var winform = win.form(text="代码编辑器外观设置";right=629;bottom=343;bgcolor=16777215;border="thin";composited=1;exmode="toolwindow";max=false;min=false)
+winform.add(
+btnExplorer={cls="button";text="... 浏览配置文件";left=453;top=133;right=571;bottom=161;z=6};
+btnUpdateSetting={cls="button";text="更新设置";left=324;top=201;right=502;bottom=231;z=2};
+cmbFontName={cls="combobox";left=237;top=67;right=445;bottom=91;edge=1;items={};mode="dropdown";vscroll=1;z=1};
+cmbThemes={cls="combobox";left=237;top=136;right=445;bottom=160;edge=1;items={};mode="dropdownlist";vscroll=1;z=5};
+static2={cls="static";text="代码编辑器配色方案：";left=122;top=110;right=290;bottom=138;align="right";transparent=1;z=3};
+static3={cls="static";text="清空这里的字体名会自动列出所有可用字体：";left=29;top=40;right=290;bottom=58;align="right";transparent=1;z=4}
+)
+/*}}*/
+
+import win.font;
+var fontNames = {}
+win.font.enum( 
+	function(logfont,fullname,ftype,style,script,lpntme){
+		if( ftype == 0x4/*_TRUETYPE_FONTTYPE*/ && fullname[1] != '@'#/*翻转90度字体*/ ){
+			if( logfont.family & 1/*_FIXED_PITCH*/ || logfont.family & ( 3<<4 )/*_FF_MODERN*/){
+				..table.push(fontNames,fullname)
+			}
+		}
+	},{ name = "" }
+)
+fontNames = ..table.unique(fontNames)
+
+import string.xml;
+import fsys;
+var themeFiles = {}
+fsys.enum( "~\config\themes", "*.xml",
+	function(dir,filename,fullpath,findData){ 
+		if(filename){ 
+           	var xmlstr = string.load(fullpath);
+           	var xmldoc = string.xml(xmlstr) 
+           	var title = xmldoc.Theme[1].Title[1].innerText();
+           	table.push(themeFiles,{
+           		title = title;
+           		fullpath = fullpath;
+           	})
+           	winform.cmbThemes.add(title);
+		} 
+	}  
+);
+
+var xmlstr = string.load("~\config\USR.THEME") || string.load("~\config\SYS.THEME");
+var xmldoc = string.xml(xmlstr)
+winform.cmbThemes.selText =  xmldoc.Theme[1].Title[1].innerText();         	
+
+winform.cmbFontName.onEditChange= function(){  
+    var text = winform.cmbFontName.text;
+    var items = ..table.filter(fontNames,lambda(v)string.find(v,"@@"+text));
+    winform.cmbFontName.autoComplete(items)   
+}
+
+import ide;
+winform.cmbFontName.text = ide.getConfig("editor_font_name")
+
+winform.btnUpdateSetting.oncommand = function(id,event){
+    var font = winform.cmbFontName.text;
+    if(!#font) return winform.msgboxErr("请先指定字体名");
+    
+    var xmlstr = string.load( themeFiles[winform.cmbThemes.selIndex].fullpath )
+    if(#xmlstr)string.save("~\config\USR.THEME",xmlstr)
+    
+	ide.setConfig("editor_font_name",font);
+ 	ide.redrawActiveCodeEditor();
+}
+
+win.setOwner(winform.hwnd,ide.getMainHwnd());  
+winform.show() 
+winform.cmbFontName.editBox.setFocus(0,-1);
+
+import fsys.config;
+var config = fsys.config( io.appData("/aardio/tools/dev/editor") )
+winform.bindConfig( config.winform,{ 
+	checkbox = "checked"; 
+} );
+
+winform.onClose = function(hwnd,message,wParam,lParam){
+   win.setOwner(winform.hwnd,0);   
+}
+
+winform.btnExplorer.oncommand = function(id,event){
+	import process;
+	process.exploreSelect(themeFiles[winform.cmbThemes.selIndex].fullpath)
+}
+
+win.loopMessage();

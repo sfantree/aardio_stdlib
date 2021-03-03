@@ -1,0 +1,45 @@
+//自绘背景
+import fonts.fontAwesome;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="plus控件 - 自绘背景演示";right=1131;bottom=614)
+winform.add(
+plus={cls="plus";text='\uF062';left=-82;top=72;right=83;bottom=188;bgcolor=-5197169;font=LOGFONT(h=-32;name='FontAwesome');textPadding={top=35};z=1}
+)
+/*}}*/
+
+winform.plus.skin({
+	background={
+		active=0xFF6F6987;
+		default=0xFF8FB2B0;
+		hover=0xFF928BB3
+	};
+	color={
+		hover=0xFFFF9A00
+	}
+})
+
+//自绘plus背景
+winform.plus.onDrawBackground = function(graphics,rc,backgroundColor,clr){
+    var brush = gdip.solidBrush(backgroundColor);
+    if(owner.state.hover){
+    	graphics.fillPolygon(brush,,::POINTF(rc.left,rc.top),::POINTF(rc.left+rc.width()/2,rc.bottom),::POINTF(rc.right,rc.top) );
+    	winform.plus.textPadding.bottom = 35;
+    	winform.plus.textPadding.top = 0;
+    	winform.plus.text = '\uF063'
+    }
+    else {
+   		graphics.fillPolygon(brush,,::POINTF(rc.left,rc.bottom),::POINTF(rc.left+rc.width()/2,rc.top),::POINTF(rc.right,rc.bottom) );
+   		winform.plus.textPadding.top = 35;
+    	winform.plus.textPadding.bottom = 0;
+    	winform.plus.text = '\uF062'
+    }
+	
+	brush.delete();
+	return true;//返回true阻止绘制默认背景
+}
+
+winform.plus.orphanWindow(true);
+
+winform.show() 
+win.loopMessage();

@@ -1,0 +1,28 @@
+//performance 高性能计时器
+namespace time.performance;
+
+QueryPerformanceCounter := ::Kernel32.api("QueryPerformanceCounter","bool(struct &lpPerformanceCount)")
+QueryPerformanceFrequency := ::Kernel32.api("QueryPerformanceFrequency","bool(struct &lpPerformanceCount)")
+
+LARGE_INTEGER  = class{ 
+    long QuadPart;
+}
+var endf = LARGE_INTEGER();
+
+//此参数获取定时器每秒的震荡频率数
+var ok ,freq = QueryPerformanceFrequency( LARGE_INTEGER() );
+if(!ok)
+	error("系统不支持高性能计数器",2)
+	
+tick = function(){
+	var count = LARGE_INTEGER();
+	//获得当前系统频率记数器的震荡次数
+	if( QueryPerformanceCounter(count) ){
+		return ( count.QuadPart / freq.QuadPart) * 1000;
+	}
+}
+
+/**intellisense()
+time.performance.tick() = 返回高性能计时\n以毫秒(千分之一秒)为单位 
+time.performance = 高性能计时器,可精确到毫秒
+end intellisense**/

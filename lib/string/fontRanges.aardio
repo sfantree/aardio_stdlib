@@ -1,0 +1,117 @@
+﻿//fontRanges 字体数据
+import gdi;
+import ustring;
+
+namespace string.fontRanges;
+
+getRanges = function(hdc){
+	var size= ::Gdi32.GetFontUnicodeRanges(hdc,null);
+ 	if(!size) return;
+ 	
+	var pGlyphSet = ..raw.buffer(size,{INT cbThis=size});
+	size = ::Gdi32.GetFontUnicodeRanges(hdc,pGlyphSet); 
+	
+	var glyphset = { 
+		INT cbThis;
+    	INT flAccel;
+    	INT cGlyphsSupported;
+    	INT cRanges;
+    	struct ranges[] ={INT length;{WORD wcLow;WORD cGlyphs} };
+    	findByCharCode  = function(charCode){
+    		var ranges = owner.ranges;
+    		for(i=#ranges;1;-1){
+    			var low = ranges[i].wcLow;
+    			if( charCode >= low ){
+    				if(charCode < low + ranges[i].cGlyphs) return charCode;
+    				return;
+    			} 
+    		}
+    	}
+    }
+ 
+	..raw.convert(pGlyphSet,glyphset.ranges,12);
+    return ..raw.convert(pGlyphSet,glyphset);
+}
+
+filter = function(fontName,input){
+    var glyphset;
+    if(type(fontName) == type.pointer){
+    	glyphset = getRanges(hdc)
+    }
+    else {
+    	glyphset = getRangesByName(fontName)
+    }
+    
+    var result  = {}
+    var push = ..table.push;
+    var charCodeAt = ..string.charCodeAt;
+    var len = ..string.len(input);
+
+    for(i=1;len;1){
+        var charCode = glyphset.findByCharCode( charCodeAt(input,i) ) ;
+    	if( charCode ){
+    		push(result, charCode);
+    	} 
+    } 
+    
+    return ..ustring.fromCharCode(result)
+}
+
+getRangesByName = function(fontName){
+    var font = ::LOGFONT(name=fontName) 
+	var lf = font.createIndirect();
+	if(!lf) return;
+	
+    var hdc = ::GetDC(0);
+	var of = ::SelectObject(hdc,lf);
+	var fontRange = getRanges(hdc);
+	::SelectObject(hdc,of);
+	::ReleaseDC(0,hdc);	
+	font.deleteIndirect();
+	
+	return fontRange; 
+}
+
+eachUnicodeGlyphs = function(fontName){
+    var fontRange = getRangesByName(fontName);
+    if(!fontRange) return lambda() null;
+    
+    var ranges = fontRange.ranges;
+    var ri,rg,gi,count = 0;
+    
+    return function(){
+        if( gi === count ) {
+            ri = ri + 1;
+        	rg = ranges[ri];
+        	if(!rg) return;
+        	
+        	low = rg.wcLow;
+        	count = rg.cGlyphs;
+        	gi = 0;
+        } 
+        
+        gi = gi + 1;
+    	return rg.wcLow + gi - 1;
+    }
+}
+
+getUnicodeString = function(fontName,first=0,last=0xFFFF){
+  	var glyphs = {}
+    for(glyph  in eachUnicodeGlyphs(fontName) ){ 
+    	if(glyph>=first && glyph<=last) ..table.push(glyphs,glyph);
+    }
+    
+   return .. ustring.fromCharCode(glyphs);	
+}
+
+/**intellisense()
+string.fontRanges = 用于获取字体支持的字符Unicode码列表
+string.fontRanges.getRanges(.(hdc) = 获取hdc参数中指定绘图设备正在使用的字体中所有字符的Unicode代码
+string.fontRanges.getRangesByName(.(fontName) = 获取fontName参数中指定字体名的字体中所有字符的Unicode代码
+string.fontRanges.getGlyphs(fontName) = @for(glyph in string.fontRanges.eachUnicodeGlyphsByName("FontAwesome") ){ 
+    if(glyph>=0xF000) {__/*glyph为字符的Unicode代码,可使用ustring.fromCharCode函数转换为字符*/}
+}
+string.fontRanges.getUnicodeString(.(fontName,first,last) = 返回指定字体名支持的所有字符,\n可选参数first用于指定起始Unicode代码,默认为0,\n可选参数last用于指定结束Unicode代码,默认为0xFFFF
+string.fontRanges.getRangesByName() = !stringFontRanges.
+!stringFontRanges.findByCharCode(__) = 参数@1指定的字符Unicode码,\n如果该字符使用该字体可显示，返回该Unicode码
+end intellisense**/

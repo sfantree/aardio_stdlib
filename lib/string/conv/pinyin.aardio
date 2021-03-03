@@ -1,0 +1,65 @@
+﻿namespace string.conv;
+
+class pinyin{
+	ctor( q,separator,polyphone ){ {
+		if(!..string.find(q,":")){
+			q = ..string.lower(q)
+			var chars = pyToChars[q];
+			if(chars){ return chars;}
+			
+			for(py,chars in pyToChars){
+				if(..string.startWith(py,q) ){
+					return chars;
+				}
+			}
+			return {}; 
+		}
+		
+		var chars = ..string.split(q);
+		if(polyphone && (#chars==1)){
+			var ret = {}
+			for(p,c in pyToChars){
+				var i = ..table.find(c,chars[1]);
+				if( i ) ..table.push(ret,{p;i/#chars}); 
+			}
+			
+			..table.sort(ret,lambda(b)owner[2]<b[2]);
+			ret = ..table.map(ret,lambda(v)v[1]);
+			return ..string.join(ret,separator : " ");
+		}
+		
+		for(k,v in chars){
+			chars[k] = charToPy[v] : v
+		}
+			
+		return ..string.join(chars,separator : " ");	
+	} }; 
+}
+
+namespace pinyin{
+	pyToChars = eval($"~\lib\string\conv\.res\data.txt") 
+	charToPy = {}
+	
+	begin
+		var score = {}
+		for(py,chars in pyToChars){
+			chars = ..string.split(chars);
+			pyToChars[py] = chars;
+			
+			var len = #chars;
+			for(i,chr in chars){
+				var c = i/len;
+				if((!score[chr]) || (c<score[chr])){
+					charToPy[chr] = py;
+					score[chr] = c;
+				}  
+			} 
+		}  
+	end; 
+}
+	
+/**intellisense()
+string.conv.pinyin = 汉字转拼音
+string.conv.pinyin(.("汉字","分隔符") = 输入中文字符串，返回对应拼音,\n省略分隔符参数时,默认使用空格,\n如果参数@3为true，且参数为1个字符时返回文本可包含多音字
+string.conv.pinyin(.(拼音) = 输入单字拼音，返回对应字符数组\n可仅输入拼音开头部分,\n找不到结果返回空数组
+end intellisense**/

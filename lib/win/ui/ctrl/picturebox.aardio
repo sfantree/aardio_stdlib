@@ -1,0 +1,167 @@
+//picturebox 图像控件
+import win.ui.ctrl.metaProperty;//导入控件属性元表支持
+import win.image;
+import com.picture;
+namespace win.ui.ctrl; 
+
+class picturebox{
+    ctor(parent,tParam){
+    	if(tParam){
+    		tParam.style |= 0xE/*_SS_BITMAP*/;
+    		tParam.cls = "static" 
+			if(tParam.edge) tParam.exstyle |= 0x20000/*_WS_EX_STATICEDGE*/;  
+			if(tParam.transparent)tParam.exstyle |= 0x20/*_WS_EX_TRANSPARENT*/;
+			if(tParam.notify)tParam.style |= 0x100/*_SS_NOTIFY*/  
+			if(!tParam.autosize)
+				tParam.style |= 0x40/*_SS_REALSIZECONTROL*/;
+			if(tParam.center)
+				tParam.style |= 0x200/*_SS_CENTERIMAGE*/
+    	}
+    }
+	@_metaProperty;
+}
+
+var loadIpicture = ..com.picture.load;
+picturebox._metaProperty = metaProperty( 
+
+	_onDestroy = function(){
+		var hbmp = owner.getBitmap(); 
+		if( hbmp ){
+			owner.modifyStyle( 0x3/*_SS_ICON*/  |  0xE/*_SS_BITMAP*/);
+			::DeleteObject(hbmp) 
+		}
+	};
+	image = {
+		_get = function(){   
+		    return owner.getBitmap();
+		}
+		_set = function( v ){
+			if(type(v)==type.pointer)
+				return owner.setBitmap(h);
+				
+			var ipic = loadIpicture(v)
+			if(!ipic){
+				owner.modifyStyle( 0x3/*_SS_ICON*/  |  0xE/*_SS_BITMAP*/);
+				return;
+			} 
+			
+			if( ipic.Type ==  3/*_PICTYPE_ICON*/ )	{  
+				..com.Release(ipic);
+				var x,y,cx,cy = owner.getPos()
+				var hico = ..win.image.createIcon(v,true,..math.min(cx,cy ))  
+				if(hico){ 
+					owner.setIcon(hico);
+				} 
+		    }
+		    else{
+		        owner.setBitmap( ( ipic.CopyHandle() ) ); 
+		        ..com.Release(ipic)
+		    }
+		    
+		} 	
+	}  
+	setIcon = function(h,delPrev=true){ 
+		owner.modifyStyle(0xE/*_SS_BITMAP*/ ,0x3/*_SS_ICON*/ );
+		var retPrev =  ::SendMessageInt(owner.hwnd,0x172/*_STM_SETIMAGE*/, 0x1/*_IMAGE_ICON*/,tonumber(h) : 0 ); 
+		if(retPrev){
+			if(delPrev){
+				::DeleteObject(topointer(retPrev));
+				retPrev = true;
+			}
+		} 
+		owner.saveScale();
+		return retPrev;
+	} 
+	setImage = function(...){
+		return owner.setBitmap(...);//弃用函数请使用 setBitmap()替代
+	}
+	setBitmap = function(h,delPrev=true){
+		owner.modifyStyle(0x3/*_SS_ICON*/,0xE/*_SS_BITMAP*/);
+		var retPrev =  ::SendMessageInt(owner.hwnd,0x172/*_STM_SETIMAGE*/, 0x0/*_IMAGE_BITMAP*/,tonumber(h) : 0 ); 
+		if(retPrev){
+			if(delPrev){
+				::DeleteObject(topointer(retPrev));
+				retPrev = true;
+			}
+		} 
+		owner.saveScale();
+		return retPrev;
+	}
+	getBitmap = function(){
+		var s = ..win.getStyle(owner.hwnd, 0x3/*_SS_ICON*/  |  0xE/*_SS_BITMAP*/);
+		if(!s) return ;  
+		return topointer(  
+			::SendMessage(owner.hwnd, 
+			    s && 0xE/*_SS_BITMAP*/ ? 0x173/*_STM_GETIMAGE*/: 0x171/*_STM_GETICON*/ 
+			) 
+		)
+	} 
+	autosize =  {
+		_get = function(){   
+			return !..win.getStyle(owner.hwnd,0x40/*_SS_REALSIZECONTROL*/);
+		}
+		_set = function( v ){
+			owner.modifyStyle( 0x40/*_SS_REALSIZECONTROL*/,!v?0x40/*_SS_REALSIZECONTROL*/:0 ) 
+		}	
+	}
+	center =  {
+		_get = function(){   
+			return !!..win.getStyle(owner.hwnd,0x200/*_SS_CENTERIMAGE*/);
+		}
+		_set = function( v ){
+			owner.modifyStyle( 0x200/*_SS_CENTERIMAGE*/,v?0x200/*_SS_CENTERIMAGE*/:0 ) 
+		}	
+	}  
+)
+  
+/***intellisense()
+!picturebox.cls = 设计时类名
+!picturebox.className = 运行时类名
+!picturebox.image = 按钮图片或图标\n赋值必须是图片文件路径或数据\n位图句柄由窗体负责销毁\n取值时返回位图句柄
+!picturebox.setIcon(__/*图标句柄*/) = 设置图标\n成功返回true,自动销毁原来的位图
+!picturebox.setBitmap(__/*图片句柄*/) = 设置图片\n成功返回true,自动销毁原来的位图
+!picturebox.setIcon(__/*图标句柄*/,false) = 设置图标\n成功返回控件原来的位图句柄,\n必须调用::DeleteObject()函数销毁该句柄
+!picturebox.setBitmap(__/*图片句柄*/,false) = 设置图片\n成功返回控件原来的位图句柄,\n必须调用::DeleteObject()函数销毁该句柄
+!picturebox.hwnd = 控件句柄
+!picturebox.id = 控件ID
+!picturebox._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!picturebox.getParent() = 返回父窗口\n!static.
+!picturebox.setParent(__/*控件对象*/) = 改变父窗口 
+!picturebox.hide = 控件是否隐藏
+!picturebox.disabled = 是否禁用
+!picturebox.left = 左侧坐标
+!picturebox.right = 右侧坐标
+!picturebox.top = 顶部坐标
+!picturebox.bottom = 底部坐标
+!picturebox.width = 宽度
+!picturebox.height = 高度
+!picturebox.redraw() = 刷新
+!picturebox.show(true__) = 显示控件
+!picturebox.getRect() = 控件区块位置(::RECT结构体)
+!picturebox.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!picturebox.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!picturebox.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!picturebox.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect. 
+!picturebox.clientRect =  获取控件客户区块位置(::RECT结构体)
+!picturebox.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!picturebox.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!picturebox.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!picturebox.capture = 是否捕获全局鼠标消息
+!picturebox.close() = 关闭控件
+!picturebox.invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+!picturebox.invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+!picturebox.update() = 重绘invalidate函数指定的区块
+!picturebox.setFocus() = 设置焦点 
+!picturebox.autosize = 是否允许控件自适应图片大小\n设置center属性为true时,autosize属性无效
+!picturebox.center = 图像居中显示,并禁用图象缩放,\n禁止控件自动调整大小
+!picturebox.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!picturebox.getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd)
+!picturebox.saveScale(.(scaleX,scaleY,dpiScaleX,dpiScaleY) = 根据控件当前的运行时位置更新设计时大小\如果控件允许自动缩放，窗口缩放时依据设计时大小按比例缩放\n所有参数可省略,并且不建议写参数
+!picturebox.orphanWindow() = 使控件脱离原来的窗口,可以显示在父窗口外面,\n但仍然显示在原来的位置,继续如影随形的跟随父窗口移动或改变大小,\n控件原来的固定边距等参数仍然有效	
+!picturebox.sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+!picturebox.postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+!picturebox.saveScale() = 根据控件当前位置、缩放比例，更新控件的设计时位置参数。\n以避免下次窗口缩放自适应调整控件当前位置更改被清除，\n控件所有调整位置的属性或成员函数已自动调用此函数。
+!picturebox.reloadScale() = 按设计时位置参数、重新调整控件位置以适应窗口当前缩放比例。\n父窗口缩放时会自动执行此操作。\n默认在启动窗口消息循环时会自适应调整所有控件。\n所以在启动消息循环前添加控件不必调用此函数。
+?win.ui.ctrl.picturebox  =!picturebox.
+win.ui.ctrl.picturebox() = 图片控件\n!picturebox.
+end intellisense***/

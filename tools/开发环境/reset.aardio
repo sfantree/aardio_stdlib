@@ -1,0 +1,173 @@
+//清理重置工具
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio - 清理重置工具（ 建议将本工具生成EXE文件后备用 ）";right=558;bottom=320;border="dialog frame";max=false;min=false)
+winform.add(
+button={cls="button";text="清理重置";left=292;top=248;right=495;bottom=311;font=LOGFONT(h=-13);note="清理本软件配置信息";z=1};
+static={cls="static";text="
+    请先关闭aardio开发环境，然后点击下面的『清理重置』按钮：清除系统注册表中的aardio源码文件、工程文件格式关联、以及删除注册表中本软件的配置等，你可以右键点击本工具并查看源码了解详情。
+
+    『清理重置』以后，您将不能双击aardio源码或工程文件直接启动，也无法通过桌面右键菜单新建aardio源码文件， 如果您再次运行aardio，则相关设置可重置为默认设置，你也可以运行本工具恢复aardio界面布局到默认设置。
+    
+    『清理重置』可修复 aardio 无法启动的问题（ 为避免此问题，建议将 aardio 存放在固定的目录，不要放在不同位置运行 ）。
+    ";left=25;top=15;right=541;bottom=245;font=LOGFONT(h=-13);transparent=1;z=2}
+)
+/*}}*/
+
+import ide;
+import win.reg;
+winform.button.oncommand = function(id,event){
+    if ( win.isWindow( ide.getMainHwnd() ) ) {
+        winform.msgboxErr("请先退出aardio！")
+        return;
+    }
+ 
+    var reg = win.regReader("HKEY_CURRENT_USER\SOFTWARE\Classes\");
+    reg.delKeyTree(".aau") 
+    reg.delKeyTree(".aardio")  
+    reg.delKeyTree(".aproj")
+    reg.delKeyTree("aardio.code.file.10")
+    reg.delKeyTree("aardio.code.file")
+    reg.delKeyTree("aardio.launcher.project")
+    
+    var reg = win.regReader("HKEY_CURRENT_USER\SOFTWARE\");
+    reg.delKeyTree("aardio") 
+    
+    ::Shell32.SHChangeNotify(0x8000000,0,0,0);
+     
+     var defaultTheme = /***
+ <Theme>
+  <Title>浅色主题</Title>
+  <Editor>
+    <Color>000000</Color>
+    <Background>FFFFFF</Background>
+    <SelectionColor>FFFFFF</SelectionColor>
+    <SelectionBackground>0083EC</SelectionBackground>
+    <OutlineBackground>FFFFFF</OutlineBackground>
+    <OutlineColor>808080</OutlineColor>
+    <LineNumberBackground>FFFFFF</LineNumberBackground>
+    <LineNumberColor>008284</LineNumberColor>
+    <SidebarBackground>E3E3E3</SidebarBackground>
+    <Error>FF4444</Error>
+    <MatchingBracket>FF0033</MatchingBracket>
+    <MatchingBracketBackground>7AFFA3</MatchingBracketBackground>
+    <HighlightWord>FFFF33</HighlightWord>
+  </Editor>
+  <Keywords>
+    <Color>0000FF</Color>
+    <CaseSensitive>true</CaseSensitive>
+    <Keyword>begin</Keyword>
+    <Keyword>end</Keyword>
+    <Keyword>false</Keyword>
+    <Keyword>true</Keyword>
+    <Keyword>if</Keyword>
+    <Keyword>lambda</Keyword>
+    <Keyword>λ</Keyword>
+    <Keyword>else</Keyword>
+    <Keyword>elseif</Keyword>
+    <Keyword>class</Keyword>
+    <Keyword>function</Keyword>
+    <Keyword>return</Keyword>
+    <Keyword>while</Keyword>
+    <Keyword>do</Keyword>
+    <Keyword>namespace</Keyword>
+    <Keyword>select</Keyword>
+    <Keyword>case</Keyword>
+    <Keyword>catch</Keyword>
+    <Keyword>try</Keyword>
+    <Keyword>for</Keyword>
+    <Keyword>in</Keyword>
+    <Keyword>this</Keyword>
+    <Keyword>global</Keyword>
+    <Keyword>self</Keyword>
+    <Keyword>owner</Keyword>
+    <Keyword>var</Keyword>
+    <Keyword>def</Keyword>
+    <Keyword>null</Keyword>
+    <Keyword>and</Keyword>
+    <Keyword>not</Keyword>
+    <Keyword>or</Keyword>
+    <Keyword>break</Keyword>
+    <Keyword>continue</Keyword>
+    <Keyword>import</Keyword>
+    <Keyword>with</Keyword>
+    <Keyword>ctor</Keyword>
+    <Keyword>try</Keyword>
+    <Keyword>catch</Keyword>
+    <Keyword>eval</Keyword>
+    <Keyword>import</Keyword>
+    <Keyword>type</Keyword>
+    <Keyword>assert</Keyword>
+    <Keyword>assertf</Keyword>
+    <Keyword>error</Keyword>
+    <Keyword>rget</Keyword>
+    <Keyword>callex</Keyword>
+    <Keyword>errput</Keyword>
+    <Keyword>loadcode</Keyword>
+    <Keyword>dumpcode</Keyword>
+    <Keyword>collectgarbage</Keyword>
+    <Keyword>call</Keyword>
+    <Keyword>invoke</Keyword>
+    <Keyword>tostring</Keyword>
+    <Keyword>topointer</Keyword>
+    <Keyword>tonumber</Keyword>
+    <Keyword>sleep</Keyword>
+    <Keyword>execute</Keyword>
+    <Keyword>setlocale</Keyword>
+    <Keyword>setprivilege</Keyword>
+    <Keyword>loadcodex</Keyword>
+    <Keyword>reduce</Keyword>
+  </Keywords>
+  <Blocks>
+    <Block>
+      <Start>/*</Start>
+      <End>*/</End>
+      <CountMark>*</CountMark>
+      <Color>"darkgreen"</Color>
+      <WholeText>true</WholeText>
+    </Block>
+    <Block>
+      <Start>?></Start>
+      <End>
+        <?
+      </End>
+      <Color>"darkgreen"</Color>
+      <WholeText>true</WholeText>
+    </Block>
+    <Block>
+      <Start>"</Start>
+      <End>"</End>
+      <Color>"darkred"</Color>
+      <WholeText>true</WholeText>
+    </Block>
+    <Block>
+      <Start>`</Start>
+      <End>`</End>
+      <Color>"darkred"</Color>
+      <WholeText>true</WholeText>
+    </Block>
+    <Block>
+      <Start>'</Start>
+      <End>'</End>
+      <Color>"darkred"</Color>
+      <WholeText>true</WholeText>
+      <Escape>\\</Escape>
+    </Block>
+    <Block>
+      <Start>//</Start>
+      <Color>"darkgreen"</Color>
+      <WholeText>false</WholeText>
+    </Block>
+  </Blocks>
+</Theme>
+***/
+	string.save("~\config\SYS.THEME",defaultTheme)
+	io.remove("~\config\USR.THEME")
+    winform.msgbox("已清除aardio所有注册表配置")
+    
+}
+
+winform.button.note = "清理本软件注册表配置"
+
+winform.show() 
+win.loopMessage();

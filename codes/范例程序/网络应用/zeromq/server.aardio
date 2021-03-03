@@ -1,0 +1,47 @@
+//服务端
+import zeromq;
+import console;
+subscribe("beforeUnload",function(){
+	console.pause();
+} );
+
+var context = zeromq.context(1)
+
+//replay模式socket与客户端的request模式配对使用
+var responder = context.zmq_socket_reply()
+ 
+if( ! responder.bind(  "tcp://*:5559") ){ 
+    console.log( zeromq.lasterr() );  
+    return;
+}
+console.log("服务端已启动")
+
+while (1) {
+
+    var msg = zeromq.message();
+    if( ! responder.recvMsg(msg) ){
+        console.log( zeromq.lasterr() )
+    }
+    
+    console.log("服务端收到消息",msg.getString() );
+    msg.close();
+
+    //在这里可以添加其他代码
+    sleep (1); 
+
+    // 发送消息
+    msgReply = zeromq.message("客户端你好"); 
+   	responder.sendMsg(msgReply);
+    msgReply.close();
+
+    //上面的代码也可以简化为一句,如下:
+    //responder.send("客户端你好")
+	console.log("响应完毕")
+	 
+}
+
+//上面的代码会一直循环不会中断, 
+//如果使用break语句中断,则执行下面的代码释放资源 
+responder.close(); 
+context.term();
+

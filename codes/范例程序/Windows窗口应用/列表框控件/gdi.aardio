@@ -1,0 +1,43 @@
+//GDI自绘
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="listbox自绘(GDI方式)";right=757;bottom=467)
+winform.add(
+listbox={cls="listbox";left=12;top=11;right=745;bottom=457;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;items={};ownerDraw=1;vscroll=1;z=1}
+)
+/*}}*/
+
+winform.listbox.onMeasureItem = function(measureItem){
+    measureItem.itemHeight = 51;  
+}
+
+winform.listbox.onDrawItem = function(drawItem){
+     gdi.selectBrush(
+     
+        function(hdc,pen,brush){
+        
+            var rc = drawItem.rcItem;
+    		gdi.fillRect(hdc,0xFFFFFF,rc);
+    		
+    		if (drawItem.itemID > 0) {  
+    			gdi.drawLine(hdc,rc.left, rc.top,rc.right, rc.top);
+    		} 
+    		
+    		if (drawItem.itemState & 1/*_ODS_SELECTED*/) {  
+        		gdi.fillGradient(hdc,rc,0xFFFFFF, 0xFFC4B5,1/*_GRADIENT_FILL_RECT_V*/)
+    		}
+    		
+    		var str = winform.listbox.getItemText(drawItem.itemID + 1);
+    		
+    		var font = ::LOGFONT(weight=400;color=0x000000);
+    		gdi.textOut(hdc,font,str,rc.left + 18, rc.top + 26); 
+    		
+   		},drawItem.hDC,0xF5FDFF/*背景色*/,0xEEEEEE/*画笔色*/)
+}
+ 
+for(i=1;10){ 
+	winform.listbox.add("控件的创建参数需要加上ownerDraw=true");
+}
+
+winform.show();
+win.loopMessage();

@@ -1,0 +1,101 @@
+//mime 多用途扩展文件类型
+namespace fsys.mime;
+
+var fileMime  = {
+    ["htm"] = "text/html";
+    ["html"] = "text/html";
+    ["css"] = "text/css";
+    ["xml"] = "text/xml";
+    ["xhtml"] = "application/xhtml+xml";
+    ["js"] = "application/x-javascript";
+    ["txt"] = "text/plain"; 
+    ["rtf"] = "application/rtf";
+    ["pdf"] = "application/pdf";
+    ["ppt"] = "application/vnd.ms-powerpoint ";  
+    ["doc"] = "application/msword"; 
+    ["bmp"] = "application/x-MS-bmp"; 
+    ["png"] = "image/png"; 
+    ["gif"] = "image/gif"; 
+    ["jpeg"] = "image/jpeg"; 
+    ["jpg"] = "image/jpeg"; 
+    ["jpe"] = "image/jpeg";
+    ["jpz"] = "image/jpeg";
+    ["avi"] = "video/x-msvideo";
+    ["mid"] = "audio/midi";
+    ["midi"] = "audio/x-midi";
+    ["mpg"] = "video/mpeg";
+    ["mpeg"] = "video/mpeg";
+    ["mp3"] = "audio/x-mpeg";
+    ["swf"] = "application/x-shockwave-flash";
+    ["mp4"] = "video/mp4";
+    ["wmv"] = "video/x-ms-wmv";
+    ["zip"] = "application/zip";
+    ["gz"] = "application/x-gzip";
+    ["7z"] = "application/x-7z-compressed";
+    ["lzma"] = "application/x-lzma";
+    ["tar"] = "application/x-tar"; 
+    ["taz"] = "application/x-tar";
+    ["rar"] = "application/x-rar-compressed";
+    ["dll"] = "application/octet-stream";
+    ["exe"] = "application/octet-stream";
+    ["svg"] = "image/svg+xml";
+    ["eot"]= "application/vnd.ms-fontobject";
+    ["otf"] = "application/x-font-opentype";
+    ["ttf"] = "application/x-font-ttf";
+    ["woff"] = "application/x-font-woff";
+    ["woff2"] = "font/woff2";
+}
+
+::Ole32 := ..raw.loadDll("Ole32.dll");
+::Urlmon := ..raw.loadDll("Urlmon.dll");
+FindMimeFromData = Urlmon.api("FindMimeFromData","int(pointer pBC,ustring url,pointer buffer,INT size,ustring mimeProposed,INT flags,pointer &mime,INT rsrv)" )
+
+fromData = function(buffer,flag = 0){  
+	if(!#buffer)return;
+	
+	var hr,mime = FindMimeFromData(null,null,buffer,#buffer,null,flag,null,0);
+	if( hr >= 0/*_SUCCEEDED*/ ){
+		var s = ..string.fromUnicode(mime,,true)
+		::Ole32.CoTaskMemFree(mime);
+		return s;
+	}
+	return "application/octet-stream"; 
+}
+
+fromUrl = function(url,flag=0){ 
+	if(!#url)return;
+	
+	var hr,mime = FindMimeFromData(null,url ,null,0,null,flag,null,0);
+	if( hr >= 0/*_SUCCEEDED*/ ){
+		var s = ..string.fromUnicode(mime,,true)
+		::Ole32.CoTaskMemFree(mime);
+		return s;
+	}	
+	else {
+		url = ..string.match(url,"[^?]+")
+		var fileExt = ..string.match(url,"\.([^.]+)$");
+		return fileExt ? fileMime[fileExt] : "application/octet-stream";
+	}
+	
+}
+
+fromFile = function(path,flag=0){ 
+	if(!#path)return;
+	
+	var hr,mime = FindMimeFromData(null,path,null,0,null,flag | 1,null,0);
+	if( hr >= 0/*_SUCCEEDED*/ ){
+		var s = ..string.fromUnicode(mime,,true)
+		::Ole32.CoTaskMemFree(mime);
+		return s;
+	}
+	else {
+		var fileExt = ..string.match(path,"\.([^.]+)$");
+		return fileExt ? fileMime[fileExt] : "application/octet-stream";
+	}	
+}
+ 
+/**intellisense(fsys.mime)
+fromData(.(字符串数据) = 获取MIME type\n此函数失败也会返回"application/octet-stream"
+fromUrl(.(网址) = 获取MIME type\n此函数失败也会返回"application/octet-stream"
+fromFile(.(文件路径) = 获取MIME type\n注意文件路径可以指向不存在的文件,根据文件后缀名检测MIME\n此函数失败也会返回"application/octet-stream"
+end intellisense**/

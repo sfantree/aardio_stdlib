@@ -1,0 +1,123 @@
+//desktop 虚拟桌面
+import process;
+namespace win.util;
+
+class desktop {
+    ctor(){  
+        this.desktop = getDesktops(); 
+        this.preloadDesktops = ..table.clone(this.desktop) 
+        this.explorer = {}
+        this.defaultDesktop = ::User32.GetThreadDesktop(..thread.getId()); 
+        this.currentDesk = this.defaultDesktop;
+        ..table.gc(this,"close");
+    };
+    create = function(name){
+    	if(type(name)!=type.string) error("参数必须是字符串",2);
+    	if(this.desktop[name]) {
+    		this.preDesk = this.desktop[name];
+    		return;
+    	}
+    	
+        var hdesk = ::User32.OpenDesktop( name,0,false,0x1FF/*_DESKTOP_ALL*/)
+        if(!hdesk){
+        	hdesk = ::User32.CreateDesktop(
+            name,
+            null,
+            null,
+            0x1 /*_DF_ALLOWOTHERACCOUNTHOOK*/,
+            0x10000000/*_GENERIC_ALL*/,
+            null);
+		}
+		
+		this.desktop[name] = hdesk
+		this.preDesk = hdesk;
+		
+		if(!hdesk) error("创建虚拟桌面失败:" + ..lasterr() ,2) 
+        this.execute( name, "explorer");  
+    };
+    ["execute"] = function(name,filepath,cmdline){
+        this.explorer[name] = ..process( filepath : "explorer",cmdline : "",{ desktop = name }); 
+        if(!this.explorer[name]) error("启动程序到虚拟桌面失败:" + ..lasterr() ,2) 
+    };
+    switch = function( name ){
+    	 
+    	if( !name ){ 
+    		if( this.preDesk ? this.currentDesk != this.preDesk ){
+    			newDesk = this.preDesk 
+    		}
+    		elseif( this.defaultDesktop ? this.currentDesk != this.defaultDesktop){
+    			newDesk = this.defaultDesktop  
+    		}
+    		else {
+    			newDesk = this.desktop["Default"]  
+    		}  
+    	}
+    	else {
+    		newDesk = this.desktop[name]   
+    	}
+    	
+    	if(! newDesk ) error("请先创建虚拟桌面",2);
+   		if( this.currentDesk == newDesk ) {
+   			return;
+   		}
+    	this.preDesk = this.currentDesk	
+    	this.currentDesk = newDesk;
+    	::User32.SwitchDesktop(newDesk);  
+    	::User32.SetThreadDesktop(newDesk);
+    };
+    close = function(){ 
+    	::User32.SwitchDesktop(this.defaultDesktop );
+        for(name,hdesk in this.desktop){  
+        	 if( this.explorer[name] && this.explorer[name].handle ){
+        	 	this.explorer[name].terminate()
+        	 	this.explorer[name].free();
+        	 	this.explorer[name] = null;
+        	 	::User32.CloseDesktop(hdesk);  
+        	 }
+        }
+    } 
+}
+
+namespace desktop{
+    
+    getDesktops = function(){
+        var desktops = {};
+        var EnumDesktopsproc =function(lpszDesktop, lParam){
+            desktops[lpszDesktop] = ::User32.OpenDesktop(lpszDesktop,0,false,0x1FF/*_DESKTOP_ALL*/)
+            return true; 
+        }
+        
+        pEnumdeskProc = ..raw.tostdcall(EnumDesktopsproc,"bool(ustring lpszDesktop,ustring lParam )" ); 
+        ::User32.EnumDesktops(::User32.GetProcessWindowStation(), pEnumdeskProc ,0); 
+        pEnumdeskProc = null;
+        
+        return desktops; 
+    }
+}
+
+//感谢: wudijushi 于 2011.02.28 贡献最初的源代码
+
+/**intellisense()
+win.util.desktop() = 虚拟桌面类\n!virDesktopMgr.
+!virDesktopMgr.execute(.("桌面名字","程序路径","参数") = 在虚拟桌面运行程序
+!virDesktopMgr.create("__/*桌面名字*/") = 创建新桌面\n参数指定桌面名字
+!virDesktopMgr.switch(__) = 切换到指定名字的桌面,如果无参数则切换到前一桌面
+!virDesktopMgr.close() = 关闭创建的桌面
+!virDesktopMgr.desktop = 这是一个表对象,存储了所有虚拟桌面的名字与句柄,键为桌面名字
+!virDesktopMgr.desktop.Default = 默认桌面
+?win.util.desktop = !virDesktopMgr.
+end intellisense**/
+
+/**intellisense()
+_DF_ALLOWOTHERACCOUNTHOOK = @0x1 /*_DF_ALLOWOTHERACCOUNTHOOK*/
+_DESKTOP_CREATEMENU=@0x4/*_DESKTOP_CREATEMENU*/
+_DESKTOP_CREATEWINDOW=@0x2/*_DESKTOP_CREATEWINDOW*/
+_DESKTOP_ENUMERATE=@0x40/*_DESKTOP_ENUMERATE*/
+_DESKTOP_HOOKCONTROL=@0x8/*_DESKTOP_HOOKCONTROL*/
+_DESKTOP_JOURNALPLAYBACK=@0x20/*_DESKTOP_JOURNALPLAYBACK*/
+_DESKTOP_JOURNALRECORD=@0x10/*_DESKTOP_JOURNALRECORD*/
+_DESKTOP_READOBJECTS=@0x1/*_DESKTOP_READOBJECTS*/
+_DESKTOP_SWITCHDESKTOP=@0x100/*_DESKTOP_SWITCHDESKTOP*/
+_DESKTOP_WRITEOBJECTS=@0x80/*_DESKTOP_WRITEOBJECTS*/
+_DESKTOP_ALL=@0x1FF/*_DESKTOP_ALL*/
+end intellisense**/

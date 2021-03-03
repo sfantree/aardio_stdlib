@@ -1,0 +1,103 @@
+//xxtea 加密
+namespace string.xxtea 
+
+var function long2str(v, w) { 
+    var len = v[#v];
+ 	var buf = ..raw.buffer({INT v[]=v});
+    return (w) ? ..string.left( buf,len ) : tostring(buf); 
+}
+ 
+var function str2long(s, w) {
+    var len = #s;
+    if(len%4) len = len - len%4 + 4;
+    
+    var buf = ..raw.buffer(len,s);
+    var v = ..raw.convert(buf,{INT v[]={ length = len/4 }}).v;
+			
+    if (w)  v[#v + 1] = #s; 
+    return v;
+}
+
+function encrypt(str, key) {
+    if( type(str)!= type.string)
+    	error("参数必须是字符串",2);
+    	
+    if (! #str )
+        return "";
+   
+    var v = str2long(str, true);
+    var k = str2long(key, false); 
+    while(#k<4)  ..table.push(k,0); 
+       
+    var n = #v - 1;
+    var z = v[n+1];
+    var y = v[1];
+    var delta = 0x9E3779B9;
+    var mx,e =0,0;
+    var q = ..math.floor(6 + 52 / (n + 1)) ; 
+    var sum = 0;
+    
+    while (q > 0 ) {
+        q--; 
+        sum = (sum + delta) & 0xffffffff;
+        e = ( sum >>> 2 )  & 3;
+        
+        for (p = 0; n-1 ) {
+            y = v[p + 2];
+            mx = ( ( z >>> 5 ) ^ ( y << 2 ) ) + ( ( y >>> 3 )  ^ ( z << 4 ) ) ^ (sum ^ y) + (k[ ( (p & 3) ^ e) + 1] ^ z);
+            v[p+1] = (v[p+1] + mx) & 0xffffffff;
+            z = v[p+1];  
+        }
+         
+        y = v[1];  
+        mx = ( ( z >>> 5) ^ (y << 2) ) + ( (y >>> 3) ^ (z << 4) ) ^ (sum ^ y) + (k[ ( (n & 3) ^ e) + 1] ^ z);
+        v[n+1] = (v[n+1] + mx) & 0xffffffff;
+        z = v[n+1];
+    }
+ 
+    return long2str(v, false);
+}
+ 
+function decrypt(str, key) {
+     if( type(str)!= type.string)
+    	error("参数必须是字符串",2);
+    	
+    if (! #str )  return "";
+        
+    var v = str2long(str, false);
+    var k = str2long(key, false);  
+    while(#k<4)  ..table.push(k,0); 
+       
+    var n = #v - 1;
+    var z = v[n ];
+    var y = v[1];
+    var delta = 0x9E3779B9;
+    var mx,e =0,0;
+    var q = ..math.floor(6 + 52 / (n + 1));
+    var sum = (q * delta) & 0xffffffff;
+     
+    
+    while ( sum ) {
+        e = (sum >>> 2) & 3;
+        
+        for (p = n;1;-1) {
+            z = v[p ];
+            mx = ( (z >>> 5) ^ (y << 2) ) + ( (y >>> 3) ^ ( z << 4 ) ) ^ (sum ^ y) + (k[ ( (p & 3) ^ e) + 1] ^ z);
+            v[p+1] = (v[p+1] - mx) & 0xffffffff;
+            y = v[p+1] 
+        }
+         
+        z = v[n+1];
+        mx = ( (z >>> 5) ^ (y << 2) ) + ( (y >>> 3) ^ (z << 4) ) ^ (sum ^ y) + (k[ ( (0 & 3) ^ e ) +1] ^ z);
+        v[1] = (v[1] - mx) & 0xffffffff;
+        y = v[1]
+        sum = (sum - delta) & 0xffffffff;
+    }
+    
+    return long2str(v, true );
+}  
+
+/*intellisense(string.xxtea)
+encrypt(__,"密钥") = xxtea加密
+decrypt(__,"密钥") = xxtea解密
+end intellisense*/

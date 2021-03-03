@@ -1,0 +1,80 @@
+﻿if(!java) import java;
+namespace java;
+
+class object{
+	ctor( jvm,instance,jclass ){ {
+			this.jvm = jvm;
+			this.jniEnv = this.jvm.env;
+			this.invokeMethod = jvm.invokeMethod;
+			var jvm,jniEnv,jclass = this.jvm,this.jniEnv,this.jclass;
+			
+			if(!instance) return;
+			this.instance = topointer(instance);
+			
+			if(!jclass){
+				var cls = jvm.env.GetObjectClass( this.instance );
+				if(!cls) error("查找类失败",2); 
+				this.jclass = ..java.class(jvm,cls);
+			}
+			else {
+				this.jclass = jclass;
+			}
+			this.getMethod = function(methodName){
+				if( type(methodName) == type.string ){
+					var r,f = callex(,this@._get,this,methodName,true);
+					if(r) return f;
+				} 
+			};
+			this.getMethodEx = function(methodName,asign){
+				return this.jclass.getMethodEx(methodName,asign,this.instance);
+			}
+			this.getFieldEx = function(fname,asign){
+				return this.jclass.getFieldEx(fname,asign,this.instance);
+			}
+			
+			this.hashCode = this.getMethodEx("hashCode","INT()");
+			this.toString = this.getMethodEx("toString","string()");
+			this.equals = this.getMethodEx("equals","bool(pointer)");
+			
+			..table.add_gc(this,function(){
+				if( this.instance ){
+					jniEnv.DeleteLocalRef(this.instance); 
+					this.instance = null;
+				}
+			})
+	} };
+
+
+	@_meta; 
+}
+
+namespace object{
+	_meta = { 
+		_topointer = function(){
+			return owner.instance;
+		}
+		_tostring = function(){
+			return owner.toString();
+		}
+		_eq = function(b){
+			return ( b[["equals"]] ? owner.equals( b ) );
+		}
+		_set = function(k,v){
+			if(type(k)!="string" || k=='_struct' || type(v) == "function") {
+				owner[[k]] = v;
+				return;
+			}
+			owner.jvm.setFieldValue(owner,k,v);
+		}
+		_get = function(k,ownerCall){
+			if(type(k)!="string" || k=='_struct') return;
+			if( (!ownerCall) || owner.jvm.fieldExists(owner,k) )return owner.jvm.getFieldValue(owner,k);
+			
+			var this = owner;
+			owner[[k]] = function(...){
+				return this.invokeMethod(this,k,...)
+			}
+			return owner[[k]];
+		}
+	}  
+}

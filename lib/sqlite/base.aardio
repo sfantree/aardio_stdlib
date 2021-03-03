@@ -1,0 +1,885 @@
+//base 仅供内部调用
+var push = ..table.push;
+
+class sqlite {
+
+	ctor( filename,pwd,flag,vfsName ){ {
+		if( !filename ) error("数据库路径不能为空",2)
+		var db,err,errcode  = open(filename,pwd,flag,vfsName)  
+		if(!db) return null,err,errcode;
+		this.db = db;
+		..table.gc( this,"close");
+	} };
+	key =  function(pwd){ 
+		return key(this.db,pwd);
+	};
+	rekey =  function(pwd){ 
+		return rekey(this.db,pwd);
+	};
+	close = function(){
+		close( this.db);
+		this.db = null;
+	};
+	lasterr = function(){
+    	return lasterr(this.db);
+    };
+	exec = function(sql,...){
+		if( ... !== null )  sql = formatSqlParameters(sql,...); 
+		var failed,err = exec(this.db,sql);
+		if(failed) checkResult(failed,err,,this.db); 
+	};
+	beginTrans = function(){
+		var failed,err = exec(this.db,"BEGIN;");
+		if(failed) checkResult(failed,err,,this.db); 
+	}
+	commitTrans = function(p){
+		var failed,err = exec(this.db,p ? ("COMMIT"+ p +";") : "COMMIT;");
+		if(failed) checkResult(failed,err,,this.db); 
+	}
+	rollbackTrans = function(){
+		var failed,err = exec(this.db,"ROLLBACK;");
+		if(failed) checkResult(failed,err,,this.db); 
+	}
+	changes = function(){
+		return changes(this.db);
+	};
+	enum = function(sql,proc,...){
+		if( ... !== null )  sql = formatSqlParameters(sql,...); 
+ 
+		var convert = ..raw.convert;
+		var callback = function(unused,argc,pValue,pName){ 
+			var tname = convert( pName, {string array[]={length=argc}});
+			var tvalue = convert( pValue, {string array[]={length=argc}});
+			return proc(tname.array,tvalue.array,argc);
+		} 
+		
+		var callback_c = ..raw.tocdecl( callback,"int(pointer,int argc,pointer pValue,pointer pName)") 
+		var failed,err = exec(this.db,sql,callback_c);
+		checkResult(failed,err,,this.db);;
+		return failed;
+	}; 
+	prepare = function(sql,cond,... ){
+		var stmt = statement(this);
+		if(stmt){
+			var ok,err = call(stmt.prepare,stmt,sql,cond,... );
+			if(!ok) error(err,2);
+			return stmt;
+		};
+	};
+	each = function(sql,cond,... ){
+		var ok,stmt,param;
+		if( cond && type(cond) == "table" && ..string.indexOf(sql,"@")  ){
+			ok,stmt = call(this.prepare,this,sql); 
+			param = cond;
+		}
+		else {
+			ok,stmt = call(this.prepare,this,sql,cond,... );
+		} 
+		if(!ok) error(stmt,2); 
+	 
+		return stmt.each(param),function(){ stmt.finalize(); };
+	};
+	stepQuery = function(sql,cond,... ){ 
+		var ok,stmt,param;
+		if( cond && type(cond) == "table" && ..string.indexOf(sql,"@")  ){
+			ok,stmt = call(this.prepare,this,sql); 
+			param = cond;
+		}
+		else {
+			ok,stmt = call(this.prepare,this,sql,cond,... );
+		}
+		
+		if(!ok) error(stmt,2);
+		var row,ret = stmt.stepQuery(param);
+		stmt.finalize();
+		return row,ret;
+	}; 
+	getTable = function(sql,cond,... ){ 
+		var ok,stmt,param;
+		if( cond && type(cond) == "table" && ..string.indexOf(sql,"@")  ){
+			ok,stmt = call(this.prepare,this,sql); 
+			param = cond;
+		}
+		else {
+			ok,stmt = call(this.prepare,this,sql,cond,... );
+		}
+		
+		if(!ok) error(stmt,2);
+		var tab = stmt.getTable(param);
+		stmt.finalize();
+		return tab;
+	};
+	existsTable = function(tName){
+		var row = this.stepQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='"+tName+"';")
+		return !!tonumber( row["COUNT(*)"] );
+	};
+	busyTimeout = function(ms=0){
+		return busy_timeout( this.db,ms) != 0
+	};
+	busyHandler = function(func,str){
+		if( type(func) ==  type.function) {
+			busy_handler( this.db,null);
+			this.busy_handle_c =  ..raw.tocdecl(func,"bool(string ptr,int count)",owner)
+			this.busy_handle_str = str;
+			return busy_handler( this.db,this.busy_handle_c,this.busy_handle_str) != 0
+		};
+		else {
+			return busy_handler( this.db,null) != 0
+		};
+	}; 
+	lastInsertRowid = function(){
+    	return last_insert_rowid(this.db); 
+    };
+    walCheckpoint = function(){
+		return wal_checkpoint(this.db);
+	};
+};
+
+namespace sqlite;
+
+if( ! ..___sqlite_dll__ ) error("sqlite.base禁止直接导入",2);
+_dll = ..___sqlite_dll__;
+var dll = _dll;
+
+class statement{
+
+	ctor( sqliteObject ){ 
+		var failed,pstmt;
+		var column = ..sqlite.column; 
+		var column_count =  column.count;
+		var column_name = column.name
+        var column_value =  column.queryValue;
+        var column_type = column.type;
+        var bind = ..sqlite.bind; 
+		..table.gc(this,"finalize");
+	}; 	
+	bind = {
+		blob = function(s,i=1){
+			if(! bind.blob(pstmt,i,s,#s) )
+				return this;
+		};
+		buffer = function( s,i=1){
+			if(! bind.blob(pstmt,i,s,#s) )
+				return this;
+		};
+		double = function( n,i=1){
+			if(! bind.double(pstmt,i,n) )
+				return this;
+		}; 
+		int = function( n,i=1){
+			if(! bind.int(pstmt,i,n) )
+				return this;
+		}; 
+		long64 = function( n,i=1){
+			if(! bind.long64(pstmt,i,n) )
+				return this;
+		};
+		text = function( str,i=1,paramName){
+			if(! bind.text(pstmt,i,str,#str) )
+				return this;
+		};
+		utf8 = function( str,i=1){
+			if(! bind.text(pstmt,i,str,#str) )
+				return this;
+		};
+		utf16 = function( str,i=1){
+			if(type(str)=="string") str = ..string.toUnicode(str);
+			if(! bind.text16(pstmt,i,str,#str) )
+				return this;
+		};
+		text16 = function( str,i=1){
+			if(type(str)=="string") str = ..string.toUnicode(str);
+			if(! bind.text16(pstmt,i,str,#str) )
+				return this;
+		};
+		["null"] = function( v,i){
+			if(! bind.null(pstmt,i : v : 1) ) 
+				return this;
+		};
+		string = function(s,i=1,paramName){
+			if( paramName ){
+				var t = ..string.match(paramName,"^<blob>|<utf\d+>");
+				if( t ? owner[t] ){
+					return call(owner[t],owner,s,i,paramName);  
+				}
+			}
+			
+			if(! bind.text(pstmt,i,s,#s) )
+				return this; 
+		};
+		number = function(n,i=1){
+			if( ..math.floor(n) === v )
+				return owner.int(n,i);
+			else {
+				return owner.double(n,i);
+			} 
+		};
+		boolean = function(v,i=1){
+			return owner.int(tonumber(!!v),i)
+		};
+		cdata = function(v,i=1){
+			if( v@  ){
+				if( v@ === ..math._size64_meta ){
+					if(! bind.long64(pstmt,i,v) ) return this; 
+				}
+				if( v@._tostring ) return owner.blob(tostring(v),i);
+				return null; 
+			}
+			return owner.blob(v,i)
+		}; 
+		table = function(v,i=1){
+			if( v@ && v@._tostring){
+				if( ..time.istime(v) ){
+					v.format = "%Y-%m-%d %H:%M:%S"
+				}
+				
+				return owner.string( tostring(v),i )
+			}
+			return owner.blob('/*aardio.table=*/' + ..table.tostring(v),i)
+		};
+		parameter = function(v,i,paramName){
+			var t = type(v)
+			var b = owner[t];
+			if(b){ 
+				var ok,err = call(b,owner,v,i,paramName); 
+				if(ok)
+					return err;
+				else 
+					return null,err;
+			} 
+			else {  
+				error("Sqlite不支持此数据类型:" + t + " 参数:#" + i,2) 
+			}  	
+		};
+		parameters = function(...){
+			var p = {...}
+			for( i=1;#p ){ 
+				if( ! owner.parameter(p[i],i)  ) 
+					return;
+			}  
+			return this;
+		}; 
+		parameterIndex = function(name,prefix){
+			if( !prefix ){
+				return bind.parameter_index(pstmt,name);
+			}
+			else {
+				return bind.parameter_index(pstmt,prefix++name);
+			};
+		};
+		parameterByName = function(v,k){
+			return owner.parameter(v,(owner.parameterIndex(k)),k ); 
+		};
+		parameterByNames = function(args,prefix){
+			var count = 0;
+			var ind;
+			for(k,v in args){ 
+				ind = owner.parameterIndex(k,prefix);
+				if( ind ? owner.parameter(v,ind,k ) )
+					count++; 
+			}  
+			return this,count;
+		};
+		parameterAtNames = function(args){
+			return owner.parameterByNames(args,"@");
+		};
+		parameterByNamesAt = function(args){
+			return owner.parameterByNames(args,"@");
+		};
+		clear = function(){
+			return bind.clear(pstmt);
+		};  
+	};
+	prepare = function( sql,cond,... ) { 
+		var sqlCondHeader,paramCond;
+		if(cond) {
+			if( type( cond ) = type.table ){
+				sqlCondHeader = ..string.find(sql,"\s<WHERE>|<where>\s") ?" AND ":" WHERE "; 
+				if( type(cond) == "table" ){ 
+					var t = {} 
+					for(k,v in cond){ 
+						push( t,  k + "=@" + k  );
+					} 
+					paramCond = cond;  
+					cond =  ..string.join(t," AND ");   
+				};
+				
+				if(!#cond)
+					sqlCondHeader = null;
+					
+				sql = ..string.concat( sql,sqlCondHeader,cond,... ); 
+			}
+			else {
+				sql = ..string.format(sql,cond,... )
+			}  
+		}
+		this.sql = sql;
+		failed,pstmt = ..sqlite.prepare(sqliteObject.db, sql, #sql,pstmt );  
+			
+		if( failed ) {  
+			error( ( sqliteObject.lasterr() ) + '\nSQL:'+ sql ,2 ); 
+		};  
+		
+		if(paramCond){
+			this.bind.parameterAtNames(paramCond);
+		}
+		return this;
+	}; 
+	column = {
+		count = function(){
+			return column_count(pstmt);
+		}; 
+		name = function(iCol){
+			return column_name(pstmt,iCol);
+		};
+		type = function(iCol){
+			return column_type(pstmt,iCol);
+		}; 
+		queryValue = function(iCol){
+			return column_value(pstmt,iCol);
+		}; 
+	}; 
+	step = function(param){
+		if( param ){
+			..sqlite.reset(pstmt);
+			this.bind.parameterAtNames(param);
+		}
+		return  ..sqlite.step(pstmt);
+	}; 
+	stepQuery = function(param){
+		var row = {} 
+		var ret = this.step(param);
+		if( ret == 100/*..sqlite.ROW*/ ){
+			for(i=0;column_count(pstmt)-1 ){ 
+                row[ column_name(pstmt,i) ] = column_value(pstmt,i);
+            }
+            return row;
+		}
+		return null,ret;
+	};
+	stepResult = function(param){
+		var row = {} 
+		var ret = this.step(param);
+		if( ret == 100/*..sqlite.ROW*/ ){
+			for(col=1;column_count(pstmt) ){ 
+            	row[col] = column_value(pstmt,col-1)
+            }; 
+            return row;
+		}
+		return null,ret;
+	};
+	finalize = function(){
+		if(pstmt){
+			..sqlite.finalize(pstmt);
+			pstmt = null;
+		}
+	};
+	reset = function(){
+		..sqlite.reset(pstmt)
+	};
+	each = function(param){ 
+		if( param ){
+			..sqlite.reset(pstmt);
+			this.bind.parameterAtNames(param);
+		}
+		
+		var ub = column_count(pstmt);  
+		var unpack = ..table.unpack;
+		var row = {};
+		
+		return function(){ 
+			var ret = this.step();  
+			if( ret !=  100/*..sqlite.ROW*/ )  
+				return; 
+					
+            for(col=1;ub){ 
+                row[col] = column_value(pstmt,col-1)
+            }; 
+			return unpack(row,1,ub);
+		},function(){
+			this.reset(); 
+		};	
+	}; 
+	getColumns = function(){
+		var ub = column_count(pstmt) ; 
+		var names = {};
+		for(i=1;ub){ 
+			names[i] = column_name(pstmt,i-1) ;
+		}
+		return names;
+	}; 
+    getTable = function(param){
+        if( param ){
+			..sqlite.reset(pstmt);
+			this.bind.parameterAtNames(param);
+		}
+		
+        var tab = {};
+        var names = this.getColumns();
+        var ub = #names;  
+        tab.fields = names;
+        while( this.step() == 100/*..sqlite.ROW*/ ){   
+            var row = {};
+            for(i=1;ub){ 
+                row[ names[i] ] = column_value(pstmt,i-1);
+            }
+            push(tab,row);    
+        } 
+        return tab; 
+    };	
+}; 
+
+sqlite3_open_v2 = dll.api("sqlite3_open_v2","int(STRING filename,pointer &ppDB,int flags,pointer zVfs)"); 
+open = function(filename,pwd,flag=0x10006/*SQLITE_OPEN_NOMUTEX|OPEN_CREATE|SQLITE_OPEN_READWRITE*/,vfsName ){ 
+	if( !filename ) error("数据库路径不能为空",2)
+	filename = ..io.localpath(filename) : filename
+	var failed,db =  sqlite3_open_v2( filename,null,flag, vfsName );
+	if( failed || (!db) ){
+		if( db ) close(db);
+		return null,lasterr(db,failed)
+	}
+ 
+	if( pwd ){
+		var ok,err,errcode =  key(db,pwd);
+		if( !ok ) {
+			close( db );
+			return null,err,errcode;
+		}
+	} 
+	return db;
+}
+
+
+err_message ={
+	[0] = "成功执行";
+	[1] = "SQL错误或数据库不存在(SQLITE_ERROR)";
+	[2] = "SQLite内部逻辑错误(没有使用)";
+	[3] = "访问许可禁止";
+	[4] = "回调函数请求中止";
+	[5] = "数据库文件被锁定(SQLITE_BUSY)";
+	[6] = "数据库中的一表被锁定";
+	[7] = "malloc()分配堆失败";
+	[8] = "企图写只读数据库";
+	[9] = "操作被sqlie3_interrupt()中止";
+	[10] = "磁盘I=O错误";
+	[11] = "数据库文件变形";
+	[12] = "表或纪录没有找到(没有使用)";
+	[13] = "插入失败因为数据库满";
+	[14] = "不能打开数据库文件";
+	[15] = "数据库锁协议错误";
+	[16] = "数据库是空的";
+	[17] = "数据库模式改变";
+	[18] = "单行数据过多(没有使用)";
+	[19] = "因约束违背而中止";
+	[20] = "数据类型不匹配";
+	[21] = "库使用方法不当";
+	[22] = "主机不支持库中操作系统功能";
+	[23] = "认证禁止";
+	[24] = "附属数据库格式错误";
+	[25] = "sqlite3_bind()第2个参数超出范围";
+	[26] = "此数据库已加密或不是一个数据库文件";
+	[100] = "有另一行数据就绪";
+	[101] = "完成执行,已无数据";
+}
+
+self.assertf = function(failed,...){ 
+	if(!failed)
+		return ... 
+	error( formatResult(failed) ,2);
+};
+
+checkResult = function(failed,err,level=3,db){ 
+	if( failed && ( failed<100) ) 
+		error( formatResult(failed,err,db) ,level);
+};  
+
+formatSqlParameters = function(sql,...) {
+
+	if( type( ... ) == "table" ){
+		var param = ...;
+		return ..string.replace(sql,"\@(<:+>|<\w+>[^\s\p]*)",
+			function(name){
+				var v =  param[name] 
+			
+				var t  = type(v);	
+				if( t = "string" ){
+					return "'" +  ..string.replace(v,"'","''") + "'";
+				}
+				elseif( t = "boolean" ){
+					return v ? "1" : "0";
+				}
+				elseif( t = "number" ){
+					return tostring(v);
+				}
+				elseif( ( t = "table" ) && ..time.istime(v) ) {
+					var f = v.format;
+					v.format = "%Y-%m-%d %H:%M:%S";
+					var ret  = "'" +  tostring(v) + "'";
+					v.format = f;
+					return ret;
+				} 
+				return ..string.replace(tostring(v),"\p","");
+			} 
+		); 
+	} 
+	
+	return ..string.format(sql,...);
+}
+ 
+try{
+	sqlite3_key = dll.api("sqlite3_key","int(POINTER db,string key,int nkey)") 
+	sqlite3_rekey = dll.api("sqlite3_rekey","int(POINTER db,string key,int nkey)")  
+	key = function(db,pwd){
+		var err = sqlite3_key(db,pwd,#pwd)
+		if(err) return false,lasterr(db,err);
+		
+		err = sqlite3_rekey(db,pwd,#pwd) 
+		if(err) return false,lasterr(db,err); 
+		return true; 
+	}
+	rekey = function(db,pwd){ 
+		var err = sqlite3_rekey(db,pwd,#pwd) 
+		if(err) return false,lasterr(db,err);
+		return true; 
+	}
+} 
+catch(e){
+	key = function(){
+		return null,'请导入支持加密的 sqlite.aes256 或 sqlite.aes128 扩展库',2)
+	}
+	rekey = key; 
+};
+
+time = function(t,f="%Y-%m-%d %H:%M:%S"){
+	var tm = ..time(t,f);
+	tm.format = f;
+	return tm;
+};
+
+errcode = dll.api("sqlite3_errcode","int(POINTER db)");
+errmsg = dll.api("sqlite3_errmsg","string(pointer db)");
+free = dll.api("sqlite3_free","void(pointer errmsg)"); 
+lasterr = function(db,failed){
+	var dbErrcode = db ? errcode(db);
+	if( failed === null ) failed = dbErrcode; 
+	if(!failed) return;
+	
+	var msg;
+	if( db ? ( dbErrcode == failed )  ){
+		msg = errmsg(db);
+	} 
+	if(err_message[failed]){
+		msg = ..string.concat( msg, '\r\n',err_message[failed] );
+	}
+	if(!msg) msg = "未知错误";
+	 
+    return msg,failed;
+};
+
+formatResult = function(failed,pErrmsg,db){ 
+	if( (!failed) || ( failed>=100) ) return;
+
+	var msg;
+	if(type(pErrmsg)==type.pointer){
+		msg = ..string.concat(msg,'\r\n', ..raw.tostring(pErrmsg) );
+		free(pErrmsg); 
+	} 
+	else {
+		msg = errmsg(db);
+	}
+	
+	if(err_message[failed]){
+		msg = ..string.concat( msg, '\r\n',err_message[failed] );
+	}
+	if(!msg) msg = "未知错误";
+	
+	return msg;
+};
+
+/**intellisense(sqlite)
+_dll = !dllModule.
+lasterr(.(db,errcode) = 参数1:指定数据库连接句柄,\n参数2:可选使用此参数指定错误代码,\n返回最后一次发生错误的错误信息,以及错误代码.
+assertf(__/*调用sqlite API函数*/) = 第一个参数是API返回的状态值 \n如果发生错误则抛出异常终断程序,并显示错误信息
+open("/__/*数据库路径*/") =  参数一指定数据库路径,支持自动创建数据库文件.\n成功返回数据库对象,失败返回null,错误信息,错误代码\n第二个参数(可选参数)指定数据库密钥,需要加密DLL支持.\n第三个参数(可选参数)使用一个或多个_SQLITE_OPEN_前缀常量指定连接选项\n默认启用多线程模式,多线程共用单个数据连接不安全,否则就是安全的\n多线程模式可并发读,但不可同时写入
+open(":memory:") = 打开内存数据库
+time(__/*表示时间的字符串或数值*/) = 参数可以是时间数值、时间字符串、或其他datetime对象\n返回time对象,默认使用格式化串"%Y-%m-%d %H:%M:%S" 
+key(.(数据库句柄,密钥) = 验证数据库密钥\n加密的数据库必须首先调用此函数输入正确密钥\n成功返回true,失败返回false,错误信息,错误代码
+rekey(.(数据库句柄,密钥) = 添加密钥\n变更或清空密钥( 必须在此之前执行sqlite3.key()函数输入旧密码 )\n成功返回true,失败返回false,错误信息,错误代码
+checkResult(.(failed,err,level) = 参数一: sqlite API的第一个返回值\n参数二(可选参数):sqlite返回的错误信息指针\n参数三(可选参数): 抛出异常的调用级别,2为调用checkResult的函数,3为调用当前函数的函数
+formatResult.(failed,err) = 参数一: sqlite API的第一个返回值\n参数二(可选参数):sqlite返回的错误信息指针\n对于原始Sqlite API返回的err指针,必须调用此函数转换为字符串并释放该指针
+end intellisense**/ 
+
+/*intellisense(sqlite)*/ 
+OK=0 //成功执行
+ERROR=1 //SQL错误或数据库不存在
+INTERNAL=2 //SQLite内部逻辑错误(没有使用)
+PERM=3 //访问许可禁止
+ABORT=4 //回调函数请求中止
+BUSY=5 //数据库文件被锁定
+LOCKED=6 //数据库中的一表被锁定
+NOMEM=7 //malloc()分配堆失败
+READONLY=8 //企图写只读数据库
+INTERRUPT=9 //操作被sqlie3_interrupt()中止
+IOERR=10 //磁盘I=O错误
+CORRUPT=11 //数据库文件变形
+NOTFOUND=12 //表或纪录没有找到(没有使用)
+FULL=13 //插入失败因为数据库满
+CANTOPEN=14 //不能打开数据库文件
+PROTOCOL=15 //数据库锁协议错误
+EMPTY=16 //数据库是空的
+SCHEMA=17 //数据库模式改变
+TOOBIG=18 //单行数据过多(没有使用)
+CONSTRAINT=19 //因约束违背而中止
+MISMATCH=20 //数据类型不匹配
+MISUSE=21 //库使用方法不当
+NOLFS=22 //主机不支持库中操作系统功能
+AUTH=23 //认证禁止
+FORMAT=24 //附属数据库格式错误
+RANGE=25 //sqlite3_bind()第2个参数超出范围
+NOTADB=26 //打开非数据库文件
+ROW=100 //sqlite3_step()有另一行数据就绪
+DONE=101 //sqlite3_step()完成执行,已无数据
+
+close = dll.api("sqlite3_close","int(pointer db)");
+ 
+//使用回调函数查询数据库
+exec = dll.api("sqlite3_exec","int(POINTER db,STRING sql,pointer callback,pointer callback_arg,pointer &)");
+changes = dll.api("sqlite3_changes","int(pointer db)");
+last_insert_rowid = dll.api("sqlite3_last_insert_rowid","int(pointer db)");
+busy_timeout = dll.api("sqlite3_busy_timeout","int(POINTER pDB,int ms)"); 
+busy_handler = dll.api("sqlite3_busy_handler","int(POINTER pDB,pointer handle,pointer)");
+wal_checkpoint = dll.api("sqlite3_wal_checkpoint","int(POINTER pDB,pointer zDb)");
+
+//不使用回调函数查询数据库 方法之一
+prepare = dll.api("sqlite3_prepare","int(POINTER db,string szSql,int nByte,pointer &stmt,pointer& pzTail)");
+prepare2 = dll.api("sqlite3_prepare_v2","int(POINTER db,string szSql,int nByte,pointer &stmt,pointer& pzTail)");
+step = dll.api("sqlite3_step","int(POINTER stmt)");
+finalize= dll.api("sqlite3_finalize","int(POINTER stmt)");
+reset= dll.api("sqlite3_reset","int(POINTER stmt)");
+
+/*end intellisense*/ 
+namespace column{
+	/*intellisense(sqlite.column)*/ 
+	_blob = dll.api("sqlite3_column_blob","pointer(POINTER stmt, int iCol)");
+	bytes = dll.api("sqlite3_column_bytes","int(POINTER stmt, int iCol)");
+	bytes16 = dll.api("sqlite3_column_bytes16","int(POINTER stmt, int iCol)");
+	double = dll.api("sqlite3_column_double","double(POINTER stmt, int iCol)");
+	int = dll.api("sqlite3_column_int64","long(POINTER stmt, int iCol)");
+	text16 = dll.api("sqlite3_column_text16","pointer(POINTER stmt, int iCol)"); 
+	value = dll.api("sqlite3_column_value","int(POINTER stmt, int iCol)");
+	count = dll.api("sqlite3_column_count","int(POINTER stmt)");  
+	/*end intellisense*/
+	
+	sqlite3_column_name = dll.api("sqlite3_column_name","string(POINTER stmt, int iCol)"); 
+	name = function(stmt,iCol){
+		return sqlite3_column_name(stmt,iCol);
+	}
+	
+	sqlite3_column_type = dll.api("sqlite3_column_type","int(POINTER stmt, int iCol)");
+	typeName = { [1]="int";[2]="double";[3]="text";[4]="blob";[5]="null" } 
+	self.type = function(stmt,iCol){ 
+		var t = sqlite3_column_type(stmt,iCol)
+		return t,typeName[t];
+	}
+	
+	sqlite3_column_text= dll.api("sqlite3_column_text","str(POINTER stmt, int iCol)");
+	text = function(pstmt,iCol){
+		return sqlite3_column_text(pstmt,iCol);
+	}  
+	
+	var raw_buffer = ..raw.buffer;
+	blob = function(pstmt,iCol){
+		var p = _blob(pstmt,iCol)
+		var len = bytes(pstmt,iCol)
+		if( p && len ){
+			var buf = raw_buffer(len,p);
+			if( buf[1] == '/'# && buf[2] == '*'#  ){
+				if( ..string.startWith(buf,'/*aardio.table=*/' ) ){
+					return eval(buf);
+				}
+			}
+			return buf;
+		}
+	} 
+	 
+	queryValue = function(pstmt,iCol){
+        var t,tname = self.type(pstmt, iCol);
+        var get = self[tname];  
+        return get? get(pstmt,iCol) ;      
+    };
+	/**intellisense(sqlite.column)
+	queryValue(iCol) = 返回指定列的数据,自动识别数据类型
+	name(stmt,iCol) = 返回字段名
+	text(stmt,iCol) = 返回文本,自动由UTF8转换为ANSI
+	blob(stmt,iCol) = 读取二进制数据,并返回buffer类型字节数组,\n如果存储的是一个序列化后的table对象,则返回table对象.
+	type(stmt,iCol) =  返回类型ID,以及类型名
+	typeName[__/*类型ID*/] = 根据类型ID,返回类型名
+	end intellisense**/
+	
+}
+
+//不使用回调函数查询数据库 方法之二
+namespace table{
+	/*intellisense(sqlite.table)*/
+	get = dll.api("sqlite3_get_table","int(POINTER db,string zSql,pointer &pazResult,int &pnRow,int &pnColumn,pointer &errmsg)");
+	free = dll.api("sqlite3_free_table","int(pointer azResult)")
+	/*end intellisense*/
+}
+ 
+namespace bind{
+	/*intellisense(sqlite.bind)*/
+	blob = dll.api("sqlite3_bind_blob","int(pointer stmt, int, pointer, int n, pointer )");
+	double = dll.api("sqlite3_bind_double","int(pointer stmt, int, double)");
+	int = dll.api("sqlite3_bind_int","int(pointer stmt, int, int)");
+	long64 = dll.sqlite3_bind_int64;
+	text = dll.api("sqlite3_bind_text","int(pointer stmt, int, string, int n,pointer )");
+	text16 = dll.api("sqlite3_bind_text16","int(pointer stmt, int,ustring, int, pointer )");
+	value = dll.api("sqlite3_bind_value","int(pointer stmt, int, pointer)");
+	zeroblob = dll.api("sqlite3_bind_zeroblob","int(pointer stmt, int, int n)");
+	parameter_index = dll.api("sqlite3_bind_parameter_index","int(pointer stmt, string zName)"); 
+	clear = dll.api("sqlite3_clear_bindings","int(pointer stmt)"); 
+	/*end intellisense*/ 
+}   
+/*intellisense(sqlite.bind)*/
+bind.null = dll.api("sqlite3_bind_null","int(pointer stmt, int)");
+/*end intellisense*/
+
+version = function(){
+	var v = dll.sqlite3_libversion_number() ;
+	var z = v % 1000;
+	var y = ( v % 1000000 - z )  ;
+	var x = ( v - y - z )
+	return v,..string.format("%d.%d.%d",x/1000000,y/1000,z);
+}
+..sqlite.aes256 = ..sqlite;
+..sqlite.aes128 = ..sqlite; 
+..sqlite.base = ..sqlite;
+
+/**intellisense() 
+sqlite(":memory:") = 创建内存数据库
+sqlite("\数据库路径") =  参数一指定数据库路径,支持自动创建数据库文件.\n第二个参数(可选参数)指定数据库密钥,sqlite.aes128或sqlite.aes256支持该参数.\n第三个参数(可选参数)使用一个或多个_SQLITE_OPEN_前缀常量指定连接选项\n默认启用多线程模式,多线程共用单个数据连接不安全,否则就是安全的\n多线程模式可并发读,但不可同时写入
+sqlite.aes128("\数据库路径") =  参数一指定数据库路径,支持自动创建数据库文件.\n第二个参数(可选参数)指定数据库密钥,sqlite.aes128或sqlite.aes256支持该参数.
+sqlite.aes256("\数据库路径") =  参数一指定数据库路径,支持自动创建数据库文件.\n第二个参数(可选参数)指定数据库密钥,sqlite.aes128或sqlite.aes256支持该参数.
+sqlite() = !sqliteConn.
+sqlite.aes256() = !sqliteConn.
+sqlite.aes128() = !sqliteConn.
+sqlite.aes128 = 支持AES128位数据加密版本sqlite支持库
+sqlite.aes256 = 支持AES256位数据加密版本sqlite支持库
+sqlite.version() = 返回版本号数值,以及文本值
+!sqliteConn.each = @for 字段名,字段名2 in ??.each("SELECT * from [表名] ORDER BY 排序字段 DESC LIMIT 长度 OFFSET 开始位置") {
+	io.print( 字段名,字段名2 )
+}
+!sqliteConn.each_sqlite_master = @for Type,name,tbl_name,rootpage,sql in ??.each("SELECT * from [sqlite_master]") {
+	io.print( Type,name,tbl_name,rootpage,sql )
+}
+!sqliteConn.enum(sql) = @.enum( \n	__/*sql*/,\n	function(tname,tvalue){\n		for(i=1;#tname;1){ \n			io.print(tname[i],tvalue[i])\n		}\n		 \n	}\n)
+!sqliteConn.exec("__") = 执行sql语句,\n如果指定多个参数则调用string.format格式化参数一生成sql语句,\n如果第二个参数是table对象,则格式化所有@前缀的命名参数并生成SQL语句\n出错则抛出异常.
+!sqliteConn.exec_insert = @.exec("INSERT INTO 表名__(字段名) VALUES( 值 )")\n//插入数据到表中
+!sqliteConn.exec_insert_where_not_exists = @.exec("INSERT INTO 表名(字段名) SELECT '插入值' WHERE NOT EXISTS(SELECT * from 表名 WHERE 条件字段名=查询值);")\n//如果符合条件的数据不存在则插入新的数据
+!sqliteConn.exec_create_table = @.exec("CREATE TABLE 表名__( \n	ID INTEGER PRIMARY KEY AUTOINCREMENT,  \n	数值字段名 INTEGER,\n	浮点字段名 REAL,\n	文本字段名 TEXT,\n	二进制字段名 BLOB, \n	非空字段名 NOT NULL DEFAULT '默认值',\n	动态类型字段名,\n	UNIQUE (ID) \n	);"\n)
+!sqliteConn.exec_update = @.exec("UPDATE 表名 SET 更新字段 = '更新值' WHERE 条件字段 = 条件值;");
+!sqliteConn.exec_create_index = @.exec("CREATE INDEX 索引名字 ON 表名字(索引字段名字)")\n//建立索引可加快该字段查询速度.
+!sqliteConn.exec_journal_mode_wal = @.exec("PRAGMA journal_mode=WAL;")
+!sqliteConn.exec_journal_mode_delete = @.exec("journal_mode=DELETE;")
+!sqliteConn.exec_delete_table = @.exec("DELETE FROM 表名__ ")\n//清空表
+!sqliteConn.exec_drop_table = @.exec("DROP table 表名__ ")\n//删除表
+!sqliteConn.exec_delete_sequence = @.exec("DELETE FROM sqlite_sequence WHERE name = '表名__'")\n//自增ID置0
+!sqliteConn.exec_free_memory = @.exec("VACUUM")//DELETE表后必须调用此语句才能释放空间
+!sqliteConn.exec_replace = @.exec("REPLACE INTO [表名__] (字段名, 字段名2) VALUES (值, 值2)")\n//如果该表有一个主键,那么当主键值相等的时候,该行数据不存在执行插入,存在则执行更新操作 
+!sqliteConn.db = 当前打开的数据库连接对象
+!sqliteConn.changes() = 返回数据库最近一次运行exec()所改变的行数
+!sqliteConn.getTable("SELECT * FROM [表名] __/*sql语句*/") = 返回包含行记录组成的table数组对象,\n每行是由列名、值组成的table表对象.\n参数@2为可选参数:\n\n如果SQL内使用@前缀指定了命名参数,则参数@2使用table指定参数的值\n否则参数@2指定的表会自动转换为WHERE查询条件,\n如果参数@2不是table，则调用string.format使用参数@2开始的所有参数格式化sql
+!sqliteConn.stepQuery("SELECT * FROM [表名] __/*sql语句*/") = 查询并返回首行数据,失败返回null,状态码.\n如果sql中包含"@"字符,即可使用参数@2指定的table对象自动绑定命名参数
+!sqliteConn.close() = 关闭数据库连接\n在线程结束时,此函数也会自动调用
+!sqliteConn.existsTable("__/*表名*/") = 判断指定的表是否存在
+!sqliteConn.key("__/*密钥*/") = 输入并验证数据库密钥\n成功返回true,失败返回false,错误信息,错误代码\n该函数需要使用支持加密的DLL组件重新编译sqlite库
+!sqliteConn.rekey("__/*密钥*/") = 添加、清空、重设数据库密钥\n成功返回true,失败返回false,错误信息,错误代码\n该函数需要使用支持加密的DLL组件重新编译sqlite库
+!sqliteConn.walCheckpoint() = 执行checkpoint操作时,WAL日志文件内容被写回数据库文件
+!sqliteConn.busyHandler = @.busyHandler( \n	function(strBack,count) {\n		sleep(1);\n		return count < 1000; /*重试次数*/\n	},strBack\n)
+!sqliteConn.busyTimeout(10000) = 数据锁定冲突时的重试时间,以毫秒为单位,成功返回true\nbusyHandler()函数控制重试次数,busyTimeout()函数控制重试时间\n这两个函数可相互影响,设置一个必然然取消另一个
+!sqliteConn.lastInsertRowid() = 获取最后一次插入操作添加记录的ID\n作用类似MSSQL的@@IDENTITY 
+!sqliteConn.lasterr() = 返回最后一次发生错误的错误信息,以及错误代码
+!sqliteConn.beginTrans() = 开始DEFERRED事务\n默认不获取任何锁,直到需要锁的时候才获取锁,\n开启事务以后,可使用rollbackTrans()函数撤消所有更改,\n使用commitTrans()函数提交所有更改.\n使用此函数可以避免sqlite为每个操作创建一个默认事务\n批量操作数据库时可显著提升sqlite执行效率.
+!sqliteConn.beginTrans("IMMEDIATE") = 开始事务\n尝试获取RESERVED锁(其他连接可读)
+!sqliteConn.beginTrans("EXCLUSIVE") = 开始事务\n尝试获取EXCLUSIVE锁(保证没有其他连接)
+!sqliteConn.commitTrans() = 提交事务
+!sqliteConn.rollbackTrans() = 回滚事务,取消所有修改
+!sqliteConn.prepare("SELECT * FROM [表名__] WHERE 字段名=@参数值") = 编译SQL预处理命令,\n1、如果参数二为table对象将参数2转换为WHERE条件语句\n2、否则调用string.format格式化sql语句\n可选参数2:指定查询条件(table对象或字符串),\n可选增加任意个附加sql参数.\n---------------------\n查询SQL示例:\n"SELECT * FROM [表名] WHERE 条件字段=12  ORDER BY 排序字段 DESC LIMIT 1 OFFSET 0"\n上面SQL语句中LIMIT n OFFSET i 指定第i条记录开始取n条记录\n也可以直接写为 limit i,n
+!sqliteConn.prepare_insert = @.prepare("INSERT INTO [表名__] VALUES (?1,?2,?3,?4);")\n//创建插入数据SQL命令对象,问号表示参数,可在问号后指定索引
+!sqliteConn.prepare_select_distinct = @.prepare("SELECT DISTINCT 去重字段 FROM [表名__]") 
+!sqliteConn.prepare() = !sqlite_stmt.
+!sqlite_stmt.sql = sql指令
+!sqlite_stmt.bind.parameterIndex("@__/*参数名*/") = 返回命名参数的索引值,参数名可以'@',':','$'等符号作为首字符,\n成功返回索引,如果在sql语句中未找到该名字则返回0
+!sqlite_stmt.bind.blob(__/*二进制字符串*/) = 绑定一个参数,参数在sql语句中用问号表示\n可使用第二个参数指定问号的位置\n返回命令对象自身
+!sqlite_stmt.bind.cdata(__) = 将cdata类型转换为blob类型存储
+!sqlite_stmt.bind.buffer(__) = 将buffer类型转换为blob类型存储
+!sqlite_stmt.bind.number(__) = 如果是整数则调用bind.int()\n是浮点数则调用bind.double;
+!sqlite_stmt.bind.string(__) = 存为text类型（UTF8字符串）
+!sqlite_stmt.bind.boolean(__) = 将bool值转换为数值存储\nfalse存为0,true存为1;
+!sqlite_stmt.bind.double(__/*浮点数值*/) = 绑定一个参数,参数在sql语句中用问号表示\n可使用第二个参数指定问号的位置\n返回命令对象自身
+!sqlite_stmt.bind.int(__/*数值*/) = 绑定一个参数,参数在sql语句中用问号表示\n可使用第二个参数指定问号的位置\n返回命令对象自身
+!sqlite_stmt.bind.long64(__/*数值*/) = 绑定一个64位参数,\n支持整数值或math.size64对象,参数在sql语句中用问号表示\n可使用第二个参数指定问号的位置\n返回命令对象自身
+!sqlite_stmt.bind.null() = 绑定一个空值参数,参数在sql语句中用问号表示\n可使用第二个参数指定问号的位置\n返回命令对象自身\n!sqlite_stmt.
+!sqlite_stmt.bind.text(__/*普通文本*/) = 绑定一个参数,参数为普通文本\n转换为UTF8存入数据库
+!sqlite_stmt.bind.text16(__/*UTF16编码文本*/) = 绑定一个参数,参数为UTF16文本
+!sqlite_stmt.bind.utf8(__/*UTF8编码文本*/) = 绑定一个参数,参数为UTF8文本\n该函数不会转换编码
+!sqlite_stmt.bind.utf16(__/*UTF16编码文本*/) = 绑定一个参数,参数为UTF16文本
+!sqlite_stmt.bind.table(__/*table对象*/) = 如果定义了tostring元方法,则调用并转换为文本存储,\n如果是一个时间对象,则使用标准格式转换为文本存储\n否则序列化为blob类型存储
+!sqlite_stmt.bind.parameters( = 绑定多个动态类型SQL命令参数
+!sqlite_stmt.bind.parameters(.(任意多个命令参数) = 绑定一个或多个动态类型SQL命令参数,自动绑定合适的数据类型.\n参数位置对应sql语句中的问号位置\n返回命令对象自身
+!sqlite_stmt.bind.parameter( = 绑定一个动态类型SQL命令参数
+!sqlite_stmt.bind.parameterByName(.(参数值,"@参数名") = 绑定一个命令动态类型SQL命令参数,自动绑定合适的数据类型.\n参数2指定命名参数,参数名可以'@',':','$'等符号作为首字符
+!sqlite_stmt.bind.parameter(.(参数值,参数索引) = 绑定一个命令动态类型SQL命令参数,自动绑定合适的数据类型.\n参数2指定索引位置,默认为1\n返回命令对象自身
+!sqlite_stmt.bind.parameterByNames(.(参数表) = 绑定一个表中所有键值对到相应的命名参数,\n可使用第二个参数指定'@',':','$'等符号作为参数名前缀,\n返回命令对象自身,以及成功绑定的参数数目.
+!sqlite_stmt.bind.parameterAtNames(.(参数表) = 绑定一个表中所有键值对到相应的命名参数,\n对所有键名添加"@"字符作为SQL参数名,\n返回命令对象自身,以及成功绑定的参数数目.
+!sqlite_stmt.bind.parameterByName()  = !sqlite_stmt.
+!sqlite_stmt.bind.parameterByNames()  = !sqlite_stmt.
+!sqlite_stmt.bind.parameterAtNames()  = !sqlite_stmt.
+!sqlite_stmt.bind.parameterIndex() = !sqlite_stmt.
+!sqlite_stmt.bind.blob() = !sqlite_stmt.
+!sqlite_stmt.bind.double() = !sqlite_stmt.
+!sqlite_stmt.bind.int() = !sqlite_stmt.
+!sqlite_stmt.bind.long64() = !sqlite_stmt.
+!sqlite_stmt.bind.text() = !sqlite_stmt.
+!sqlite_stmt.bind.text16() = !sqlite_stmt.
+!sqlite_stmt.bind.utf16() = !sqlite_stmt.
+!sqlite_stmt.bind.utf8() = !sqlite_stmt.
+!sqlite_stmt.bind.parameters() = !sqlite_stmt.
+!sqlite_stmt.clear() = 清除所有绑定值\n成功返回0
+
+!sqlite_stmt.column.count() = 返回列数目
+!sqlite_stmt.column.name(iCol) = 返回指定列名字
+!sqlite_stmt.column.type(iCol) = 返回指定列字段类型
+!sqlite_stmt.column.queryValue(iCol) = 返回指定列的数据值\n此函数自动识别并转换类型 
+
+!sqlite_stmt.prepare("SELECT * FROM [表名] __/*sql语句*/") = 重新编译SQL预处理命令,\n可选参数2:指定查询条件(table对象或字符串),\n可选增加任意个附加sql参数.
+!sqlite_stmt.prepare() = !sqlite_stmt.
+!sqlite_stmt.finalize() = 每一个预处理语句都必须调用这个接口进行销毁以避免内存泄漏
+!sqlite_stmt.reset() = 重置到没有执行之前的状态,已绑定的参数不会变化\n执行后需要改变绑定参数时必须首先调用该函数
+!sqlite_stmt.step(__/*可选输入命名参数*/) = 执行SQL命令并向下移动一行,成功则返回值大于等于100,\n如果提供命令参数表,则自动reset后调用bind.parameterAtNames函数绑定。
+!sqlite_stmt.stepQuery() = 向后移动一行,并返回当前数据,失败返回null,状态码.\n返回table对象,键为列名,值为当前行数据
+!sqlite_stmt.stepResult() = 向后移动一行,并返回当前数据,失败返回null,状态码.\n返回数组,键为列序号,值为当前行数据
+!sqlite_stmt.getTable() = 返回全部数据,\n返回值为table数组,每行记录为一个数组元素.
+!sqlite_stmt.getColumns() = 返回当前查询的列名字数组.
+!sqlite_stmt.each = @for 字段名,字段名2 in ??.each() {
+	io.print( 字段名,字段名2 )
+}
+
+_SQLITE_OPEN_READONLY=@1/*_SQLITE_OPEN_READONLY*/
+_SQLITE_OPEN_READWRITE=@2/*_SQLITE_OPEN_READWRITE*/
+_SQLITE_OPEN_CREATE=@4/*_SQLITE_OPEN_CREATE*/
+_SQLITE_OPEN_DELETEONCLOSE=@8/*_SQLITE_OPEN_DELETEONCLOSE*/
+_SQLITE_OPEN_EXCLUSIVE=@0x10/*_SQLITE_OPEN_EXCLUSIVE*/
+_SQLITE_OPEN_AUTOPROXY=@0x20/*_SQLITE_OPEN_AUTOPROXY*/
+_SQLITE_OPEN_MAIN_DB=@0x100/*_SQLITE_OPEN_MAIN_DB*/
+_SQLITE_OPEN_TEMP_DB=@0x200/*_SQLITE_OPEN_TEMP_DB*/
+_SQLITE_OPEN_TRANSIENT_DB=@0x400/*_SQLITE_OPEN_TRANSIENT_DB*/
+_SQLITE_OPEN_MAIN_JOURNAL=@0x800/*_SQLITE_OPEN_MAIN_JOURNAL*/
+_SQLITE_OPEN_TEMP_JOURNAL=@0x1000/*_SQLITE_OPEN_TEMP_JOURNAL*/
+_SQLITE_OPEN_SUBJOURNAL=@0x2000/*_SQLITE_OPEN_SUBJOURNAL*/
+_SQLITE_OPEN_MASTER_JOURNAL=@0x4000/*_SQLITE_OPEN_MASTER_JOURNAL*/
+_SQLITE_OPEN_NOMUTEX=@0x8000/*_SQLITE_OPEN_NOMUTEX*/
+_SQLITE_OPEN_FULLMUTEX=@0x10000/*_SQLITE_OPEN_FULLMUTEX*/
+_SQLITE_OPEN_SHAREDCACHE=@0x20000/*_SQLITE_OPEN_SHAREDCACHE*/
+_SQLITE_OPEN_PRIVATECACHE=@0x40000/*_SQLITE_OPEN_PRIVATECACHE*/
+end intellisense**/

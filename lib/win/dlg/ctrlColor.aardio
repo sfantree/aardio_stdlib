@@ -1,0 +1,50 @@
+﻿//ctrlColor 控件调色对话框
+import win.ui.ctrl.pick;
+namespace win.dlg;
+
+class ctrlColor{
+	ctor(ctrl,colorName,title){{
+		if(!colorName) colorName = "backgroundColor";
+		
+		var argb = true;
+		if(colorName[1] == '^'# ) {
+			argb = false;
+			colorName = ..string.right(colorName,-2);
+		}
+		var picker = ..win.ui.ctrl.pick(ctrl);
+		picker.setColor(ctrl[colorName])
+		if(title) picker.text = title;
+		
+		var result = ctrl[colorName];
+		picker.onColorChange = function(argb){ 
+			if(argb) ctrl[colorName] = argb;
+			else ctrl[colorName] = ..gdi.rgbReverse(argb);
+			result = argb;
+			
+			if( ctrl.redrawTransparent ) ctrl.redrawTransparent();
+			else ctrl.redraw();
+			
+			if(ctrl.parent ){
+				if(ctrl.parent.isForm){
+					for(hwnd,c in ctrl.parent.eachControlEx("plus") ){
+						c.redrawTransparent();
+					} 	
+				}
+				else {
+					ctrl.parent.redrawTransparent();
+				}
+			}
+		}
+		
+		picker.doModal();
+		return result;
+	}}; 
+}
+
+/**intellisense()
+win.dlg.ctrlColor = 控件调色对话框,\n用于在程序运行时调整控件颜色,\n可实时查看配色效果
+win.dlg.ctrlColor( = 创建控件调色模态对话框,\n返回最后选择的控件颜色
+win.dlg.ctrlColor(.(ctrl,colorName,title) = @ctrl参数指定控件或窗体对象,\n可选用@colorName参数指定颜色属性名,默认为"backgroundColor"\n如果是rgb颜色，颜色属性名请请加上^字符,\n可选用参数@3指定对话框标题
+win.dlg.ctrlColor() = !winUiCtrlPick.
+end intellisense**/
+

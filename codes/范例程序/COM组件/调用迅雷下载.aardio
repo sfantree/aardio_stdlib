@@ -1,0 +1,20 @@
+import com;
+
+try{
+	var thunder = com.CreateObject("ThunderAgent.Agent")  
+	thunder.AddTask(
+		"http://download.aardio.com/aardio/ide/aardio.7z",//下载地址
+		"aardio.7z", //另存文件名
+		io.fullpath("/") , //保存目录
+		"aardio", //任务注释
+		"http://bbs.aardio.com/portal.php?mod=view&aid=2", //引用地址
+		1,//开始模式
+		true, //只从原始地址下载
+		10 //从原始地址下载线程数
+		) 
+	thunder.CommitTasks() 
+}
+catch(e){
+	import win;
+	win.msgbox("抱歉,您未安装迅雷")
+}

@@ -1,0 +1,128 @@
+//检测更新/修复文件
+import ide;
+import inet.downBox;
+import process.file;
+import zlib;
+import fsys;
+import win;
+
+if( process.file.test("~/download/update/u.bin")  ){
+	win.msgboxErr("更新工具正在运行无法更新!","aardio",ide.getMainHwnd());
+	return;
+}
+
+do{
+
+	if( io.exist("~/download/update/u.bin") ){
+		var bin = string.load(io.exist("~/download/update/u.bin"));
+		if(bin){
+			var hash = inet.http().get("http://download.aardio.com/v10.update/tool/hash.txt"); 
+			if( tonumber(hash) == string.crc32(bin) ){
+				break;
+			}
+		}
+	
+	}
+	
+	var downBox = inet.downBox(ide.getMainHwnd(),"正在下载更新工具...",true )
+	var ok =  downBox.test( "http://download.aardio.com/v10.update/tool/u.bin.lzma" ,  "~/download/update/u.bin.lzma",null,null,"" );
+	
+	if(  ok === false ? downBox.download( "http://download.aardio.com/v10.update/tool/u.bin.lzma" ,  "~/download/update/u.bin.lzma" ,null,null,"") ){ 
+		if( io.exist("~/download/update/u.bin") && !io.exist("~/download/update/u.bin",6) ){
+			win.msgboxErr("更新工具正在运行无法更新!","aardio",ide.getMainHwnd());
+			return;
+		}
+		sevenZip.lzma.decodeFile("~/download/update/u.bin.lzma","~/download/update/u.bin");  
+	} 
+	elseif( ok === null )  {
+		if( ! ..io.exist("~/download/update/u.bin") ){
+			win.msgboxErr("下载更新工具遇到错误,请到官网下载最新版","aardio",ide.getMainHwnd());
+			process.execute("http://api.aardio.com/v10/pages/download-ide/");
+			return;
+		}
+	} 
+	else {
+		if( ! ..io.exist("~/download/update/u.bin") ){
+			sevenZip.lzma.decodeFile("~/download/update/u.bin.lzma","~/download/update/u.bin");  
+		}
+	}
+}while(0)
+
+	
+import process;
+process( "~/download/update/u.bin",..io._exepath );
+
+import process.mutex; 
+if( thread.get(ide.processGroup("updatelistener")) )return;
+thread.set(ide.processGroup("updatelistener"),true);
+thread.invoke( 
+	function(){
+		import process.command;  
+		//加入进程群组,使用GUID名字区分不同的进程群组
+		process.command.join("{C18816C2-E77F-439A-95FC-9416DAF1144F}.aardio.ide.update") 
+		var listener = process.command();
+		
+		listener.finish = function(){
+			//创建多线程,防止更新工具挂起
+			var handle = thread.create( 
+				function(){
+					import ide;  
+					import thread.command;
+					
+					import fsys;
+					fsys.delete("~\lib\win\ui\ctrl\metaProperty.aardio");
+					
+					try{
+						import ide;
+						import win;
+						import string.list;
+						var syscfg = string.list();
+						syscfg.load("~\config\SYS.CFG")
+						if( syscfg["version"] ){  ide.updateVersion(syscfg["version"] ) }
+					}
+					
+					ide.refreshStdLib();
+					
+					var listLib = ide.requestLibInfo("all"); 
+					if( listLib ){ 
+						var installedLibs = ide.getExtLibs(); 
+						for (libName,libInfo in installedLibs){ 
+								var lib = listLib[libName] 
+								if(lib ? lib.version != installedLibs[libName][["version"]]  ){
+									ide.installLib( libName )
+								} 
+						} 
+					} 
+					ide.refreshStdLib();
+					
+					thread.invoke( 
+						function(){
+							import ide;
+							import ide.command;
+							ide.command.join( ide.processGroup() );
+
+							ide.command.post("aardioQuickerUpdateFinish"); 
+						}
+					)
+					
+				}
+			)
+			raw.closehandle(handle)
+			 	
+		}
+		listener.closeIde = function(){
+			try{
+				import ide;
+				import win;
+				import string.list;
+				var syscfg = string.list();
+				syscfg.load("~\config\SYS.CFG")
+				if( syscfg["version"] ){  ide.updateVersion(syscfg["version"] ) }
+			}
+			win.quitMessage(); 
+		}
+		win.loopMessage(); 
+	}
+)
+
+io.remove("~\config\USE10.CFG") 

@@ -1,0 +1,34 @@
+//8、计数信号量同步演示
+import console;
+import thread.semaphore;
+var semaphore = thread.semaphore(,2);
+
+var thrdFunc = function(semaphore){
+	import console; 
+	
+	console.log('我在等待机会') sleep(1)
+	semaphore.wait();
+	console.log("机会来了,我正在占用资源......")
+	sleep(2000)
+	semaphore.release()
+	
+	console.log("已释放资源......") sleep(1)
+}
+
+console.log("机会只有两个,但是你们都想要.......")
+console.log("---------------")
+
+import thread.manage
+manage = thread.manage()
+
+//创建10个线程
+for(i=1;10;1){
+	manage.create( thrdFunc,semaphore )
+	sleep(100)
+}
+ 
+manage.waitClose();
+
+console.log("---------------")
+console.log("万里长征终于走完了.......") 
+execute("pause")

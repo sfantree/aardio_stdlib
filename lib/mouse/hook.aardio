@@ -1,0 +1,81 @@
+//hook 鼠标钩子
+import win; 
+ 
+var SetWindowsHookEx = ::User32.api("SetWindowsHookExW","pointer(int idHook,pointer lpfn, pointer hmod,INT dwThreadId)");
+var CallNextHookEx = ::User32.api("CallNextHookEx","int( POINTER hhk,int nCode,INT wParam,int lParam)");
+var UnhookWindowsHookEx = ::User32.api("UnhookWindowsHookEx","int(pointer hhk)");
+ 
+var WH_MOUSE_LL  = 14
+
+MSLLHOOKSTRUCT = class{
+    struct pt ={int x;int y};
+    INT mouseData;
+    INT flags;
+    INT time;
+    INT extraInfo;
+} 
+
+var LowLevelMouseProc  = function( nCode, wParam, lParam){
+  
+	if (  ( nCode == 0/*_HC_ACTION*/ ) ) {  
+		
+    	var ll = MSLLHOOKSTRUCT();
+		ll = ..raw.convert(topointer(lParam),ll ); 
+		if( ( type(owner.proc) == type.function)  &&  (owner.proc(wParam,ll.pt.x,ll.pt.y,ll.mouseData
+			,ll.flags & 1/*_LLMHF_INJECTED*/, ll.flags,ll.time,ll.extraInfo) )  ){ 
+			return 1;
+		} 
+	}
+  
+  	//MSDN:
+  	//If nCode is less than zero, the hook procedure must return the value returned by CallNextHookEx. 
+  	//If nCode is greater than or equal to zero, and the hook procedure did not process the message,
+  	//it is highly recommended that you call CallNextHookEx and return the value it returns; 
+	return CallNextHookEx(owner._hhk, nCode, wParam, lParam); 
+}
+
+namespace mouse
+
+class hook{
+	ctor(){
+   		var hinst = ::GetModuleHandle();  
+   		this._proc_c = ..raw.tostdcall( LowLevelMouseProc,"int(int nCode, int wParam, int lParam)",this)
+   		var hhk = SetWindowsHookEx(WH_MOUSE_LL,this._proc_c,hinst,0);  
+	   	this._hhk = hhk;
+	   	
+	   	..table.gc(this,"close"); 
+	}
+	
+	close  = function(){
+		if(hhk){
+			UnhookWindowsHookEx(hhk);
+			hhk  = null
+		}
+	}
+    
+} 
+
+
+/**intellisense()
+key.hook = 鼠标钩子
+mouse.hook() = 创建鼠标监听钩子
+!hkmouse.proc = @.proc = function(msg,x,y,mouseData,injected,flags,timeStamp,extraInfo){
+	if( injected ) return;//忽略模拟按键
+	 
+    select(msg) {
+    	case 0x201/*_WM_LBUTTONDOWN*/{
+    	    io.print("左键按下",x,y)
+    	}
+    	case 0x202/*_WM_LBUTTONUP*/{
+    	    io.print("左键弹起",x,y)
+    	}  
+    }   
+    
+	__/*取消调用 return true;*/
+}
+!hkmouse.close() = 释放按键录制钩子
+?mouse.hook = !hkmouse.
+
+_LLMHF_INJECTED=@1/*_LLMHF_INJECTED*/
+end intellisense**/
+ 

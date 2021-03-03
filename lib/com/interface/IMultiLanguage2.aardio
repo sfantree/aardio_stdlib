@@ -1,0 +1,202 @@
+﻿import win.ole;
+import com.interface; 
+import com.interface.IEnumCodePage;
+
+namespace com.interface;
+
+class IMultiLanguage2{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	ptr GetNumberOfCodePageInfo = "int(INT &pcCodePage)";
+	ptr GetCodePageInfo__ = "int(INT uiCodePage,  WORD  LangId,struct & pCodePageInfo)";
+	getCodePageInfo = function(uiCodePage,lcid){
+		var cpInfo = MIMECPINFO();
+		if(lcid===null) lcid = ::Kernel32.GetSystemDefaultLCID()
+		var hr = owner.GetCodePageInfo__(uiCodePage,lcid,cpInfo);
+		if( (hr)>=0/*_SUCCEEDED*/) return cpInfo;
+	}
+	ptr GetFamilyCodePage = "int(INT uiCodePage,INT &puiFamilyCodePage)";
+	ptr EnumCodePages = "int(INT grfFlags, WORD langId,ptr &ppEnumCodePage)";
+	eachCodepage = function(flags,langId){
+		if(flags===null) flags = 0/*_MIMECONTF_ALL*/;
+		if(langId===null) langId = ::Kernel32.GetSystemDefaultLCID()
+		var hr,penum = owner.EnumCodePages(flags,langId,null);
+		if( (hr)>=0/*_SUCCEEDED*/) {
+			var enum = ..com.interface(penum,..com.interface.IEnumCodePage);
+			return function(){
+				var cpInfo = MIMECPINFO();
+				var hr,cpInfo,celtFetched = enum.Next(1,cpInfo,0);
+				if( (hr)<0/*_FAILED*/ ) return;
+				if(celtFetched!=1) return;
+				return cpInfo;
+			}
+		}
+	}
+	ptr GetCharsetInfo__ = "int(ptr bstrCharset,struct &pCharsetInfo)";
+	getCharsetInfo = function(charset){
+		var bstr = ::SysAllocString(charset); 
+		var charsetInfo = {
+    		INT uiCodePage;
+    		INT uiInternetEncoding;
+    		WORD charset[ 50 ];
+    	} 
+		var hr = owner.GetCharsetInfo__(bstr,charsetInfo);
+		::SysFreeString(bstr);
+		if( (hr)>=0/*_SUCCEEDED*/) return charsetInfo;
+	} 
+	ptr IsConvertible = "int(INT dwSrcCodepage,INT dwDstCodepage)";
+	ptr ConvertString = "int(INT &pdwMode,INT dwSrcCodepage, INT dwDstCodepage,string pSrcStr,INT &pcSrcSize,string  &pDstStr,INT &pcDstSize)";
+	ptr ConvertStringToUnicode = "int(INT &pdwMode,INT dwCodepage,string pSrcStr,INT &pcSrcSize,ustring &pDstStr,INT &pcDstSize)";
+	ptr ConvertStringFromUnicode = "int(INT &pdwMode, INT dwCodepage,ustring pSrcStr, INT &pcSrcSize, string &pDstStr, INT &pcDstSize)";
+	ptr ConvertStringReset = "int()";
+	ptr GetRfc1766FromLcid = "int(INT Locale,ptr &pbstrRfc1766)";
+	ptr GetLcidFromRfc1766 = "int(INT &pLocale,ptr bstrRfc1766)";
+	ptr EnumRfc1766 = "int(WORD  LangId,ptr &ppEnumRfc1766)";
+	ptr GetRfc1766Info = "int(INT Locale,WORD  LangId,struct pRfc1766Info)";
+	ptr CreateConvertCharset = "int(INT uiSrcCodePage,INT uiDstCodePage, INT dwProperty,ptr &ppMLangConvertCharset)";
+	ptr ConvertStringInIStream = "int(INT &pdwMode, INT dwFlag, ustring lpFallBack,INT dwSrcCodepage, INT dwDstCodepage, ptr pstmIn, ptr pstmOut)";
+	ptr ConvertStringToUnicodeEx = "int( INT &pdwMode,INT dwCodepage, ustring pSrcStr, INT &pcSrcSize, ustring &pDstStr,INT &pcDstSize,INT dwFlag,ustring lpFallBack)";
+	ptr ConvertStringFromUnicodeEx = "int(INT &pdwMode,INT dwCodepage,ustring pSrcStr,INT &pcSrcSize,string &pDstStr,INT &pcDstSize,INT dwFlag, ustring lpFallBack)";
+	ptr DetectCodepageInIStream__ = "int(INT dwFlag, INT dwPrefWinCodePage,ptr pstmIn,struct &lpCodepage,int &pnScores)";
+	ptr DetectInputCodepage__ = "int(INT dwFlag, INT dwPrefWinCodePage, string pSrcStr,int &pcSrcSize,struct &lpCodepage,int &pnScores)";
+	detectInputCodepageInStream = function(pstmIn,scores,flag,prefWinCodePage){
+		if(flag===null) flag = 2/*MLDETECTCP_8BIT*/|4/*MLDETECTCP_DBCS*/|8/*MLDETECTCP_HTML*/; 
+		if(#src<256) src = ..raw.buffer(256,src);
+		if(scores===null) scores = 1;
+		var detectEncodingInfo = {
+			struct list[] = {
+				length = scores;
+				{ 
+    				INT langId;
+    				INT codePage;
+    				int docPercent;
+    				int confidence;
+				}
+			}
+		};
+				
+		var hr,lpCodepage,scores = owner.DetectCodepageInIStream__(flag:0,prefWinCodePage:0,pstmIn,detectEncodingInfo,scores);
+		if( ( hr>=0/*_SUCCEEDED*/) && scores) {
+			detectEncodingInfo.list = ..table.slice(detectEncodingInfo.list,1,scores);
+			return detectEncodingInfo.list; 
+		}
+	}; 
+	detectInputCodepage = function(src,scores,flag,prefWinCodePage){
+		if(flag===null) flag = 2/*MLDETECTCP_8BIT*/|4/*MLDETECTCP_DBCS*/|8/*MLDETECTCP_HTML*/; 
+		if(#src<256) src = ..raw.buffer(256,src);
+		if(scores===null) scores = 1;
+		var detectEncodingInfo = {
+			struct list[] = {
+				length = scores;
+				{ 
+    				INT langID;
+    				INT codePage;
+    				int docPercent;
+    				int confidence;
+				}
+			}
+		
+		};
+				
+		var hr,_,lpCodepage,scores = owner.DetectInputCodepage__(flag:0,prefWinCodePage:0,src,#src,detectEncodingInfo,scores);
+		if( ( hr>=0/*_SUCCEEDED*/) && scores) {
+			detectEncodingInfo.list = ..table.slice(detectEncodingInfo.list,1,scores);
+			return detectEncodingInfo.list; 
+		}
+	}; 
+	detectInputCodepageEx = function(str){
+		var cp = owner.detectInputCodepage(str,1);
+		if(#cp) return cp[1].codePage;
+	};
+	detectInputCodepageInStreamEx = function(pstmIn){
+		var cp = owner.detectInputCodepageInStream(pstmIn,1);
+		if(#cp) return cp[1].codePage;
+	};
+	ptr ValidateCodePage = "int(INT uiCodePage,addr hwnd)";
+	ptr GetCodePageDescription__ = "int(INT uiCodePage,WORD lcid,ustring& lpWideCharStr, int cchWideChar)";
+	getCodePageDescription = function(codepage,lcid){
+		if(lcid===null) lcid = ::Kernel32.GetSystemDefaultLCID();
+		var hr,desc = owner.GetCodePageDescription__(codepage,lcid,1000,1000);
+		if( (hr)>=0/*_SUCCEEDED*/ ) return desc;
+	}
+	ptr IsCodePageInstallable = "int(INT uiCodePage)";
+	ptr SetMimeDBSource = "int(int dwSource)";
+	ptr GetNumberOfScripts = "int(INT &pnScripts)";   
+	ptr EnumScripts = "int(INT dwFlags,WORD  LangId,ptr &ppEnumScript)";
+	ptr ValidateCodePageEx = "int(INT uiCodePage,addr hwnd,INT dwfIODControl)";
+}
+
+namespace IMultiLanguage2{
+    
+	IID = "{DCCFC164-2B38-11d2-B7EC-00C04F8F5D9A}";
+	
+	class MIMECPINFO {
+		int flags;
+		int uiCodePage;
+		int uiFamilyCodePage;
+		WORD description[ 64 ];
+		WORD webCharset[ 50 ];
+		WORD headerCharset[ 50 ];
+		WORD bodyCharset[ 50 ];
+		WORD fixedWidthFont[ 32 ];
+		WORD proportionalFont[ 32 ];
+		BYTE bGDICharset;
+	}
+}
+
+IMultiLanguage2.Create = function(){ 
+	var mlang  =  ..com.interface.create( "{275C23E2-3747-11D0-9FEA-00AA003F8646}" /*CLSID_CMultiLanguage*/
+		, IMultiLanguage2, 0x1/*_CLSCTX_INPROC_SERVER*/  );
+		 
+	return mlang;
+}
+
+/**intellisense()
+com.interface.IMultiLanguage2 = IMultiLanguage2接口
+com.interface.IMultiLanguage2.Create() = 创建 CMultiLanguage对象并获取IMultiLanguage2\n!IMultiLanguage2.
+end intellisense**/
+
+/**intellisense(!IMultiLanguage2)
+detectInputCodepage(.(字符串,最大返回个数,选项,优选代码页) = 检测输入数据的代码页\n参数@1可以是任意编码的字符串或buffer类型缓冲区,\n其他参数可选\n\n返回值是一个数组,每个数组包含一个描述代码页信息的结构体
+detectInputCodepageInStream(.(流对象,最大返回个数,选项,优选代码页) = 检测输入数据的代码页\n参数@1可以是任意编码 fsys.stream等任何兼容IStream接口的对象,\n其他参数可选\n\n返回值是一个数组,每个数组包含一个描述代码页信息的结构体
+detectInputCodepageEx(__) = 检测输入数据库的代码页，成功直接返回数值\nn参数@1可以是任意编码的字符串或buffer类型缓冲区
+detectInputCodepageInStreamEx(__) =检测输入数据的代码页,检测输入数据库的代码页，成功直接返回数值\n参数@1可以是任意编码 fsys.stream等任何兼容IStream接口的对象,
+getCodePageDescription(.(codepage,lcid) = 返回代码页描述文本,\n参数@1指定代码页,可选用参数@2指定语言ID
+getCodePageInfo(.(codepage,lcid) = 返回代码页的详细信息,\n参数@1指定代码页,可选用参数@2指定语言ID
+getCodePageInfo() = !MIMECPINFO.
+eachCodepage(flags,langId) = @for( cpInfo in ??.eachCodepage() ){
+	__/*遍历代码页,cpInfo为MIMECPINFO结构体*/
+}
+eachCodepage() = !MIMECPINFO.
+end intellisense**/
+
+/**intellisense(!MIMECPINFO)
+flags = _MIMECONTF_ 选项
+uiCodePage = 代码页
+uiFamilyCodePage = 共享代码页
+description = 描述
+webCharset = 浏览器默认字符集
+headerCharset =  邮件头默认字符集
+bodyCharset = 默认字符集
+fixedWidthFont = 默认等宽字体
+proportionalFont = 默认字体
+bGDICharset;
+end intellisense**/
+
+
+ /**intellisense()
+_MIMECONTF_MAILNEWS=@1/*_MIMECONTF_MAILNEWS*/
+_MIMECONTF_BROWSER=@2/*_MIMECONTF_BROWSER*/
+_MIMECONTF_MINIMAL=@4/*_MIMECONTF_MINIMAL*/
+_MIMECONTF_IMPORT=@8/*_MIMECONTF_IMPORT*/
+_MIMECONTF_SAVABLE_MAILNEWS=@0x100/*_MIMECONTF_SAVABLE_MAILNEWS*/
+_MIMECONTF_SAVABLE_BROWSER=@0x200/*_MIMECONTF_SAVABLE_BROWSER*/
+_MIMECONTF_EXPORT=@0x400/*_MIMECONTF_EXPORT*/
+_MIMECONTF_PRIVCONVERTER=@0x10000/*_MIMECONTF_PRIVCONVERTER*/
+_MIMECONTF_VALID=@0x20000/*_MIMECONTF_VALID*/
+_MIMECONTF_VALID_NLS=@0x40000/*_MIMECONTF_VALID_NLS*/
+_MIMECONTF_MIME_IE4=@0x10000000/*_MIMECONTF_MIME_IE4*/
+_MIMECONTF_MIME_LATEST=@0x20000000/*_MIMECONTF_MIME_LATEST*/
+_MIMECONTF_MIME_REGISTRY=@0x40000000/*_MIMECONTF_MIME_REGISTRY*/
+end intellisense**/

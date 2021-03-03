@@ -1,0 +1,112 @@
+//syslink 超链接控件
+import win.ui.ctrl.metaProperty;
+
+namespace win.ui.ctrl;  
+
+class syslink{
+    ctor(parent,tParam){ 
+    	if(tParam){
+			if(tParam.transparent) { tParam.style |= 1/*_LWS_TRANSPARENT*/ }
+			else{ tParam.exstyle &= ~0x20/*_WS_EX_TRANSPARENT*/ };  
+		}
+    }
+    _prenotify = function( id,code,ptr,nmhdr ){
+    	if( code ==  0xFFFFFFFC/*_NM_RETURN*/ || code ==  0xFFFFFFFE/*_NM_CLICK*/ ){
+    		if( this.onHyperlinkClick  ){
+    			var nmSysLink = ..raw.convert(ptr,{
+					struct hdr = ::NMHDR();
+   					struct item = LITEM();
+				} ) 
+				this.onHyperlinkClick(nmSysLink,nmSysLink.item.url,nmSysLink.item.id)
+			}
+		}
+    };
+	@_metaProperty;
+}
+
+namespace syslink{
+ 
+	class LITEM{
+  		INT mask;
+  		int iLink;
+  		INT state;
+  		INT stateMask;
+  		WORD id[48];
+  		WORD url[2084];
+	} 
+	
+	_metaProperty = ..win.ui.ctrl.metaProperty( 
+		setItem = function(item){
+			return !! ::SendMessageByStruct(owner.hwnd,0x702/*_LM_SETITEM*/,0,item);
+		}
+		getItem = function(item){ 
+			var item = LITEM();
+			if( ::SendMessageByStruct(owner.hwnd,0x703/*_LM_GETITEM*/,0,item) )
+				return item;
+		}
+	)
+}
+
+/***intellisense() 
+!syslink.cls = 设计时类名
+!syslink.className = 运行时类名
+!syslink.hwnd = 控件句柄
+!syslink.id = 控件ID
+!syslink.text = 控件文本
+!syslink.getForm() = 如果是窗体返回自身\n如果是控件则返回_parentForm\n!winform.
+!syslink._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!syslink.getParent() = 返回父窗口\n!syslink.
+!syslink.setParent(__/*控件对象*/) = 改变父窗口 
+!syslink.translateAccelerator = @.translateAccelerator = function(msg){ \n	__/*返回是否快捷键*/\n} 
+!syslink.adjust = @.adjust = function( cx,cy,wParam ) {	 \n	__ \n};  
+!syslink.adjust() = 调整窗口 - 自定义事件函数
+!syslink.hide = 控件是否隐藏
+!syslink.disabled = 是否禁用
+!syslink.left = 左侧坐标
+!syslink.right = 右侧坐标
+!syslink.top = 顶部坐标
+!syslink.bottom = 底部坐标
+!syslink.width = 宽度
+!syslink.height = 高度
+!syslink.redraw() = 刷新
+!syslink.setRedraw(false) = 禁止重绘
+!syslink.setRedraw(true) = 恢复重绘
+!syslink.show(true__) = 显示控件
+!syslink.getRect() = 控件区块位置(::RECT结构体)
+!syslink.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!syslink.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!syslink.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!syslink.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+!syslink.getFont() = 控件字体(::LOGFONT结构体)\n!logfont.
+!syslink.setFont(__/*指定字体*/) = 指定LOGFONT字体对象,或逻辑字体句柄 
+!syslink.setFont(混入字体属性) = @.setFont(point=10;name="宋体");
+!syslink.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!syslink.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!syslink.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!syslink.capture = 是否捕获全局鼠标消息
+!syslink.close() = 关闭控件窗口
+!syslink.invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+!syslink.invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+!syslink.update() = 重绘invalidate函数指定的区块
+!syslink.setFocus() = 设置焦点 
+!syslink.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!syslink.getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd)
+!syslink.setInterval(.(间隔时间,回调函数) = 创建定时器\n间隔时间以毫秒为单位
+!syslink.changeInterval(.(定时器ID,间隔时间,回调函数) = 重新设置间隔时间或回调函数
+!syslink.clearInterval(__/*定时器ID*/) = 删除定时器
+!syslink.getItem() = 返回控件数据,该值为为LITEM结构体
+!syslink.setItem(.(item) = 修改控件数据,参数为LITEM结构体
+!syslink.getItem() = !syslinklitem.
+!syslink.onHyperlinkClick = @.onHyperlinkClick = function(nmSysLink,url,id){
+	 __
+}
+!syslinklitem.mask = 掩码
+!syslinklitem.iLink = 索引
+!syslinklitem.state = 状态 
+!syslinklitem.stateMask = 状态掩码
+!syslinklitem.id = ID,unicode编码
+!syslinklitem.url = URL,unicode编码
+?win.ui.ctrl.syslink  =!syslink.
+win.ui.ctrl.syslink() = 静态文本控件\n!syslink.
+win.ui.ctrl.syslink = 静态文本控件支持库
+end intellisense***/

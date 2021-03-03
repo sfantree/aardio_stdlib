@@ -1,0 +1,313 @@
+//tab 选项卡
+import win.ui.ctrl.metaProperty;
+namespace win.ui.ctrl; 
+
+//TCM_FIRST 0x1300 // Tab control messages   
+class tab{
+    ctor(parent,tParam){  
+    	if(!tParam)
+    		error("该控件不能附加到外部窗口",2)
+    		
+    	tParam.cls = "SysTabControl32";
+    	tParam.style = tParam.style | 0x40000000/*_WS_CHILD*/ | 0x10000000/*_WS_VISIBLE*/ ;
+    	if(tParam.ownerDraw) tParam.style = tParam.style | ( 0x2000/*_TCS_OWNERDRAWFIXED*/ | 0x400/*_TCS_FIXEDWIDTH*/ )
+		if( tParam.multiline ) tParam.style = tParam.style | 0x0200 //TCS_MULTILINE  
+ 		this._forms ={}
+ 		this._history ={};//记录用户切换当前页的历史 
+    };
+	@_metaProperty;
+}
+ 
+namespace tab{
+
+	class TCITEM {
+ 		INT mask = 0x0001|0x0002 ; //TCIF_TEXT | TCIF_IMAGE;
+ 		INT dwState;
+ 		INT dwStateMask;
+ 		ustring pszText;
+ 		int cchTextMax;
+ 		int iImage = -1;
+ 		int lParam;
+	} 
+	
+	_metaProperty = ..win.ui.ctrl.metaProperty( 
+	
+		items = {
+			_get = function(){ 
+				return owner._forms
+			} 
+		};
+		_afterDpiChanged = function(scaleX,scaleY){
+			for(i,frm in owner._forms){
+				frm.enableDpiScaling(scaleX,scaleY) 
+			} 
+		}; 
+		selIndex = {
+			_get = function(){ 
+				return ::SendMessageInt(owner.hwnd,0x1300+11,0,0) + 1;
+			}
+			_set = function( v ){
+				::SendMessageInt(owner.hwnd,0x1300+12,v-1,0,0 ) ;
+				owner._onChange();
+			} 	
+		};
+		getItemRect=function(i){
+			var rcTab = ::RECT();
+			::SendMessageByStruct( owner.hwnd, 0x130A, i - 1, rcTab);
+			return rcTab;
+		}
+		hitTest = function (x,y,screen=false){
+			if( !(x && y) ){
+				x,y = ..win.getMessagePos();
+				screen = true;
+			} 
+			if(screen) x,y = ..win.toClient(owner.hwnd,x,y)
+			var rcTab;
+			for ( i = 1; #owner._forms; 1 ) {
+				var rcTab = owner.getItemRect(i)
+				if ( ::PtInRect(rcTab, x, y) ) {
+					return i;
+				}
+			} 
+		}
+		loadForm = function(code,...){
+			var this = owner;
+			var ret,wb = ..win.loadForm(code
+				,function(tParam) { return this.add(tParam) }
+				,owner,...);
+			if( owner.lastForm != owner.form ){
+				owner.lastForm.show(false);
+				owner.adjustRect();
+			}
+			else {
+				owner.adjustRect();
+			} 
+			return ret,wb;
+    	};
+    	loadcode = function(...) {    
+			return owner.loadForm(...);
+    	}; 
+    	add = function(tParam){
+    		var tci = TCITEM();
+    		tci.pszText = tParam.text; 
+    		tParam.text = null;
+    		tParam.parent = owner ;
+    		tParam.mode="child";
+    		tParam.exmode="none";
+    		tParam.border="none"
+    		tParam.title=false;
+    		if( !(tParam.right && tParam.bottom) ){
+    			var rc = owner.getClientRect();
+    			tParam.right = rc.right;
+    			tParam.bottom = rc.bottom;
+    		}
+    		
+    		var wf = ..win.form(tParam);
+    		if(!wf) return null,"创建窗口失败";
+    		
+    		var index = ..table.push(owner._forms ,wf)-1;
+    		::SendMessageByStruct(owner.hwnd ,0x133E/*_TCM_INSERTITEMW*/, index,tci); 
+    		::SendMessage(owner.hwnd,0x5/*_WM_SIZE*/);
+    		owner.lastForm = wf;
+    		
+    		wf._onDestroyInTabs = function(){
+    			var i = ..table.find(owner.parent._forms,wf);
+    			if(i) owner.parent.remove(i);
+    		} 
+    		
+    		if(!index){ 
+    			owner.form = wf;   
+    			owner.form.show(true);
+    			owner.adjustRect();
+    		}
+    		else {
+    			wf.show(false); 
+    			owner.adjustRect();
+    		}
+    			
+    		return wf; 	
+    	}
+    	remove = function(i){
+    		assert( owner._forms[i],"错误的索引")
+    	 	
+    		if( owner.form==owner._forms[i]){ 
+    			owner.form = null;
+    			..table.pop(owner._history)
+    			if( #(owner._history) ){
+    				var form = ..table.pop(owner._history);
+    				for(i=1;#(owner._forms);1){
+    					if( owner._forms[i] == form ){
+    						owner.selIndex = i;
+    						break ;
+    					}
+    				} 
+    			}
+    		}
+    		owner._forms[i].close();
+    		..table.remove(owner._forms ,i );
+    		::SendMessage(owner.hwnd ,4872,topointer(i-1) )
+    		
+    		if(!owner.selIndex)
+    				owner.selIndex = #owner._forms 
+    	} 
+    	removeAll = function(){
+			for(i=#owner._forms;1;-1){ 
+				owner._forms[i]._closed = true;
+				::SendMessage(owner._forms[i][["hwnd"]],0x10/*_WM_CLOSE*/);
+				..table.remove(owner._forms ,i );
+			}  
+			owner.form = null; 
+			..table.pop(owner._history,#owner._history)
+    		::SendMessage(owner.hwnd ,4873 )   
+    	} 
+    	setItem = function(i,tci){
+    		::SendMessageByStruct(owner.hwnd, 0x133D/*_TCM_SETITEMW*/,i-1,tci);
+    		owner._onChange()
+    	}
+    	getItem = function(i,tci){
+    		tci := TCITEM(); 
+    		::SendMessageByStruct(owner.hwnd, 0x133C/*_TCM_GETITEMW*/,i-1,tci);
+    		return tci;
+    	}
+    	getItemText = function(i,len=100){
+    		var tci = TCITEM(); 
+    		tci.pszText = ..raw.buffer(len)
+    		tci.cchTextMax = len; 
+    		return owner.getItem(i,tci).pszText; 
+    	}
+    	setItemText = function(i,text){ 
+    		var tci = owner.getItem(i-1);
+    		tci.pszText = text;
+    		tci.cchTextMax = #text;
+    		::SendMessageByStruct(owner.hwnd, 0x133D/*_TCM_SETITEMW*/,i-1,tci); 
+    		owner._onChange()
+    	} 
+    	adjustRect = function(){ 
+    		var rc = owner.getClientRect();
+    		::SendMessageByStruct(owner.hwnd, 0x1300+40/*TCM_ADJUSTRECT*/,0,rc);
+    		if(owner.form){ 
+    			var w,h = rc.right - rc.left + 2 ,rc.bottom - rc.top;
+    			::MoveWindow(owner.form.hwnd, rc.left-2, rc.top, rc.right - rc.left + 2 ,rc.bottom - rc.top ); 
+    			::SendMessageInt(owner.form.hwnd, 0x5/*_WM_SIZE*/,0,::MAKELONG(w,h) ); 
+    		}
+    	};
+    	_preadjust = function(){
+    		owner.adjustRect();
+    	};
+    	_onDestroy = function(){ 
+    		owner.removeAll();
+    	};
+    	_prenotify = function(id,code,nmdr){
+    		if( code==4294966745/*_TCN_SELCHANGE*/ ){
+    			owner._onChange();
+    		}
+    	};
+    	_onChange = function(){
+    		var sel = ::SendMessage(owner.hwnd,0x1300+11) + 1;
+    		if(!sel) return;
+    		
+    		for(i=1;#(owner._forms);1){
+    			owner._forms[i].show(false)
+    		}
+    		owner.form = owner._forms[sel];
+    		if(owner.form){
+    			owner.adjustRect();
+    			owner.form.show(true) ;  
+    		}
+    			
+    		..table.push( owner._history,owner.form);
+    		if(#owner._history > #owner._forms ){
+    			..table.remove(owner._history);
+    		}
+    	};
+	)
+}
+
+
+/***intellisense()
+!ui_tab.cls = 设计时类名
+!ui_tab.className = 运行时类名
+!ui_tab.loadForm("__/*请输入aardio文件路径*/") = 加载外部窗体文件并添加到tab页.\n请注意保存外部窗体文件以后测试运行.
+!ui_tab.hwnd = 控件句柄
+!ui_tab.id = 控件ID
+!ui_tab._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!ui_tab.getParent() = 返回父窗口\n!static.
+!ui_tab.setParent(__/*控件对象*/) = 改变父窗口 
+!ui_tab.disabled = 是否禁用
+!ui_tab.left = 左侧坐标
+!ui_tab.right = 右侧坐标
+!ui_tab.top = 顶部坐标
+!ui_tab.bottom = 底部坐标 
+!ui_tab.width = 宽度
+!ui_tab.height = 高度
+!ui_tab.redraw() = 刷新
+!ui_tab.setRedraw(false) = 禁止重绘
+!ui_tab.setRedraw(true) = 恢复重绘
+!ui_tab.show(true__) = 显示控件
+!ui_tab.getRect() = 控件区块位置(::RECT结构体)
+!ui_tab.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!ui_tab.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!ui_tab.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!ui_tab.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+!ui_tab.getFont() = 控件字体(::LOGFONT结构体)\n!logfont.
+!ui_tab.setFont(__/*指定字体*/) = 指定LOGFONT字体对象,或逻辑字体句柄 
+!ui_tab.setFont(混入字体属性) = @.setFont(point=10;name="宋体");
+!ui_tab.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!ui_tab.remove(__) = 参数为数值,移除指定索引的选项页
+!ui_tab.removeAll() = 移除所有选项卡
+!ui_tab.items = 返回子窗口列表,只读属性
+!ui_tab.items[] = !winform.
+!ui_tab.adjustRect() = 调整子窗口大小以适应客户区
+!ui_tab.selIndex = 读取或设置当前选项索引\n起始索引为1
+!ui_tab.add(__) = 请先用窗体设计器生成创建窗体代码,\n然后将创建窗体的win.form函数替换为此函数。\n函数参数即是win.form的参数(text参数表示选项卡标题)。
+!ui_tab.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!ui_tab.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!ui_tab.capture = 是否捕获全局鼠标消息
+!ui_tab.hitTest(.(x坐标,y坐标,是否屏幕坐标) = 返回坐标指向的选项索引\n参数三可省略,默认为false.\n如果不指定任何参数,则自动调用 win.getMessagePos() 获取消息坐标
+!ui_tab.close() = 关闭控件窗口
+!ui_tab.setItem(__/*索引*/,"") = 设置选项结构体
+!ui_tab.getItem(__/*索引*/) = 读取选项结构体
+!ui_tab.setItemText(__/*索引*/,"") = 设置选项卡标题
+!ui_tab.getItemText(__/*索引*/) = 读取选项卡标题 
+!ui_tab.getItemRect(__/*索引*/) = 读取选项卡区块位置
+!ui_tab.invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+!ui_tab.invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+!ui_tab.update() = 重绘invalidate函数指定的区块
+!ui_tab.setFocus() = 设置焦点 
+!ui_tab.threadCallable() = 开启此控件的跨线程调用功能
+!ui_tab.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!ui_tab.getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd)
+!ui_tab.form = !winform.
+!ui_tab.onDrawItem = @.onDrawItem = function(drawItem){ \n    if( drawItem.CtlType == 101 /*_ODT_TAB*/ ){\n        __/*自绘选项卡,创建控件的参数中需要添加ownerDraw=true*/\n    } 		 	\n} 
+!ui_tab.onDestroy = @.onDestroy = function(){\n	__/*窗口销毁前触发*/\n}
+!ui_tab.onnotify = @.onnotify = function(id,code,ptr){\n	__/*通知事件触发*/\n}
+!ui_tab.oncommand = @.oncommand = function(id,event){\n	__/*命令事件触发*/\n}
+!ui_tab.wndproc = @.wndproc = function(hwnd,message,wParam,lParam){\n	__/*窗口消息回调，返回任意非null值阻止默认回调\nwndproc重复赋值时追加函数而不是覆盖之前的回调\n设为null添除所有消息回调函数\nwndproc也可以是一个表,键要为处理的消息,值为对应的消息回调函数*/	\n}
+!ui_tab.sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+!ui_tab.postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+win.ui.ctrl.tab.TCITEM() = 选项结构体
+win.ui.ctrl.tab() = 选项卡控件\n!ui_tab.
+?win.ui.ctrl.tab  =!ui_tab.
+
+_TCS_SCROLLOPPOSITE=@1/*_TCS_SCROLLOPPOSITE*/
+_TCS_BOTTOM=@2/*_TCS_BOTTOM*/
+_TCS_RIGHT=@2/*_TCS_RIGHT*/
+_TCS_MULTISELECT=@4/*_TCS_MULTISELECT*/
+_TCS_FLATBUTTONS=@8/*_TCS_FLATBUTTONS*/
+_TCS_FORCEICONLEFT=@0x10/*_TCS_FORCEICONLEFT*/
+_TCS_FORCELABELLEFT=@0x20/*_TCS_FORCELABELLEFT*/
+_TCS_HOTTRACK=@0x40/*_TCS_HOTTRACK*/
+_TCS_VERTICAL=@0x80/*_TCS_VERTICAL*/
+_TCS_TABS=@0/*_TCS_TABS*/
+_TCS_BUTTONS=@0x100/*_TCS_BUTTONS*/
+_TCS_SINGLELINE=@0/*_TCS_SINGLELINE*/
+_TCS_MULTILINE=@0x200/*_TCS_MULTILINE*/
+_TCS_RIGHTJUSTIFY=@0/*_TCS_RIGHTJUSTIFY*/
+_TCS_FIXEDWIDTH=@0x400/*_TCS_FIXEDWIDTH*/
+_TCS_RAGGEDRIGHT=@0x800/*_TCS_RAGGEDRIGHT*/
+_TCS_FOCUSONBUTTONDOWN=@0x1000/*_TCS_FOCUSONBUTTONDOWN*/
+_TCS_OWNERDRAWFIXED=@0x2000/*_TCS_OWNERDRAWFIXED*/
+_TCS_TOOLTIPS=@0x4000/*_TCS_TOOLTIPS*/
+_TCS_FOCUSNEVER=@0x8000/*_TCS_FOCUSNEVER*/
+_TCM_FIRST=@0x1300/*_TCM_FIRST*/
+end intellisense***/

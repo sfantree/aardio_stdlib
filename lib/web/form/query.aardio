@@ -1,0 +1,81 @@
+//query 节点查询
+if( type( web[["form"]] ) != type.class ) error( "请直接导入web.form",2 )  
+namespace web.form 
+
+class query{
+	ctor( eles,wb ){
+		this.webForm = wb; 
+		if( eles[["length"]] ){ 
+			for(i=0;eles.length;1){ 
+				..table.push( this ,eles(i) );
+			} 
+		}
+		else {
+			this = eles
+		}
+	}; 
+	@meta 
+}
+
+namespace query{
+
+	meta = {
+		_call = function(i){
+			return owner[[i+1]];
+		};
+		_set = function(k,v){ 
+			for(i=1;#owner;1){ 
+				owner[i][k] = v;
+			} 
+		}; 
+		_get = function(k,ownerCall){
+			var this = owner;
+			if( ..string.cmp(k,"length")==0) 
+				return #owner;
+				
+			if( ! #this )
+				return;
+			
+			var v = this[1][k];
+			if(!v)return;
+			
+			var t = type(v);
+			if( ( !ownerCall ) &&  !( ( t == type.function ) || ( t == type.table ) ) ){  
+				return this[1][k];
+			}
+			else{
+				return {
+					@{
+						_call = function(...){
+							var tab = {}
+							for(i=1;#this;1){ 
+								tab[i] = this[i][k](...);
+							} 
+							return ..table.unpack(tab);
+						}
+						_set = function( subk,...){
+							for(i=1;#this;1){
+								this[i][k][subk] = ...;
+							} 
+						}
+						_get = function( subk,ownerCall ){ 
+							if(!ownerCall) return this[1][k][subk];
+							return function(...){
+								var tab = {}
+								for(i=1;#this;1){ 
+									tab[i] = this[i][k][subk](...);
+								} 
+								return ..table.unpack(tab);	
+							}
+						} 
+					} 
+				}; 
+			}  
+		}; 
+		click = function(min=1,max=500 ){
+			if(#owner){ 
+				return owner.webForm.click(owner[1],min,max);;
+			}
+		};
+	} 
+}

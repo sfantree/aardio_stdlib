@@ -1,0 +1,47 @@
+//树形文件视图
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="树形文件视图";right=719;bottom=414)
+winform.add(
+cbDrivers={cls="combobox";left=24;top=12;right=236;bottom=36;dl=1;dt=1;edge=1;items={};mode="dropdown";z=4};
+edit2={cls="edit";left=24;top=380;right=632;bottom=404;db=1;dl=1;dr=1;edge=1;z=3};
+static={cls="static";left=253;top=15;right=712;bottom=363;db=1;dl=1;dr=1;dt=1;transparent=1;z=2};
+treeview={cls="treeview";left=24;top=40;right=236;bottom=369;asel=false;bgcolor=16777215;db=1;dl=1;dt=1;edge=1;z=1}
+)
+/*}}*/
+
+import win.ui.explorer;
+var explorer = win.ui.explorer( winform.treeview );
+explorer.loadFile()
+
+import web.form;
+var wb = web.form( winform.static );
+
+wb.shellFolderSelectionChanged = function(filePath) { 
+    winform.edit2.text = filePath;
+}
+
+explorer.onClick = function(filePath,hItem ){
+    if( fsys.isDir( filePath ) ){
+        wb.goDirectory( filePath );
+    }
+    else {
+        winform.edit2.text = io.fullpath(filePath); 
+    }
+}
+
+import process;
+import win.ui.menu;
+explorer.onRightClick = function(filePath,hItem,x,y){
+    var hItem,tvht = winform.treeview.hitTest(x,y,true);
+    var menu = win.ui.popmenu(winform)
+    menu.add("浏览...",
+        function(){
+            process.explore_select(filePath)
+        }
+    )
+    menu.popup(x,y,true);   
+}
+
+winform.show() 
+win.loopMessage();

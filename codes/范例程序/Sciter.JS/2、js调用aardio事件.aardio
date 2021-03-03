@@ -1,0 +1,56 @@
+//js调用aardio事件
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="js 调用 aardio 自定义事件";right=1014;bottom=523;parent=...)
+winform.add()
+/*}}*/
+
+import web.sciter;
+var wbSciter = web.sciter( winform );
+
+namespace web.sciter.behavior.my.customEvent {  
+	
+	/*
+	自定义事件第3个回调参数 data 指向 behaviorParams.data 解包后的值，而不是behaviorParams.reason
+	behaviorParams.data 的值在 javascript 里用 event.data 或 event.detail 指定。
+	dat 
+	*/
+	onMyCustomEvent = function (scTarget,scOwner,data,behaviorParams) { 
+		scOwner.value = "";
+		scOwner.printf("aardio 自定义事件 onMyCustomEvent 被触发,触发参数:%s",data)
+	} 
+}
+
+wbSciter.html = /**
+<!doctype html>
+<html>
+<head>
+	<META http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<script type="text/tiscript">
+	
+	</script>
+	<style type="text/css">
+	html,body{ height:100%; margin:50; } 
+	
+	#my-button{  
+		behavior:"my.customEvent clickable"; 
+	}
+	</style>
+</head>
+<body> 
+<button id="my-button">请点击这里调用 behavior 里定义的 aardio函数：onMyCustomEvent </button> 
+<script>
+var button = document.getElementById("my-button");
+button.addEventListener('click', () => {
+	var event = new CustomEvent("onMyCustomEvent", { detail :"自定义只读的自定义数据参数，可省略", bubbles:true});
+	event.data = "指定事件自定义数据参数"; // aardio 里 behaviorParams.data 优先取这个值，取不到就取 event.detail
+	
+	button.dispatchEvent(event, true); 
+})
+</script>
+</body>
+</html>
+**/
+	
+winform.show();	
+win.loopMessage();

@@ -1,0 +1,73 @@
+﻿//wmi 进程对象
+import com;
+
+namespace process;
+
+class wmi{
+	ctor(pid){
+		if(!pid)pid = ::Kernel32.GetCurrentProcessId();
+		
+		if(!type(pid) == type.number ) error("参数@1未指定正确的进程ID",2)
+		var wmiService = ..com.GetObject("WinMgmts:\\.\root\cimv2")
+		var prcsCollect = wmiService.ExecQuery("SELECT * FROM Win32_Process WHERE Handle = " + pid)
+		 
+		for index,wmiPrcs in ..com.each(prcsCollect) {
+			this = wmiPrcs;
+			break;
+		}  		
+	}; 
+}
+
+/**intellisense()
+process.wmi(__) = 参数@1指定进程ID，返回WMI进程对象
+process.wmi() = !processWmi.
+end intellisense**/
+
+//https://docs.microsoft.com/zh-cn/windows/desktop/CIMWin32Prov/win32-process
+/**intellisense(!processWmi)
+CreationClassName = CreationClassName 
+Caption = Caption
+CommandLine = CommandLine 
+CreationDate = CreationDate
+CSCreationClassName = CSCreationClassName
+CSName = CSName
+Description = Description
+ExecutablePath = ExecutablePath
+ExecutionState = ExecutionState
+Handle = Handle
+HandleCount = HandleCount
+InstallDate = InstallDate
+KernelModeTime = KernelModeTime
+MaximumWorkingSetSize = MaximumWorkingSetSize
+MinimumWorkingSetSize = MinimumWorkingSetSize
+Name = Name
+OSCreationClassName = OSCreationClassName
+OSName = OSName
+OtherOperationCount = OtherOperationCount
+OtherTransferCount = OtherTransferCount
+PageFaults = PageFaults
+PageFileUsage = PageFileUsage
+ParentProcessId = ParentProcessId
+PeakPageFileUsage = PeakPageFileUsage
+PeakVirtualSize = PeakVirtualSize 
+PeakWorkingSetSize = PeakWorkingSetSize
+Priority = Priority
+PrivatePageCount = PrivatePageCount
+ProcessId = ProcessId
+QuotaNonPagedPoolUsage = QuotaNonPagedPoolUsage
+QuotaPagedPoolUsage = QuotaPagedPoolUsage
+QuotaPeakNonPagedPoolUsage = QuotaPeakNonPagedPoolUsage 
+QuotaPeakPagedPoolUsage = QuotaPeakPagedPoolUsage
+ReadOperationCount = ReadOperationCount
+ReadTransferCount = ReadTransferCount
+SessionId = SessionId
+Status = Status
+TerminationDate = TerminationDate
+ThreadCount = ThreadCount
+UserModeTime = UserModeTime
+VirtualSize = VirtualSize
+WindowsVersion = WindowsVersion
+WorkingSetSize = WorkingSetSize
+WriteOperationCount = WriteOperationCount 
+WriteTransferCount = WriteTransferCount
+end intellisense**/

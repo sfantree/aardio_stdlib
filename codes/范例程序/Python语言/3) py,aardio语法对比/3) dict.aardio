@@ -1,0 +1,47 @@
+//3)Python字典
+?>
+<title>Python字典介绍</title>
+
+<pre style="font-size:16px;">
+Python中的字典在aardio扩展库中即py.dict对象，
+一般在函数调用中会自动转换为aardio中的表（通过JSON序列化）
+但是也可以自己使用py.dict访问原来的python字典。
+
+Python中的字典其语法与JS相似，示例：
+
+dic = { 
+    "键" : "值",
+    "键2" : "值2",
+    "test" : 123
+}
+
+而在aardio中则是这样写(分隔元素用分号，而不是逗号)：
+dic = { 
+    键 = "值";
+    键2 = "值2";
+    test = 123;
+}
+
+python遍历字典是这样写
+
+for k in dic:
+    print(k)
+    print(dic[k]) 
+
+而aardio中遍历字典是这样写：
+
+for k,v in dic{
+	io.print(k,v)
+}
+
+要注意在python中删除一个字典成员用下面的语句
+del dic["test"] #不能写 dic["test"] = None, 
+
+在aardio里可以直接写 dic["test"] = null
+
+#注意在python中访问一个不存在的索引是会抛出异常的
+#print dic["test"]	
+
+print( getattr(dic,"test","指定默认值就不会报错了") )
+
+</pre>

@@ -1,0 +1,78 @@
+﻿//stat 连接状态
+import process.popen;
+namespace inet;
+
+class stat{
+    
+	ctor(port){
+		var prcs = ..process.popen("netstat -ano"); 
+		var str  = prcs.read(-1);
+		prcs.close();
+		
+		for line in ..string.lines(str) { 
+   			var st = ..string.splitEx(..string.trim(line),"\s+");
+   			if(#st < 4 ) continue ;
+
+   			st[1] = ..string.lower(st[1]);
+   			if(!this[st[1]]){
+       			this[st[1]] = {}
+   			}
+   			var remote,local,pid;
+   			pid = tonumber( ..table.pop(st) );
+   			
+   			if(st[3]){
+   				remote =  ..string.match(st[3],"^%\[\]");
+   				if(!remote) remote = ..string.match(st[3],"^[\d\.]+");
+   				if(!remote) remote = ..string.match(st[3],"^(\*)");  
+   				remotePort = ..string.match(st[3],"\:(\*)");
+   				if(!remotePort) remotePort = tonumber( ..string.match(st[3],"\:(\d+)") );
+   			}
+   				
+   			if(st[2]){
+   				local = ..string.match(st[2],"^%\[\]");  
+   				if(!local) local = ..string.match(st[2],"^[\d\.]+"): null;  
+   				if(!local) local = ..string.match(st[2],"^(\*)"): null;  
+   				
+   				localPort = ..string.match(st[2],"\:(\*)");
+   				if(!localPort) localPort =  tonumber( ..string.match(st[2],"\:(\d+)") ); 	 
+   			}
+   			 
+   			if( (port!==null) && (port!=localPort) ) continue; 
+   			
+   			..table.push(this[st[1]],{ 
+       			remote = remote;
+       			local = local;
+       			localPort = localPort; 
+       			remotePort = remotePort;
+       			pid = pid;
+       			state = st[4]
+   			}); 
+		}
+		
+		
+		var tcp = this.tcp;
+		
+		var tab = {}
+		for(i,s in tcp){
+			if(!s.remote ) continue;
+			if(!tab[s.remote] ) tab[s.remote] = 1;
+			else tab[s.remote] = tab[s.remote] + 1;
+		}
+	
+		..table.sort(tcp,function(b){
+			if owner.localPort > b.localPort  return true; 
+	 		if owner.localPort == b.localPort {
+				if tab[owner.remote] > tab[b.remote]  return true; 	 
+				if tab[owner.remote] == tab[b.remote]{ 
+			 		return owner.remote > b.remote; 
+				} 	
+			}
+			return false; 
+		})
+		
+	}; 
+}
+
+/**intellisense()
+inet.stat(__) = 返回网络连接状态列表\n可选在参数中指定端口号,例如列出IIS的连接参数可指定为80\n返回对象的tcp/udp成员包含所有tcp/udp连接的数组\n返回的TCP连接会按远程IP的连接数排序\n每个连接的字段含义：\nremote 源IP\nlocal 目标IP\nremotePort 源端口\nlocalPort 目标端口\npid 进程ID
+end intellisense**/

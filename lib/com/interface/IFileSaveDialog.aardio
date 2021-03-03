@@ -1,0 +1,22 @@
+﻿import com.interface.IFileDialog;
+
+namespace  com.interface;
+
+class IFileSaveDialog {
+    ctor(){
+		this = ..com.interface.IFileDialog(); 
+	}; 
+	ptr SetSaveAsItem = "int(ptr psi)";
+	ptr SetProperties = "int(ptr pStore)";
+	ptr SetCollectedProperties = "int(ptr pList,bool default)"; 
+	ptr GetProperties = "int(ptr &ppStore)";
+	ptr ApplyProperties = "int(ptr psi,ptr pStore,addr hwnd,ptr pSink)";
+}
+
+IFileSaveDialog.IID = "{84bccd23-5fde-4cdb-aea4-af64b83d78ab}"
+
+IFileSaveDialog.create = function(){
+	return create("{C0B4E2F3-BA21-4773-8DBA-335EC946EB8B}", IFileSaveDialog);	
+}
+
+   

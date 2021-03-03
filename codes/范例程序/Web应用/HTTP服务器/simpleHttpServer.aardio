@@ -1,0 +1,51 @@
+//多线程HTTP服务器
+import console;
+import process;
+import wsock.tcp.simpleHttpServer;
+var server = wsock.tcp.simpleHttpServer("127.0.0.1",/*8081*/);
+
+console.setTitle("web服务器已启动",server.getUrl());
+process.execute(server.getUrl());
+
+server.run(
+	function(response,request,session){
+		if( io.exist( request.path,0) 
+			&& request.path!="/main.aardio"
+			&& request.path!="/" ){
+			response.loadcode( request.path )
+		}
+		else{
+			loadcodex(`
+		<!doctype html>
+		<html><head></head><body style="white-space:pre"><?
+			response.jsonPrettyPrint = true;//输出缩进格式化的JSON
+			response.write(request); 
+		?></body>
+		</html>`)
+			
+		} 
+	}
+)
+
+/*
+import web.rest.client; 
+var http = web.rest.client();
+http.setAuth( "用户名", "密码" );
+http.get( "http://ddns.oray.com/ph/update",{ hostname = "****.xicp.net" } );
+
+jQuery Ajax 跨域调用方法,可实现浏览器与本地应用交互
+$.ajax({
+	type: "get", 
+	dataType: "text",  
+	async:false,  
+	crossDomain: true, //应用CORS跨域机制,必须设置Access-Control-Allow-Origin头,不适合IE低版本
+	url:"http://localhost:8081",   
+	success: function(msg){
+		alert( msg.message );
+	},
+	error: function (XMLHttpRequest, textStatus, errorThrown) { 
+        alert(errorThrown); //crossDomain: true,async:false, 才能捕获网络错误
+    } 
+    
+} );
+*/

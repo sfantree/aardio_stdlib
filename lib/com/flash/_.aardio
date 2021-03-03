@@ -1,0 +1,455 @@
+import inet.url;
+import fsys.localfile;
+import util.metaProperty; 
+import com.interface.IPersistStreamInit;
+import com.lite;
+import fsys.stream;
+
+namespace com; 
+
+class flash{
+	ctor( winform,param ){ 
+		
+		if( winform.isForm ? winform.onEraseBkgnd === null ){
+			winform.onEraseBkgnd  = function(hwnd,message,wParam,lParam){
+    			return 0;
+			}
+		}
+		else {
+			winform.modifyStyle(0x20/*_WS_EX_TRANSPARENT*/,0x2000000/*_WS_CLIPCHILDREN*/);
+		} 
+		
+		if( $ocxLite ){
+			$ocxLite.createEmbed(winform,"{D27CDB6E-AE6D-11CF-96B8-444553540000}",,this) 
+		}
+		else{
+			winform.createEmbed("ShockwaveFlash.ShockwaveFlash",this);
+		} 
+			 
+		if(param){
+			..table.assign(this._object,param);
+		}
+	};
+	@_metaProperty;
+}
+
+import com.flash.xml;
+namespace flash{
+    
+    loadOcx = function( ocxFile ){ 
+		$ocxLite = ..com.lite(ocxFile);
+		return $ocxLite;
+	} 
+	
+	createObject = function(){
+		if( $ocxLite ){
+			return $ocxLite.createObject("{D27CDB6E-AE6D-11CF-96B8-444553540000}") 
+		}
+		else{
+			return ..com.CreateObject("ShockwaveFlash.ShockwaveFlash") 
+		} 
+	} 
+	
+	_metaProperty = ..util.metaProperty(
+		get = function(k,ownerCall){
+			if(ownerCall) {
+				owner[k] = function(...) return owner.xcall(k,...); 
+				return owner[k]; 
+			}
+		};
+		movie = {
+			_get = function(){
+				return owner._object.Movie;
+			}
+			_set = function(v){
+				if(!v){
+					owner._object.Movie = null;
+					return;
+				}
+				if( #v > 0x410/*_MAX_PATH_U8*/){
+					if(owner.write( v ) ) return;
+				}
+				
+				if( ..io.localpath(v) ){
+					if( !..io.exist(v) ){
+						v = ..string.load(v);
+						if(v)owner.write( v );
+						return;
+					}
+					else {
+						v = ..io.fullpath(v);
+					}
+				}
+				
+				owner._object.Movie = v; 
+			}
+		};
+		getPersistStream = function(){
+			return ..com.interface.IPersistStreamInit.Query(owner._object);
+		};
+		writeStream = function(){
+			var stm = owner.getPersistStream();
+			if(stm) return 0 <= stm.Load(stream);
+		};
+		write = function(swf){
+			var stm = owner.getPersistStream();
+			if( stm ){
+				var stream = ..fsys.stream();
+				stream.setSize(8 + #swf );
+				stream.write({  
+    				INT signature = 0x55665566;  
+    				INT dataSize = #swf;  
+				})
+				stream.write(swf);
+				stream.seek("set");
+				return 0 <= stm.Load(stream) ;
+			}
+		};
+		show = function(){
+			return owner._form.show();
+		};
+		putMovie = function( url ){
+			owner.movie = url;
+		};
+		loadMovie = function(layer,url){
+			if( owner[["localfile"]] ) owner[["localfile"]].free();
+			var localfile = ..fsys.localfile(url,".swf");
+			owner[["localfile"]] = localfile;
+			if(!localfile) return;
+			 
+			owner._object.EmbedMovie = !!localfile.temp();
+			var ret = owner._object.LoadMovie(layer,localfile.path() ); 
+			return ret; 
+		};
+		play = function(){
+			owner._object.Play()
+		};
+		stop = function(){
+			owner._object.Stop()
+		};
+		xcall = function(name,...){
+			var x = xml.buildInvoke(name,...);  
+			var ret = owner._object.CallFunction(x);
+			return xml.parse(ret);
+		};
+		FSCommand = function( cmd ,args ){
+			if( owner.command ){
+				var c = owner.command[cmd];
+				if(c)c(args); 
+			}
+		}; 
+		FlashCall  = function(x){ 
+			var name,args,len = xml.parseInvoke(x);
+			if( owner[["external"]] ? name){
+				var func = owner.external[name];
+				var ret = invoke(func,owner.external,..table.unpack(args,1,len) );   
+				owner._object.SetReturnValue( xml.stringify(ret) );
+			}
+		};
+		external = {
+			_set = function(v){
+				owner.allowScriptAccess = "always";
+				owner.allowNetworking = "all";
+				owner.disableLocalSecurity(); 
+				owner[["external"]] = v; 
+			} 	
+		};
+		hwndControl = {
+			_get = function(){
+				return  ..win.getLeaf( owner._form.hwnd )
+			} 	
+		};
+		menu = {
+			_get = function(){
+				return owner._object.Menu;
+			}
+			_set = function(v){
+				owner._object.Menu = v;
+			}
+		};
+		readyState  = {
+			_get = function(){
+				return owner._object.ReadyState;
+			}
+		};
+		wait = function(endof){
+			var obj = owner._object;
+			var ret = ..win.wait( 
+					function(){
+						if( obj.ReadyState == 4 ) return true;
+					}, owner._form.hwnd
+				) 
+				
+			if( !endof ) return ret;
+			return ..win.wait( 
+				function(){
+					if( ! obj.Playing && (obj.CurrentFrame() == obj.TotalFrames - 1 ) )
+						return true;
+				}, owner._form.hwnd
+			);
+		};  
+		playing  = {
+			_get = function(){
+				return owner._object.Playing;
+			}
+		};  
+		loop = {
+			_get = function(){
+				return owner._object.Loop;
+			}
+			_set = function(v){
+				owner._object.Loop = v;
+			}
+		}; 
+		sAlign  = {
+			_get = function(){
+				return owner._object.SAlign;
+			}
+			_set = function(v){
+				owner._object.SAlign = v;
+			}
+		};
+		allowScriptAccess  = {
+			_get = function(){
+				return owner._object.AllowScriptAccess;
+			}
+			_set = function(v){
+				owner._object.AllowScriptAccess = v;
+			}
+		};
+		allowNetworking   = {
+			_get = function(){
+				return owner._object.AllowNetworking ;
+			}
+			_set = function(v){
+				owner._object.AllowNetworking  = v;
+			}
+		};
+		disableLocalSecurity = function(){ 
+			try{
+				var f = owner._object.DisableLocalSecurity;
+				if(f) f();
+			} 
+		}
+		enforceLocalSecurity = function(){
+			try{
+				var f = owner._object.EnforceLocalSecurity;
+				if(f) f();
+			}
+		}
+		quality2  = {
+			_get = function(){
+				return owner._object.Quality2;
+			}
+			_set = function(v){
+				owner._object.Quality2 = v;
+			}
+		}; 
+		scale  = {
+			_get = function(){
+				return owner._object.Scale;
+			}
+			_set = function(v){
+				owner._object.Scale = v;
+			}
+		};
+		totalFrames  = {
+			_get = function(){
+				return owner._object.TotalFrames;
+			}
+		};
+		currentFrame = function(){
+			return owner._object.CurrentFrame();
+		};
+		embedMovie  = {
+			_get = function(){
+				return owner._object.EmbedMovie;
+			}
+			_set = function(v){
+				owner._object.EmbedMovie = v;
+			}
+		};
+		wMode  = {
+			_get = function(){
+				return owner._object.WMode;
+			}
+			_set = function(v){
+				owner._object.WMode = v;
+			}
+		};
+		parameters  = {
+			_get = function(){
+				return owner._object.flashVars;
+			}
+			_set = function(v){
+				if( type(v) == type.table ) {
+					if( owner[["beforeStringifyParameters"]] ){
+						v = owner.beforeStringifyParameters(v);
+					}
+					v = ..inet.url.stringifyParameters(v,true);
+				}
+				owner._object.flashVars = v;
+			}
+		};
+		bgcolor  = {
+			_get = function(){
+				return owner._object.BGColor;
+			}
+			_set = function(v){
+				owner._object.BGColor = v;
+			}
+		};
+		allowFullScreen  = {
+			_get = function(){
+				return owner._object.allowFullScreen;
+			}
+			_set = function(v){
+				owner._object.allowFullScreen = v;
+			}
+		};
+		back = function(){
+			return owner._object.Back();
+		};
+		back = function(){
+			return owner._object.Back();
+		};
+		forward = function(){
+			return owner._object.Forward();
+		};
+		gotoFrame = function(n){
+			return owner._object.GotoFrame(n);
+		};
+		percentLoaded = function(){
+			return owner._object.PercentLoaded();
+		};
+		pan = function(x,y,mode=1){
+			return owner._object.Pan(x,y,mode);
+		};
+		rewind = function(){
+			return owner._object.Rewind();
+		};
+		setVariable = function(name,value){
+			return owner._object.setVariable(name,value);
+		};
+		getVariable = function(name){
+			return owner._object.getVariable(name);
+		};
+		version  = {
+			_get = function(){
+				return owner._object.getVariable("$version");
+			} 
+		};
+	)
+	_metaProperty.flashVars = _metaProperty.parameters;
+}
+
+/*
+浏览器不支持 Flash 是必要的，
+但阻止桌面软件嵌入 Flash 控件的软件作品正常运行是不必要的。
+通过自动更新推送这种主动摧毁大量软件产品的行为，未经用户确认和许可是不合适的。
+以下代码用于清除破坏基于 Flash 的软件作品正常运行的时间炸弹、锁区代码。
+*/
+begin
+
+	var ocxPathAardio = ..io.appData("aardio\std\flash.ocx")
+	if(!..io.exist(ocxPathAardio)){
+		var ocxPath = ..io.getSpecial(0x29/*_CSIDL_SYSTEMX86*/,"Macromed\Flash\Flash.ocx")
+		if(!..io.exist(ocxPath)){
+			ocxPath = ..io.getSpecial(0x25/*_CSIDL_SYSTEM*/,"Macromed\Flash\Flash.ocx")
+		}
+		
+		if(..io.exist(ocxPath)){
+			var ocxBin = ..string.load(ocxPath);
+			
+			var ocxBin,count = ..string.replace(ocxBin,'@\x00\x00\x40\x46\x3E\x6F\x77\x42','\x00\x00\x00\x00\x00\x00\xFF\x7F');
+			if(count){
+				
+				var rep  = function(str){
+					return ..string.replace(ocxBin,'@' + str,..raw.buffer(#str),1);
+				}
+				
+				ocxBin = rep('geo2.adobe.com')
+				ocxBin = rep('get/flashplayer/update/current/activate/ood.xml')
+				ocxBin = rep('www.adobe.com/go/getflashGeoError\0\0\0\0CN')
+				
+				..string.save(ocxPathAardio,ocxBin)
+			} 
+		}	
+	}
+	
+	if(..io.exist(ocxPathAardio)){
+		..com.flash.loadOcx(ocxPathAardio);
+	}
+end;
+
+		 
+/**intellisense()
+com.flash = 嵌入FLASH控件支持库
+com.flash.loadOcx(.($"/flash->ocx") = 载入指定版本的flash控件\n参数用法与 raw.loadDll 函数相同\n在路径前使用$指令编译为内存OCX,$指令包含的文件不应添加到工程中
+com.flash.createObject() = 创建 flash 控件
+com.flash(.(winform) = 嵌入FLASH控件,\n参数为窗体或控件对象\n可选在参数@2中使用一个表对象设定Flash控件的属性值
+com.flash()= !com_flash.
+!com_flash.hwndControl = Flash控件窗口句柄
+!com_flash.menu = 右键是否显示Flash控制菜单
+!com_flash._object = 控件对象
+!com_flash._host = 容器对象
+!com_flash._host.adjust() = 调整控件窗口大小
+!com_flash._form = 窗体对象\n!winform.
+!com_flash.show() = 显示Flash所在窗口
+!com_flash.play() = 播放
+!com_flash.stop() = 暂停
+!com_flash.rewind() = 返回到影片的第一帧
+!com_flash.bgcolor = 背景色\n用"#RRGGBB"格式的文本表示
+!com_flash.version = flash控件版本
+!com_flash.back() = 影片后退一帧并停止播放
+!com_flash.forward() = 影片后退一帧并停止播放
+!com_flash.gotoFrame(.(索引) = 将影片跳转到指定的帧并停止播放.\n必须首先调用percentLoaded()函数保证影片完全加载
+!com_flash.percentLoaded() = 返回影片加载的百分比
+!com_flash.putMovie(.("/res/ui->swf") = 加载Flash文件,\n参数可以是网址,文件名,支持内嵌资源目录文件名\n参数也可以是Flash文件的内存数据\n加载内存或资源文件时,直接调用write函数写入内存
+!com_flash.loadMovie(.(layer,url) = 将由url指定的影片载入到由layer指定的层上\n如果url指定了一个资源文件路径,使用临时文件加载,并设置embedMovie属性为 true
+!com_flash.embedMovie = 该值如果为true则允许在加载后删除swf文件
+!com_flash.pan(.(x,y,mode) = 将一个放大过的影片平移由x和y指定的距离,x和y均为相对值,\nmode默认值为1,按百分比计算,如果设为0则以像素计算
+!com_flash.setVariable(.("变量名",值) = 设置FLASH变量
+!com_flash.getVariable("__/*变量名*/") = 获取FLASH变量
+!com_flash.parameters = 设置初始化参数,也就是AS里的loaderInfo.parameters,\n参数格式与URL参数相同,设置一个表参数可自动转换为字符串,\n读取属性时返回字符串
+!com_flash.flashVars = 等价于parameters属性,参考该属性说明
+!com_flash.movie = 设置swf文件地址\n参数可以是网址,文件名,支持内嵌资源目录文件名\n也可以指定内存数据或资源文件，并调用wirte函数通过内存重新加载swf文件
+!com_flash.getPersistStream() = 返回数据流对象\n!IPersistStreamInit.
+!com_flash.writeStream(__) = 写入数据流\n参数应是fsys.strem等兼容IStream接口的对象
+!com_flash.write(__) = 直接通过写入内存数据重新加载swf文件
+!com_flash.wait() = 等待影片加载完成
+!com_flash.wait(true) = 等待影片播放完成
+!com_flash.loop = 是否循环播放
+!com_flash.disableLocalSecurity() = 禁用本地安全,\n请不要在播放动画以后调用此函数,\n播放的swf是程序自带的可信任文件时应当禁用本地安全\n当指定控件的external接口时也会自动调用此函数
+!com_flash.enforceLocalSecurity() = 启用本地安全,\n请不要在播放动画以后调用此函数,\n如果播放的swf是程序自带的可信任文件应当启用本地安全
+!com_flash.allowNetworking = 是否允许网络交互,可选值:\n"all","internal","none"
+!com_flash.allowFullScreen = 布尔值,是否允许全屏
+!com_flash.allowScriptAccess = 是否允许调用外部脚本,可选值:\n"always","sameDomain","never"
+!com_flash.playing = 影片是否正在播放
+!com_flash.sAlign = 使用字符串表示对齐:\n"L":即左对齐\n"T":即顶对齐\n"R":即右对齐\n"B":即底对齐\n上面的值可组合使用,但LTRB的先后顺序不能变,如:左和底的对齐必须写为"LB"
+!com_flash.readyState = 返回影片的当前状态,readyState值有:\n0:正在载入\n1:未初始化\n2:已载入\n3:正在交互\n4:完成例子
+!com_flash.quality2 = 获取设置影片质量,可选使用以下字符串表示值:\n"Low":偏重于播放速度而不管显示效果.\n"High":偏重于画面而不管播放速度\n"AutoLow":先着重于播放速度,但只要有可能就改善显示效果.\n"AutoHigh":一开始是播放速度和显示效果并重,但如有必要就牺牲画质确保速度.
+!com_flash.scale = 缩放模式:\n"NoScale":显示原始大小不缩放,\n"ShowAll":显示全部影片区域,保持影片长宽比例不变.\n"NoBorder":显示部分影片区域,保持影片长宽比例不变.\n"ExactFit":显示全部影片区域,强制将影片的长宽等于控件的长宽.
+!com_flash.totalFrames = 返回影片总帧数
+!com_flash.currentFrame() = 当前帧索引,注意第一帧索引为0
+!com_flash.wMode = 控件的窗口模式,可选值"Window","Opaque","Transparent"
+
+!com_flash.OnReadyStateChange = @.OnReadyStateChange = function( newState ){
+	io.print("OnReadyStateChange")
+}
+!com_flash.OnProgress = @.OnProgress = function( percentDone ){
+	io.print(percentDone)
+}
+!com_flash.xcall(.("FLASH函数名",其他参数) = 调用FLASH中使用ExternalInterface.addCallback()导出的函数
+!com_flash.external = @.external = {
+	函数名 = function(参数){
+		__/*请不要在使用其他函数以后设置此属性\n在FLASH中可使用ExternalInterface.call()调用这里的函数*/
+		return "返回值";
+	} 
+}
+!com_flash.command = @.command = {
+	函数名 = function( args ){
+		__/*在FLASH中可使用fscommand("函数名","参数")调用这里的函数*/ 
+	} 
+}
+end intellisense**/

@@ -1,0 +1,14 @@
+//检测网络连接
+import console;
+import inet.ras;
+
+var ras,lan = inet.ras.isAlive()
+
+if( lan )
+	console.log("检测到本地连接")
+else if( ras )
+	console.log("检测到远程连接")
+else 
+	console.log("没有联网")	
+	
+execute("pause")

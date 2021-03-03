@@ -1,0 +1,18 @@
+
+
+io.open()
+
+//i从1循环递增到9
+for(i=1;9){
+
+    //j从1递增循环到i
+    for(j=1;i ){
+
+       //在控制台输出字符串,string.format格式化,%d表示一个数字参数
+       io.stdout.write(  string.format("%1d*%1d=%2d  ",i,j,i*j) )
+    }
+
+    io.stdout.write('\n')
+}
+
+execute("pause")

@@ -1,0 +1,47 @@
+//正则表达式(preg扩展库)
+import preg;
+import console; 
+
+/*
+preg扩展库使用教程
+http://bbs.aardio.com/forum.php?mod=viewthread&tid=8910
+*/
+var regex = preg("(\w+\:\/\/)(?P<host>[\w.]+)");
+
+var testString = /*
+http://bbs.aardio.com
+http://www.baidu.com
+*/
+
+console.log( "测试是否匹配", regex.test(testString) );
+console.log( "查找匹配位置", regex.find(testString) );
+console.log( "获取匹配字符串", regex.match(testString) );
+
+//全局匹配
+for scheme,host in regex.gmatch( testString  ) { 
+    console.log("发现匹配字符串", scheme,host )
+}
+
+console.log( '字符串替换结果\r\n', regex.replace( testString,"ftp://\2" ) );
+
+console.log( '函数替换结果\r\n', regex.replace( testString
+	,function(scheme,host){
+		if( host == "bbs.aardio.com" )
+			return "ftp://" + host; 
+	}  ) );
+	
+//数组匹配,找出所有网址并返回数组
+var urls = regex.grep( {
+	"http://bbs.aardio.com";
+	"www.aardio.net";
+	"http://www.baidu.com";
+} );
+
+console.varDump(urls)
+regex.free(); 
+ 
+$keywords = preg("/[\s,]/is").split ( "hypertext language,,programming");
+console.varDump( $keywords )
+
+console.pause();
+ 

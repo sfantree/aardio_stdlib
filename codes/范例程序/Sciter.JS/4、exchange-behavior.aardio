@@ -1,0 +1,43 @@
+//自定义 behavior
+import win.ui;
+/*DSG{{*/
+winform = win.form(text="HTMLayout behavior用法演示";right=599;bottom=399;parent=...)
+winform.add()
+/*}}*/
+
+import web.sciter;
+var wbLayout = web.sciter(winform);
+  
+namespace web.sciter.behavior.sysdnd {  
+	onExchangeAcceptDrop = function( ltTarget,ltOwner,x,y,mode,scValueObject,exParams ) {
+		return true; // 返回true表示接受系统拖放
+	}
+	
+	onExchangeDrag =  function( ltTarget,ltOwner,x,y,mode,scValueObject,exParams ) { 
+		return true; // 拖而未放时触发，返回true表示支持继续拖放操作
+	}
+
+ 	onExchangeDrop =  function( ltTarget,ltOwner,x,y,mode,scValueObject,exParams ) {
+ 		// scValueObject 参数是 web.sciter.valueObject 对象
+ 		if(mode&2/*_SC_DD_MODE_MOVE*/){
+     		ltOwner.innerText = tostring(scValueObject)
+			return true; // 返回true表示支持系统拖放 			
+ 		} 
+	}	
+  
+}
+
+wbLayout.html =/***
+<div class="sysdnd" 属性="值">请将外部文件等内容拖放到这里</div> 
+***/
+
+wbLayout.css = /**
+.sysdnd{ 
+	behavior:sysdnd;
+	height:100%%;
+}
+**/
+ 
+winform.show() 
+win.loopMessage(); 
+ 

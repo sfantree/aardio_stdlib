@@ -1,0 +1,131 @@
+//codepage 文件编码
+namespace  fsys.codepage
+
+var encodeing = { 
+	["UTF-8"] = 65001;
+	["UNICODE"] = 1200;
+	["UTF-16LE"] = 1200; 
+	["UTF-16BE"] = 1201;
+	["utf-8"] = 65001;
+	["unicode"] = 1200;
+	["unicodeFFFE"] = 1201;
+}
+ 
+import string.encoding;
+load = function(p,inputCp,cp=65001){
+	
+	if( type(inputCp) == type.string ){
+		inputCp = ..string.upper(inputCp)
+		inputCp = encodeing[inputCp] || ..string.encoding.getCodepage(inputCp);
+		if(!inputCp){
+			error('错误的编码参数@2',2)
+		} 
+	}
+	if(!#p){
+		error("文件路径不能为空",2)
+	}
+	
+	var s;
+	var f,err = ..io.open(p,"rb");
+	if(f){  
+		var b = f.read(2) //BOM 
+		if( !b ){
+			f.seek("set"); 
+		}
+		elseif(  b[1] == 0xEF  && b[2] == 0xBB  ) {
+			var b = f.read(1)
+			if(b[1] == 0xBF ){
+				inputCp = 65001;//"UTF-8"; 
+			}
+			else{
+				f.seek("set");
+			}
+		} 
+		elseif(  b[1] == 0xFF  && b[2] == 0xFE  ) {
+			inputCp = 1200;  
+		}
+		elseif(  b[1] == 0xFE  && b[2] == 0xFF  ) {
+			inputCp = 1201;  
+		}
+		else {
+			f.seek("set"); 
+		}
+		s = f.read(-1);
+		f.close()  
+	}
+	else{
+		s = ..string.load(p)
+		if(!s)
+			return null,err;
+			
+		if(  s[1] == 0xEF  && s[2] == 0xBB && s[3] == 0xBF  ){
+			inputCp = 65001;//"UTF-8";
+			s = ..string.right(s,-4);
+		}
+		elseif( s[1] == 0xFF  && s[2] == 0xFE  ) {
+			inputCp = 1200;  
+			s = ..string.right(s,-3);
+		}
+		elseif( s[1] == 0xFE  && s[2] == 0xFF  ) {
+			inputCp = 1201;  
+			s = ..string.right(s,-3);
+		} 
+	} 
+	
+	if( inputCp === null ){
+		inputCp = ..string.isUtf8(s) ? 65001 : 0;
+	}
+	
+	return ..string.fromto(s,inputCp,cp),inputCp;  
+}
+
+save = function(p,s,outputCp,cp=65001){ 
+	var f;
+	var b;
+	if( type(outputCp) == type.string ){
+		outputCp = ..string.upper(outputCp)
+		outputCp = encodeing[outputCp] || ..string.encoding.getCodepage(outputCp);
+		if(!outputCp){
+			error('错误的编码,可选编码格式如下\n"UNICODE"\n"UTF-8"\n"UTF-16LE"\n"UTF-16BE"',2)
+		} 
+	}
+	
+	f,err = ..io.open(p,"w+b");
+	if(!f){
+		return null,err;
+	}
+	
+	if( outputCp == 65001 ) {
+		f.write('\xEF\xBB\xBF') 
+		s = ..string.fromto(s,cp,outputCp);
+	} 
+	elseif( outputCp == 1200 ) {
+		f.write('\xFF\xFE') 
+		s = ..string.toUnicode(s,cp);
+	}
+	elseif( outputCp == 1201 ) {
+		f.write('\xFE\xFF') 
+		s = ..string.fromto(s,cp,outputCp);
+	} 
+	else {
+		s = ..string.fromto(s,cp,outputCp);
+	}
+	 
+	f.write( s );
+	f.close();
+};
+
+isTextUtf8 = function( str ) { 
+    return ..string.isUtf8(str);
+} 
+
+/**intellisense(fsys.codepage)*/
+load(.("文件路径",源编码,目标编码) = 读取文件,参数2,3都是可选参数,\n可自动识别文件编码,并自动转换为目标编码,\n目标编码默认为65001
+load(__/*文件路径*/,"utf-8") = 读取UTF-8编码文件\n并自动转换为UTF8编码,\n返回文件内容,读取内码
+load(__/*文件路径*/,"unicode") =  读取UNICODE(小尾序)编码文件\n并自动转换为UTF8编码,\n返回文件内容,读取内码
+load(__/*文件路径*/,"unicodeFFFE") =  读取UNICODE(大尾序)编码文件\n并自动转换为UTF8编码,\n返回文件内容,读取内码
+save(__/*文件路径*/,str,0) = 将参数@2指定的字符串以ANSI编码存为文件,参数@3指定输出代码页\n可选以参数@4指定输入代码页,默认为65001
+save(__/*文件路径*/,str,"utf-8") = 将参数@2指定的字符串存为UTF-8编码文件,并添加BOM编码标识\n可选以参数@4指定输入代码页,默认为65001
+save(__/*文件路径*/,str,"unicode") = 将参数@2指定的字符串存为UNICODE(小尾序)编码文件,并添加BOM编码标识\n可选以参数@4指定输入代码页,默认为65001
+save(__/*文件路径*/,str,"unicodeFFFE") = 将参数@2指定的字符串存为UNICODE(小尾序)编码文件,并添加BOM编码标识\n可选以参数@4指定输入代码页,默认为65001
+end intellisense**/

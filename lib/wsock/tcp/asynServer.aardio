@@ -1,0 +1,323 @@
+﻿//asynServer 异步服务端
+
+import wsock.tcp.asynClient;
+import win.ui;
+
+namespace wsock.tcp;
+
+class asynServer{
+	ctor(){
+		this._form = ..win.form();
+		this._form.messageOnly();
+		
+		this.clients = {};
+		this.acceptCount = 0;
+		this.maxConnection = 1000;
+		this.keepAliveTimeout = -1; 
+		this.clientBufferSize = 0x100000;
+		
+		this._form.wndproc ={
+			[0xACD2/*_WM_STD_SOCKET_SERVER_NOTIFY*/] =  function(hwnd,message,wParam,lParam){  
+				var hSocket = topointer(wParam);
+				var err,event = ::HIWORD(lParam),::LOWORD(lParam);
+				if( hSocket != this.hSocket ) return;
+
+				select(event) {
+					case 0x8/*_FD_ACCEPT*/{ 
+						 
+                    	var s = ..wsock.accept(this.hSocket)
+                    	if( this.acceptCount >=  this.maxConnection ){
+                    		this.clearKeepAliveTimeout();
+                    		
+                    		if( this.acceptCount >=  this.maxConnection ){
+                    			..wsock.closesocket(s);
+                    			return;
+                    		}
+                    	}
+                    	
+                    	var client = ..wsock.tcp.asynClient(s);  
+                    	client.bufferSize = this.clientBufferSize;
+                    	client.lastActiveTime = tonumber(..time());   
+                    	client.asyncSelect( 0x1/*_FD_READ*/|0x20/*_FD_CLOSE*/|0x4/*_FD_OOB*/|0x2/*_FD_WRITE*/
+							,0xACD1/*_WM_STD_SOCKET_NOTIFY*/,this._form.hwnd);
+						this.clients[s] = client;
+						
+						this.acceptCount = this.acceptCount+1; 
+						client._onClosed = function(){
+							if(this._onClientClosed) this._onClientClosed(owner.hSocket);
+							if(this.onClientClosed) this.onClientClosed(owner.hSocket);
+							this.acceptCount = this.acceptCount - 1;
+							this.clients[owner.hSocket] = null;
+						}
+						
+						this[["(currentClient)"]] = client; 
+						if( this.onOpen ) this.onOpen(s,err);
+					} 
+					case 0x20/*_FD_CLOSE*/{
+						if( this.onStop ) this.onStop(err);
+						this.stop();
+					}
+				}
+			}
+			[0xACD1/*_WM_STD_SOCKET_NOTIFY*/] =  function(hwnd,message,wParam,lParam){  
+				var hSocket = topointer(wParam);
+				var err,event = ::HIWORD(lParam),::LOWORD(lParam);
+				var client = this.clients[hSocket]; 
+				if( !client ) return;
+				
+				this[["(currentClient)"]] = client; 
+				select(event) {  	
+					case 0x1/*_FD_READ*/{
+						if( this.onReceive ) this.onReceive(hSocket,err);
+						else if( this.onRead ) {
+							var ok,event = client.asyncSelect( client.lastSelectEvent & ~0x1/*_FD_READ*/ );
+							if(ok){
+								this.onRead(hSocket,err);
+								client.asyncSelect(event);
+							};
+						};
+					} 
+					case 0x20/*_FD_CLOSE*/{
+						if( this.onClose ) this.onClose(hSocket,err);
+						if(this.clients[hSocket]) this.clients[hSocket].close();
+						this.clients[hSocket] = null; 
+					}
+					case 0x2/*_FD_WRITE*/{
+						var client = this.clients[hSocket]; 
+						if( !client ) return;
+						
+						var sendbuffer10035 = client.sendbuffer10035;
+						if(#sendbuffer10035){
+							
+							while(#sendbuffer10035){
+								var task = sendbuffer10035[1];
+								var ret,err = client.writeBuffer(task.buffer,task.len,task.offset,task);
+								
+								if( !ret ) {
+									client.sendbuffer10035 = {};
+									client.shutdown();
+									return;
+								}
+								
+								if( err == 10035 ){
+									break;
+								}
+								..table.shift(sendbuffer10035,1);
+							}
+							
+							if( client.shuttingDown10035 !== null ){
+								..wsock.shutdown(client.hSocket,client.shuttingDown10035);
+								client.shuttingDown10035 = null;
+							}
+						} 
+						elseif( this.onSend ) this.onSend(hSocket,err);	
+					}
+					case 0x4/*_FD_OOB*/{
+						if( this.onOutOfBandData ) this.onOutOfBandData(hSocket,err);	
+					}
+				}
+				
+				
+				
+				client.lastActiveTime = tonumber(..time());
+			}
+			[0x2/*_WM_DESTROY*/] = function(){
+				this.stop();
+			}
+		}
+		
+		..table.gc(this,"stop");
+	};
+	bind = function(ip,port){
+		if(!this.hSocket) error("无效套接字",2);
+		
+		var service = ..wsock.sockaddr_in( ip,port : 0 ); 
+		service.sin_family = 0x2/*_AF_INET*/ 
+		if ..wsock.bind( this.hSocket,service,..raw.sizeof(service)) =-1/*_SOCKET_ERROR*/	{ 
+			return null, ..wsock.err.lasterr() ;
+		} 
+		..wsock.getsockname(this.hSocket, this.serverAddress,..raw.sizeof(this.serverAddress) );
+		return true;
+	}
+	listen = function(backlog){ 
+		if(!this.hSocket) error("无效套接字",2);
+		
+		if( ..wsock.listen(this.hSocket,backlog : 5 )=-1/*_SOCKET_ERROR*/){
+			return null, ..wsock.err.lasterr() ;
+		}
+		return true;
+	};
+	start = function(ip,port,backlog){
+		this.stop();
+		
+		if(! ..wsock.open() ){ 
+			error( ( ..wsock.err.lasterr() ),2 ) 
+		}
+		 
+		var hSocket= ..wsock.socket(0x2/*_AF_INET*/,0x1/*_SOCK_STREAM 建立流式套接口*/,0x6/*_IPPROTO_TCP*/ )
+		if( hSocket = _INVALID_SOCKET ){ 
+			..wsock.close() //关闭wsock
+			return null,..wsock.err.lasterr();
+		} 
+	 	this.hSocket = hSocket;
+		this.serverAddress = ..wsock.sockaddr_in();
+		this.clients = {};
+		
+		var err = ..wsock.WSAAsyncSelect(hSocket, this._form.hwnd 
+		,0xACD2/*_WM_STD_SOCKET_SERVER_NOTIFY*/, 0x8/*_FD_ACCEPT*/ | 0x20/*_FD_CLOSE*/); 
+		if( err == -1/*_SOCKET_ERROR*/ ) {
+			this.stop();
+			return null,err;
+		}
+		
+		var ok,err = this.bind (ip,port);
+		if( ! ok ){
+			this.stop();
+			return null,err;
+		}
+		
+		var ok,err = this.listen ( backlog );
+		if( ! ok ){
+			this.stop();
+			return null,err;
+		}
+		return true; 	
+	};
+	client = function(hSocket){ 
+		return this.clients[hSocket];
+	};
+	isClosed = function(hSocket){
+	    var c = this.clients[hSocket];
+	    if(!c) return true;
+	    if( !c.hSocket ) return true;
+		if( c.readyState == 3 ) return true; 
+	};
+	isConnected = function(){
+		var c = this.clients[hSocket];
+	    if(!c) return false;
+	    if( !c.hSocket ) return false;
+		if( c.readyState == 1 ) return true; 
+	};
+	getLocalIp = function(){
+		if(this.serverAddress)
+			return ..wsock.inet_ntoa(this.serverAddress.sin_addr),
+				..wsock.ntohs( this.serverAddress.sin_port );
+	};
+	getRemoteIp = function(hSocket){
+		var c = this.clients[hSocket];
+		if(c) return c.getRemoteIp();
+	};
+	clearKeepAliveTimeout= function(){
+		if(this.keepAliveTimeout)<0 return;
+		
+		var now = tonumber(..time());
+		for(hSocket,client in this.clients){
+			if( now - client.lastActiveTime > this.keepAliveTimeout ){
+				if(!client.dontClearKeepAliveTimeout)client.close(); 
+			}
+		} 
+	}
+	shutdown = function(how=2/*SD_BOTH*/){
+    	if( this.hSocket ){ 
+    		for(s,c in this.clients){
+    			c.shutdown(how);
+    		} 
+    		..wsock.shutdown(this.hSocket,how);
+    	}
+    };
+	stop = function(){
+		if( this.hSocket ){
+			
+			if( this.beforeStop ){
+				this.beforeStop();
+			};
+			
+			if( this._beforeStop ){
+				this._beforeStop();
+			};
+			
+			for(s,c in this.clients){
+    			c.close();
+    			this.clients[s] = null;
+    		}
+    		
+			..wsock.closesocket(this.hSocket); 
+			..wsock.close();
+			this.hSocket = null;
+			this.serverAddress = null;
+		}
+	};
+}
+
+/**intellisense()
+wsock.tcp.asynServer() = 创建单线程异步TCP服务端\n!stdtcpasynServer.
+end intellisense**/
+
+/**intellisense(!stdtcpasynServer)
+client(hSocket) = 用于获取客户端套接字对应的客户端对象
+isClosed(hSocket) = 连接是否已关闭
+isConnected(hSocket)  = 是否已连接并准备就绪
+client() = !stdtcpaclient.
+clients = 这是一个包含所有客户端套接字的表对象\n其中键为套接字句柄,值为 wsock.tcp.asynClient对象
+clients.? = !stdtcpaclient.
+start(.(IP,端口,请求队列大小) = 启动单线程异步TCP服务端,成功返回true,失败返回null,\n\n如果不写IP，则默认设为"0.0.0.0"也即监听本机所有IP,访问此服务端也不限制IP\n限制仅本机可以访问建议写127.0.0.1\n\n端口为0或省略则自动查找1025以后的空闲端口\n注意0-1023为系统通用服务保留端口,\n1024-49151为用户服务端口,其中大约%9已由IANA注册分配\n49152-65535为私有或临时端口
+bind(.(IP,端口) = 绑定IP端口
+listen(.(请求队列大小) = 监听指定的IP端口
+shutdown() =  断开TCP服务端
+stop() = 关闭TCP服务端
+getLocalIp() = 返回当前绑定的IP,端口号
+getRemoteIp(hSocket) = 返回客户端IP地址,端口
+serverAddress = 服务端监听地址\n!sockaddr_in.
+acceptCount = 当前连接数,不可改动该值
+clientBufferSize = 客户端套接字读写缓冲区大小，默认为1MB\n缓冲区如果设置的太小，会导致过于频繁的调用读写函数
+maxConnection = 最大连接数
+keepAliveTimeout = 最大保持连接时间,以秒为单位,\n负数表示不限时间
+clearKeepAliveTimeout() = 关闭所有超出keepAliveTimeout限制的超时连接\n在连接超出最大连接数时,此函数会被自动调用
+_beforeStop = @._beforeStop = function(){
+	__/*服务端关闭以前触发\n此回调函数是标准库保留接口\n用户不应使用此回调*/
+}
+beforeStop = @.beforeStop = function(){
+	__/*服务端关闭以前触发*/
+}
+_onClientClosed = @._onClientClosed = function(hSocket){
+	__/*客户端连接已经关闭时触发\n此函数在连接断开后一定会被触发\n此回调函数是标准库保留接口\n用户不应使用此回调*/
+}
+onClientClosed = @.onClientClosed = function(hSocket){
+	__/*客户端连接已经关闭时触发\n此函数在连接断开后一定会被触发*/
+}
+onOpen = @.onOpen = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*已连接\n在这里可以开始发送数据*/	
+}
+onClose = @.onClose = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*已断开连接,\n如果缓冲区中仍然有数据,\n这个事件可能在其他事件前面触发\n主动调用close函数立即关闭连接,此事件不会被触发,\n但onClientClosed事件总会在关闭连接后触发*/	
+}
+onReceive = @.onReceive = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*收到数据\n仅读取已到达的数据\n定义了此事件就不应同时定义onRead事件*/	
+}
+onRead = @.onRead = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*收到数据\n可阻塞读取数据\n定义了此事件就不应同时定义onReceive事件*/	
+}
+onOutOfBandData = @.onOutOfBandData = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*收到紧急数据\n即send函数最后一个flag参数设为_MSG_OOB时发送的1字节带外数据*/		
+}
+onSend = @.onSend = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*发送数据*/
+}
+onStop = @.onStop = function(err){
+    
+    
+	__/*已停止服务端\n主动调用stop函数停止服务端时不会触发此事件*/	
+}
+end intellisense**/

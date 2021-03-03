@@ -1,0 +1,109 @@
+//hotkey 热键控件
+import win.ui.ctrl.metaProperty;//导入控件属性元表支持
+namespace win.ui.ctrl;  
+ 
+class hotkey{
+    ctor(parent,tParam){ 
+   		if(tParam){
+   			tParam.cls = "msctls_hotkey32";  
+   		};
+    }
+    @_metaProperty;
+}
+
+
+hotkey._metaProperty = metaProperty(
+
+	value = {
+		_get = function(){
+			return { owner.gethotkey() };
+		}
+		_set = function(v){
+			if( type(v) != "table" ) error("属性必须是一个数组",2);
+			owner.sethotkey( v[1],v[2] );
+		} 
+	};
+ 
+	gethotkey = function(){
+		var hk = ::SendMessageInt(owner[["hwnd"]],   0x400/*_WM_USER*/+2 /*_HKM_GETHOTKEY*/,0,0) & 0xFFFF
+		var mod,vk = (hk >> 8) &0xFF,hk & 0xFF;
+		if   (mod   &  0x4/*_MOD_SHIFT*/   &&   mod   &   0x1/*_MOD_ALT*/) { 
+		} 
+		else   if   (mod   &   1) { 
+			mod  &= ~1;
+			mod  |= 4;
+		} 
+		else   if   (mod   &   4) { 
+			mod  &= ~4;
+			mod  |=  1;
+		}  
+		return mod,vk
+	}
+	sethotkey = function(mod,vk){
+		if   (mod   &  0x4/*_MOD_SHIFT*/   &&   mod   &   0x1/*_MOD_ALT*/) { 
+		} 
+		else   if   (mod   &   1) { 
+			mod  &= ~1;
+			mod  |= 4;
+		} 
+		else   if   (mod   &   4) { 
+			mod  &= ~4;
+			mod  |=  1;
+		}  
+		
+		::SendMessageInt(owner[["hwnd"]],   0x400/*_WM_USER*/+1 /*_HKM_SETHOTKEY*/,::MAKEWORD(vk  , mod ),0); 
+	}
+	reghotkey = function(func){
+		return owner.parent.reghotkey(func,owner.gethotkey() )
+	} 
+)
+
+/***intellisense() 
+!hotkey.cls = 设计时类名
+!hotkey.className = 运行时类名
+!hotkey.hwnd = 控件句柄
+!hotkey.id = 控件ID
+!hotkey.text = 控件文本
+!hotkey._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!hotkey.getParent() = 返回父窗口\n!static.
+!hotkey.setParent(__/*控件对象*/) = 改变父窗口 
+!hotkey.hide = 控件是否隐藏
+!hotkey.disabled = 是否禁用
+!hotkey.left = 左侧坐标
+!hotkey.right = 右侧坐标
+!hotkey.top = 顶部坐标
+!hotkey.bottom = 底部坐标
+!hotkey.width = 宽度
+!hotkey.height = 高度
+!hotkey.redraw() = 刷新
+!hotkey.show(true__) = 显示控件
+!hotkey.getRect() = 控件区块位置(::RECT结构体)
+!hotkey.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!hotkey.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!hotkey.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!hotkey.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+!hotkey.getFont() = 控件字体(::LOGFONT结构体)\n!logfont.
+!hotkey.setFont(__/*指定字体*/) = 指定LOGFONT字体对象,或逻辑字体句柄 
+!hotkey.setFont(混入字体属性) = @.setFont(point=10;name="宋体");
+!hotkey.clientRect =  获取控件客户区块位置(::RECT结构体)
+!hotkey.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!hotkey.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!hotkey.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!hotkey.capture = 是否捕获全局鼠标消息
+!hotkey.close() = 关闭控件窗口
+!hotkey.invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+!hotkey.invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+!hotkey.update() = 重绘invalidate函数指定的区块 
+!hotkey.value = 控制键码,按键码组成的数组值
+!hotkey.gethotkey() = 返回两个值: 控制键码,按键码
+!hotkey.sethotkey(__,) = 参数(控制键码,按键码)
+!hotkey.setFocus() = 设置焦点 
+!hotkey.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!hotkey.getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd)
+!hotkey.reghotkey = @.reghotkey(\n	function(id,mod,vk){ \n		__/*输入响应热键的执行代码*/\n	}\n)
+!hotkey.sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+!hotkey.postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+?win.ui.ctrl.hotkey  =!hotkey.
+win.ui.ctrl.hotkey() = 热键控件\n!hotkey.
+end intellisense***/
+

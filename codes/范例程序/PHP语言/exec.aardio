@@ -1,0 +1,203 @@
+//执行PHP代码,PHP与aardio语法比较
+import php;
+import console;
+ 
+php.print = function( msg ) {
+	console.log("echo:", msg) 
+}
+
+/*
+《aardio,Javascript,PHP基本语法比较》
+http://www.aardio.com/doc/aau-php-js.html
+
+aardio,Javascript,PHP语法、常用函数对比
+http://www.aardio.com/thread-9345-1-1.html
+*/
+
+//PHP代码
+phpcode =/*** 
+
+	//echo语句类似aardio中的 io.print
+	echo "PHP的注释语法与aardio一样,语句也以分号结束,并且分号不能象aardio那样省略\n";
+	echo 'PHP 中的所有变量必须以 $ 符号开始。 $号是变量的修饰前缀,但不是变量名称的一部份'; 
+	echo "在PHP中函数内部变量默认为局部变量(这与aardio,Javascript正好相反),使用 global 语句引入或声明全局变量\n";
+	global $g; //定义全局变量
+	$abc = 123; //定义局部变量 
+	
+	$str = "hello"." World"; //PHP连接字符串使用圆点,类似aardio中的 ++ 操作符
+	
+	/*
+		PHP单引号中是纯文本,类似 \n 这样的转义符不起作用,
+		而双引号中可以使用转义符,aardio中也有类似的机制,不过规则正好相反,
+		aardio中双引号中才是普通文本,单引号中支持转义符 
+	*/
+	echo 'PHP单引号中是纯文本,不支持转义符,也不能直接写变量 a\nb'; 
+	echo "PHP双引号内可以直接写变量名  $str";
+	
+	/*
+		创建关键数组,类似aardio中的表：
+		var arr = { a = 123; b = "字符串"} 
+		其他编程语言多使用逗号分隔数组成员,
+		但aardio使用分号分隔表成员。
+	*/
+	  
+	$arr = array(
+		//注意键名放在字符串中,aardio中等价的写法是{ a = 123;} 或 { ["a"] = 123 }
+    	"a" => 123, 
+    	"b" => "字符串"
+	);
+	 
+	/*
+		遍历数组,在aardio中等价的语句是:
+		for(k,v in arr){
+			io.print("a[" + k + "] = " + v )
+		} 
+		
+		aardio的迭代语句是 for( 成员变量名 in 数组名 ){ }
+		而PHP的迭代语句是 for( 数组名 as 成员变量名 ){ }
+	*/
+	foreach ($arr as $k => $v) {
+		echo "\$a[$k] => $v.\n"; //PHP双引号中的字符串可以直接使用变量
+	}
+	
+	//访问数组成员类似aardio的索引语法,但PHP不支持 arr.b 这样的写法
+	echo $arr["b"]; 
+	
+	/*
+		explode()函数使用参数1指定的分隔符拆分字符串并返回数组。
+		
+		aardio中等价的代码为 
+		var arr = string.split("a,b,c,d",",") 
+		
+	*/
+	$arr = explode(",","a,b,c,d");
+	foreach ($arr as $k => $v) {
+		echo "\$a[$k] => $v.\n"; //PHP双引号中的字符串可以直接使用变量
+	}
+	
+	/*
+	    PHP早期不支持名字空间,数组函数多以 array为前缀
+	    而aardio中数组相关函数都在table名字空间下。
+	    
+	    例如数组替入,在aardio中使用 table.splice() 函数
+	    在PHP中使用 array_splice() 函数,用法大同小异。
+	    array_splice() 替入的是一个数组,而 table.splice() 替入不定个数的参数
+	*/
+	array_splice($arr,2,1,array("d","e") ); 
+	foreach ($arr as $k => $v) {
+		echo "array_splice \$a[$k] => $v.\n"; //PHP双引号中的字符串可以直接使用变量
+	}
+	 
+	 /*
+	 	PHP里创建类
+	 	
+	 	aardio里不同的是：
+	 	1. 类成员必须写成键值对格式,函数也一样,例如 member_func = function(){ };
+	 	2. 私有成员必须写在构造函数里用var语句声明为类作用域局部变量,PHP里的var语句则是公开成员,语义相反  
+	 */
+	class Cart{
+    	//定义成员变量, 
+    	/*
+    		PHP里var可不是定义局部变量的意思。
+    		PHP5里var实际上是public的别名,一般使用public.
+    		
+    		而在aardio里类的所有成员变量默认就是公开的,也就是public的.
+    		aardio里没有public等价的关键字,与javascript类似,aardio中使用var语句声明局部变量。
+    		在类的构造函数中用var语句就可以声明类作用域有效的私有成员。所以var在aardio中的用意与PHP恰恰相反
+    	*/ 
+    	var $items = 123; // 新的写法一般应改用public
+    	
+    	/*
+    		static定义静态成员变量,静态变量被类所有实例对象共享。
+    		在类外部访问静态成员的语法： 类名::静态成员变量
+    		类内部访问静态成员的语法： self::静态成员变量
+    		
+    		aardio对应的是类的名字空间,用self表示。
+    		在aardio里,变量的默认名字空间就是类的名字空间。
+    		也就是默认的变量就是静态变量,所以在类内部写 self.变量名  与直接写变量名是等价的。
+    		
+    		PHP用self表示类,用$this表示类当前创建的实例对象。
+    		这与aardio的这两个关键字语义类似,self表示类(在aardio中也即名字空间),this表示当前创建的实例对象。
+    		不过aardio的成员操作符都是使用圆点,
+    		
+    		PHP的 self::静态变量名 在aardio中可以写 self.静态变量名 
+    		PHP的 $this->实例变量名 在aardio中可以写 this.实例变量名 
+    	*/
+    	static $s_num = 456;
+    	
+    	/*
+    	PHP使用const定义常量(一般大写),
+    	在类外部一般使用 类名::常量 的方式访问(类似静态变量)
+    	
+    	aardio则在成员变量前加一个加划线表示成员常量。
+    	类的名字空间、类的实例都可以使用这种常量。
+    	例如 self._const_name this._const_name 等等。
+    	
+    	aardio的常量如果大写,表示全局有效的常量,
+    	例如 _CONST_NAME
+    	
+    	在很多语言中通常习惯性的为常量加上下划线前缀、全局常量通常大写,
+    	但这仅仅是书写习惯,而在aardio中这个书写方式变成了定义常量的语法。
+    	*/
+    	const CHARSET = "abc";
+	
+    	// 把 $num 个 $artnr 放入车中 
+    	function add_item ($artnr, $num){
+        	$this->items[$artnr] += $num;
+    	}
+	
+    	// 把 $num 个 $artnr 从车中取出
+	
+    	function remove_item ($artnr, $num){
+        	if ($this->items[$artnr] > $num) {
+            	$this->items[$artnr] -= $num;
+            	return true;
+        	} else {
+            	return false;
+        	}
+    	}
+	}
+	
+	/*
+		创建类对象实例
+		等价的aardio代码如下：
+		
+		var a = Cart() // aardio创建类实例不需要使用 new关键字
+		io.print( a.items )
+		
+		PHP访问对象成员不是使用圆点,而是使用C指针操作符 ->
+		因为圆点已经被用作字符串连接符了,以致于PHP新增的名字空间要用斜杠表示。
+		PHP无论是语法、还是函数命名都略有些混乱,这是PHP的一个遗憾。
+	*/
+	$a = new Cart;
+	echo $a->items;//注意这里items前面不能再加$符号
+	echo Cart::CHARSET;
+	
+$str = <<<EOT
+
+	php中heredoc语法很象aardio中用段注释表示字符串的语法,
+	
+	str = /**
+		这是aardio类似heredoc的语法
+	**/
+	
+	不同的是,aardio匹配段注释首尾标记的星号数目来确定边界。
+	而PHP则在<<<符号后面指定结束标记。
+
+	结束标记一定要放在单独的一行,后面必须有分号,这一行不能有缩进,不能有空格。
+	所以heredoc的语法非常严格,相对来说aardio的语法要简洁直观一些
+	
+	heredoc中也可以直接置入PHP变量,例如:  $a->items
+EOT;
+	
+	
+***/ 
+
+console.open();
+
+//运行PHP代码,返回表达式的值
+php.exec( phpcode );
+ 
+console.log( php.str ); //取php变量,注意不要写美元符号前缀
+
+console.pause();

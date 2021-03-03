@@ -1,0 +1,32 @@
+//右键菜单
+import win.ui;
+import win.ui.menu;
+/*DSG{{*/
+var winform = ..win.form( bottom=314;parent=...;text="aardio form";right=408 )
+winform.add( 
+listbox={ dr=1;dl=1;bgcolor=16777215;bottom=290;right=392;left=15;dt=1;
+items={ "测试项目";"请在这里点击鼠标右键";"请在这里点击鼠标右键,测试项目" };z=1;db=1;top=16;edge=1;cls="listbox" }
+)
+/*}}*/
+
+//创建弹出菜单
+winform.popmenu = win.ui.popmenu(winform); 
+winform.popmenu.add('删除',function(id){ 
+		winform.listbox.delete()
+} ) 
+
+winform.listbox.wndproc = function(hwnd,message,wParam,lParam){
+	select( message ) { 
+		case 0x205/*_WM_RBUTTONUP*/{
+			var x,y = win.getMessagePos();  
+			var item = winform.listbox.hitTest(x,y,true); 
+			if( item ){
+				winform.listbox.selIndex = item;
+				winform.popmenu.popup(x,y,true)
+			}
+		} 
+	}
+}
+
+winform.show() 
+win.loopMessage();

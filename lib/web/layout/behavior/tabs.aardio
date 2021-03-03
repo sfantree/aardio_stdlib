@@ -1,0 +1,438 @@
+//tabs 选项卡
+namespace web.layout.behavior.tabs;
+
+var targetTab;
+targetTab = function( ele,tabsContainer) {
+  if( !ele || (ele == tabsContainer) ) 
+    return; 
+    
+  if( ele.getAttribute("panel") )
+    return ele;
+
+  return targetTab( ele.parent(), tabsContainer );
+}
+
+var selectTab = function( ltOwner,eleTab) {
+    if( ! eleTab.isVisible() ){
+    	var ltStrip = ltOwner.querySelector(":root>.strip");
+    	var ltLastFixed = ltOwner.querySelector(":root>.strip>[panel][closeable]" );  
+  		if( ltLastFixed ) ltLastFixed = ltLastFixed.previous();
+  		if(!ltLastFixed) ltLastFixed = ltOwner.querySelector(":root>.strip>[panel]:last-child" );
+  	
+  		ltStrip.insert( eleTab,ltLastFixed.index() + 1 );
+  		ltStrip.update(true);
+  		adjustStrip(ltOwner);
+  	}
+  	
+    // already selected, nothing to do..
+  	if( eleTab.state.current ) 
+    	return true; // but we've handled it.
+ 	
+  	//find currently selected element (tab and panel) and remove "selected" from them
+  	var elePanelPrev = ltOwner.querySelector(":root>[name]:expanded");
+  	var eleTabPrev = ltOwner.querySelector(":root>.strip>[panel][selected]"); 
+	
+  	// find new tab and panel       
+  	var panelName = eleTab.getAttribute("panel");
+  	var elePanel = ltOwner.querySelector(':root>[name="%s"]', panelName);
+  	
+  	if( !elePanel || !eleTab ) {
+    	// panel="somename" without matching name="somename"
+    	return true;
+  	}
+	
+  	if( elePanelPrev ) {
+  		// remove selected attribute - just in case somone is using attribute selectors    
+    	elePanelPrev.selected = null; // eleTabPrev.setAttribute("selected",null)
+    	elePanelPrev.state.collapsed = true; // elePanelPrev.modifyState( 0x400/*_HL_STATE_COLLAPSED*/ );
+  	}
+  	if( eleTabPrev ) {
+  		eleTab.prevPanelName = eleTabPrev.getAttribute("panel");
+    	eleTabPrev.selected = null;
+    	eleTabPrev.state.current = false;
+  	}
+  	
+  	elePanel.selected = ""; 
+  	elePanel.state.expanded = true;
+  	
+  	eleTab.selected = ""
+  	eleTab.state.current = true;
+              		
+  	if(elePanelPrev) elePanelPrev.postEvent("onElementCollapsed",,elePanelPrev);
+  	elePanel.postEvent("onElementExpanded",,elePanel); 
+  	/*
+  	NOTE #1: these event will bubble from panel elements up to the root so panel itself, tabs ctl, its parent, etc.
+  		will receive these notifications. Handle them if you need to change UI dependent from current tab. 
+  		
+  	NOTE #2: while handling this event in:
+  		onElementExpanded = function (ltTarget,ltOwner,reason,behaviorParams) 
+  		onElementCollapsed = function (ltTarget,ltOwner,reason,behaviorParams)
+  		ltTarget is the panel element being collapsed/expanded 
+  	*/
+  	return true;  
+}
+
+var findTab = function( ltEle, eleTab,direction ) { 
+  	var eleTabNew;
+  	select( direction ) {
+		case -2{
+    		eleTabNew = eleTab.firstSibling(); 
+    		while( eleTabNew ) {
+       		if( !eleTabNew.state.disabled &&  ( eleTabNew.isVisible() || eleTabNew["closeable"] ) )
+        		break;
+        		
+       		eleTabNew = eleTabNew.nextSibling();
+    		}
+ 		}
+		case -1{
+    		eleTabNew = eleTab.previousSibling(); 
+    		while( eleTabNew )  {
+        		if( !eleTabNew.state.disabled && ( eleTabNew.isVisible() || eleTabNew["closeable"] ) )
+           			break;
+           			
+        		eleTabNew = eleTabNew.previousSibling();
+    		}
+		}
+		case 1{
+    		eleTabNew = eleTab.nextSibling();
+    		while( eleTabNew )  {
+        		if( !eleTabNew.state.disabled &&  ( eleTabNew.isVisible() || eleTabNew["closeable"] ) )
+           			break;
+           			
+        		eleTabNew = eleTabNew.nextSibling();
+    		}
+		}
+		case 2{
+    		eleTabNew = eleTab.lastSibling();
+    		while( eleTabNew )  {
+        		if( !eleTabNew.state.disabled &&  ( eleTabNew.isVisible() || eleTabNew["closeable"] ) )
+           			break;
+           			
+        		eleTabNew = eleTabNew.previousSibling();
+    		}
+		} 
+    }
+
+	if( !eleTabNew || !eleTabNew.getAttribute("panel")  )  //is not a tab element
+        return false;
+
+    return selectTab( ltEle, eleTabNew );
+}
+ 
+ /*}}*/   
+
+/*事件回调函数名都是以on开头{{*/ 
+onAttach = function( ltOwner ){ 
+	//Elements that have overflow:auto | scroll are also intrinsically focusable 
+	ltOwner.style.overflow = "auto";
+
+	var eleStrip = ltOwner.querySelector(":root>.strip");
+	if(!eleStrip) return;
+	eleStrip.style.overflow = "hidden";
+	
+	//:root below matches the element we use to start lookup from.
+   	var eleTab = eleStrip.querySelector(":root>[panel][selected]"); // initialy selected
+
+    var panelName = eleTab.getAttribute("panel");
+    // find panel we need to show by default 
+	var elePanel = ltOwner.querySelector(':root>[name="%s"]', panelName);
+	if( !elePanel)  {
+    	//what a ...!, panel="somename" without matching name="somename"
+        return;
+    }
+
+	var eleTabStrip = eleTab.parent();
+	eleTabStrip.state.current = true; // :current - make tab strip as current element inside focusable.
+	eleTab.state.current = true; // :current - current tab is, well, current.
+	elePanel.state.expanded = true; // :expanded - current panel is expanded..
+}
+	
+onActiveChild = function (ltTarget,ltOwner,reason,behaviorParams) {
+	var newtab = targetTab(ltTarget,ltOwner);
+    if(!newtab)  { 
+        return true; // ltTarget is not a tab here.
+    }
+     
+    selectTab(ltOwner,newtab);
+    return true;
+}
+
+onMouseDown = function (ltTarget,ltOwner, x,y,mouseParams) {
+	var eleTab = targetTab( ltTarget, ltOwner ); 
+	if(!eleTab)  return false;
+	
+	return selectTab( ltOwner, eleTab )
+} 
+
+onMouseDblClick = function (ltTarget,ltOwner, x,y,mouseParams) {
+	var eleTab = targetTab( ltTarget, ltOwner ); 
+	if(!eleTab)  return false;
+	
+	return selectTab( ltOwner, eleTab )
+} 
+
+var isInFocus = function(ltEle) {
+    return ltEle.test(":focus",true) ;
+}
+
+var catchKeys = {[0x9/*_VK_TAB*/]=1;[0x25/*_VK_LEFT*/]=1;[0x27/*_VK_RIGHT*/]=1;[0x24/*_VK_HOME*/]=1;[0x23/*_VK_END*/]=1}
+onKeyDown = function (ltTarget,ltOwner, keyCode, altState, ltKeyParams) {
+	if(!catchKeys[keyCode]) return;
+		
+  	var eleTab = ltOwner.querySelector(":root>.strip>[panel][selected]");
+  	select( keyCode ) {
+    	case 0x9/*_VK_TAB*/ {
+    		if( altState & 1/*_HL_CONTROL_KEY_PRESSED*/ )
+                return findTab( ltOwner, eleTab, 
+                             	(ltKeyParams.alt_state & 2/*_HL_SHIFT_KEY_PRESSED*/)? -1:1 );
+        }
+    	case 0x25/*_VK_LEFT*/ {
+    		return isInFocus(eleTab)? findTab( ltOwner, eleTab, -1 ) ;
+    	}
+    	case 0x27/*_VK_RIGHT*/{
+    		return isInFocus(eleTab)? findTab( ltOwner, eleTab, 1 ) 
+    	}
+    	case 0x24/*_VK_HOME*/{
+    		return isInFocus(eleTab)? findTab( ltOwner, eleTab, -2 ) 
+    	}
+    	case 0x23/*_VK_END*/{
+    		return isInFocus(eleTab)? findTab( ltOwner, eleTab, 2 ) 
+    	};
+  	}
+  	return false; 
+} 
+
+onButtonClick = function (ltTarget,ltOwner,reason,behaviorParams) {
+	if( ltTarget.class == "close-panel" && ltTarget.queryParent(".strip>[panel]") ){
+		close(ltOwner,ltTarget);
+		return true;
+	}
+}
+
+sinking = {
+    onHyperlinkClick = function (ltTarget,ltOwner,reason,behaviorParams) {
+    	var href =  ltTarget.href; 
+    	if( ! ( href && ltTarget.target && ltTarget.title ) ) return;
+        
+        if( ..string.startWith(href,"tabs://") ){
+        	 open( ltOwner,ltTarget.title ,..string.right(href,-8),ltTarget.target)
+        	 return true;//取消默认行为
+        }
+       
+    }
+} 
+
+onVisualStateChanged = function (ltTarget,ltOwner,shown,behaviorParams) {
+	if(shown) ltTarget.update(true); //resize custom control
+}
+
+onSize = function (ltOwner) {
+	adjustStrip(ltOwner);
+} 
+
+/*
+CSS定义 .tabs > .strip 的宽度为 width:calc( 100% - 下拉按钮宽度 ); 
+然后将下拉按钮的CSS类名指定为 tabs-menu,使用 position: absolute; 绝对定位到选项卡右上角
+*/
+onMenuItemClick = function(ltTarget,ltOwner,reason,behaviorParams) {  
+	var ltPopupOwner = ..web.layout.element( behaviorParams.he ); 
+	if( !ltPopupOwner.test(".tabs-menu" ) ) return;
+	
+	self.select(ltOwner,ltTarget["panel-name"]);
+	return true;
+};
+
+onPopupRequest = function (ltTarget,ltOwner,reason,behaviorParams) {
+	var ltPopupOwner = ..web.layout.element( behaviorParams.he );
+	if( !ltPopupOwner.test(".tabs-menu" ) ) return;
+	
+	ltTarget.innerHTML = "";
+	var ltStrip = ltOwner.querySelector(':root>.strip');
+	for(i,eleChild in ltStrip.eachChild() ){
+		if(!eleChild.isVisible() && eleChild.closeable)
+			ltTarget.printf("<li panel-name='%s'>%s</li>",eleChild.panel,eleChild.innerText);
+	}
+	ltStrip.release();
+	return true;
+} 
+/*}}*/
+	 
+/*其他成员函数可在CSS脚本中直接调用{{*/
+self.select = function(ltOwner /*our tabs container*/,panelName){ 
+	if(!panelName)
+		error("参数错误",1);
+			
+    var eleTab = ltOwner.querySelector( ':root>.strip>[panel="%s"]', panelName );
+    if( eleTab.state.current ) return true;
+    
+    var preVisible = eleTab.isVisible();
+    if( !preVisible && !eleTab["closeable"] ) eleTab.style.display = "block";
+    
+    selectTab(ltOwner, eleTab);
+    if( !preVisible && !eleTab.isVisible() ) adjustStrip(ltOwner);
+}
+
+isVertical = function(ltOwner){
+	var v = ltOwner.vertical;
+	if( v) {
+		return v == "true";
+	}
+	
+	var eleFirst = ltOwner.querySelector(":root>.strip>[panel]:first-child" );
+	var eleNext = eleFirst.next();
+	
+	if( eleFirst && eleNext){
+		var rcPrev =  eleFirst.getRect(3/*_HL_CONTAINER_RELATIVE*/ | 0x30/*_HL_MARGIN_BOX*/) 
+		var rcNext = eleNext.getRect(3/*_HL_CONTAINER_RELATIVE*/ | 0x30/*_HL_MARGIN_BOX*/)
+
+  		if( (rcPrev.left == rcNext.left) || (rcPrev.right == rcNext.right) || ( rcNext.top >= rcPrev.bottom - (rcPrev.height()/2) ) ){
+  			ltOwner.vertical = "true";
+  			return true;
+  		}
+	}
+	ltOwner.vertical = "false";
+	return false;
+}
+
+
+adjustStrip = function(ltOwner){  
+	var ltStrip = ltOwner.querySelector(":root>.strip");
+	var display = "block";
+	var rcStrip = ltStrip.getRect( 2/*_HL_SELF_RELATIVE*/ | 0/*_HL_CONTENT_BOX*/ )
+
+	ltStrip.enumQuery(
+  		function(ltEle){
+  			if( ltEle.isVisible() ){
+  				display = ltEle.style.display; 
+  			}
+  			else { 
+  				ltEle.style.visibility = "hidden";
+  				ltEle.style.display = display; 
+  			}
+  		},":root>[panel][closeable]"
+  	);
+	
+  	ltStrip.update(true);
+  	ltStrip.updateWindow();
+
+	var vertical = isVertical(ltOwner);
+  	 
+  	var showMenu = false;
+  	ltStrip.enumQuery(
+  		function(ltEle){
+  			 var rc = ltEle.getRect(3/*_HL_CONTAINER_RELATIVE*/ | 0x30/*_HL_MARGIN_BOX*/)
+  			 if( ( !vertical && ( rc.right > rcStrip.right ) ) || ( vertical && ( rc.bottom > rcStrip.bottom ) ) ){ 
+  			 	ltEle.style.display = "none";
+  			 	showMenu = true;
+  			 } 
+  			 else {
+  			 	ltEle.style.display = display;
+  			 	ltEle.style.visibility = "visible";
+  			 }
+  			 
+  		},":root>[panel][closeable]"
+  	)
+  	
+  	var ltMenus = ltOwner.querySelector(":root > .tabs-menu");
+  	if( ltMenus ){
+  		ltMenus.style.visibility = showMenu ? "visible" : "hidden" ;
+  	}
+}
+
+create = function(ltOwner,title,panelName,innerHtml,selected){
+	var elePanel = ltOwner.querySelector(':root>.panel[name="%s"]',panelName);
+	open(ltOwner,title,"",panelName,selected );
+	if( ! elePanel ){
+		elePanel = ltOwner.querySelector(':root>.panel[name="%s"]',panelName);
+		if(#innerHtml) elePanel.innerHTML = innerHtml; 
+	}
+}
+
+open = function(ltOwner,title,url,panelName,selected){
+	if(!panelName || panelName=="_blank") {
+		panelName =  ..string.replace(url,"@\","/");//防止在CSS选择器双引号中被理解为转义符
+	}
+	
+  	var elePanel = ltOwner.querySelector(':root>.panel[name="%s"]',panelName);
+  	
+  	if( !elePanel ) {
+    	elePanel = ltOwner.createElement( #url ?"iframe" : "div" );
+    	if(!#panelName) panelName = "#" + elePanel.uid;
+    	elePanel.name = panelName; 
+    	elePanel.class = "panel";
+  	} 
+  	
+  	var ltStrip = ltOwner.querySelector(":root>.strip"); 
+  	var eleTab = ltOwner.querySelector(':root>.strip>[panel="%s"]',panelName); 
+  	if( !eleTab ) {
+  		var ltLastFixed = ltOwner.querySelector(":root>.strip>[panel][closeable]" );  
+  		if( ltLastFixed ) ltLastFixed = ltLastFixed.previous();
+  		if(!ltLastFixed) ltLastFixed = ltOwner.querySelector(":root>.strip>[panel]:last-child" );
+  	
+  		eleTab = ltLastFixed.clone(ltLastFixed.index()+1); 
+    	eleTab.panel = panelName;  
+    	eleTab.innerHTML =  "<a .close-panel style='behavior:clickable;'></a><span>" + title + "</span>";
+    	eleTab["closeable"] = "true";
+  	};
+  	
+  	if(selected || ( selected === null ) )selectTab(ltOwner,eleTab);
+  	adjustStrip(ltOwner);
+  	
+  	ltOwner.update(true);
+  	
+  	if( #url ) elePanel.xcall("load",url);
+  	return true;
+}
+
+close = function(ltOwner,panelName){
+	var eleTab;
+	if( type(panelName) == type.string) 
+		eleTab = ltOwner.querySelector(':root>.strip>[panel="%s"]',panelName);  
+	else {
+		eleTab = panelName.queryParent("[panel]",0)
+	}
+	if(!eleTab) return true;
+	panelName = eleTab.panel;
+	
+	var current = eleTab.state.current;
+	var ltPrevious;
+	if( eleTab.prevPanelName ){
+		ltPrevious =  ltOwner.querySelector(':root>.strip>[panel="%s"]',eleTab.prevPanelName );
+	}
+	if(!ltPrevious) {
+		ltPrevious =  eleTab.previous();
+		if(current){
+			while( ltPrevious && ( !ltPrevious.isVisible() ) && ( !ltPrevious["closeable"] ) ){
+	 			ltPrevious = ltPrevious.previous(); 
+	 		}
+	 	}
+	}
+	
+	if( current && ltPrevious ) {
+		if(ltPrevious) selectTab(ltOwner,ltPrevious);
+		ltOwner.updateWindow();
+	}
+	
+	if(!eleTab.closeable){
+		var ltStrip = ltOwner.querySelector(":root>.strip");
+		eleTab.style.display = "none"; 
+		//eleTab.updateHTML();
+		ltStrip.updateWindow();
+	}
+	else{
+		var elePanel = ltOwner.querySelector(':root>.panel[name="%s"]', panelName);
+		elePanel.TABSPENDINGDELETE = "true";
+		
+		ltOwner.getForm().setTimeout( 
+			function(){
+				if( ! elePanel.isVisible() ) elePanel.delete(); 
+			},100
+		)
+		
+		eleTab.delete();
+	}
+	
+	adjustStrip(ltOwner);
+	return true;
+} 
+/*}}*/

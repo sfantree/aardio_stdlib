@@ -1,0 +1,75 @@
+//resizeBorder 拖动边框
+import win.cur;
+namespace win.ui;
+	
+class resizeBorder{ 
+	ctor(winform,border=8){  
+		if(! winform[["hwnd"]] ) error("参数@1不是有效窗口对象",2);
+		if( winform.hasResizeBorder ) error("窗口已经添加了拖动边框",2);
+		winform.hasResizeBorder = true;
+		
+		winform.wndproc = {
+    		[0x84/*_WM_NCHITTEST*/ ] = function(hwnd,message,wParam,lParam){
+    			if( ..win.isZoomed(winform.hwnd) ) return;
+    			var x,y = ..win.getMessagePos(lParam); 
+				var htborder = ..win.hitBorder(..win.getRect(winform.hwnd),x,y,border);
+			
+				if(htborder) return htborder; 
+    		}
+    		[0x20/*_WM_SETCURSOR*/] = function(hwnd,message,wParam,lParam){
+    			var ht,message = ..win.getMessagePos(lParam); 
+				var c = __cursor[ht];
+				if( c ) { 
+					..win.cur.setCur(c);
+					return true;
+				} 
+    		} 
+    	}
+		winform.onResizeBorder = function(wParam, lParam){
+			select(wParam) { 
+				case 0xB/*_HTRIGHT*/ {
+					winform.hitRight() 
+				}
+				case 0x11/*_HTBOTTOMRIGHT*/ {
+					winform.hitBottomright()
+				}
+				case 0xF/*_HTBOTTOM*/{
+					winform.hitBottom()
+				}
+				case 0x10/*_HTBOTTOMLEFT*/{
+					winform.hitBottomleft()
+				}
+				case 0xA/*_HTLEFT*/ {
+					winform.hitLeft()
+				}
+				case 0xC/*_HTTOP*/ {
+					winform.hitTop()
+				}
+				case 0xD/*_HTTOPLEFT*/ {
+					winform.hitTopleft()
+				}
+				case 0xE/*_HTTOPRIGHT*/{
+					winform.hitTopright()
+				}
+			} 
+		}
+	}; 
+}
+
+namespace resizeBorder{
+	__cursor = {
+		[0xC/*_HTTOP*/]  = ..win.cur.load(0x7F85/*_IDC_SIZENS*/);
+		[0xF/*_HTBOTTOM*/] = ..win.cur.load(0x7F85/*_IDC_SIZENS*/);
+		[0xA/*_HTLEFT*/]  = ..win.cur.load(0x7F84/*_IDC_SIZEWE*/);
+		[0xB/*_HTRIGHT*/] = ..win.cur.load(0x7F84/*_IDC_SIZEWE*/);
+		[0xD/*_HTTOPLEFT*/] = ..win.cur.load(0x7F82/*_IDC_SIZENWSE*/);
+		[0x11/*_HTBOTTOMRIGHT*/] = ..win.cur.load(0x7F82/*_IDC_SIZENWSE*/);
+		[0xE/*_HTTOPRIGHT*/] = ..win.cur.load(0x7F83/*_IDC_SIZENESW*/);
+		[0x10/*_HTBOTTOMLEFT*/] = ..win.cur.load(0x7F83/*_IDC_SIZENESW*/); 
+	}
+}
+
+/**intellisense()
+win.ui.resizeBorder = 无边框窗口添加拖动边框
+win.ui.resizeBorder(.(窗口对象,边框大小) = 参数@2可省略,默认为5
+end intellisense**/

@@ -1,0 +1,66 @@
+//可设定循环按键
+
+import key;
+import winex;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(parent=...; right=408;text="可设定循环按键 ";bottom=203 )
+winform.add( 
+lbRepeat2={ transparent=1;bottom=91;color=0;right=274;left=168;top=75;z=8;text="必须小于200";cls="static" };
+循环按钮={ bottom=167;right=247;left=142;top=135;z=1;text="开始循环";cls="button" };
+lbTitle2={ transparent=1;bottom=56;color=0;right=366;left=260;top=40;z=7;text="支持模式匹配语法";cls="static" };
+窗口标题={ bottom=57;right=251;left=120;multiline=1;top=34;z=5;text="记事本";edge=1;cls="edit" };
+关闭按钮={ bottom=166;right=366;left=261;top=134;z=2;text="退出程序";cls="button" };
+lbTitle={ transparent=1;bottom=53;color=0;right=112;left=33;top=37;z=6;text="目标窗口标题:";cls="static" };
+lbRepeat={ transparent=1;bottom=88;color=0;right=112;left=34;top=72;z=4;text="设定循环次数:";cls="static" };
+循环设定={ bottom=93;right=156;left=120;multiline=1;top=70;style=8192;z=3;text="1";edge=1;cls="edit" }
+)
+/*}}*/
+
+获取循环次数 = function(){
+
+	//获取循环次数, 并转换为数值
+	var num = tonumber(winform.循环设定.text) 
+	
+	//输入正确性检测
+	if( num && num > 200){ 
+		win.msgbox("请输入小于200的数值"   ) 
+		winform.循环设定.text = 1;
+	}
+	
+	//返回数值
+	return num or 0;
+}
+ 
+winform.循环设定.oncommand = function( ID,事件 ){
+
+	//如果用户正在修改文本
+	if( 事件 == 0x300/*_EN_CHANGE*/ ){  
+		获取循环次数(); //调用此函数检测正确性
+	} 
+}
+
+winform.关闭按钮.oncommand = function( ) { 
+    winform.close() //关闭窗口 
+}
+ 
+winform.循环按钮.oncommand = function( ) {
+ 
+ 	//激活需要控制的窗口
+ 	winex.findActivate( winform.窗口标题.text )
+	
+	for(i=1;获取循环次数() ){
+		
+		//如果用户关闭程序
+		if( ! win.delay(1000) )
+			break; //中断循环
+			
+		//做你要做的事
+		key.press( "N" )
+	}
+}
+
+//显示窗口
+winform.show() 
+//消息循环
+win.loopMessage();

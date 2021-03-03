@@ -1,0 +1,22 @@
+﻿//修改集合值
+import console;
+import fsys.dlg;
+import com;
+
+var path = fsys.dlg.open("*.docx|*.docx||");
+if(!path) return;
+ 
+var wordApp = com.CreateObject("word.Application");
+wordApp.Visible = true;
+
+//打开WORD文档
+var wordDocument = wordApp.Documents.Open(path);
+ 
+wordDocument.BuiltinDocumentProperties("Title").setValue("1");//无法赋值，不支持集合 
+wordDocument.setBuiltinDocumentProperties("Title", "新标题"); //正确写法
+
+var title = wordDocument.BuiltinDocumentProperties("Title").getValue();
+console.log("新标题: " ,title ); 
+
+wordDocument.Save();  
+wordApp.quit(); 

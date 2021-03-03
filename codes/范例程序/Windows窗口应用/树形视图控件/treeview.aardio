@@ -1,0 +1,108 @@
+//树形控件入门示例
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=349;bottom=249;parent=...)
+winform.add(
+treeview={cls="treeview";left=22;top=17;right=326;bottom=230;asel=false;bgcolor=15793151;db=1;dl=1;dt=1;edge=1;hscroll=1;infoTip=1;vscroll=1;z=1}
+)
+/*}}*/
+
+import win.ui.menu;
+winform.treeview.onnotify = function(id,code,ptr){
+ 
+    if( code == 0xFFFFFE3D/*_TVN_SELCHANGEDW*/ ){ //改变选项
+        /*
+		var nm = winform.treeview.getTreeNotifyMessage(code,ptr)
+        if( nm ){
+            var data  = winform.treeview.getItemData(nm.itemNew.hItem);
+            if( data ) winform.text = tostring(data)
+            else winform.text = winform.treeview.getItemText(nm.itemNew.hItem);
+        }
+		*/
+		var hItem = winform.treeview.getSelection();
+		if(hItem){
+			var data  = winform.treeview.getItemData(hItem);
+            if( data ) winform.text = tostring(data)
+            else winform.text = winform.treeview.getItemText(hItem);
+		}
+    }
+    elseif(code = 0xFFFFFFFB/*_NM_RCLICK*/){ //鼠标右键单击
+        var hItem,tvht = winform.treeview.hitTest();
+        winform.treeview.setSelected(hItem);
+        
+        var menu = win.ui.popmenu(winform)
+        menu.add("删除",
+            function(){ 
+                winform.treeview.delItem(hItem)
+            }
+        )
+        menu.popup(x,y,true);
+    }
+    elseif( code == 0xFFFFFFF4/*_NM_CUSTOMDRAW*/ ){ //来点自绘
+		var lvcd = winform.treeview.getNotifyCustomDraw(code,ptr); 
+		if( lvcd.nmcd.dwDrawStage == 1/*_CDDS_PREPAINT*/ ){
+			return 0x20/*_CDRF_NOTIFYITEMDRAW*/;
+		}
+		elseif( lvcd.nmcd.dwDrawStage == 0x10001/*_CDDS_ITEMPREPAINT*/ ){
+			select(lvcd.iLevel) {
+				case 0{
+					if (lvcd.nmcd.uItemState == ( 0x10/*_CDIS_FOCUS*/ | 1/*_CDIS_SELECTED*/)) 
+						lvcd.clrText = gdi.RGB(255, 255, 255);
+					else	
+						lvcd.clrText = gdi.RGB(0, 0, 255); 
+				}
+				case 1 {
+					if (lvcd.nmcd.uItemState == ( 0x10/*_CDIS_FOCUS*/ | 1/*_CDIS_SELECTED*/)) 
+						lvcd.clrText = gdi.RGB(255, 255, 255);
+					else	
+						lvcd.clrText = gdi.RGB(255, 0, 0);
+				}
+			} 
+			lvcd.update() 
+			return 0/*_CDRF_DODEFAULT*/
+		}
+	}
+}
+
+var hitem = winform.treeview.insertItem( text="程序目录" );
+var hSubItem = winform.treeview.insertItem( { text="子目录" },hitem/*父节点*/); 
+
+var hitem = winform.treeview.insertItem( { 
+    text = "下面用一个数组指定子节点"; { 
+        {  text = "子节点1"  };
+        {  text = "子节点2" };
+        {  text = "下面用一个数组指定子节点"; {
+            "a";"b";"c";{ text = "d" } 
+           }
+        };
+    }
+} ) 
+
+import string.xml;
+xmlstr =  /* 
+<?xml version="1.0" encoding="utf-8"?>
+<project ver="10" name="aardio工程3" libEmbed="true" icon="...">
+	<file name="main.aardio" path="main.aardio" >  
+	</file>
+	<folder name="资源文件" path="res" embed="true">
+		<file name="test.aardio" path="test.aardio" >  
+	</folder>
+	<folder name="库" path="lib"> </folder> 
+</project> 
+*/ 
+xmlDoc = string.xml( xmlstr )
+winform.treeview.insertItem( xmlDoc ) //直接把XML加载到树形控件中, winform.treeview.getItemData(hItem) 获取节点对应的XML数据
+/*
+winform.treeview.insertItem 的参数@1可以使用使用string.xml对象,
+或者使用相同结构的普通数据表对象,每个节点对象必须指定tagName或text属性,
+treeview按text,label,title,name,tagName的顺序确定显示标题.
+
+每个节点可以用数组包含子节点(但节点本身必须指定tagName或text属性)
+也可以使用children成员指向一个数组表示多个子节点
+
+可以参考 fsys.asar.reader 提供的treeData函数返回的数据表,
+就可以直接在treeview中加载并显示。
+*/
+
+winform.show() 
+win.loopMessage();

@@ -1,0 +1,209 @@
+//lrc 歌词解析
+namespace string;
+
+class lrc{
+	ctor( lrcText ){ {
+		var s = lrcText;
+		if( s[1] == 0xEF  && s[2] == 0xBB && s[3] == 0xBF ){
+			s = ..string.right(s,-4);
+		}
+		elseif( #s%2 == 0 ){
+			if ( s[1] == 0xFF  && s[2] == 0xFE ){
+				s = ..string.fromUnicode( ..string.right(s,-3) );
+			}
+			elseif ( s[1] == 0xFF  && s[2] == 0xFE ){
+				s = ..string.fromto( ..string.right(s,-3),1201,65001 );
+			}
+			elseif( s[2] == 0 && s[4] == 0 ) {
+				s = ..string.fromUnicode(s);
+			}
+			elseif( s[1] == 0 && s[3] == 0 ) {
+				s = ..string.fromto( s,1201,65001 );
+			}
+			elseif( !..string.isUtf8(s) ){
+				s = ..string.fromto(s,0,65001);
+			}
+		}
+		else {
+			if( !..string.isUtf8(s) ){
+				s = ..string.fromto(s,0,65001);
+			}
+		}
+		
+		lrcText = s;
+
+		var find = ..string.find;
+		var indexOf = ..string.indexOf;
+		var slice = ..string.slice;
+		var push = ..table.push;
+		var tokens = {}; 	
+	  
+		for line in ..string.lines(lrcText) { 
+			var lrcBegin = 1;
+			while( 
+			    var tagBegin,tagEnd = 0,0;
+			    tagBegin = indexOf(line,"[",tagEnd+1) ;
+			    tagBegin 
+			) { 
+				tagBegin,tagEnd,tag = find(line,"(\[.+?\])",tagEnd+1 )
+				if( !tag ) break ;
+				
+				tagBegin--;
+				if( lrcBegin < tagBegin  ) {
+					push( tokens,slice(line,lrcBegin,tagBegin ) )
+				} 
+				push( tokens,tag );   
+				
+				lrcBegin = tagEnd + 1 ;  
+			}
+			
+			if( lrcBegin > 1  && lrcBegin < #line ){
+				push( tokens,slice(line,lrcBegin,#line  ) )
+			} 
+		} 
+
+		var lrc = "";
+		var t,m,s,ms;
+		var match = ..string.match;
+		this.tags = {};
+		var lyric = {};
+		for(i=#tokens;1;-1){
+			var line = tokens[i];
+			if( line[1] != '\['# ){
+				lrc = line;
+				continue;
+			}
+			m,s,ms = match(line, "\[\s*(\d{2})\s*\:\s*(\d{2})\s*\.*\s*(\d*)\s*\]");
+			
+			if( m === null ){
+				var k,v = match( line,"\[\s*([^\:\s]+)\s*\:(.+)\s*\]$")
+				if(k)this.tags[k] = v;
+				lrc = null;
+			}
+			elseif(lrc) { 
+			    push( lyric,{ (tonumber(m,10):0)* 60 * 1000 + (tonumber(s,10):0) * 1000 + (tonumber(ms,10):0); lrc;i })
+			} 	
+		} 
+		  
+		..table.sort( lyric,function(b){
+			if( owner[1] ==  b[1] ) return owner[3] < b[3];//稳定排序
+			return owner[1] <  b[1]
+		} )
+
+		for(i=#lyric;2;-1){
+			if( lyric[i][2] == lyric[i-1][2] )
+				..table.remove(lyric,i);
+		} 
+		
+		this.lyric = lyric;  
+		this.offset =  this.tags.offset ? tonumber(this.tags.offset) : 0; 
+		this.tags.offset = null;
+		this.index = 1;
+	} }; 
+	each = function(){
+		var i = 0;
+		return function(){
+			i++;
+			var lrc = this.lyric[i];
+			if( lrc ) return lrc[2],lrc[1];
+		}; 
+	};
+	findLrc = function(ms){
+		var b,e,ms = this.find(ms);
+		if(!b) return; 
+		if( b == e ) return this.lyric[b][2],ms;
+	}; 
+	find = function(ms){
+		var lyric = this.lyric;
+		var idx = this.index;
+		var len = #lyric;
+		var offset = this.offset;
+
+		if( idx > len ) idx = 1;
+		elseif( lyric[idx][1] > ms ) idx = 1;
+		ms = ms + offset;
+
+		for(i=idx;len;1){
+			
+			if( lyric[i][1] > ms){
+				if( i <= 1 ) return; 
+				this.index = i; 
+				
+				var lrc = {}
+				var tm1 = lyric[i-1][1]; 
+				var b = i-1;
+				for( j=i-1;idx;-1 ){ 
+					if( lyric[j][1] < tm1 ) break;
+					b = j;
+				} 
+				return b,i-1,lyric[i][1]-ms;
+			} 
+		}
+	};
+	stringify = function(){
+		var push = ..table.push;
+		var map = {}
+		var lyric = {};
+		for( line,ms in this.each() ){ 
+    		if( map[line] ){
+    			push(map[line][2],ms);//重复歌词合并
+    		} 
+    		else {
+    			var lrc = {line;{ms}}
+    			map[line] = lrc;
+    			push( lyric,lrc );
+    		} 
+		} 
+		
+		var output = {};
+		for(k,v in this.tags){
+			push( output,"[" + k + ":" + v + "]" );
+		}
+		if( this.offset ){
+			push( output,"[offset:" + this.offset + "]" );
+		}
+		
+		for(i=1;#lyric;1){
+			var line = "";
+			var tms = lyric[i][2];
+			for(j=1;#tms;1){ 
+				var ms = tonumber(tms[j]);
+				var m,s = ..math.modf( ms/( 1000 * 60 ) );
+				var s,s2  = ..math.modf( s * 60 );
+				var ms = ..math.round( s2 * 1000 );
+				 if( !ms ){ 
+				 	 line = line + ..string.format("[%02d:%02d]",m,s)
+				 }
+				 else { 
+				 	 line = line + ..string.format("[%02d:%02d.%03d]",m,s,ms )
+				 } 
+			}
+			line = line + lyric[i][1]; 
+			push( output,line );
+		}
+		return ..string.join(output,'\r\n');
+	}
+}
+
+/**intellisense()
+string.lrc = 歌词解析
+string.lrc( __/*歌词文本*/ ) = 创建歌词解析器
+string.lrc() = !string_lrc.
+!string_lrc.find( = 查找歌词位置
+!string_lrc.find(.(当前时间) = 返回开始索引,结束索引,歌词持纪时间\n开始索引与结束索引不同则应显示多行歌词\n时间以毫秒为单位\n失败返回空值
+!string_lrc.findLrc( = 查找歌词
+!string_lrc.findLrc(.(当前时间) = 返回歌词,歌词持续时间\n时间以毫秒为单位\n失败返回空值
+!string_lrc.offset = 歌词提前时间\n负数表示延后
+!string_lrc.tags.ti = title\n歌词标题
+!string_lrc.tags.ar = artist\n歌手、演唱者
+!string_lrc.tags.al = album\n唱片集,专辑名
+!string_lrc.tags.by = by ...\nLRC文件制作者
+!string_lrc.tags.re = player/editor\n创建此LRC文件的程序
+!string_lrc.tags.ve = version\n程序的版本
+!string_lrc.index = 当前歌词索引
+!string_lrc.lyric = 歌词按时间排序后的数组\n每个歌词为一个数组,索引1为显示时间,索引2为歌词
+!string_lrc.each() = @for( line,ms in ??.each() ){
+    io.print( line,ms );__/*按时间索引排序遍历所有歌词*/ 
+}
+!string_lrc.stringify() = 重新生成歌词并返回字符串\n重复歌词将自动合并时间标记,并自动修正不规范格式
+end intellisense**/

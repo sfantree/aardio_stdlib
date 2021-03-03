@@ -1,0 +1,65 @@
+﻿import wsock.tcp.simpleHttpServer;
+import win.path;
+import win.reg;
+import fsys;
+
+namespace process.php.simpleHttpServer;
+
+cgiPath = ..win.path.search("php-cgi.exe")
+if( ! ..io.exist(cgiPath) ){
+	var reg = ..win.regReader("HKEY_LOCAL_MACHINE\SOFTWARE\PHP")
+	if(reg){
+		var dir = reg.queryValue("InstallDir")	
+		if(dir){
+			cgiPath = ..io.joinpath(dir,"php-cgi.exe")
+		}
+	}
+}
+
+if( ( ! ..io.exist(cgiPath) ) && ..io.exist("C:\Program Files\PHP")){
+	..fsys.enum( "C:\Program Files\PHP", "php-cgi.exe",
+		function(dir,filename,fullpath,findData){ 
+			if(filename){ 
+	           	cgiPath = fullpath
+	           	return false;
+			} 
+		}  
+	);
+} 
+
+if( !..io.exist(cgiPath) ){
+	cgiPath = "~\lib\php\.dll\php-cgi.exe";
+}
+
+startUrl = function(path,documentRoot,cgiPath,iniPath){
+    if(!cgiPath)cgiPath=self.cgiPath;
+    if(!iniPath)iniPath=self.iniPath;
+    
+ 	if( ! ..io.exist(cgiPath) ){
+ 		error("请先指定process.php.simpleHttpServer.cgiPath")
+ 	}
+ 	
+ 	..wsock.tcp.simpleHttpServer.threadGlobal = {
+ 		phpCgiPath = cgiPath;
+ 		phpIniPath = iniPath;
+ 	}
+ 	
+ 	return ..wsock.tcp.simpleHttpServer.startUrl(path,documentRoot,self.app); 
+}
+
+app = function(response,request,session){
+	import process.php.cgi;
+	if( string.endWith(request.path,".php",true) ){
+		process.php.cgi(response,request,phpCgiPath,phpIniPath);		
+	}
+	else {
+		response.loadcode( request.path );
+	}
+}
+
+/**intellisense(process.php.simpleHttpServer)
+startUrl( =  查找可用端口创建PHP/CGI服务器，返回返回完整URL\n此服务端限制使用本机IP127.0.0.1访问,并随机分配端口不会出现端口冲突\n如果PHP/CGI服务器已启动则直接返回URL而不是重复启动服务器,\n注意当前线程结束时,此服务器线程会自动退出
+startUrl(.(path,documentRoot) = 查找可用端口创建PHP/CGI服务器，返回返回完整URL\n如果PHP/CGI服务器已启动则直接返回URL而不是重复启动服务器,\n省略参数返回首页URL,尾部不包含斜杠\n可选用@path参数指定请求目标文件的相对路径\n可选使用参数@documentRoot指定网站根目录,默认为"/"
+cgiPath = 可选指定php-cgi.exe路径,\n不指定则自动搜索
+iniPath = 可选指定php.ini路径,\n不指定则在php-cgi.exe目录下查找
+end intellisense**/

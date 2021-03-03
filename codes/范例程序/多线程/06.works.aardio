@@ -1,0 +1,76 @@
+//6、多线程任务分派
+import fonts.fontAwesome;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="端口扫描";right=759;bottom=469)
+winform.add(
+btnScan={cls="button";text='\uF002  检测开放的TCP端口';left=344;top=9;right=545;bottom=35;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=5};
+edit={cls="edit";left=20;top=68;right=728;bottom=435;db=1;dl=1;dr=1;dt=1;edge=1;multiline=1;z=1};
+editIp={cls="edit";text="www.baidu.com";left=120;top=11;right=332;bottom=35;dl=1;dt=1;edge=1;z=3};
+editPortFrom={cls="edit";text="1";left=120;top=41;right=163;bottom=64;dl=1;dt=1;edge=1;num=1;z=6};
+editPortTo={cls="edit";text="2048";left=202;top=40;right=245;bottom=63;dl=1;dt=1;edge=1;num=1;z=7};
+progress={cls="progress";left=22;top=443;right=725;bottom=465;db=1;dl=1;dr=1;edge=1;hide=1;max=100;min=0;z=2};
+static={cls="static";text="域名或IP：";left=19;top=13;right=115;bottom=34;align="right";dl=1;dt=1;transparent=1;z=4};
+static2={cls="static";text='\uF061';left=167;top=41;right=190;bottom=59;align="right";dl=1;dt=1;font=LOGFONT(h=-16;name='FontAwesome');transparent=1;z=8};
+static3={cls="static";text="端口范围：";left=19;top=40;right=115;bottom=61;align="right";dl=1;dt=1;transparent=1;z=9}
+)
+/*}}*/
+
+import thread.works; 
+var scanWorks = thread.works( 256,
+	function(host) {
+		import wsock.tcp.client;
+		var client = wsock.tcp.client();  
+		host.valid = client.connectTimeout(host.ip,host.port,0.5); 
+		client.close(); 
+		
+		return host;
+	},,,winform.editIp.text
+);
+
+import win.timer;
+var timer = win.timer(winform,10);
+timer.disable()
+ 
+timer.onTimer = function(){ 
+	while( var host = scanWorks.pop() ) { 
+		if( host.valid ) winform.edit.print('可连接TCP端口：',host.port)
+		elseif( scanWorks.finished() ){
+			if(winform.pushing) return;
+			
+			timer.disable();
+			winform.btnScan.disabledText = null;
+			winform.progress.hide = true;
+			winform.edit.print("检测完成！")
+		}
+		else {
+			winform.progress.stepIt();
+		} 	
+	}
+}
+
+winform.btnScan.oncommand = function(id,event){
+    var portFrom,portTo = tonumber(winform.editPortFrom.text),tonumber(winform.editPortTo.text);
+    winform.progress.hide = false;
+	winform.progress.setRange(portFrom,portTo);
+	winform.progress.step = 1;
+
+	winform.btnScan.disabledText = {'\uF254';'\uF251';'\uF252';'\uF253';'\uF250'}
+	scanWorks.clear(); 
+	timer.enable();
+	
+	winform.pushing = true;
+	var ip = winform.editIp.text;
+	for(port=portFrom;portTo){
+		scanWorks.push({port=port;ip=ip});
+		
+		if( null === win.peekPumpMessage() ){
+			break;
+		}
+	} 
+	winform.pushing = false
+}
+
+winform.show();
+win.loopMessage();
+scanWorks.quit();

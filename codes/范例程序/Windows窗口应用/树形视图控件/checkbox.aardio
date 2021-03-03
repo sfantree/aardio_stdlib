@@ -1,0 +1,60 @@
+//动态显示复选框
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="树形控件启用复选框：试试勾选有子节点的节点";right=471;bottom=497)
+winform.add(
+treeview={cls="treeview";left=19;top=17;right=453;bottom=480;asel=false;bgcolor=15793151;chkBox=1;db=1;dl=1;dt=1;edge=1;hscroll=1;infoTip=1;vscroll=1;z=1}
+)
+/*}}*/
+
+/*
+注意：请在窗口设计视图下，设置treeview控件的【显示复选框】为true
+*/
+
+//处理控件通知消息
+winform.treeview.onnotify = function(id,code,ptr){
+    
+  	//用户勾选、取消勾选复选框
+    if(code = 0xFFFFFFE8/*_NM_TVSTATEIMAGECHANGING*/){ 
+        
+        var hItem = winform.treeview.hitTest();
+        
+        /*
+        这里一定要取反,因为是选中状态更新以前触发这个事件,
+        勾选目标是复选框，并不改变当前选中节点,不会改变winform.treeview.getSelection()的返回值
+        */
+        var checked = !winform.treeview.getChecked(hItem);
+		winform.text =  ( checked ? "勾选 " : "取消勾选 " )  + winform.treeview.getItemText(hItem);
+		
+ 		//遍历子节点
+ 		for hSubItem in winform.treeview.each(hItem){
+ 			winform.treeview.setItem(
+ 				stateMask = 0xF000/*_TVIS_STATEIMAGEMASK*/;
+ 				state = checked ? 0x1000 : 0; //动态显示或隐藏节点的复选框
+ 				hItem = hSubItem;
+ 			)
+ 		} 
+ 		
+ 		//展开子节点
+ 		winform.treeview.expand(hItem);
+    }
+}
+
+//添加演示节点
+var hitem = winform.treeview.insertItem( text="程序目录" );
+var hSubItem = winform.treeview.insertItem( { text="子目录" },hitem/*父节点*/); 
+
+//添加演示节点
+var hitem = winform.treeview.insertItem( { 
+    text = "下面用一个数组指定子节点"; { 
+        {  text = "子节点1"  };
+        {  text = "子节点2" };
+        {  text = "下面用一个数组指定子节点"; {
+            "a";"b";"c";{ text = "d" } 
+           }
+        };
+    }
+} ); 
+
+winform.show(); 
+win.loopMessage();

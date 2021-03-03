@@ -1,0 +1,171 @@
+//app 执行更新程序
+import thread.command;
+import web.json;
+
+namespace fsys.update;
+
+class app {
+	ctor(srcDir,dstDir,reusable,removable){ 
+		this = ..thread.command(); 
+		this[["apply"]] = function(){
+			if(removable === null){removable = true;}
+			..thread.invoke( apply ,this._form.hwnd,srcDir,dstDir,reusable,removable );
+		}; 
+		
+		var updateInfo = ..string.load( ..fsys.joinpath(srcDir,"update-info") );
+		if(updateInfo){
+			this[["updateInfo"]] = ..web.json.tryParse(updateInfo);
+		};
+	};
+}
+
+namespace app{
+
+	apply = function(hCmd,srcDir,dstDir,reusable,removable){
+		import fsys;
+		import process.file;
+		import thread.command;
+		
+		var send = ..thread.command.send;
+		var sendIdle = ..thread.command.sendIdle;
+		
+		var srcFilesDir = ..fsys.joinpath(srcDir,"files");
+		var filesPath = ..fsys.joinpath(srcDir,"update-files");
+		var foldersPath = ..fsys.joinpath(srcDir,"folders");
+		
+		if( !..io.exist(srcFilesDir) ){
+			send(hCmd,"onError","错误的更新源目录",srcFilesDir);
+		 	return;
+		}
+		if( !..io.exist(filesPath,4) ){
+			send(hCmd,"onError","错误的更新文件列表",filesPath);
+		 	return;
+		}
+		if( !..io.exist(foldersPath,4) ){
+			send(hCmd,"onError","错误的更新目录列表",foldersPath);
+		 	return;
+		} 
+		if( !..io.exist(dstDir) ){
+			send(hCmd,"onError","错误的更新目标程序目录",dstDir);
+		 	return;
+		}
+		
+		//创建所有目录
+		for path in io.lines(foldersPath) { 
+			var path = ..fsys.joinpath(dstDir,path);
+			..fsys.createDir(path);
+		} 
+		
+		var totalFiles = 0;
+		for path in ..io.lines(filesPath) { 
+			totalFiles++;
+		}
+		 
+		var exes = {}; 
+		for( path,prcs in ..process.file.each(dstDir) ){
+			..table.push( exes,path );
+		}
+		if( #exes ) if( send(hCmd,"onProcessCheck",exes ) === false ) {
+			send(hCmd,"onEnd",false );
+			return true; 
+		}
+			
+		var count = 0;
+		var srcPath,dstPath;
+		
+		send(hCmd,"onCopyBegin",totalFiles)
+		for path in ..io.lines(filesPath) {  
+			srcPath = ..fsys.joinpath(srcFilesDir,path);
+			dstPath = ..fsys.joinpath(dstDir,path);
+			
+			count++;
+			if( sendIdle(1000,hCmd,"onCopyFile",path,count) === false ) {
+				send(hCmd,"onEnd",false );
+				return true;
+			}
+			while( !  ..fsys.copy(srcPath,dstPath) ){
+				if( ..io.exist(dstPath) ){
+					if( ..process.isExe(dstPath) ){
+						if( send(hCmd,"onProcessFailed", { dstPath } ) === false ) {
+							send(hCmd,"onEnd",false );
+							return true;
+						} 
+						sleep(1);
+						
+						if( ..fsys.copy(srcPath,dstPath)  ) break;
+						sleep(1000);
+						continue;
+					}
+				}
+			
+				if( send(hCmd,"onCopyFailed",dstPath ) === false ) {
+					send(hCmd,"onEnd",false );
+					return true; 
+				}
+				sleep(1000);
+			}
+		}
+		
+		var checksumPath = ..fsys.joinpath(srcDir,"checksum");
+		var logPath = ..fsys.joinpath(srcDir,"log-files");
+		var crc32,uncompressedSize,size,path;
+		if( ..io.exist(logPath) && ..io.exist(checksumPath) ){
+			
+			var validcrc32 = {}
+			for line in ..io.lines(checksumPath) { 
+				crc32,uncompressedSize,size,path = ..string.match(line,"(.+?)\|(.+?)\|(.+?)\|(.+)"); 
+				validcrc32[path] = crc32;
+			}
+			
+			if(removable){
+				for line in ..io.lines(logPath) { 
+					crc32,uncompressedSize,size,path = ..string.match(line,"(.+?)\|(.+?)\|(.+?)\|(.+)"); 
+					if( validcrc32[path]===null ){
+						..fsys.delete( ..fsys.joinpath(dstDir,path)  );
+					}
+				}	
+			}
+			
+			..fsys.delete(logPath);
+		}
+		fsys.move(checksumPath,logPath);
+		 
+		if( !reusable ){
+			..fsys.delete(srcFilesDir);
+			..fsys.delete(filesPath);
+			..fsys.delete(foldersPath);
+			..fsys.delete(..fsys.joinpath(srcDir,"update-info"));
+		}
+		send(hCmd,"onEnd",true)
+	}
+}
+
+/**intellisense()
+fsys.update.app = 执行更新程序
+fsys.update.app(.(更新源,目标目录,是否保留更新补丁,是否允许移除文件) = 创建更新程序,\n如果参数@3为true，则更新后不删除源补丁\n如果参数@4指定为false，则更新时不删除在新版补丁中已移除的旧版本文件。
+fsys.update.app() = !fsys_update_app.
+!fsys_update_app.updateInfo.version = 更新的软件版本号
+!fsys_update_app.updateInfo.description = 更新说明
+!fsys_update_app.apply() = 创建更新线程,安装更新
+!fsys_update_app.onError = @.onError = function(err,filename){
+	io.print("更新遇到错误:",err,filename__/*导致错误的文件路径或URL\n该值可能为空*/ )
+}
+!fsys_update_app.onCopyBegin = @.onCopyBegin = function(total){
+	 __/*开始复制文件*/
+}
+!fsys_update_app.onCopyFile = @.onCopyFile = function(path,count){
+	 __/*开始复制参数@1指定的文件,返回false取消更新*/
+}
+!fsys_update_app.onProcessCheck = @.onProcessCheck = function(paths){
+	 __/*参数是更新程序所在目录下已运行的进程路径,\n返回false取消更新*/
+}
+!fsys_update_app.onProcessFailed = @.onProcessFailed = function(paths){
+	 __/*更新程序需要退出进程,\n参数是程序启动路径数组\n返回false取消更新*/
+}
+!fsys_update_app.onCopyFailed = @.onCopyFailed = function(path){
+	 __/*文件被占用,返回false取消更新*/
+}
+!fsys_update_app.onEnd = @.onEnd = function(succeeded){
+	 __/*更新操作已全部完成*/
+}
+end intellisense**/

@@ -1,0 +1,28 @@
+//4、Java调用aardio
+import console;
+import java;  
+
+var jvm = java(); 
+
+HelloworldApp = jvm.loadClass( "aardio.sample.HelloworldApp");
+
+//为Java提供Native API
+//请先在Java类HelloworldApp中声明API: static native String aardio(String code);
+HelloworldApp.registerNative(
+	function(env,jobject,jstring){
+		var code = jvm.parseString(jstring) //也可以用 owner.parseString(jstring)
+		var func = loadcode(code) 
+		return jvm.string( func() )
+	},"aardio","string(string)"
+)
+	 
+/*
+创建java类实例,并调用其成员方法,
+注意java会到 "默认类搜寻路径" + "/java/aardio/sample/HelloworldApp.class" 去查找 aardio.sample.HelloworldApp
+与aardio中的库类似名字空间与类文件路径一致,"默认类搜寻路径"为"/java/"以及"/java/*.jar"
+*/
+var helloworld = HelloworldApp();
+console.log( helloworld.test_aardio() );	
+io.stdout.flush()
+ 
+console.pause()

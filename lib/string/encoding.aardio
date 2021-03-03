@@ -1,0 +1,53 @@
+//encoding 字符编码
+import win.reg;
+namespace string.encoding;
+
+getCharset = function(cp){
+	if(cp===null) cp = ::Kernel32.GetACP();
+	if( type(cp) != type.number ) error("参数必须是数值",2);
+	if( __cache__[charset] )return __cache__[charset];
+	
+	var reg = ..win.regReader("HKEY_CLASSES_ROOT\MIME\Database\Codepage\" + cp );
+	if(reg) { 
+		var charset = reg.queryValue("BodyCharset");
+		reg.close(); 
+		return charset;
+	}
+}
+
+getCodepage = function(charset){
+	if( charset === null) return ::Kernel32.GetACP();
+	if( type(charset) != type.string ) error("参数必须是字符串",2);
+	charset = ..string.lower(charset);
+	if( __cache__[charset] )return __cache__[charset];
+	
+	var reg = ..win.regReader("HKEY_CLASSES_ROOT\MIME\Database\Charset\" + charset);
+	if( !reg ) return;
+	
+	var cp;	 
+	while( ;cp = reg.queryValue("InternetEncoding");!cp ) {
+		
+		charset = reg.queryValue("AliasForCharset");
+		reg.close();
+		
+		if( !charset ) break;
+		reg = ..win.regReader("HKEY_CLASSES_ROOT\MIME\Database\Charset\" + charset )
+		if( !reg ) break;
+	}
+	
+	reg.close()
+	return cp;
+}
+
+__cache__ = {
+	["gbk"] = 936;
+	["gb2312"] = 936;
+	["utf-8"] = 65001;
+	[936] = "gbk";
+	[65001]= "utf-8";
+}
+
+/**intellisense(string.encoding)
+getCharset(.(codepage) = 内码转换为字符集\n参数为数值表示的内码页,返回值为文本\n省略参数则使用默认内码页
+getCodepage(.(charset) = 字符集转换为内码\n参数为文本,返回数值
+end intellisense**/

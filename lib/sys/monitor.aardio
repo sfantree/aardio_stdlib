@@ -1,0 +1,164 @@
+//monitor 显示器
+namespace sys.monitor;
+
+class MONITORINFO  {         
+    INT cbSize = 40; 
+    struct rcMonitor = {
+    	int left;
+		int top;
+		int right;
+		int bottom;
+	} ;       
+    struct rcWork = {
+    	int left;
+		int top;
+		int right;
+		int bottom;
+	}
+    INT flags;
+}
+
+getInfo = function(hm){
+	var info = MONITORINFO(); 
+	if( hm ? ::User32.GetMonitorInfo( hm,info ) ) return info;  
+}
+
+getInfoFromWindow = function(hwnd=0,flag = 2/*_MONITOR_DEFAULTTONEAREST*/){
+	return getInfo( ::User32.MonitorFromWindow( hwnd ,flag ) ); 
+}
+
+getInfoFromPoint = function(x,y,flag = 0/*_MONITOR_DEFAULTTONULL*/){
+	return getInfo( ::User32.MonitorFromPoint ( x,y ,flag) ); 
+}
+
+eachInfo = function(hdc,rcClip){
+	var m = {};
+	var proc = ..raw.tostdcall(function(hMonitor,hdcMonitor,rcMoninter,data){
+		var info = MONITORINFO();
+		if( ::User32.GetMonitorInfo( hMonitor,info ) ){
+			if( m[hMonitor]  && info.flags == 1/*_MONITORINFOF_PRIMARY*/ ) return false;
+			if( rcMoninter ) info.rc = ..raw.convert(rcMoninter,{int left;int top;int right;int bottom});
+			info.hdc = hdc;
+			m[hMonitor] = info;
+		}
+		return true;
+	},"bool(ptr,ptr,ptr,ptr)");
+	::User32.EnumDisplayMonitors(hdc,rcClip,proc,0);
+
+	return function(hMonitor){
+		return ..table.next(m,hMonitor); 
+	} 
+}
+
+class DEVMODE_DISPLAY_DEVICE{
+  	WORD deviceName[0x20/*_CCHDEVICENAME*/];
+  	WORD specVersion;
+  	WORD driverVersion;
+  	WORD size = 220;
+  	WORD driverExtra;
+  	INT fields;
+  	struct position = {INT x;INT y;}
+  	INT displayOrientation;
+  	INT displayFixedOutput;
+  	word color;
+  	word duplex;
+  	word yResolution;
+  	word ttOption;
+  	word collate;
+  	WORD formName[0x20/*_CCHFORMNAME*/];
+  	WORD logPixels;
+  	INT bitsPerPel;
+  	INT pelsWidth;
+  	INT pelsHeight;
+  	INT displayFlags;
+  	INT displayFrequency;
+  	INT icmMethod;
+  	INT icmIntent;
+  	INT mediaType;
+  	INT ditherType;
+  	INT reserved1;
+  	INT reserved2;
+  	INT panningWidth;
+  	INT panningHeight;
+} 
+
+eachMode = function(flags,idx){
+
+	idx := 0;
+	var devMode = DEVMODE_DISPLAY_DEVICE();
+	return function(){
+		if(  ::User32.EnumDisplaySettingsExW(null,idx,devMode,flags) ){
+			idx++;
+			return devMode;
+		}
+	}
+}
+
+changeMode = function(mode,flags){
+	if(!mode[["_struct"]]) {
+		mode = ..table.assign( DEVMODE_DISPLAY_DEVICE(),mode );
+	}
+	if(mode.fields===null) mode.fields = 0;
+	if(mode.pelsWidth!==null) mode.fields = mode.fields | 0x80000/*DM_PELSWIDTH*/;
+	if(mode.pelsHeight!==null) mode.fields = mode.fields | 0x100000/*DM_PELSHEIGHT*/;
+	if(mode.bitsPerPel!==null) mode.fields = mode.fields | 0x40000/*DM_BITSPERPEL*/;
+	if(mode.displayOrientation!==null) mode.fields = mode.fields | 0x80/*_DM_DISPLAYORIENTATION*/
+	return ::User32.ChangeDisplaySettingsW(mode,flags);
+}
+
+/**intellisense(sys.monitor)
+getInfo(.(hMonitor) = 参数为显示设备句柄\n返回显示器信息
+getInfo() = !MONITORINFO.
+getInfoFromPoint(.(x,y) = 获取指定坐标所在显示器信息,\所有参数可选
+getInfoFromPoint() = !MONITORINFO.
+getInfoFromWindow(.(窗口句柄) = 获取窗口所在显示器信息,\所有参数可选
+getInfoFromWindow() = !MONITORINFO.
+eachMode(flags,idx) = @for( devMode in sys.monitor.eachMode() ){
+	if( devMode.pelsWidth > (devMode.pelsWidth > devMode.pelsHeight ? 640 : 480) ){
+		__
+	}
+}
+eachInfo(hdc,rcClip) = @for( hMonitor,monitorInfo in sys.monitor.eachInfo() ){
+	__
+}
+eachInfo() = !MONITORINFO.
+eachMode() = !DEVMODE_DISPLAY_DEVICE.
+changeMode(.(mode,flags) = 参数@1指定DEVMODE_DISPLAY_DEVICE结构体,\n也可以仅指定部分要更新的字段，该结构体也可以使用eachMode迭代器获取。\n\nflags可省略,默认为0,请参考API函数ChangeDisplaySettings的文档
+end intellisense**/
+
+/**intellisense()
+_MONITOR_DEFAULTTONULL=@0/*_MONITOR_DEFAULTTONULL*/
+_MONITOR_DEFAULTTOPRIMARY=@1/*_MONITOR_DEFAULTTOPRIMARY*/
+_MONITOR_DEFAULTTONEAREST=@2/*_MONITOR_DEFAULTTONEAREST*/
+_DMDO_DEFAULT=@0/*_DMDO_DEFAULT*/
+_DMDO_90=@1/*_DMDO_90*/
+_DMDO_180=@2/*_DMDO_180*/
+_DMDO_270=@3/*_DMDO_270*/
+_ENUM_CURRENT_SETTINGS=@-1/*_ENUM_CURRENT_SETTINGS*/
+_ENUM_REGISTRY_SETTINGS=@-2/*_ENUM_REGISTRY_SETTINGS*/
+_EDS_RAWMODE=@0x2/*_EDS_RAWMODE*/
+_CDS_UPDATEREGISTRY=@1/*_CDS_UPDATEREGISTRY*/
+_CDS_TEST=@2/*_CDS_TEST*/
+_CDS_FULLSCREEN=@4/*_CDS_FULLSCREEN*/
+_CDS_GLOBAL=@8/*_CDS_GLOBAL*/
+_CDS_SET_PRIMARY=@0x10/*_CDS_SET_PRIMARY*/
+_CDS_VIDEOPARAMETERS=@0x20/*_CDS_VIDEOPARAMETERS*/
+_CDS_ENABLE_UNSAFE_MODES=@0x100/*_CDS_ENABLE_UNSAFE_MODES*/
+_CDS_DISABLE_UNSAFE_MODES=@0x200/*_CDS_DISABLE_UNSAFE_MODES*/
+_CDS_RESET=@0x40000000/*_CDS_RESET*/
+_CDS_RESET_EX=@0x20000000/*_CDS_RESET_EX*/
+_CDS_NORESET=@0x10000000/*_CDS_NORESET*/
+end intellisense**/
+
+/**intellisense(!MONITORINFO)
+rcMonitor = 显示器的在屏幕坐标系中的矩形\n!rect.
+rcWork = 显示器的工作区域\n!rect.
+end intellisense**/
+
+/**intellisense(!DEVMODE_DISPLAY_DEVICE)
+pelsWidth = 像素宽度
+pelsHeight = 像素高度
+bitsPerPel = 像素位宽
+displayOrientation = 显示方向,参考_DMDO_ 前缀常量
+displayFrequency = 刷新频率
+end intellisense**/

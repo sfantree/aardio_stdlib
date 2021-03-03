@@ -1,0 +1,24 @@
+//JSON-RPC客户端
+
+import console;  
+import web.rpc.jsonClient; 
+
+//创建JSON-RPC 2.0客户端
+var client = web.rpc.jsonClient("http://127.0.0.1:1428/jsonrpc")
+
+//调用远程对象和函数 aardio.$hello
+var rep = client.aardio.$hello("jacen" ) 
+  
+//返回对象的格式参考: http://www.jsonrpc.org/specification
+if( rep[["result"]] ){	
+	console.dump( rep.result )
+}
+elseif( rep[["error"]] ){
+	console.dump(rep.error)
+}
+else {
+	client.rpc.lastResponse();
+}
+
+console.pause(true);
+ 

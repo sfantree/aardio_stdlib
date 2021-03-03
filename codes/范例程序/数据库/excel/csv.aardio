@@ -1,0 +1,38 @@
+//CSV,TXT格式文本数据
+//下面的代码仅使用系统组件,不需要安装ACCESS软件
+
+var txt = /*
+Name,Starred,Contact_Id
+"孟轲","0",0
+"张九龄","1",1 
+*/ 
+string.save("/Contact.csv",..string.fromto(txt) ); //创建测试的TXT数据库
+
+//指定分隔符,不是逗号就要在这里改
+import fsys.ini;
+var schema = fsys.ini("/schema.ini")
+schema.write("Contact.csv","Format","Delimited(,)")
+
+import access;
+import console;
+
+var txtDb =  access(  "/" );   
+for(rs in txtDb.each("SELECT * FROM [Contact.csv] " ) ){ 
+     console.log( rs("Name").value,rs("Starred").value    );  
+}
+
+txtDb.close();
+
+console.log("下面试试标准库自带的解析器")
+//--------------------------------------------------
+console.more(1)
+
+import string.database;
+var strDb = string.database(",");
+
+var data = strDb.parse(txt); //解析数据
+console.dump( data )
+
+var str = strDb.stringify(data); //存为文本
+console.dump( str );
+console.pause();

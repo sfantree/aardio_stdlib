@@ -1,0 +1,190 @@
+//升级包制作工具
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio - 升级包制作工具";right=735;bottom=471;parent=...)
+winform.add(
+btnCode={cls="button";text="查看自动更新代码示例";left=261;top=409;right=453;bottom=449;clip=1;db=1;dr=1;font=LOGFONT(h=-13);z=8};
+btnExplorer={cls="button";text="浏览...";left=607;top=339;right=669;bottom=372;clip=1;db=1;dr=1;font=LOGFONT(h=-13);z=12};
+btnGen={cls="button";text="生成升级包";left=469;top=409;right=661;bottom=449;clip=1;db=1;dr=1;font=LOGFONT(h=-13);z=6};
+chkSingleFile={cls="checkbox";text="仅添加主启动文件";left=190;top=385;right=600;bottom=399;clip=1;z=13};
+editAppDir={cls="edit";left=189;top=29;right=685;bottom=61;clip=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(h=-13);readonly=1;z=5};
+editDescription={cls="edit";left=189;top=109;right=685;bottom=325;clip=1;db=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(h=-13);multiline=1;z=2};
+editOutput={cls="edit";text="/.update-files/";left=189;top=341;right=605;bottom=373;clip=1;db=1;dl=1;dr=1;edge=1;font=LOGFONT(h=-13);z=9};
+editProgress={cls="edit";left=16;top=12;right=719;bottom=401;clip=1;db=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(h=-13);hide=1;multiline=1;z=1};
+editUpdateUrl={cls="edit";text="http://update.aardio.com/api/v1";left=189;top=69;right=685;bottom=101;clip=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(h=-13);z=10};
+static={cls="static";text="本地应用程序目录:";left=12;top=37;right=181;bottom=61;align="right";clip=1;dl=1;dt=1;font=LOGFONT(h=-13);transparent=1;z=3};
+static2={cls="static";text="升级包下载网址(根目录):";left=4;top=77;right=181;bottom=101;align="right";clip=1;dl=1;dt=1;font=LOGFONT(h=-13);transparent=1;z=4};
+static3={cls="static";text="输出目录:";left=45;top=349;right=181;bottom=373;align="right";clip=1;db=1;dl=1;font=LOGFONT(h=-13);transparent=1;z=7};
+static4={cls="static";text="本版升级说明:";left=14;top=113;right=182;bottom=137;align="right";clip=1;dl=1;dt=1;font=LOGFONT(h=-13);transparent=1;z=11}
+)
+/*}}*/
+
+import ide;
+var pubDir = ide.getProjectProperty("publishDir");
+var appDir = ide.getProjectDir();
+if( #pubDir && appDir ){
+	if( io.localpath(pubDir) ) pubDir = io.joinpath(appDir,pubDir);
+	winform.editAppDir.text = pubDir;
+	winform.editAppDir.appendText();
+	
+	var projConfig = string.load( io.joinpath(appDir,".build/update-maker.table") );
+	if(#projConfig){
+		projConfig = eval(projConfig);
+		winform.editUpdateUrl.text = projConfig.updateUrl : projConfig.editUpdateUrl;
+		if(#projConfig.outputDir) winform.editOutput.text = projConfig.outputDir;
+		winform.editDescription.text = projConfig.description;
+		winform.chkSingleFile.checked = projConfig.singleFile;
+	};
+	
+	winform.chkSingleFile.text = "仅添加主启动文件:" + ide.getPublishName()
+}
+else {
+	winform.msgboxErr("请先创建或打开aardio工程!");
+	return;
+}
+
+if(!..io.exist(ide.getPublishPath())){
+	winform.msgboxErr("请先发布工程并生成EXE文件!");
+	return;
+}
+
+winform.editProgress.threadCallable();
+winform.btnGen.oncommand = function(id,event){
+	
+	winform.btnGen.disabled = true;
+	win.ui.waitCursor(true);
+	
+	var appDir = ide.getProjectDir();
+	if(!#appDir){
+		winform.msgboxErr("请先创建或打开aardio工程!");
+		return;
+	}
+	
+	var outputDir = winform.editOutput.text;
+	if(io.localpath(outputDir)){
+		outputDir = io.joinpath(appDir,outputDir)
+	}
+
+	win.invoke( 
+		function(winform,appDir,updateUrl,outputDir,description,chkSingleFile){
+			import fsys;
+			import fsys.update.maker;
+			
+			var maker = fsys.update.maker();
+			maker.url = #updateUrl ? updateUrl : null;
+			maker.outDir =  outputDir;
+			maker.appDir = appDir;  
+			maker.description = description
+			fsys.createDir(maker.outDir);
+			
+			winform.editProgress.text = "";
+			winform.editProgress.hide = false;
+			winform.editProgress.print("开始生成......");
+			
+			maker.onFile = function(path,size){
+			    winform.editProgress.printf("压缩文件 %s 大小 %s",path,..math.size64(size).format() );
+			}
+			var ok,err = maker.compress(chkSingleFile);
+			if(!ok){
+				if( err ) winform.msgboxErr(err);
+				else {
+					winform.msgboxErr("生成升级包是遇到错误");
+				}
+				
+				return;
+			} 
+			else {
+				if( winform.msgboxTest("升级包已创建成功,是否打开输出目录?") ){
+					import process;
+					process.explore_select( io.joinpath(outputDir,"version.txt"));
+				}
+			}
+			
+			winform.editProgress.hide = true;
+				
+		}
+		,winform
+		,winform.editAppDir.text
+		,winform.editUpdateUrl.text
+		,outputDir
+		,winform.editDescription.text
+		,winform.chkSingleFile.checked
+	)
+	
+	var afterMaker = ..io.exist( ..io.joinpath(appDir,".build/update-maker.aardio") );
+	if(afterMaker){
+		var tHnd,tId = thread.create(afterMaker,projConfig)
+		if(tHnd){
+			::User32.AttachThreadInput( ..thread.getId(),tId,true); 
+			thread.waitOne(tHnd);
+			raw.closehandle(tHnd);
+		}
+	};
+	
+	winform.btnGen.disabled = false;
+	win.ui.waitCursor(false);
+}
+
+winform.btnCode.oncommand = function(id,event){
+    var updateUrl = winform.editUpdateUrl.text;
+    if(!#updateUrl){
+    	updateUrl = "http://update.aardio.com/api/v1"
+    }
+	var code  = string.replace(updateSampleCode,"@${UPDATEURL}",updateUrl);
+	var code  = string.replace(code,"@${APPNAME}",ide.getProjectProperty("ProductName"):"软件产品名称");
+	ide.openCode( code );
+}
+
+updateSampleCode = /**
+/*
+请将以下代码置于 main.aardio 开始位置（建议放在所有窗口显示以前）
+在此代码执行以后，在任何窗口中都可以再次调用 fsys.update.simpleMain.checkUpdate(true) 检测并启动更新
+*/
+import fsys.update.simpleMain;
+if( fsys.update.simpleMain(
+	"${APPNAME}",
+	"${UPDATEURL}/version.txt", /*网址也可以改用目录名，并使用服务端代码动态返回version.txt*/
+	"/download/update-files", /*绿色软件建议改为 io.appData("/软件厂商名/软件名字/update-files") */
+	function(version,description,status){
+		/*
+		version参数包含最新版本号，
+		description包含最新版本更新说明，
+		status参数值见下面的列表：
+			"ready": 下载已完成并准备更新,
+			"updated": 已更新到新版本并准备启动新版
+			"complete": 当前已更新并已启动新版本主程序，所有操作已完成
+			"latest": 已经是最新版不需要更新
+			"failed": 出错了,description参数为错误信息
+		
+		这个回调函数不是必须的，
+		在此检测更新代码之前或之后都可以在界面线程调用
+		fsys.update.simpleMain.onStatusChanged 订阅更新状态变更信息。
+		该认阅回调函数的参数与上面的回调参数相同。
+		*/
+	} )){
+	return 0; //必须退出 main.aardio 以启动更新
+}
+**/
+
+winform.editUpdateUrl.setCueBannerText("可选输入升级包所在目录网址")
+
+import com.interface.IFileOpenDialog;
+winform.btnExplorer.oncommand = function(id,event){
+	var path = com.interface.IFileOpenDialog.dir(winform.editOutput.text,winform,'请选择输出升级包文件的目录')
+	if(path){
+		winform.editOutput.text = path;
+	}	
+}
+
+winform.beforeDestroy = function(){
+    var projConfig = {
+		updateUrl = winform.editUpdateUrl.text;
+		description = winform.editDescription.text;
+		outputDir = winform.editOutput.text;
+		singleFile = winform.chkSingleFile.checked;
+	};
+	string.save(io.joinpath(appDir,".build/update-maker.table") ,table.tostring(projConfig) )
+}
+winform.show();
+
+win.loopMessage();

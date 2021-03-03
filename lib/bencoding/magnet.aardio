@@ -1,0 +1,24 @@
+//magnet 磁力链接
+import inet.url;
+import bencoding.decoder;
+import crypt;
+
+namespace bencoding.magnet;
+
+get = function(strTorrentData){
+	var bdecoder = ..bencoding.decoder(strTorrentData);
+	var torrentInfo,err =  bdecoder.parse();
+	if(!torrentInfo[["info"]]) return null,err;
+ 
+	return 'magnet:?'+ "xt=urn:btih:" 
+		+ ..crypt.sha1( bdecoder.getString( torrentInfo[["info"]]) ,true) 
+		+ "&" +..inet.url.stringifyParameters({   
+			dn = torrentInfo['info']['name'];
+			tr = torrentInfo['announce']; 
+			xl = torrentInfo['info']['length']
+		},false)
+}
+
+/**intellisense()
+bencoding.magnet.get(.(torrent数据) = torrent数据为bencoding编码的字符串,\n返回磁力链接
+end intellisense**/

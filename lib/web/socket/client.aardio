@@ -1,0 +1,514 @@
+﻿//client 异步客户端
+
+import crypt;
+import crypt.bin; 
+import inet.url;
+import web;
+import wsock.tcp.asynClient;
+
+namespace web.socket;
+
+class client{
+	ctor(){
+		this.readyState = 0;
+		this.secKey = getSecKey();
+		this.heartbeatInterval = 30;
+		this.heartbeatData = "";
+		this.heartbeatType = 0xA;
+		this.userAgent = "Mozilla/5.0";
+		..table.gc(this,"close");
+	};
+	close = function(code, reason){
+		if(this.socket){
+			if( ( this.readyState !=3 ) && ( this.readyState !=2 ) ){
+				
+				if( code && reason ){
+					this.sendData({
+						WORD code = ..raw.swap(code,"WORD");
+						BYTE reason[] = reason;
+					},8);
+				} 
+				else{
+					this.sendData("",8);
+				};
+				
+				this.readyState = 2;
+			}
+			this.socket.shutdown();
+		}
+	};
+	connect = function(url){
+		if(!url) url = this.url;
+		if(!url) error("请指定连接网址,例如 ws://localhost:7511");
+		
+		if( this.isConnected() ) {
+			this.close();
+			..win.delay(100);
+		};
+		 
+		this.readyState = 0;
+		this.socket = ..wsock.tcp.asynClient(); 
+		this.socket.bufferSize = 1024*10;
+		
+		this.webSocketCloseCode = null;	
+		this.webSocketCloseReason = null;
+				
+		var uri = ..inet.url.split(url);
+		if( ..string.cmp(uri.scheme,"ws") !=0 ){
+			error("错误的URL协议:" + uri.scheme,2);
+		}
+		this.url = url;
+		
+		this.socket.onConnect = function(err){
+			if(err){
+				if( this.onError ) this.onError( ..wsock.err.lasterr(err) ); 
+				this.close();
+				return; 
+			};
+			
+			var host = uri.host;
+			if( uri.port ) host =  host +":"+ uri.port;
+			
+			if(!this.originUrl ){
+				this.originUrl = "http://" + host +"/"; 
+			}
+			
+			var headers = ..web.joinHeaders({
+				["Connection"] = "Upgrade";
+				["Host"] = host;
+				["User-Agent"] = this.userAgent;
+				["Pragma"] = "no-cache";
+				["Accept"] = "*/*;";
+				["Upgrade"] = "websocket";
+				["Connection"] = "Upgrade"; 
+				["Origin"] =  this.originUrl;
+				["Sec-WebSocket-Version"] = "13";
+				["Sec-WebSocket-Protocol"]  = this.protocol : "chat"; 
+				["Sec-WebSocket-Key"] = this.secKey; 
+			},this.headers)
+					
+			var reqPath = #uri.path ?  uri.path : "/";
+			if( uri.extraInfo ) reqPath = reqPath + uri.extraInfo;
+			var ret  = this.socket.write('GET '+ reqPath  +' HTTP/1.1\r\n'+ headers +'\r\n')
+		
+			if(!ret){
+				if( this.onError ) this.onError( 'Handshake failure'); 
+				this.close();
+				return;
+			}
+		}
+		
+		this.socket.onRead = this._onReadHttpHeader;
+		
+		this.socket.onClose = function(err){
+			if( this.socket == owner ){
+				this.readyState = 2;
+				
+				if( this.onClose ) {
+					if(err){
+						this.onClose( 
+							code = 1006;
+							reason = ..wsock.err.lasterr(err);
+						); 
+					}
+					else {
+						this.onClose( 
+							code = this.webSocketCloseCode : 1000;
+							reason = this.webSocketCloseReason 
+						);
+					}
+				}
+				
+				if(( this.socket == owner )&&(this.readyState == 2)){
+					this.webSocketCloseCode = null;	
+					this.webSocketCloseReason = null;
+					this.readyState = 3; 
+					this.socket = null;	
+				}
+			}
+			
+			/*
+			这里不能用this.socket.close(),
+			因为这个套接字关闭事件被触发时，可能已经创建新的this.socket了
+			*/
+			owner.close();
+		}
+		
+		return this.socket.connect(uri.host,uri.port:80);	
+	};
+	isClosed = function(){
+		if( this.readyState == 3 ) return true;
+		if( !this.socket[["hSocket"]] ) return true;
+	};
+	isConnected = function(){
+		return ( this.readyState == 1 ) && ( this.socket[["hSocket"]] );
+	};
+	waitForConnected = function(hwnd,timeout){ 
+		..win.delay(1000);
+		return ..win.wait( 
+			function(){
+				if( this.readyState > 1 ) return false;
+				if( this.readyState == 1 ) return true;
+			},hwnd,timeout,1000
+		);	 
+	}; 
+	_beginTranslateMessage = function(msg){ 
+		if( this.onMessage ) { this.onMessage(msg); };	
+		if( this._translateMessage ) { this._translateMessage(msg); };
+	};
+	_onReadMessage = function(err){
+		if(err){
+			if( this.onError ) this.onError( ..wsock.err.lasterr(err) );
+			this.close();
+			return;	
+		}; 
+		
+		var msg = this._beginRecvMessage();
+		if(!msg){ 
+			return;
+		};
+
+		//control frames
+		if( msg.type & 2#1000 ){
+			if( msg.type == 8 ){//close
+				if(#msg.data>=2){
+					this.webSocketCloseCode = ..raw.swap( ..raw.convert(msg.data,{WORD code}).code );
+					this.webSocketCloseReason = ..raw.tostring(msg.data,3);
+				}
+				else {
+					this.webSocketCloseCode = 1005;	
+					this.webSocketCloseReason = null;
+				}
+				
+            	this.close();
+        	}
+        	elseif( msg.type == 9){//ping
+            	this.sendData(msg.data,10);
+        	}
+        	elseif( msg.type == 10){//pong
+        	}
+			return;
+		}
+		
+		if( msg.fin ){
+			if( msg.type ){
+				if( msg.type == 1 ) msg.data = ..raw.tostring(msg.data);
+				this._beginTranslateMessage(msg);
+			}
+			else {
+				if( this.onFragment ){
+					this.onFragment(msg);
+				}
+				else {
+					..table.push(this.cacheFragment.data,msg.data);
+					this.cacheFragment.length = this.cacheFragment.length + #(msg.data);
+					
+					if( this.cacheFragment.type == 1 ) this.cacheFragment.data = ..string.join(this.cacheFragment.data);
+					else {
+						var len = 0;
+						var buffer = ..raw.buffer(this.cacheFragment.length); 
+						var data = this.cacheFragment.data;
+						for(i=1;#data;1){
+							..raw.concat(buffer,data[i],len)
+							len = len + #data[i];
+						}
+						this.cacheFragment.data = buffer;
+					}
+					this._beginTranslateMessage(this.cacheFragment);
+				}
+			}
+		}
+		else {
+			if( msg.type ){
+				if( this.onFragment ){
+					this.onFragment(msg);
+				}	
+				else {
+					this.cacheFragment = msg;
+					this.cacheFragment.data = {msg.data}
+					this.cacheFragment.length = #(msg.data);
+				}
+				
+			}
+			else {
+				if( this.onFragment ){
+					this.onFragment(msg);
+				}
+				else {
+					..table.push(this.cacheFragment.data,msg.data);
+					this.cacheFragment.length = this.cacheFragment.length + #(msg.data);
+				}
+			}
+		}
+	};
+	_onReadHttpHeader = function(err){
+		if(err){
+			if( this.onError ) this.onError( ..wsock.err.lasterr(err) );
+			this.close();
+			return;	
+		};
+
+		var responseHead = this.socket.readTo('\r\n\r\n');//HTTP头以两个回车换行结束
+		if(!responseHead){ 
+			return;	
+		};
+	
+		var httpHeaders = ..string.split(responseHead,'<\r\n>');
+		var statusLine = httpHeaders[1] ? ..string.splitEx(httpHeaders[1],"\s+",3); 
+		if( ..string.startWith(statusLine[1],"HTTP/",true) ){
+			this.status = statusLine[2];
+			if( this.status == "101" ){
+				..table.shift(httpHeaders,1); 
+				this.responseHeaders = {};
+				for(i=#httpHeaders;1;-1){
+					var h = ..string.splitEx(httpHeaders[i],"\:\s*",2); 
+					h[1] = ..string.trim(h[1]); h[2] = ..string.trim(h[2]);
+					this.responseHeaders[ ..string.lower(h[1])] = h[2];  
+				} 
+
+				if( this.responseHeaders["sec-websocket-accept"] != getSecAccept(this.secKey) ){
+					if( this.onError ) this.onError( 'Incorrect "Sec-WebSocket-Accept" header value'); 
+					this.close();
+					return;
+				}
+				this.readyState = 1;//连接成功
+				if( this.onOpen ) this.onOpen();
+				this.socket.onRead = this._onReadMessage;
+				
+				if( this.heartbeatInterval > 0 ){
+					var d,t = this.heartbeatData,this.heartbeatType;
+					this.socket.heartbeatTimerId = this.socket._form.setInterval( 
+						this.heartbeatInterval * 1000,function(hwnd,msg,id,tick){
+							if(!this.sendData(d,t)){//单向心跳
+								if( this.onError ) this.onError( "Heartbeat failed" ); 
+								this.socket.shutdown();
+							}
+						} 
+					)
+				}
+			}
+			else {
+				if( this.onError ) this.onError( 'Unexpected response code:' + this.status);
+				this.close();;
+			}	
+		}
+		else {
+			if( this.onError ) this.onError( 'Invalid status line');
+			this.close();;
+		}
+	}
+	send = function(data){
+		var t = type(data);
+		
+		if( t = type.string )
+			return this.sendData(data,1);
+
+		if( t = type.buffer )
+			return this.sendData(data,2);
+			
+		if( t[["_struct"]] )
+			return this.sendData(..raw.buffer(data),2);
+	}
+	sendData = function(data,opcode = 1,fin=1,mask=1,rsv1 = 0,rsv2 = 0,rsv3 = 0){ 
+		if(this.readyState != 1) {
+			if( this.onError ) this.onError( 'Failed to execute "send/sendData"');
+			return;
+		};
+		
+		if( data[["_struct"]] ) data = ..raw.buffer(data);
+			 
+		var len = #data; 
+		var buf = ..raw.buffer( len + 14);
+		buf[1] = (fin << 7) | (rsv1 << 6) | (rsv2 << 5) | (rsv3 << 4) | opcode;
+
+   		var w  = 2;
+    	if (len <= 125) {
+        	buf[2] = (mask << 7) | len; 
+    	}
+    	elseif(len < (1 << 16) ) {
+        	buf[2] = (mask << 7) | 126;
+        	..raw.convert({WORD v = ..raw.swap(len,"WORD"); },buf,2);
+        	w = 4;
+    	} 
+    	else {
+        	buf[2] = (mask << 7) | 127;
+        	..raw.convert({LONG v=..math.size64(len).swap(); },buf,2);
+        	w = 10;
+    	}
+    	
+    	if(mask){
+        	var k = ..string.random(4);
+        	..raw.concat(buf,k,w);
+        	w = w + 4;
+        
+        	for(i=1;len;1) buf[w+i] = data[i]  ^ k[ i% 4 : 4 ];
+    	}
+    	else {
+    		..raw.concat(buf,data,w);
+    	}
+    
+    	if(!this.socket.writeBuffer(buf,w + len)){
+    		if( this.onError ) this.onError( ..wsock.err.lasterr() );
+    		this.socket.shutdown();
+    		return false;
+    	}
+    	return true;
+	};
+	_endRecvMessage4 = function(){
+		var len = this.recvMessage.dataSize;
+		
+		if(len){
+        	var buf = ..raw.buffer(len);
+       		if( ! this.socket.readBuffer(buf) ){ 
+				return;
+       		}  
+       		
+        	var maskKey = this.recvMessage.maskKey;
+        	if( maskKey ){ 
+            	for(i=1;len;1) buf[i] = buf[i]  ^ maskKey[ i% 4 : 4 ];
+        	}
+        	this.recvMessage.data = buf;
+        }
+        else {
+        	this.recvMessage.data = "";
+        }
+        
+        
+        var msg = this.recvMessage;
+        this.recvMessage = null;
+        return msg;
+	};
+	_recvMessageMaskKey3 = function(){
+		var msg = this.recvMessage;
+		
+		//上次的消息还没有接收完整，继续尝试
+		if( msg.maskKey ) 
+			return this._endRecvMessage4();
+ 
+        if( msg.mask ){
+            msg.maskKey = this.socket.read(4); 
+            if(!msg.maskKey) return;
+        }
+        
+        return this._endRecvMessage4();    
+	}
+	_recvMessageDataSize2 = function(){
+		var msg = this.recvMessage;
+		
+		//上次的消息还没有接收完整，继续尝试
+		if( msg.dataSize!==null ) 
+			return this._recvMessageMaskKey3();
+			
+		var len = msg.len;
+        if (len == 126) {
+            len = this.socket.read({WORD v});
+            if(!len)  return; 
+            msg.dataSize = ..raw.swap(len.v,"WORD");
+        }
+        elseif(len == 127) {
+            len = this.socket.read({LONG size64 = ..math.size64() });
+            if(!len)  return; 
+            
+            msg.dataSize = tonumber( len.size64.swap() ); 
+        }
+        else {
+        	msg.dataSize = len;
+        }
+         
+        return this._recvMessageMaskKey3();     
+	}
+	_beginRecvMessage = function(){
+		if(!this.socket) return;
+		
+		//上次的消息还没有接收完整，继续尝试
+		if( this.recvMessage ) 
+			return this._recvMessageDataSize2();
+		
+		var msg = {}; 
+	    var h = this.socket.read(2);
+	    if(!h) {
+	    	return; //异止套接字读取数据不完整会自动退回缓冲区
+	    }
+	    
+        var h1,h2 = h[1],h[2];
+        this.recvMessage = {
+        	type = h1 & 2#1111;
+            fin = (h1 >> 7) & 1;
+            rsv1 = (h1 >> 6) & 1;
+            rsv2 = (h1 >> 5) & 1;
+            rsv3 = (h1 >> 4) & 1;
+            mask = (h2 >> 7) & 1;
+            len = h2 & 2#1111111;
+        } 	
+        
+        return this._recvMessageDataSize2();
+	}
+}
+
+namespace client{
+    
+	sha1 = function(data){
+		var cr = ..crypt();
+		var hash = cr.createHash( 0x8004/*_CALG_SHA1*/,data ); 
+		var data = hash.getValue();
+		hash.destroy();
+		cr.release();
+		
+		return ..crypt.bin.encodeBase64(data);
+	}
+	
+	getSecAccept = function(data){
+		return sha1(..string.trim(data)+"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+	}
+	
+	getSecKey = function(){
+		return ..crypt.bin.encodeBase64(..string.random(16) );
+	}
+}
+
+/**intellisense()
+web.socket.client = 支持单线程异步的WebSocket客户端\n可直接在界面线程中使用，不会阻塞界面，不需要创建多线程\n支持服务端心跳(Ping/Pong帧)，客户端单向心跳(Pong帧)机制,\n可调用close函数断线，并可调用connect函数实现重析连接服务器
+web.socket.client() = !stdwebsocketclient.
+web.socket.client.sha1(__) = 使用sha1算法取哈希值，并使用Base64编码为普通文本
+web.socket.client.getSecKey() = 获取WebSocket客户端密钥
+web.socket.client.getSecAccept(__) = 获取WebSocket客户端配对密钥，\n参数指定服务端HTTP头中sec-websocket-accept返回的值
+end intellisense**/
+
+/**intellisense(!stdwebsocketclient)
+socket = 异步套接字对象\n在关闭连接状态下此属性的值为null\n应由对象自动打开或删除套接字对象，调用者不可改动此属性的值\n!stdtcpaclient.
+connect("ws://__") = 重新连接到WebSocket服务端\n参数指定WebSocket服务端网址，例如 "ws://localhost:7511"\n如果不指定参数,则获取上次调用此函数指定的网址参数,\n如果之前也没有指定网址则抛出异常
+waitForConnected(.(关联窗口句柄,超时) = 等待连接到WebSocket服务端\n所有参数可选,超时以毫秒为单位,\n\n连接成功返回true,失败返回false或null
+url = 上次成功连接的网址\n也可以用于指定下次连接的默认网址
+close() = 关闭连接\n可选增加2个参数指定发送给服务器的关闭帧附加数据:\n参数@1为数值类型的错误代码,参数@2为字符串类型错误描述
+send(__) = 发送数据,支持字符串或缓冲区(buffer)、结构体\n字符串作为UTF8文本类型发送,其他以二进制类型发送，\n成功返回true
+sendData(.(data,opcode,fin,mask,rsv1,rsv2,rsv3) = 发送WebSocket数据包\n参数@1支持支持字符串或缓冲区(buffer)、结构体\n除参数@1以外,所以参数可选\n一般应当调用send函数，而不是调用sendData函数\n\n如果一定要使用这个函数,请阅读此函数源码,以及WebSocket协议相关说明
+onOpen = @.onOpen = function(){
+	??.send("已连接到WebSocket服务");
+}
+onClose = @.onClose = function(e){
+	__/*连接被关闭\ne.code为错误代码e.reason为错误原因*/	
+}
+onError = @.onError = function(err){
+	__/*发生错误,err为错误信息*/
+}
+onMessage = @.onMessage = function(msg){
+    __/*收到服务端数据\nmsg.type为1时msg.data为文本,\n否则msg.data为字节数组（buffer类型）*/
+	
+}
+onFragment = @.onFragment = function(msg){
+   __/*收到分片数据\n第一个数据包使用msg.type指明类型,参考WebSocket协议规范\n后续数据包msg.type为0,最后一个数据包msg.fin为1\n\n如果不指定这个回调函数,则自动并接分片数据后触发onMessage事件*/	
+}
+_translateMessage = 此回调函数的参数与onMessage相同,\n如果定义了这个回调函数,\n那么此函数将在调用onMessage以后被调用,\n这个函数提供了一个机会用于自动处理服务器消息\n,为其他需要扩展web.socket.client功能的库所预留，\n一旦定义将不能修改
+headers = 其他HTTP请求头\n值可以是文本或数组、或键值对组成的表\n请求时会调用 web.joinHeaders()函数拼接并转换HTTP头\n该函数支持的类型和格式这个属性都可以支持
+responseHeaders = 服务端响应的HTTP头\n这是一个表对象，键名都已转为小写
+readyState = 连接状态,\n0为等待连接,1为已连接并准备就绪,2为正在关闭,3为已关闭\n只有成功通过WebSocket协议握手以后readyState才会被置为1\n这与socket.readyState连接成功就会置为1是不同的
+isClosed() = 套接字是否已关闭
+isConnected() = 套接字是否已连接并准备就绪(已与服务器握手成功)
+secKey = 连接密钥,不可改动
+heartbeatInterval = 客户端主动发送单向心跳（默认发送Pong空帧）间隔,默认为30秒\n设为-1时禁用客户端心跳,一般不建议禁用\n这个值修改以后，只能在下次调用connect函数才会生效
+heartbeatData = 单向心跳发送的数据,默认为空数据\n这个值修改以后，只能在下次调用connect函数才会生效
+heartbeatType = 单向心跳发送的的帧类型,\n默认为0xA,也就是Pong帧\n这个值修改以后，只能在下次调用connect函数才会生效
+originUrl = 浏览器启动WebSocket客户端的网址\n一些WebSocket服务器根据这个判断是不是允许连接,\n所以有时候设置这个很重要\n默认使用WebSocket网址，并把 前面的ws://改为http://
+userAgent = 客户端应用程序代理头\n默认为"Mozilla/5.0"
+protocol = 应用程序支持的协议列表,默认为"chat"
+end intellisense**/

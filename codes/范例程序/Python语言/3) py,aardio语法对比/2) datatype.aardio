@@ -1,0 +1,32 @@
+//2)类型转换
+?>
+<title>Python类型到aardio间的转换</title>
+
+<pre style="font-size:16px;">
+Python的类型非常非常的多，Python提供的解释器API，
+甚至都没有可以直接得到对象类型的接口，而有一个接近的
+PyType_hasFeature只是C++里的一个宏定义，在第三方语言中无法使用，
+这个东西甚至在python2中都没有，最后我是直接用指针取出pyObject的
+ob_type,tp_flags这些才可以做类型判断。
+
+虽然Python类型很多，但如果从解释器底层去看，
+除了字符串这些基础类型，其他重要的结构化类型只有4个，
+即object,dict,list,tuple
+
+其中所有对象的都是一个继承自object的对象，包括数值啊，字符串等等这些，
+在解释器里都是pyObject，在aardio里就是py.object，
+
+而python中的dict，也就是aardio中的py.dict，
+这个东西，基本可以理解为aardio中的表(table),
+
+python中的list，也就是aardio中的py.list，
+这个可以理解为aardio中的数组，实际上在aardio中数组，字典都是table。
+至于tuple，在aardio中也是转换为table.
+
+要注意在python中，成员符与下标是不同的。obj.name 这个叫属性，
+而 obj["name"] 这个叫下标，是两个不同的东西，但在aardio中这两个操作符是不分的，作用都是访问表的成员。
+
+而obj.name,obj["name"]对于py.object则总是访问属性，
+对于dict,list,tuple都执行总是下标操作,但如果aardio检测到ownerCall操作时，
+也就是写obj.name()调用属性方法时，这时候dict,list,tuple在aardio中也会返回属性而不是做下标索引操作。
+</pre>

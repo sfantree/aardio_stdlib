@@ -1,0 +1,93 @@
+//色相环
+import win.ui;
+import win.ui.ctrl.pick;
+/*DSG{{*/
+var winform = win.form(text="调色器 / 色相环";right=935;bottom=508;bgcolor=16777215;max=false;min=false)
+winform.add(
+btnCmy={cls="button";text="三间色";left=48;top=334;right=253;bottom=368;z=3};
+btnRgb={cls="button";text="三原色";left=48;top=289;right=253;bottom=323;z=2};
+button={cls="button";text="十二色相";left=48;top=378;right=253;bottom=412;z=4};
+button2={cls="button";text="全部色相";left=48;top=423;right=253;bottom=457;z=5};
+colorPick={cls="pick";text="custom";left=301;top=25;right=913;bottom=447;z=6};
+plus={cls="plus";left=32;top=14;right=272;bottom=254;paddingBottom=60;paddingLeft=60;paddingRight=60;paddingTop=60;z=1}
+)
+/*}}*/
+
+//颜色改变时触发此事件
+winform.colorPick.onColorChange = function(clr){
+    winform.plus.hueAngle = color.getHsb(clr);
+    if(!winform.colorPick.picking){
+        winform.plus.hueCount = 12;
+    	winform.plus.foreground = clr;	
+    }
+}
+
+//可选指定初始颜色
+winform.colorPick.setColor(0xFF14B383); 
+
+import color;
+winform.plus.hueCount = 360; 
+winform.plus.onDrawBackground  = function(graphics,rc,backgroundColor,clr){
+	if(!owner.hueCount) return;
+    
+	rc.inflate(-10,-10);
+	var width = rc.width();
+	var height = rc.height();
+	var x = rc.left + rc.width()/2;
+	var y = rc.height();
+	
+	graphics.rotateRect(rc,-90);
+	var pen = ..gdip.pen(0,20); 
+	var sweepAngle = 360/owner.hueCount; 
+	if(!owner.hueAngle){
+		owner.hueAngle = 0;
+	}
+	
+	var s,b = 1,1;
+	if(owner.hueAngle){
+		_,s,b = color.getHsb(winform.plus.foregroundColor);
+	}
+	
+	for(angle=0;359;sweepAngle){
+		var r,g,b = ..color.hsb2rgb((owner.hueAngle + angle)%360,s,b);
+		pen.color = ..color.argb(r,g,b);; 
+		graphics.drawArc(pen,rc.left,rc.top, width, height, (owner.hueAngle + angle)-(sweepAngle/2) ,sweepAngle+2); 
+	}
+	 
+	pen.delete();
+}
+
+winform.plus.onDrawContent = function(graphics,rc){
+ 	rc.inflate(-50,-50);
+    var brush = gdip.solidBrush(winform.plus.foregroundColor);
+    graphics.fillEllipse(brush,rc.left,rc.top,rc.width(),rc.height());
+    brush.delete();
+	return true;
+}
+
+winform.btnRgb.oncommand = function(id,event){
+	winform.plus.hueCount = 3;
+	winform.plus.hueAngle = 0;
+	winform.plus.redrawTransparent();
+}
+
+winform.btnCmy.oncommand = function(id,event){
+	winform.plus.hueCount = 6;
+	winform.plus.hueAngle = 0;
+	winform.plus.redrawTransparent();	
+}
+
+winform.button.oncommand = function(id,event){
+	winform.plus.hueCount = 12;
+	winform.plus.hueAngle = 0;
+	winform.plus.redrawTransparent();	
+}
+
+winform.button2.oncommand = function(id,event){
+	winform.plus.hueCount = 360;
+	winform.plus.hueAngle = 0;
+	winform.plus.redrawTransparent();	
+}
+
+winform.show() 
+win.loopMessage();

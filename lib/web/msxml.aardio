@@ -1,0 +1,186 @@
+//msxml 文档对象
+import com;
+import web;
+import util.metaProperty; 
+import web.form;
+namespace web; 
+
+class msxml{
+	ctor( xml,... ){
+		this.document = ..com.CreateObject("MSXML2.DOMDocument");
+		this.document.setProperty("SelectionLanguage", "XPath");
+		this.document.async = false;
+		if( xml ){
+			if( ..string.find(xml,"^\s*\<") ){
+				if( ... !== null ) xml = ..string.fromto(xml,(...) )
+				this.document.loadXML( xml )
+			}
+			else {
+				this.url = ..web.form.mapurl(xml);
+				this.document.load( this.url );
+			} 
+		}
+	};
+	@_metaProperty;
+}
+
+namespace msxml{ 
+    _metaProperty = ..util.metaProperty( 
+		eachNode = function( tagName="*",xnode ){ 
+			if(!xnode)
+				xnode = owner.document.documentElement;
+				
+			if( xnode ? xnode.getElementsByTagName )
+					return ..com.each( xnode.getElementsByTagName(tagName)  );
+					
+			return function(){}
+			
+		} 
+		queryNodes = function(tOptions){
+		 	var tab = {}
+		 	var cmp = ..string.cmpMatch
+		 	var parent = tOptions.parent;
+		 	tOptions.parent = null;//don't query;
+		 	 
+			for i,xnode in owner.eachNode(  ,parent ) { EACH: 
+				if(!xnode.getAttribute)
+					continue;
+					
+				for(k,v in tOptions){
+					var attr =  xnode.getAttribute(k) : xnode[k]; 
+				 
+					if( ..com.IsObject(attr) ){
+						if( type(v) == type.table ){
+							for(attr_k,attr_v in v){
+								if( ! cmp( attr[attr_k],attr_v )){  
+									continue EACH;
+								} 
+							} 
+						}
+					} 
+					elseif( ! cmp( attr,v ) ){   
+						continue EACH;
+					} 
+				}
+				..table.push(tab,xnode);
+			} 
+			return ..web.form.query( tab );
+		} 
+		load = function(url,...){
+			owner.url = ..web.form.mapurl(url);
+			owner.filename = owner.url;
+			return owner.document.load(owner.url,...);
+		}
+		transformNode = function(url,...){ 
+			return owner.document.load(..web.form.mapurl(url),...);
+		}
+		save = function(path,...){
+			if( path ){
+				owner.url = ..io.fullpath(path);
+				owner.filename = owner.url;
+			}
+			return owner.document.save(owner.url,...);
+		}
+		loadXml = function(xml,cp){
+			if(cp) xml = ..string.fromto(xml,cp);
+			owner.document.loadXML(xml)
+		}
+		xml = {
+			_get = function(){
+				return owner.document.getxml()
+			} 
+		} 
+		documentElement = {
+			_get = function(){
+				return owner.document.documentElement
+			} 
+			
+		} 
+		get = function(k){
+			return owner.document[k] or owner.document.getElementsByTagName(k)
+		}
+	);
+}
+
+ 
+/**intellisense()
+web.msxml = xml支持库
+web.msxml() = 创建xml文档对象,可选在参数中指定URL或XML文本,\n如果是XML文本,可选使用参数2指定内码\n!msxml.
+?.eachNode = !xnode.
+!xnode.attributes().nodeValue = 属性值
+!xnode.text =  文本
+!xnode.xml = xml源码
+!xnode.nodeName = 获取特定节点类型的名称
+!xnode.nodeType = 获取所需节点的类型
+!xnode.nodeValue = 设置或获取节点的文本值 
+!xnode.getText() = 返回文本属性
+!xnode.setText(__) = 修改文本属性
+!xnode.nodeType = 节点类型
+!xnode.childNodes =  子节点集合
+!xnode.childNodes() = !xnode.
+!xnode.childNodes.item() = !xnode.
+!xnode.attributes(0__) = 对象标签属性的集合指定位置的对象  
+!xnode.parentNode = 获取文档层次中的父对象
+!xnode.firstChild = 返回第一个节点\n!xnode.
+!xnode.lastChild = 返回最后一个节点\n!xnode.
+!xnode.nextNode = 下一个节点\n!xnode.
+!xnode.length = 集合中的节点个数
+!xnode.tagName = 获取对象的标签名称
+!xnode.hasChildNodes() = 对象是否有子对象的值
+!xnode.appendChild(.(子节点) = 添加子节点
+!xnode.insertBefore(.(插入新节点,子节点) = 插入子节点
+!xnode.removeChild(.(节点名) = 移除节点
+!xnode.replaceChild(.(新节点,旧节点) = 替换节点
+!xnode.cloneNode() = 克隆节点\n!xnode.
+!xnode.cloneNode(true) = 完全克隆节点\n!xnode.
+!xnode.readyState = 获取对象的当前状态。 \n'uninitialized','loading','interactive','loaded' 'complete'
+!xnode.setAttribute("属性名__","属性值")  = 修改属性\n也可以直接写 ele.属性名字 = 值
+!xnode.getAttribute("属性名__/*属性名*/")  = 获取属性\n也可以直接写 var 返回值=ele.属性名字
+!xnode.getAttributeNode("__/*属性名*/") = 获取attribute对象
+!xnode.selectNodes("__/*XPATH表达式*/") = 查询节点
+!xnode.selectSingleNode("__/*XPATH表达式*/") = 查询节点
+!xnode.selectNodes() = !xnode.
+!xnode.selectSingleNode() = !xnode.
+!xnode.getElementsByTagName("__/*tagName*/") = 根据标签名返回节点
+!xnode.getElementsByTagName() = !xnode.
+!xnode.getAttributeNode() = !ele_attribute_node.
+!xnode.attributes() = !ele_attribute_node.
+?.getAttributeNode() = !ele_attribute_node.
+!ele_attribute_node.nodeName = 获取特定结点类型的名称
+!ele_attribute_node.nodeType = 获取所需结点的类型
+!ele_attribute_node.nodeValue = 设置或获取结点的值 
+!ele_attribute_node.specified =  获取是否指定了该属性 
+!ele_attribute_node.value =  设置或获取对象的值 
+!msxml.eachNode("tagName", ) = @//创建迭代器,遍历指定XML标记,例：\nfor i,xnode in ??.eachNode("tagName",__/*可选指定父节点*/) {\n	\n}\n
+!msxml.eachNode() = @//创建迭代器,遍历指定XML标记,例：\nfor i,xnode in ??.eachNode(__/*可选指定tagName*/) {\n	\n}\n
+!msxml.queryNodes = @//可指定任意个属性条件值.支持模式匹配语法\n??.queryNodes( parent = 可选指定父节点;tagName = "标记")
+?.queryNodes = !xnode.
+!msxml.queryNodes() = !xnode.
+!msxml.load(.(URL) = 载入XML文档,参数可以是网址或本地路径
+!msxml.save("__->xml") = 保存XML文档
+!msxml.loadXml(__) = 从字符串载入XML文档,可选使用参数2指定内码
+!msxml.transformNode(.(XSL网址) = 应当XSL样式
+!msxml.url = XML文件路径
+!msxml.documentElement = !xnode.
+!msxml.document = XML文档对象\n!xmldoc.
+!msxml.xml = 返回XML文本
+!xmldoc.parseError = 返回错误信息
+!xmldoc.parseError.errorCode = 该错误代码
+!xmldoc.parseError.reason = 错误信息
+!xmldoc.parseError.line = 错误行号
+!xmldoc.parseError.linePos = 错误列号
+!xmldoc.parseError.srcText = 出错XML代码 
+!xmldoc.validateOnParse = 解析XML是否验证合法性
+!xmldoc.readyState = 0－未初始化、1－正在加载、2－已加载、3－交互中、4－已完成
+!xmldoc.getElementsByTagName("*__/*tagName*/") = 根据标签名返回节点
+!xmldoc.getElementsByTagName() = !xnode.
+!xmldoc.nodeFromId("__/*ID*/") = 根据ID返回节点
+!xmldoc.nodeFromId() = !xnode.
+!xmldoc.setProperty("SelectionLanguage","XPath") = 设置属性
+!xmldoc.selectNodes("__/*XPath表达式*/") = 查询节点 
+!xmldoc.createNode(.(类型,名称,名字空间) = 创建节点
+!xmldoc.createNode() = !xnode.
+!xmldoc.documentElement = !xnode.
+
+?.queryNodes = !xnode.
+end intellisense**/

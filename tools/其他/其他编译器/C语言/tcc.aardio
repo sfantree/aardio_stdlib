@@ -1,0 +1,106 @@
+//TCC编译器
+import tcc;
+import fsys.dlg;
+import process;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="C语言编译器(TCC)";right=577;bottom=520;parent=...)
+winform.add(
+btnLibExplorer={cls="button";text="打开库目录";left=452;top=412;right=533;bottom=442;z=9};
+btnOutput={cls="button";text="生成文件";left=453;top=449;right=533;bottom=479;z=5};
+btnRun={cls="button";text="运行代码";left=358;top=449;right=438;bottom=479;z=2};
+lbLib={cls="static";text="链接库：";left=11;top=420;right=89;bottom=438;align="right";transparent=1;z=8};
+static={cls="static";text="启动参数：";left=11;top=456;right=90;bottom=474;align="right";transparent=1;z=4};
+static2={cls="static";text="生成的obj文件可在aardio中使用vm.addFile()  函数加载. 并不再需要任何头文件";left=66;top=489;right=556;bottom=516;transparent=1;z=6};
+txtArg={cls="edit";text="参数,参数2";left=97;top=451;right=349;bottom=476;edge=1;z=3};
+txtBuild={cls="edit";text='vm.addLib("user32","kernel32","gdi32")';left=97;top=416;right=438;bottom=441;edge=1;z=7};
+txtCode={cls="richedit";text="//请在这里输入C语言代码";left=15;top=19;right=552;bottom=402;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+winform.txtCode.text = /**
+#include <stdio.h> 
+
+int main ( int argc, char *argv[] ) 
+{   
+    int i = 0; 
+    io_reopen();
+    
+    for( i=1;i<argc;i++){
+        printf( "%s \n" , argv[i] );
+    
+    }
+     
+    return 0; 
+}
+**/
+
+//运行C语言代码
+winform.btnRun.oncommand = function(id,event){
+
+    //创建TCC编译器
+    vm = tcc(); 
+    vm.onerr = function(msg){
+    	win.msgbox( msg,"C语言错误",0x30/*_MB_ICONEXCLAMATION*/ ) 
+    }
+   
+   	var f =assert( loadcode( winform.txtBuild.text ),"链接指令语法错误"  ) 
+   	f();
+    
+    if( vm.compile(winform.txtCode.text) ){ 
+        //直接运行 main函数
+        vm.run( 
+            table.unpack(  
+                string.split(winform.txtArg.text,",") 
+            )
+        );
+    }
+     
+    vm.close(); 
+}
+
+//输出文件
+winform.btnOutput.oncommand = function(id,event){
+
+	var path = fsys.dlg.save('
+目标文件|*.o|
+执行程序|*.exe|
+动态链接库|*.dll||' ) 
+
+	if(!path)
+		return;
+
+	//创建TCC编译器
+    vm = tcc(); 
+    vm.onerr = function(msg){
+    	win.msgbox( msg,"C语言 错误",0x30/*_MB_ICONEXCLAMATION*/ ) 
+    }
+    var f =assert( loadcode( winform.txtBuild.text ),"链接指令语法错误"  ) 
+   	f();
+   	
+    //生成文件 
+    try{
+    
+    	//生成文件时,不应调用aardio提供的函数
+    	vm.define("io_reopen()",'(void)0');
+    	
+        vm.output( path
+        	, winform.txtCode.text )
+         
+        vm.close(); 
+    }
+    catch(e){ 
+        win.msgbox( e,"C语言 错误",0x30/*_MB_ICONEXCLAMATION*/ ) 
+    } 
+	
+}
+
+//打开库目录
+winform.btnLibExplorer.oncommand = function(id,event){
+	process.explore_select( tcc._libdir + "\msvcrt.def")
+	
+}
+
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();

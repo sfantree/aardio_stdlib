@@ -1,0 +1,25 @@
+//1)sha1示例
+import console;
+console.log("必须在导入python库以前打开控制台,
+python中的print函数才能支持控制台.")
+
+import py;
+
+var pyCode = /**
+def sign_request():
+    from hashlib import sha1
+    import hmac
+    import binascii
+    key = "\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b\x0b"
+    raw = "Hi There" # as specified by oauth
+    hashed = hmac.new(key.encode("gbk"), raw.encode("gbk"), sha1)
+    return binascii.b2a_base64(hashed.digest())[:-1].decode("gbk")
+**/
+
+//执行Python3 的代码
+py.exec( pyCode )
+
+//调用python3 __main__ 模块下的函数
+console.log( py.main.sign_request() )
+
+console.pause()

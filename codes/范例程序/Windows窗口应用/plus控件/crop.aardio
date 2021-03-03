@@ -1,0 +1,27 @@
+//裁剪图像
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="plus - 裁剪图像";right=759;bottom=469)
+winform.add(
+plus={cls="plus";left=180;top=70;right=427;bottom=135;notify=1;z=1}
+)
+/*}}*/
+
+import inet.http;
+var pngData = inet.http().get("http://www.baidu.com/img/baidu_logo.gif");
+var bmp = gdip.bitmap( pngData );//也可以自文件或内存加载GDI+图像
+
+winform.plus.skin(
+	background = {  
+		default = bmp.clone(30,30,50,50);//在图像上裁剪一块下来 
+		hover = bmp.clone(107,20,54,70);//在图像上裁剪一块下来
+	}
+	foreground = {
+		hover = 0x55FF0000;//叠加半透明的前景色
+		default = 0;
+	} 
+
+) 
+
+winform.show() 
+win.loopMessage();

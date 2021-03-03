@@ -1,0 +1,40 @@
+//自动化操作
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="使用webform调用网页上的对象、函数";right=848;bottom=585)
+winform.add()
+/*}}*/
+
+//创建web窗体
+import web.form;
+var wb = web.form( winform ,/*_UIFLAG_*/,/*_DLCTL_*/
+	,/*USER AGENT*/,true/*securityTrusted*/ );
+
+//打开网页
+wb.go("http://www.so.com") 
+
+//显示窗口
+winform.show();
+
+//一定要记住调用下面的代码等待页面完全打开
+wb.wait();
+
+/* 
+并且改变节点的value属性(控件的值)
+*/
+wb.getEle("input").value = "aardio web.form";
+
+/* 
+并且调用click函数模拟点击按钮。
+wb.getEle("search-button").click() 也可以
+wb.click()多了一些模拟真实点击的代码，参考此函数源代码
+*/
+wb.click("search-button")
+
+/*
+等待网页打开,
+参数可以指定期待的网址（或者网址的一部分）
+*/
+wb.wait("&q=aardio"); 
+
+win.loopMessage();

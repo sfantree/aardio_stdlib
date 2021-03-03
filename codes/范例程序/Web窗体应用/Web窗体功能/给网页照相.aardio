@@ -1,0 +1,44 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="webform 给网页照相";border="none")
+/*}}*/
+
+import web.form;
+var wb = web.form( winform,0x8/*_UIFLAG_SCROLL_NO 禁用滚动条*/);
+
+import gdip.bitmap;
+import com.interface.IViewObject2;
+snap = function(url,filepath,q){
+
+    //打开网页
+    wb.go(url)
+    wb.wait();
+    
+    //调整窗口到网页实际高度
+    var x,y,cx,cy = wb.scrollPos();
+    winform.setPos(0,0,cx,cy + ::GetSystemMetrics(0x4/*_SM_CYCAPTION窗口标题的高度*/) )
+    win.setPos(wb.hwndEmbedding,0,0,cx,cy);
+
+    //截图
+    gdi.windowBuffer( wb.hwndEmbedding,
+        function( hdc,hMemDc,hMemBitmap,width,height ){
+            var view = com.interface.IViewObject2.Query(wb._object);
+            view.Draw(0x1/*_DVASPECT_CONTENT*/,1, null,{}
+                ,hdc, hMemDc,::RECT(0,0,width,height),{},null,0);
+            
+            var bmp = gdip.bitmap(hMemBitmap,0)
+            bmp.save(filepath,q)   
+        }
+    ) 
+     
+}
+
+//将网页转换为图片
+snap("http://www.qq.com"
+    ,"/websnap.jpg",100/*图像质量*/)
+
+//浏览图片
+import process.imageView;
+process.imageView("/websnap.jpg")
+
+win.loopMessage();

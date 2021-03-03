@@ -1,0 +1,562 @@
+//xml 简单xml解析
+import string.encoding;
+namespace string;
+
+var push = ..table.push;
+var pop = ..table.pop;
+var sub = sub;
+var trim = trim;
+var find = find;
+var match = match; 
+var format = format;
+var lower = lower;
+var cmp = cmp;
+var createElementMeta;
+
+var ncr = function(html){
+	html = ..string.replace(html,"&#(x?)(\x+);",function(h,c){
+    	c = tonumber(c,#h?16:10);return  ..string.unescape( ..string.format("\U%06x",c ) );
+   } ); 
+    	
+	return ( ..string.replace(html,"&[a-zA-Z]+;",{
+			["&nbsp;"] = ' ';["&lt;"] = '<';["&gt;"] = '>'; ["&amp;"] = '&';["&quot;"] = '"';["&apos;"] = "'";["&ldquo;"] = '“';["&rdquo;"] = '”';["&rdquo;"] = '”';
+			["&mdash;"] = '—';["&euro;"] = "€";["&cent;"] = '￠';["&pound;"] = '￡';["&yen;"] = '￥'; ["&frasl;"] = "/";["&raquo;"] = "▼";["&times;"] = "×";["&division;"] = "÷";
+			["&sum;"] = "∑";["&currency;"] = "¤"; ["&brvbar;"] = "|";["&sect;"] = "§";["&uml;"] = "¨";["&macr;"] = "ˉ";["&deg;"] = "°";["&plusmn;"] = "±";["&acute;"] = "′";
+			["&micro;"] = "μ";["&middot;"] = "·";["&ordm;"] = "o";["&copy;"] = "©";["&radic;"] = '√';["&uarr;"] = "↑";["&darr;"] = "↓";["&larr;"] = "←";["&rarr;"] = "→";
+			["&harr;"] = "↔";["&reg;"] = "®";
+		} ) );
+}
+
+var nodePrototype = {
+	enumNodes = function(p,findTagName){ 
+		for(index,tagName,childCount,xNode in owner.eachChild(tagName) ){ 
+			var ret,ret2 = p(owner,index,tagName,childCount,xNode)
+			if( ( ret !== null ) && ( !ret ) ) return ret,ret2;
+		}
+		for(index,tagName,childCount,xNode in owner.eachChild(tagName) ){ 
+			var ret,ret2 = xNode.enumNodes(p,findTagName);
+			if( ( ret !== null ) && ( !ret ) ) return ret,ret2;
+		}
+	};
+	queryEles = function(opt){
+		var cmpMatch = ..string.cmpMatch;
+		var innerText = opt.innerText
+		opt.innerText = null;
+		
+		var attr; 
+		var result = {}
+		var ok,ele = owner.enumNodes( 
+			function(parentElement,index,tagName,childCount,xNode){ 
+				for(k,v in opt){
+					attr = xNode[k]
+					if( ( (k == "tagName") || (k == "id") || (k == "name") ) && ( !..string.match(v,"\p")) ){
+						if( ( attr!=v ) && ( 0 != cmp( attr,v ) )  )
+							return;
+					}
+					elseif( ( attr!=v ) && ( ! cmpMatch( attr,v ) )  ){
+						return;
+					}	
+				} 
+				
+				if( innerText ){
+					var t = xNode.innerText();
+					if( ( t!=innerText ) && ( ! cmpMatch( t,innerText ) )  ) return;
+				}
+				push( result,xNode ) 
+			}
+		);	
+		return result;
+	};
+	queryEle = function(opt){
+		return owner.queryEles(opt)[1];
+	};
+	getEle = function(v){
+		return owner.queryEles(id=v)[1];
+	};
+	getEles = function(v){
+		return owner.queryEles(name=v);
+	};
+	getAttribute = function(a){
+		if( owner[a] ) return owner[a];
+		for(k,v in owner){
+			if( ( cmp(k,a)==0) && ( type(v) == "string") ) return v; 
+		} 
+	};
+	eachAttribute = function(){
+		var root = owner;
+		var keys = ..table.map(owner,lambda(v,k)(type(v)=="string" &&( k!="tagName")&&( k!="cdata")&& (k!="text"))? v : null)
+		
+		var k,v;
+		return function(ind){
+			k,v = ..table.next(keys,k); 
+			return k,v;
+		}
+	};
+	eachChild = function(tagName){
+		var root = owner;
+		if( tagName ) root = owner[tagName];
+		
+		var len = #root; 
+		return function(ind){
+			ind++;
+			if(ind<=len){
+				var node = root[ind];
+				return ind,node.tagName,#node,node;
+			}
+		}, ,0
+	};
+	innerText = function(){
+		var children = {};
+		for(i=1;#owner;1){
+			if( !owner[i].tagName && owner[i].text )
+				push(children,owner[i].text );
+			elseif( !owner[i].tagName && owner[i].cdata )
+				push(children,owner[i].cdata );
+			else 
+				push(children,owner[i].innerText() ) 
+		}
+		var s = ..string.join( children,"");
+		return ncr(s);
+	};
+	innerXml = function(indent,line='\r\n'){
+		var children = {};
+		var html;
+		var m;
+		if( indent ) {
+			if( type(indent) != "string" ) indent = "";
+		}
+		else {
+			indent = null;
+		}
+		
+		for(i=1;#owner;1){
+			html = owner[i].outerXml(indent,line);
+			if(indent) html = indent ++ html;
+			push( children,html );
+		}
+		var s = ..string.join( children,line);
+		return s;
+	};
+	outerXml = function(indent,line='\r\n'){
+		if( indent ) {
+			if( type(indent) != "string" ) indent = "";
+		}
+		else {
+			indent = null;
+		}
+		
+		var prop = {""};
+		var tv;
+		
+		if( ( !owner.tagName ) ){
+			if( owner.text ){
+				var xml = owner.text;
+				return xml;
+			}
+				
+			if( owner.cdata )
+				return '<![CDATA['+ owner.cdata +']]>';
+		}
+		elseif( cmp(owner.tagName,"!DOCTYPE") == 0 ){
+			return format('<%s%s>', owner.tagName, owner.text )
+		}
+		
+		
+		for k,v in ..table.eachName(owner,,{"version";"encoding"}){ 
+			if( k =="tagName"  )
+				continue;
+				 
+			var tv = type(v);
+			if( tv != "string" && tv!="number" && tv !="boolean" )
+				continue ; 
+			
+			v = tostring(v);
+			v = replace(v,'@<',"&lt;");
+			v = replace(v,'@>',"&gt;");
+			v = replace(v,'@"',"&quot;"); 
+			v = replace(v,"@'","&apos;");
+			push(prop, k + '="' + v + '"' );
+		}
+		prop = #prop > 1 ? ..string.join( prop," ") : "" ;
+		 
+		if( ! owner.tagName ){ 
+			return owner.innerXml(indent,line);
+		}
+
+		var xmlRootNode = owner@.xmlRootNode;
+		var xmlElementType = xmlRootNode ? xmlRootNode@.xmlElementType;
+		
+		var innerXml = owner.innerXml(indent ? indent + "  ",line);
+		
+		if( owner.tagName[1] == '?'# ){
+			return format('<%s%s?>', owner.tagName,prop )
+		}
+		elseif(#innerXml){
+			if( #innerXml > 255 || find(innerXml,"[\r\n]") ){
+				return format('<%s%s>%s%s%s%s</%s>',owner.tagName
+					, prop,line,innerXml,line,indent:"",owner.tagName )	
+			}
+			else {
+				return format('<%s%s>%s</%s>',owner.tagName
+					, prop,..string.trim(innerXml),owner.tagName )
+			}
+		}
+		elseif( xmlElementType ? ( (1/*void*/!=xmlElementType[owner.tagName] ) ) ){
+			return format('<%s%s></%s>', owner.tagName
+				, prop,owner.tagName )
+		}
+		else {
+			return format('<%s%s/>', owner.tagName, prop )
+		}
+	}
+	getParent  = function(){
+		return owner@.xmlParentNode;
+	};
+	remove = function(){
+		var parent = owner@.xmlParentNode;
+		if(!parent) return;
+		
+		if(owner.tagName && ( owner.tagName != "tagName") ){
+			var t = type(parent[owner.tagName]);
+			if( t == type.table ){
+				for(i=1;#t;1){
+					if( t[i] == owner ) {
+						..table.remove(t,i) break;
+					}
+				} 
+			};
+		}
+
+		for(i=1;#parent;1){
+			if( parent[i] == owner ) {
+				..table.remove(parent,i) break;
+			}
+		} 
+		
+		return true;	
+	};
+	pushXml = function(html){
+		var r;
+		var nodes = ..string.xml(html,owner@.xmlElementType,owner@.optionalTags); 
+		for(i=1;#nodes;1){r = owner.pushElement(nodes[1]);} 
+		return r;
+	};
+	pushElement = function(ele,root){
+		if(ele.tagName && ( ele.tagName != "tagName") ){
+			var t = type(owner[ele.tagName]);
+			if( t == type.null ){
+				owner[ele.tagName] = {};
+				push( owner[ele.tagName],ele );
+			}
+			elseif( t == type.table ){
+				push( owner[ele.tagName],ele );
+			};
+		}
+
+		push( owner,ele ); 
+		if(!ele@)ele@ = createElementMeta(owner,root);
+		else {
+			ele@.xmlParentNode = owner;
+			ele@.xmlRootNode = owner@.xmlRootNode : root;
+		}
+		
+		return ele; 
+	}
+}
+
+createElementMeta = function(parent,root){
+	return { 
+		xmlParentNode = parent; 
+		xmlRootNode = ( parent ? parent.xmlRootNode ) : root ; 
+		_get = nodePrototype;
+		_tostring = nodePrototype.outerXml;
+		_readonly = false;
+		_type = "object";
+	}
+}
+
+var function parseProperties(ele,str) {  
+    if(!#str) return;
+    
+	replace(
+		str + " ", 
+		"([\w_\-\::]+)\s*(<=\s*""[^""]+"">|<=\s*'[^']+'>|<=\s*\S+>|\s)", 
+		function (w, a, b){
+			if( w = "tagName" ) return;
+			a = ..string.trimleft(a,"=");
+			a = ..string.trimleft(a);
+			if( a[1] == '"'# ) a = ..string.trim(a,'"');
+			elseif( a[1] == '\''# ) a = ..string.trim(a,'\'');
+    		ele[w] = a
+		} 
+	) 
+}
+
+class xml{
+	ctor( xmlstr,xmlElementType,optionalTags ){ {
+		if(!xmlstr) error("XML文本参数不能为空",2);
+		this.encoding = ..string.match(xmlstr,"^\s*\<\?xml[^\>]+?encoding\s*=\s*([^\s\?\>]+)");
+		if(this.encoding){
+			this.encoding = ..string.trim(this.encoding,`'"`);
+			this.codepage = ..string.encoding.getCodepage(this.encoding);
+			if( this.codepage && this.codepage != 65001 ) xmlstr = ..string.fromto(xmlstr,this.codepage,65001);
+		}
+		
+		this@ = createElementMeta();
+		this@.xmlRootNode = this;
+		this@.xmlElementType = xmlElementType;
+		this@.optionalTags = optionalTags;
+		
+		var nodeStack = {};
+		var topNode = this;
+		push(nodeStack, topNode);  
+		
+		var strfrom = 1;  
+		var tagfrom,tagto,slash_front ,tagName ,properties,slash_back = find(xmlstr, elementPattern, strfrom);
+			
+		while(tagfrom) {
+			var innerText = sub(xmlstr, strfrom, tagfrom-1)
+			var innerText = trim(innerText);
+			if( #innerText ){ 
+				if(#topNode && topNode[#topNode].text && (!topNode[#topNode].tagName) ){
+					topNode[#topNode].text = topNode[#topNode].text + innerText;
+				}
+				else{
+					push(topNode, { text = innerText;@(createElementMeta(topNode)) } );
+				};
+			} 
+	
+			if( tagfrom && xmlstr[tagfrom+1]=='!'#  ) { 
+				if( sub(xmlstr,tagfrom,tagfrom+8 ) == "<![CDATA[" ){ 
+					var cdata = match(xmlstr,"(.*?)<@]]>@>", tagfrom+9)
+					if(cdata){
+						topNode.pushElement({cdata=cdata},this)
+						strfrom = tagfrom + 12 + #cdata
+						tagfrom,tagto,slash_front ,tagName,properties, slash_back =  find(xmlstr, elementPattern , strfrom);
+						continue;
+					}
+				} 
+				else{
+					var tagfrom2,tagto2 = find(xmlstr,"^\<\!\-\-.*?\-\-\>" , tagfrom);
+					if( tagto2 ){
+						strfrom = tagto2+1 
+						tagfrom,tagto,slash_front ,tagName,properties, slash_back =  find(xmlstr, elementPattern , strfrom );
+						continue;
+					}
+					elseif( cmp( tagName,"!DOCTYPE") == 0 ){
+						var tagfrom2,tagto2,text2 = find(xmlstr, "\<\!<@@DOCTYPE@>\s*(\P+%\[\])\>", strfrom);
+						
+						if(tagfrom != tagfrom2 ){
+							tagfrom2,tagto2,text2 = find(xmlstr, `\<\!<@@DOCTYPE@>\s*(\P+%"")\>`, strfrom);
+							
+							if(tagfrom != tagfrom2 ){
+								tagfrom2,tagto2,text2 = find(xmlstr, `\<\!<@@DOCTYPE@>\s*(\P+%""\P*%"")\>`, strfrom);
+								if(tagfrom != tagfrom2 ){
+									tagfrom2 = tagfrom;
+									tagto2 = tagto;
+									text2 = ..string.slice(xmlstr,tagfrom + #"!DOCTYPE ",tagto-1);
+								}
+							}
+						} 
+						
+						var tab = {  tagName = tagName;text = text2 }
+						topNode.pushElement(tab,this);
+						
+						strfrom = tagto2+1 
+						tagfrom,tagto,slash_front ,tagName,properties, slash_back =  find(xmlstr, elementPattern , strfrom );
+						continue;
+					}
+					else {
+						var tab = {  tagName=tagName };
+						parseProperties( tab,properties);
+						topNode.pushElement(tab,this)
+						strfrom = tagto+1 
+						tagfrom,tagto,slash_front ,tagName,properties, slash_back =  find(xmlstr, elementPattern , strfrom );
+						continue;
+					}
+				 }  
+				 
+				 if(!tagfrom) {
+				 	break;
+				 }
+			} 
+			
+			var elementType;
+			if(xmlElementType && tagName){ 
+				elementType = xmlElementType[lower(tagName)];
+				if( elementType == 1/*void*/ ){
+					if( slash_front  == "/"){
+						strfrom = tagto+1; 
+						tagfrom,tagto,slash_front,tagName,properties, slash_back = find(xmlstr, elementPattern , strfrom);	
+						continue;
+					}
+					
+					slash_back = "/";
+				}
+			}
+				
+			if( #slash_back ){
+				
+				//<tagName />
+				if(optionalTags){
+					var tags = optionalTags[lower(tagName)];
+					if(tags){
+						if(#nodeStack>1){
+							var lastNode = nodeStack[#nodeStack];
+							if(lastNode && lastNode.tagName && tags[lower(lastNode.tagName)]){
+								var ele = pop(nodeStack);
+								topNode = nodeStack[#nodeStack];
+								topNode.pushElement( ele,this );
+							}
+						}	
+					}
+				}
+				
+				var tab = {  tagName=tagName; }
+				parseProperties( tab,properties);
+				topNode.pushElement( tab,this )
+			}
+			elseif slash_front  != "/"  {
+				
+				if(optionalTags){
+					var tags = optionalTags[lower(tagName)];
+					if(tags){
+						if(#nodeStack>1){
+							var lastNode = nodeStack[#nodeStack];
+							if(lastNode && lastNode.tagName && tags[lower(lastNode.tagName)]){
+								var ele = pop(nodeStack);
+								topNode = nodeStack[#nodeStack];
+								topNode.pushElement( ele,this );
+							}
+						}	
+					}
+				}
+				
+			 	//<tagName prop="value" >
+				topNode = { tagName=tagName;@(createElementMeta(,this)) }
+				parseProperties( topNode,properties);
+				push(nodeStack, topNode);
+			}
+			else {
+				//</tagName>
+				var lastNode = nodeStack[#nodeStack];
+				
+				if( lastNode && lastNode.tagName != tagName ){
+					var matchIdx;
+					for(i=#nodeStack;2;-1){
+						if( nodeStack[i].tagName == tagName ){
+							matchIdx = i;
+						}
+					}
+					
+					if( !matchIdx && ( cmp(nodeStack[#nodeStack].tagName,tagName) == 0 ) ){
+						var ele = pop(nodeStack)
+						topNode = nodeStack[#nodeStack]
+						topNode.pushElement( ele,this )  
+					}
+					else {
+						if(!matchIdx){
+							for(i=#nodeStack;2;-1){
+								if( cmp( nodeStack[i].tagName,tagName) == 0 ){
+									matchIdx = i;
+								}
+							}
+						}
+						
+						if( !matchIdx ){
+							var tab = { tagName = tagName }
+							topNode.pushElement( tab,this ) 
+						}
+						else{
+							
+							for(i=#nodeStack;matchIdx+1;-1){
+								var ele = pop(nodeStack)
+								topNode = nodeStack[#nodeStack]
+								topNode.pushElement( ele,this )  
+							}
+							
+							var ele = pop(nodeStack)
+							topNode = nodeStack[#nodeStack]
+							if(!topNode) break;
+							topNode.pushElement( ele,this ) 
+						}
+					}
+
+				}
+				else {
+					var ele = pop(nodeStack)
+					topNode = nodeStack[#nodeStack]
+					topNode.pushElement( ele,this ) 
+				}
+				
+				if #nodeStack < 1 { break; }
+			}
+			
+			strfrom = tagto+1 
+			if( elementType == 2/*raw*/ && (slash_front!= "/") && (slash_back!= "/") ){
+				slash_back = null;
+				properties = null;
+				tagfrom,tagto,tagName = find(xmlstr, "\<(<@![CDATA[@>|<\/[\?!\w_\-\::]+>)(.*?)\>" , strfrom);	
+				if( tagName == "![CDATA[" ) continue;
+				
+				if(tagName){
+					slash_front = "/";
+					tagName = ..string.right(tagName,-2);	
+				}
+				continue;
+			}
+			tagfrom,tagto,slash_front,tagName,properties,slash_back = find(xmlstr, elementPattern , strfrom);	
+		}
+		
+		var innerText = sub(xmlstr, strfrom)
+		var innerText = trim(innerText);
+		if( #innerText ){  
+			push(nodeStack[#nodeStack], { text = innerText ;@(createElementMeta(nodeStack[#nodeStack],this));} )
+		}
+	  	
+		if #nodeStack> 1 { 
+			for(i=#nodeStack;2;-1){
+				var ele = pop(nodeStack);
+				topNode = nodeStack[#nodeStack];
+				topNode.pushElement( ele,this );  
+			} 
+		}   
+	} };
+}
+
+xml.ncr = ncr;
+xml.elementPattern = "\<([\/]?)([\d\s]?![\?!\w_\-\::]+)(.*?)([\/\?]?)\>";
+
+/**intellisense()
+string.xml = 简单XML解析,\n严格的校验XML语法正确性不是本模块的义务和目标,\n所以,此解析器尽可能兼容错误,兼容了HTML,SGML的部份规则:\n1、不要求存在根标签 \n2、尝试自动修正不配对的标记 \n3、在有必要的时候尝试忽略大小写
+string.xml(__/*xml字符串*/) = 创建xml对象\n严格的校验XML语法正确性不是本模块的义务和目标,\n所以,此解析器尽可能兼容错误,兼容了HTML,SGML的部份规则:\n1、不要求存在根标签 \n2、尝试自动修正不配对的标记 \n3、在有必要的时候尝试忽略大小写
+string.xml() = !string_xml.
+!string_xml.eachChild(标签名) = @for(index,tagName,childCount,xNode in ??.eachChild(__/*标签名*/) ){
+	io.print( index,tagName,childCount,xNode ) 
+}
+!string_xml.eachAttribute() = @for( k,v in ??.eachAttribute() ){
+	__/*遍历节点所有属性,k为属性名,v为属性值*/
+}
+!string_xml.outerXml() = 转换为XML文本,\n如果参数@1为true则缩进格式化返回的xml文本,\n可选在参数@2中自定义换行符
+!string_xml.innerXml() = 将子节点转换XML文本,\n如果参数@1为true则缩进格式化返回的xml文本,\n可选在参数@2中自定义换行符
+!string_xml.innerText() = 返回节点内部文本或CDATA文本
+!string_xml.getEle("__") = 获取指定id的节点对象,\n参数指定节点id,忽略大小写
+!string_xml.getEles("__") = 获取所有指定相同name的节点对象,返回数组,\n即使找不到节点,也会返回空数组,\n参数指定节点name,忽略大小写
+!string_xml.queryEles(.( 查询参数表) = 搜索节点对象,该函数返回的是一个数组,\n即使找不到节点,此函数也会返回一个空数组,\n\n参数@1指定一个表对象，\n该参数表可包含一个或多个键值，用于匹配节点的属性值,\n可使用tagName属性指定节点的标签名,\n可使用parent属性指定开始查询节点的父节点，parent可以是ID或者节点对象。\n属性值使用 string.cmpMatch函数进行比对，\n等价于调用string.cmp函数进行忽略大小写的比较,\n并且在失败后调用 string.match函数使用模式匹配语法进行比较\n\n注意在匹配节点属性时有几个例外：\nparent属性不使用模式匹配进行比对，\ntagName,id,name属性如果匹配值不含标点则使用忽略大小写的完全比对（禁用模式匹配和部分匹配）
+!string_xml.queryEle(.( 查询参数表) = 搜索节点对象,参数@1指定一个表对象，\n\n该参数表可包含一个或多个键值，用于匹配节点的属性值,\n可使用tagName属性指定节点的标签名,\n可使用parent属性指定开始查询节点的父节点，parent可以是ID或者节点对象。\n属性值使用 string.cmpMatch函数进行比对，\n等价于调用string.cmp函数进行忽略大小写的比较,\n并且在失败后调用 string.match函数使用模式匹配语法进行比较\n\n注意在匹配节点属性时有几个例外：\nparent属性不使用模式匹配进行比对，\ntagName,id,name属性如果匹配值不含标点则使用忽略大小写的完全比对（禁用模式匹配和部分匹配）
+!string_xml.queryEles() = !string_xml.
+!string_xml.enumNodes(枚举函数,节点名) = @.enumNodes( \n	function(parentElement,index,tagName,childCount,xNode){ \n	\n	},__/*可选指定节点名*/\n)
+!string_xml.tagName = 节点标签名 
+!string_xml.getAttribute(__) = 取属性值,\n参数中指定属性名字,属性名忽略大小写,\n如果通过下标或成员操作符直接获取属性时区分大小写的
+!string_xml.eachChild() = !string_xml.
+!string_xml.encoding = 源文本字符集
+!string_xml.codepage = 源文本代码页
+!string_xml.? = !string_xml.
+!string_xml.pushElement(节点属性表) = @.pushElement(\n    tagName = \n    cdata = \n    text = __/*注意text,cdata,tagName三个属性只能指定一个\n返回新增的节点对象*/\n)
+!string_xml.pushXml(__) = 将字符串参数@1中指定的XML添加到当前节点的子节点,\n返回新增XML中最后一个根节点
+!string_xml.pushElement() = !string_xml.
+!string_xml.pushXml() = !string_xml.
+!string_xml.getParent() = 获取父节点
+!string_xml.remove() = 如果存在父节点,在父节点中移除此节点
+string.xml.ncr(__) = NCR字符编码、HTML实体字符还原为UTF8文本
+end intellisense**/

@@ -1,0 +1,11 @@
+﻿//8)写一个Python.exe
+
+import console;
+
+//先打开控制台, 再导入Python, Python才能使用控制台
+console.setTitle("python(aardio)");
+
+import py;
+py.run();
+
+console.pause()

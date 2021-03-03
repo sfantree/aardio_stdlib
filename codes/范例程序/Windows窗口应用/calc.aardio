@@ -1,0 +1,188 @@
+//简单计算器
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="我的计算器";right=299;bottom=207;border="dialog frame";max=false)
+winform.add(
+button0={cls="button";text="0";left=34;top=158;right=110;bottom=182;z=12};
+button1={cls="button";text="1";left=34;top=56;right=65;bottom=80;z=3};
+button2={cls="button";text="2";left=79;top=56;right=110;bottom=80;z=5};
+button3={cls="button";text="3";left=128;top=56;right=159;bottom=80;z=8};
+button4={cls="button";text="4";left=34;top=89;right=65;bottom=113;z=4};
+button5={cls="button";text="5";left=79;top=89;right=110;bottom=113;z=7};
+button6={cls="button";text="6";left=128;top=89;right=159;bottom=113;z=11};
+button7={cls="button";text="7";left=34;top=122;right=65;bottom=146;z=6};
+button8={cls="button";text="8";left=79;top=122;right=110;bottom=146;z=10};
+button9={cls="button";text="9";left=128;top=122;right=159;bottom=146;z=9};
+buttonAdd={cls="button";text="+";left=179;top=56;right=210;bottom=80;z=14};
+buttonClear={cls="button";text="C";left=225;top=56;right=256;bottom=80;z=18};
+buttonClearError={cls="button";text="CE";left=226;top=88;right=257;bottom=112;z=19};
+buttonDiv={cls="button";text="/";left=180;top=156;right=211;bottom=182;z=16};
+buttonDot={cls="button";text=".";left=129;top=158;right=159;bottom=182;z=17};
+buttonEval={cls="button";text="=";left=226;top=122;right=257;bottom=182;z=1};
+buttonMul={cls="button";text="*";left=179;top=122;right=210;bottom=146;z=15};
+buttonSub={cls="button";text="-";left=179;top=89;right=210;bottom=113;z=13};
+edit={cls="edit";text="0";left=35;top=24;right=256;bottom=49;edge=1;z=2}
+)
+/*}}*/
+
+//计算函数（支持在文本框中直接输入算式）
+var calc = function(){
+    try{
+         
+        //如果文本框当前不是显示结果,而是输入数值或表达式状态
+        if( winform.edit.state = "expression" ) {
+            
+            //如果之前按了其他操作符，先跟以前的操作符计算出结果
+            if( winform.edit.operator ){
+                winform.edit.result = eval( ..string.format("%f %s (%s)", winform.edit.result, winform.edit.operator, winform.edit.text) );
+                winform.edit.operator = null; //该操作符已经过运算,保留结果,丢弃该运算符
+            }
+            else {
+                winform.edit.result = eval(winform.edit.text)
+            }
+            
+            winform.edit.text = string.format("%g", winform.edit.result);//显示结果
+            winform.edit.state = "result"; //文本框进入显示结果状态
+            
+            if( winform.edit.result == 1/0 ){
+                winform.edit.text = "无穷大"
+                for(name,ctrl in winform.eachControl("button") ) ctrl.disabled = true;
+                winform.buttonClear.disabled = false;
+            }
+            elseif( winform.edit.result == -1/0 ){
+                winform.edit.text = "负无穷大"
+                for(name,ctrl in winform.eachControl("button") ) ctrl.disabled = true;
+                winform.buttonClear.disabled = false;
+            }
+            elseif( !(winform.edit.result==winform.edit.result) ){ 
+                winform.edit.text = "无效数值" // 0/0 -1.#IND
+                for(name,ctrl in winform.eachControl("button") ) ctrl.disabled = true;
+                winform.buttonClear.disabled = false;
+            }
+        }
+        
+        winform.edit.setFocus();
+    }
+    catch(e){
+        winform.edit.showErrorTip(winform.text,"请输入正确的数值或表达式");
+        winform.edit.setFocus(0,-1);
+    }
+}
+
+//遍历所有类名为"button"的控件(实际上是为了指定所有数字键的事件)
+for(name,ctrl in winform.eachControl("button") ){
+    ctrl.oncommand = function(id,event){
+        //如果当前是输入表达式（或数值）状态
+        if( winform.edit.state = "expression" ){
+            if( ctrl.text=="." && string.indexOf(winform.edit.text,".") ){
+            	winform.edit.showErrorTip(winform.text,"数值不能包含多个小数点")
+            	return;
+            }
+            
+            winform.edit.appendText(ctrl.text); //追加数值
+        }
+        else {
+            if(ctrl.text=="." && winform.edit.text=="0"){
+            	winform.edit.appendText(ctrl.text); 
+            }
+            else {
+            	winform.edit.text = ctrl.text;
+            }
+            
+            winform.edit.state = "expression"
+        }
+        
+        winform.edit.setFocus();
+    }
+}
+
+//如果用户手动输入表达式这些,那就说明当前不是显示结果状态了
+winform.edit.oncommand = function(id,event){
+    if( event == 0x300/*_EN_CHANGE*/ ){
+        winform.edit.state = "expression";
+    }
+}
+
+//加
+winform.buttonAdd.oncommand = function(id,event){
+    calc();
+    winform.edit.operator = "+" 
+}
+
+//减
+winform.buttonSub.oncommand = function(id,event){
+    calc();
+    winform.edit.operator = "-" 
+}
+
+//乘
+winform.buttonMul.oncommand = function(id,event){
+    calc();
+    winform.edit.operator = "*" 
+}
+
+//除
+winform.buttonDiv.oncommand = function(id,event){
+    calc();
+    winform.edit.operator = "/" 
+}
+
+//等于
+winform.buttonEval.oncommand = function(id,event){
+    calc();	
+    winform.edit.operator = null;
+}
+
+//清空错误输入
+winform.buttonClearError.oncommand = function(id,event){
+    winform.edit.text = "0";
+    winform.edit.state = "result"; //文本框当前输入状态：显示结果
+    winform.edit.setFocus();
+}
+
+//重置
+winform.buttonClear.oncommand = function(id,event){
+    winform.edit.result = 0; //用于保存计算结果
+    winform.edit.operator = null; //当前没有按下任何操作符
+    
+    winform.edit.text = "0";
+    winform.edit.state = "result"; //文本框当前输入状态：显示结果
+    for(name,ctrl in winform.eachControl("button") ) ctrl.disabled = false;
+    winform.edit.setFocus();
+}
+
+winform.buttonClear.oncommand();
+
+//设定快揵键
+import win.ui.accelerator;
+win.ui.accelerator({
+    { vkey = 0x60/*_VK_NUMPAD0*/; oncommand = winform.button0.oncommand }  
+    { vkey = 0x61/*_VK_NUMPAD1*/; oncommand = winform.button1.oncommand }  
+    { vkey = 0x62/*_VK_NUMPAD2*/; oncommand = winform.button2.oncommand }  
+    { vkey = 0x63/*_VK_NUMPAD3*/; oncommand = winform.button3.oncommand }  
+    { vkey = 0x64/*_VK_NUMPAD4*/; oncommand = winform.button4.oncommand }  
+    { vkey = 0x65/*_VK_NUMPAD5*/; oncommand = winform.button5.oncommand }  
+    { vkey = 0x66/*_VK_NUMPAD6*/; oncommand = winform.button6.oncommand }  
+    { vkey = 0x67/*_VK_NUMPAD7*/; oncommand = winform.button7.oncommand }  
+    { vkey = 0x68/*_VK_NUMPAD8*/; oncommand = winform.button8.oncommand }  
+    { vkey = 0x69/*_VK_NUMPAD9*/; oncommand = winform.button9.oncommand }
+    { vkey = 0x6B/*_VK_ADD*/; oncommand = winform.buttonAdd.oncommand } 
+    { vkey = 0x6D/*_VK_SUBTRACT*/; oncommand = winform.buttonSub.oncommand }  
+    { vkey = 0x6A/*_VK_MULTIPLY*/; oncommand = winform.buttonMul.oncommand } 
+    { vkey = 0x6F/*_VK_DIVIDE*/; oncommand = winform.buttonDiv.oncommand } 
+    { shift=true;vkey = 0xBB/*_VK_OEM_PLUS*/; oncommand = winform.buttonAdd.oncommand }
+    { vkey = 0xBD/*_VK_OEM_MINU*/; oncommand = winform.buttonSub.oncommand } 
+    { shift=true;vkey = '8'#; oncommand = winform.buttonMul.oncommand }
+    { vkey = 191/*_VK_OEM_2*/; oncommand = winform.buttonDiv.oncommand }
+    { vkey = 0xBB/*_VK_OEM_PLUS*/; oncommand = winform.buttonEval.oncommand }  
+    { vkey = 0x6E/*_VK_DECIMAL*/; oncommand = winform.buttonDot.oncommand } 
+},winform);
+
+winform.edit.setFocus();
+
+::Imm32 := ..raw.loadDll("Imm32.dll")
+::Imm32.ImmAssociateContext(winform.edit.hwnd,null);
+
+winform.show() 
+win.loopMessage();
+return winform;

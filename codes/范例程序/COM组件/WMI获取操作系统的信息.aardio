@@ -1,0 +1,55 @@
+//WMI获取操作系统的信息
+//感谢 fyy6330 编写该范例
+ 
+import com;
+import console;
+
+var strComputer = "."
+var objWMIService = com.GetObject("winmgmts:{impersonationLevel=Impersonate}!\\" + strComputer + "\root\cimv2")
+var colItems = objWMIService.ExecQuery("select * from Win32_NetworkAdapterConfiguration where IPEnabled=true",null,48)
+var OS = objWMIService.ExecQuery("Select * from Win32_OperatingSystem")
+if(colItems){
+	for index, item in com.each(colItems) {
+    	console.log(item.Description())//网     卡
+    	console.log(item.DefaultIPGateway(0))//默认网关：
+    	console.log(item.DNSHostName(0))//计算机名
+    	console.log(item.IPAddress(0))//I   P地址
+    	console.log(item.DNSServerSearchOrder(0))//默认 DNS
+    	console.log(item.IPSubnet(0))//子网掩码
+    	console.log(item.MACAddress())//M AC地址         
+	}
+}
+
+for index, o in com.each(OS) {
+	console.log(o.Caption())//操作系统
+	console.log(o.Version())//版本
+}
+
+var wmi = com.GetObject("winmgmts:{impersonationLevel=Impersonate}!\\")
+board = wmi.instancesof("win32_baseboard") 
+
+for index, bd in com.each(board) {
+	console.log(bd.Manufacturer())//主板
+	console.log(bd.product())//
+}
+
+var cpus=wmi.instancesof("win32_processor")
+for index, cpu in com.each(cpus) {
+	console.log(cpu.deviceid())//CPU
+	console.log(cpu.name())//
+}
+
+var mem = wmi.instancesof("win32_physicalmemory")
+
+for index, m in com.each(mem) {
+	console.log(m.tag())//内存容量
+	console.log(m.capacity())//
+}
+
+var display = wmi.instancesof("Win32_videocontroller") 
+for index, video in com.each(display) { 
+	console.log(video.deviceid())//显示卡
+	console.log(video.name())//
+}
+ 
+console.pause()

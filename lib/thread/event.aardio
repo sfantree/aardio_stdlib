@@ -1,0 +1,95 @@
+//event 事件同步对象
+namespace thread;
+
+class event {
+	ctor( eventName,manualReset,initialState){ {
+	
+		var targ1 = type(eventName);
+		if( targ1 == "pointer" )   {
+			this.handle	= eventName;
+			if(manualReset===true)..table.gc( this,"close" );
+		}
+		else{
+			if( targ1 == "string" ){  
+				this.handle  =  ::Kernel32.OpenEvent( 0x1F0003/*_EVENT_ALL_ACCESS*/,false ,eventName); 
+			} 
+			
+			if(! this.handle ) {  
+				this.handle  =  ::Kernel32.CreateEvent(null,manualReset,initialState,eventName); 
+				
+				if(!this.handle) {
+					if( targ1 == "string" ){  
+						this.handle  =  ::Kernel32.OpenEvent( 0x1F0003/*_EVENT_ALL_ACCESS*/,false ,eventName); 
+						if( this.handle ) this.conflict = "事件对象已存在" 
+					} 
+				}
+			} 
+			else {
+				this.conflict = "事件对象已存在" 
+			}
+			
+			if(!this.handle) {
+				return null,..lasterr();
+			}
+			
+			this.handle = topointer(this.handle);
+			..table.gc( this,"close" );
+		}
+	} };
+	close = function(){ 
+		if( this.handle ){
+			..raw.closehandle(this.handle);
+			this.handle = null;
+		}
+	};
+	@_metaProperty; 
+}
+
+namespace event{
+	import util.metaProperty;
+	_metaProperty = util.metaProperty(
+ 
+		_topointer = function(){
+			return owner.handle;
+		}; 
+		_serialize = function(kernelCall){
+			if(kernelCall) return ..raw.serializeDupHandle("thread.event",owner.handle);
+		};
+		set = function(){
+			return !!Kernel32.SetEvent( owner.handle );  
+		};
+		
+		reset = function(){
+			return !!Kernel32.ResetEvent( owner.handle ); 
+		};
+		
+		pulse = function(){
+			return !!Kernel32.PulseEvent( owner.handle ); 
+		};
+		
+		wait = function(timeout){
+			return ..thread.wait(owner.handle,timeout)
+		};  
+		
+		waitOne = function(timeout){
+			return ..thread.waitOne(owner.handle,timeout)
+		};  
+	)
+}
+
+/**intellisense() 
+thread.event = 事件对象可用于线程或进程间同步
+thread.event( = 创建或打开已存在的命名事件对象
+thread.event(.(事件对象句柄) = 直接打开事件对象
+thread.event(.(事件对象句柄,true) = 直接打开事件对象\n添加析构函数负责释放句柄
+thread.event(.("事件对象名称",是否手动复原,初始状态) = 名称不能包含反斜杠,不能超过260个字符\nthread.event,process.mutex,fsys.mmap等命名不能相同,\n省略名称创建匿名对象,\n参数@2,@3仅在创建新的事件对象是有效\n这两个参数都是可选参数默认为false\n初始状成默认为无信号状态\n手动复原指wait函数等到信号是否硕要手动reset到无信号状态
+!thread_event.close() = 关闭事件对象\n该函数并不关闭信号量内核对象\n当所有引用内核对象的对象关闭,内核对象自动释放\n如果没有手工调用此函数,则线程结束时自动调用.
+!thread_event.conflict = 如果事件对象已存在,此属性为真值\n否则为空值
+!thread_event.set() = 设置事件的状态为有信号状态,\n退出等待该事件对象信号的函数\n类似交通信号灯切换到绿灯放行等待线程
+!thread_event.reset() = 事件对象设置为无信号状态\n类似交通信号灯切换到红灯阻塞等待线程\n如果创建事件对象时并未设定手动复位,此函数不需要手动调用
+!thread_event.pulse() = 该函数主要用于手动复原事件对象\n设置事件对象为有信号状态,并释放某些等待线程\n然后自动到无信号状态
+!thread_event.wait() = 等待事件切换到有信号状态,\n可选增加一个参数指定超时,以毫秒为单位\n在UI线程中应使用非阻塞的waitOne函数替代\n如果未指定手工复原、等待成功则自动复原为无信号状态
+!thread_event.waitOne() = 等待事件切换到有信号状态,\n可选增加一个参数指定超时,以毫秒为单位\n如果未指定手工复原、等待成功则自动复原为无信号状态
+?thread.event = !thread_event.
+thread.event = 事件同步对象支持库\n可跨进程、跨线程使用.
+end intellisense**/

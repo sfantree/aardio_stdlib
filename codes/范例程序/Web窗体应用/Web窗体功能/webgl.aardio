@@ -1,0 +1,21 @@
+//Three.js(WebGL)
+
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="Web Form - Three.js(WebGL) 演示（IE11环境）";right=1033;bottom=690)
+winform.add()
+/*}}*/
+
+import win.version;
+import web.form.util; 
+
+import web.form.util;
+web.form.util.gpuRendering(true);//启用IE11硬件加载
+
+var wb = web.form( winform ,,,,true);
+wb.go("https://threejs.org/examples/webgl_loader_stl.html") 
+
+winform.show();
+winform.disableDragFullWindow = true;
+
+win.loopMessage(); 

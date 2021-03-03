@@ -1,0 +1,1047 @@
+assert(web.layout && web.layout.behavior);
+
+namespace web.layout;
+
+var valueObjectLite_t = valueObjectLite;
+var element_t = element; 
+var behavior_t = behavior;
+
+import util.registry;
+namespace event;
+
+HANDLE_GROUPS = { 
+	INITIALIZATION = 0x0000;
+	MOUSE = 0x0001;
+	KEY = 0x0002;
+	FOCUS = 0x0004;
+	SCROLL = 0x0008;
+	TIMER = 0x0010;
+	SIZE = 0x0020;
+	DRAW = 0x0040;
+	DATA_ARRIVED = 0x080;
+	BEHAVIOR = 0x0100;
+	METHOD_CALL = 0x0200;
+	EXCHANGE = 0x1000;
+	GESTURE = 0x2000;
+	ALL = 0xFFFF;
+	DISABLE_INITIALIZATION = 0x80000000; 
+}
+ 
+getSubscriptions = function(handle){
+	var mask = 0x80000000;
+	var mapProcName;
+	var maped = {};
+	for(name,eventId in HANDLE_GROUPS){
+		mapProcName = self[name][["mapProcName"]]
+		if( mapProcName ){
+			for(evt,method in mapProcName){
+				if( handle[[method]] || handle[["sinking"]][[method]] ||  handle[["handled"]][[method]] ){
+					maped[method] = true;
+					if( eventId !== 0 ){
+						mask |=  eventId ;
+					}
+					else{
+						mask &= ~0x80000000
+					}
+					break;
+				}
+			} 
+		}
+	}
+	
+	var left = ..string.left;
+	for k,v in handle { 
+		if maped[k] continue;
+		if( type(k) == "string"  && type(v) == "function" ){
+			if(left(k,2) != "on" ){
+				mask = mask | 0x200/*_HL_HANDLE_METHOD_CALL*/; 
+			}
+			else {
+				mask = mask | 0x100/*_HL_HANDLE_BEHAVIOR_EVENT*/;
+			} 
+		}
+	} 
+	
+	for k,v in handle[["sinking"]] { 
+		if maped[k] continue;
+		if( type(k) == "string"  && type(v) == "function" ){
+			if(left(k,2) != "on" ){
+				mask = mask | 0x200/*_HL_HANDLE_METHOD_CALL*/; 
+			}
+			else {
+				mask = mask | 0x100/*_HL_HANDLE_BEHAVIOR_EVENT*/;
+			} 
+		}
+	}
+	
+	for k,v in handle[["handled"]] { 
+		if maped[k] continue;
+		if( type(k) == "string"  && type(v) == "function" ){
+			if(left(k,2) != "on" ){
+				mask = mask | 0x200/*_HL_HANDLE_METHOD_CALL*/; 
+			}
+			else {
+				mask = mask | 0x100/*_HL_HANDLE_BEHAVIOR_EVENT*/;
+			} 
+		}
+	}
+	
+	if( behavior_t.__behavior_cache[handled] ){
+		mask &= ~0x80000000
+	}
+	return mask; 
+}
+
+namespace INITIALIZATION {
+	BEHAVIOR_DETACH = 0;
+	BEHAVIOR_ATTACH = 1;
+	mapProcName = {
+		[BEHAVIOR_DETACH] = "onDetach";
+		[BEHAVIOR_ATTACH] = "onAttach"; 
+	}
+}
+	
+namespace MOUSE { 
+	MOUSE_ENTER = 0;
+	MOUSE_LEAVE = 1;
+	MOUSE_MOVE  = 2;
+	MOUSE_UP    = 3;
+	MOUSE_DOWN  = 4;
+	MOUSE_DCLICK = 5;
+	MOUSE_WHEEL = 6; 
+	MOUSE_TICK  = 7;
+	MOUSE_IDLE  = 8;
+	DROP        = 9;
+	DRAG_ENTER  = 0xA;
+	DRAG_LEAVE  = 0xB;
+	DRAG_REQUEST = 0xC;
+	MOUSE_CLICK = 0xFF;
+	DRAGGING = 0x100; 
+	
+	mapProcName = {
+		[MOUSE_ENTER] = "onMouseEnter";
+		[MOUSE_LEAVE] = "onMouseLeave";
+		[MOUSE_MOVE] = "onMouseMove";
+		[MOUSE_UP] = "onMouseUp";
+		[MOUSE_DOWN] = "onMouseDown";
+		[MOUSE_DCLICK] = "onMouseDblClick";
+		[MOUSE_WHEEL] = "onMouseWheel";
+		[MOUSE_TICK] = "onMouseTick";
+		[MOUSE_IDLE] = "onMouseIdle";
+		[DROP] = "onDrop";
+		[DRAG_ENTER] = "onDragEnter";
+		[DRAG_LEAVE] = "onDragLeave";
+		[DRAG_REQUEST] = "onDragRequest";
+		[MOUSE_CLICK] = "onMouseClick"; 
+		[DRAGGING] = "onDragging";
+	}
+}
+var _mouse_mapProcName = MOUSE.mapProcName;  
+
+namespace KEY {
+	KEY_DOWN = 0;
+	KEY_UP = 1;
+	KEY_CHAR = 2;
+	
+	mapProcName = {
+		[KEY_DOWN] = "onKeyDown";
+		[KEY_UP] = "onKeyUp";
+		[KEY_CHAR] = "onKeyChar"; 
+	}
+}
+ 
+namespace FOCUS {
+	FOCUS_LOST = 0;
+	FOCUS_GOT = 1;
+	mapProcName = {
+		[FOCUS_LOST] = "onFocusLost";
+		[FOCUS_GOT] = "onFocusGot"; 
+	}
+}
+
+namespace SCROLL {
+	SCROLL_HOME = 0;
+	SCROLL_END = 1;
+	SCROLL_STEP_PLUS = 2;
+	SCROLL_STEP_MINUS = 3;
+	SCROLL_PAGE_PLUS = 4;
+	SCROLL_PAGE_MINUS = 5;
+	SCROLL_POS = 6;
+	SCROLL_SLIDER_RELEASED = 7;
+	mapProcName = {
+		[SCROLL_HOME] = "onScrollHome";
+		[SCROLL_END] = "onScrollEnd";
+		[SCROLL_STEP_PLUS] = "onScrollStepPlus";
+		[SCROLL_STEP_MINUS] = "onScrollStepMinus";
+		[SCROLL_PAGE_PLUS] = "onScrollPagePlus";
+		[SCROLL_PAGE_MINUS] = "onScrollPageMinus";
+		[SCROLL_POS] = "onScrollPos";
+		[SCROLL_SLIDER_RELEASED] = "onSliderRelease";
+	}
+}
+
+namespace TIMER{
+	mapProcName = {
+		[0] = "onTimer";
+	}
+}
+
+namespace SIZE{
+	mapProcName = {
+		[0] = "onSize";
+	}
+}
+
+namespace DATA_ARRIVED{
+	mapProcName = {
+		[0] = "onDataArrived";
+	}	
+}
+
+namespace DRAW{
+	DRAW_BACKGROUND = 0;
+	DRAW_CONTENT = 1;
+	DRAW_FOREGROUND = 2;
+	mapProcName = {
+		[DRAW_BACKGROUND] = "onDrawBackground";
+		[DRAW_CONTENT] = "onDrawContent";
+		[DRAW_FOREGROUND] = "onDrawForeground";
+	}
+}
+
+namespace GESTURE{
+    GESTURE_REQUEST = 0;
+    GESTURE_ZOOM = 1;
+    GESTURE_PAN = 2;
+    GESTURE_ROTATE = 3;
+    GESTURE_TAP1 = 4;
+    GESTURE_TAP2 = 5;
+    mapProcName = {  
+		[GESTURE_REQUEST] = "onGestureRequest";
+		[GESTURE_ZOOM] = "onGestureZoom";
+		[GESTURE_PAN] = "onGesturePan";
+		[GESTURE_ROTATE] = "onGestureRotate";
+		[GESTURE_TAP1] = "onGestureTap1";
+		[GESTURE_TAP2] = "onGestureTap2"; 
+	}
+}
+
+namespace EXCHANGE{
+    X_DRAG_ENTER = 0;
+    X_DRAG_LEAVE = 1;
+    X_DRAG = 2;
+    X_DROP = 3;
+    mapProcName = { 
+		[X_DRAG_ENTER] = "onExchangeDragEnter";
+		[X_DRAG_LEAVE] = "onExchangeDragLeave";
+		[X_DRAG] = "onExchangeDrag";
+		[X_DROP] = "onExchangeDrop"; 
+	}
+}
+
+namespace BEHAVIOR{ 
+	BUTTON_CLICK = 0;
+	BUTTON_PRESS = 1;
+	BUTTON_STATE_CHANGED = 2;
+	EDIT_VALUE_CHANGING = 3;
+	EDIT_VALUE_CHANGED = 4;
+	SELECT_SELECTION_CHANGED = 5;
+	SELECT_STATE_CHANGED = 6;
+	POPUP_REQUEST   = 7;
+	POPUP_READY     = 8;
+	POPUP_DISMISSED = 9;
+	MENU_ITEM_ACTIVE = 0xA;
+	MENU_ITEM_CLICK = 0xB;
+	CONTEXT_MENU_SETUP   = 0xF;
+	CONTEXT_MENU_REQUEST = 0x10;
+	VISIUAL_STATUS_CHANGED = 0x11;
+	DISABLED_STATUS_CHANGED = 0x12;
+	POPUP_DISMISSING = 0x13;
+	HYPERLINK_CLICK = 0x80;
+	TABLE_HEADER_CLICK = 0x81;
+	TABLE_ROW_CLICK = 0x82;
+	TABLE_ROW_DBL_CLICK = 0x83;
+	ELEMENT_COLLAPSED = 0x90;
+	ELEMENT_EXPANDED = 0x91;
+	ACTIVATE_CHILD = 0x92;
+	DO_SWITCH_TAB = 0x92; 
+	INIT_DATA_VIEW = 0x93;
+	ROWS_DATA_REQUEST = 0x94;
+	UI_STATE_CHANGED = 0x95;
+	FORM_SUBMIT = 0x96;
+	FORM_RESET = 0x97;
+	DOCUMENT_COMPLETE = 0x98;
+	HISTORY_PUSH = 0x99;
+	HISTORY_DROP = 0x9A;
+	HISTORY_PRIOR = 0x9B;
+	HISTORY_NEXT = 0x9C;
+	HISTORY_STATE_CHANGED = 0x9D;
+	CLOSE_POPUP = 0x9E;
+	REQUEST_TOOLTIP = 0x9F;
+	ANIMATION = 0xA0;
+	FIRST_APPLICATION_EVENT_CODE = 0x100; 
+	
+	mapProcName = {  
+		[BUTTON_CLICK] = "onButtonClick";
+		[BUTTON_PRESS] = "onButtonPress";
+		[BUTTON_STATE_CHANGED] = "onButtonStateChanged";
+		[EDIT_VALUE_CHANGING] = "onEditValueChanging";
+		[EDIT_VALUE_CHANGED] = "onEditValueChanged";
+		[SELECT_SELECTION_CHANGED] = "onSelectSelectionChanged";
+		[SELECT_STATE_CHANGED] = "onSelectStateChanged";
+		[POPUP_REQUEST] = "onPopupRequest";
+		[POPUP_READY] = "onPopupReady";
+		[POPUP_DISMISSED] = "onPopupDismissed";
+		[MENU_ITEM_ACTIVE] = "onMenuItemActive";
+		[MENU_ITEM_CLICK] = "onMenuItemClick";
+		[CONTEXT_MENU_SETUP] = "onContextMenuSetup";
+		[CONTEXT_MENU_REQUEST] = "onContextMenuRequest";
+		[VISIUAL_STATUS_CHANGED] = "onVisualStateChanged";
+		[DISABLED_STATUS_CHANGED] = "onDisabledStateChanged";
+		[POPUP_DISMISSING] = "onPopupDismissing";
+		[HYPERLINK_CLICK] = "onHyperlinkClick";
+		[TABLE_HEADER_CLICK] = "onTableHeaderClick";
+		[TABLE_ROW_CLICK] = "onTableRowClick";
+		[TABLE_ROW_DBL_CLICK] = "onTableRowDblClick";
+		[ELEMENT_COLLAPSED] = "onElementCollapsed";
+		[ELEMENT_EXPANDED] = "onElementExpanded";
+		[ACTIVATE_CHILD] = "onActiveChild";
+		[INIT_DATA_VIEW] = "onInitDataView";
+		[ROWS_DATA_REQUEST] = "onRowsDataRequest";
+		[UI_STATE_CHANGED] = "onUiStateChanged";
+		[FORM_SUBMIT] = "onFormSubmit";
+		[FORM_RESET] = "onFormReset";
+		[DOCUMENT_COMPLETE] = "onFrameDocumentComplete";
+		[CLOSE_POPUP] = "onClosePopup";
+		[REQUEST_TOOLTIP] = "onRequestTooltip"; 
+		[ANIMATION] = "onAnimation"; 
+	} 
+	
+	mapName = {};
+}
+
+findEventCodeByName = function(name){ 
+	var m = BEHAVIOR.mapName;
+	if( m[name] ) return m[name];
+	
+	for(code,v in BEHAVIOR.mapProcName){
+		if( ..string.cmp(v,name)==0){
+			 m[name] = code;
+			return code;
+		}
+	} 
+	m[name] =  ..table.push( BEHAVIOR.mapProcName,name );
+	return m[name];
+}
+
+findMouseCodeByName = function(name){
+	for(code,v in MOUSE.mapProcName){
+		if( ..string.cmp(v,name)==0)
+			return code;
+	} 
+}
+
+findKeyCodeByName = function(name){
+	for(code,v in KEY.mapProcName){
+		if( ..string.cmp(v,name)==0)
+			return code;
+	} 
+}
+
+INITIALIZATION_PARAMS = class {
+	INT cmd;
+}
+
+MOUSE_PARAMS = class {
+	INT cmd;
+	pointer target;
+	struct pos = ::POINT();
+	struct pos_document = ::POINT();
+	int button_state;
+	INT alt_state;
+	INT cursor_type;
+	bool is_on_icon;
+	pointer dragging;
+	INT dragging_mode;
+}
+
+KEY_PARAMS = class {
+	INT cmd;
+	pointer target;
+	INT key_code;
+	INT alt_state;
+}
+
+FOCUS_PARAMS = class {
+	INT cmd;
+	pointer target;
+	bool by_mouse_click;
+	bool cancel;
+}
+
+SCROLL_PARAMS = class {
+	INT cmd;
+	pointer target;
+	int pos;
+	bool vertical;
+} 
+
+GESTURE_PARAMS = class {
+	INT cmd;
+	pointer target;
+	struct pos = ::POINT();
+	struct pos_view = ::POINT();
+	INT flags;
+	INT delta_time;
+	struct delta_xy = ::SIZE();
+	double delta_v;
+}
+
+DRAW_PARAMS = class {
+	INT cmd;
+	pointer hdc;
+	struct area = ::RECT();
+	INT reserved;
+}
+
+EXCHANGE_PARAMS = class {
+	INT cmd;
+	pointer target;
+	struct pos = ::POINT();
+	struct pos_view = ::POINT();
+	INT data_types;
+	INT drag_cmd;
+	pointer fetch_data;
+} 
+
+BEHAVIOR_EVENT_PARAMS = class {
+	INT cmd;
+	pointer target;
+	pointer he;
+	INT reason;
+	struct data = {
+		INT type;
+		INT units;
+		LONG data;
+		@( ..web.layout.valueObject._metaProperty )
+	}
+}
+
+namespace METHOD_CALL{
+	mapProcName = {
+		[0/*_HL_DO_CLICK*/] = "onClick";
+		[0xFC/*_HL_IS_EMPTY*/] = "onIsEmpty";
+		[0xFD/*_HL_GET_VALUE*/] = "onGetValue";
+		[0xFE/*_HL_SET_VALUE*/] = "onSetValue";
+		[5/*_HL_TEXT_EDIT_REPLACE_SELECTION*/] = "onReplaceSel";
+		[8/*_HL_TEXT_EDIT_GET_CARET_POSITION*/] = "onGetCaretPos";
+	}
+} 
+
+var fromUnicode = ..string.fromUnicode; 
+var getAttributeByName = element_t.GetAttributeByName; 
+var raw_convert = ..raw.convert; 
+
+_defaultHandlerMethodCalls ={
+	[ 0/*_HL_DO_CLICK*/ ] = function(this,ltEle,tag, prms){   
+		return this.onClick(ltEle);
+	} 
+	[ 0xFC/*_HL_IS_EMPTY*/ ] = function(this,ltEle,tag, prms){   
+		var ret,empty = this.onIsEmpty(ltEle); 
+		::CopyMemoryByStruct( topointer(prms,4/*retval offset*/), {bool is_empty = empty},4);
+		return ret; 
+	} 
+	[ 0xFD/*_HL_GET_VALUE*/  ] = function(this,ltEle,tag, prms){  
+		var ret,value = this.onGetValue(ltEle);
+		if(value){ 
+			::CopyMemoryByStruct( topointer(prms,8/*retval offset*/), valueObjectLite_t(value),16/* sizeof retval */);
+		}
+		return ret;
+	} 
+	[ 0xFE/*_HL_SET_VALUE*/  ] = function(this,ltEle,tag, prms){  
+		var val = raw_convert(topointer(prms,8/*retval offset*/), valueObjectLite_t() );
+		return this.onSetValue( ltEle,val.getValue() )
+	} 
+	[ 5/*_HL_TEXT_EDIT_REPLACE_SELECTION*/  ] = function(this,ltEle,tag, prms){  
+		var replaceParams = raw_convert( prms ,{ INT methodID ; pointer text; INT text_length; }  );
+		return this.onReplaceSel( ltEle, fromUnicode(replaceParams.text,,true) )
+	}
+	[ 8/*_HL_TEXT_EDIT_GET_CARET_POSITION*/  ] = function(this,ltEle,tag, prms){  
+		var handled;
+		var p = { INT methodID;int left;int top; int width;int height };
+		handled,p.left,p.top,p.width,p.height = this.onGetCaretPos( ltEle )
+		if( handled ) ::CopyMemoryByStruct( prms, p,20);
+		return handled;
+	}  
+}
+
+class XCALL_PARAMS{
+	INT methodID = 0xFF/*_HL_XCALL*/;
+	string method_name;
+	INT argc;
+	pointer argv;
+	struct retval = valueObjectLite_t();
+} 
+
+var callEvent = function(this,handler,target,...){
+	if( type(handler) == "function"  ){   
+		var ltTarget = target ? ( element_t(target) ) //gc protect;
+		return invoke(handler,this,ltTarget,... );
+	}
+	elseif(target){
+		var re,id = getAttributeByName(target,"id");
+		var func = ( id ? handler[ fromUnicode(id,,true) ] );
+		
+		if( !func ){
+			var re,name = getAttributeByName(target,"name");
+			func = ( name ? handler[ fromUnicode(name,,true) ] ) : handler.default;
+		}
+
+		if( func ){
+			var ltTarget = element_t(target);
+			return invoke(func,handler,ltTarget,... );
+		} 
+	};
+}
+
+_defaultHandler = {
+	[ HANDLE_GROUPS.INITIALIZATION ] = function(this,tag, he,cmd,prms,uRegistry){ 
+		var ret;
+		var handler = this[[ INITIALIZATION.mapProcName[cmd] ]];
+		if( handler ) ret = callEvent( this,handler,he );
+		
+		if(!cmd){
+			behavior_t.__release(this);
+			if( uRegistry ) _handlerByTagRegistry.unReg(tag);
+		}
+		return ret;
+	}
+	[ HANDLE_GROUPS.TIMER ] = function(this,tag, he,cmd,prms){ 
+		var handler = this[["onTimer"]];
+		if(handler) return callEvent( this,handler,he,cmd )
+	}
+	[ HANDLE_GROUPS.SIZE ] = function(this,tag, he,cmd,prms){ 
+		var handler = this[[ "onSize" ]]  
+		if( handler ) return callEvent( this,handler,he );
+	}
+	[ HANDLE_GROUPS.DRAW ] = function(this,tag, he,cmd,prms){ 
+		var handler = this[[ DRAW.mapProcName[cmd] ]]; 
+		if(!handler)return;  
+		
+		var drawParams = raw_convert(prms, DRAW_PARAMS());
+		drawParams.pointer = prms;
+		
+		return callEvent( this,handler,he
+			,drawParams.hdc,drawParams.area,drawParams.reserved );
+	} 
+	[ HANDLE_GROUPS.MOUSE ] = function(this,tag, he,cmd,prms){  
+		var isdragging = cmd &  0x100/*_HL_DRAGGING*/;
+		if( isdragging )cmd = cmd & 0xFFFFFEFF;
+		
+		var handler = this[[ _mouse_mapProcName[ cmd ] ]]; 
+		if(!handler) return;
+		
+		var ltMouseParams = raw_convert(prms, MOUSE_PARAMS()); 
+		ltMouseParams.pointer = prms;/*for behavior:gripper*/ 
+		ltMouseParams.isdragging = isdragging;
+		
+		var ltEle = he ? ( element_t(he) ) ;
+		return callEvent( this ,handler,ltMouseParams.target ,ltEle
+			,ltMouseParams.pos.x,ltMouseParams.pos.y, ltMouseParams );  
+	}  
+	[ HANDLE_GROUPS.KEY ] = function(this,tag, he,cmd,prms){
+		var handler = this[[ KEY.mapProcName[cmd] ]];
+		if(!handler)return; 
+		var ltKeyParams = raw_convert(prms, KEY_PARAMS());
+		ltKeyParams.pointer = prms;
+		
+		var ltEle = he ? ( element_t(he) ) ;
+		return callEvent( this,handler,ltKeyParams.target,ltEle
+			,ltKeyParams.key_code,ltKeyParams.alt_state, ltKeyParams); 
+	}  
+	[ HANDLE_GROUPS.FOCUS ] = function(this,tag, he,cmd,prms){
+		var handler = this[[  FOCUS.mapProcName[cmd] ]];
+		if(!handler) return; 
+		var focusParams = raw_convert(prms, FOCUS_PARAMS());
+		focusParams.pointer = prms;
+		
+		var ltEle = he ? ( element_t(he) ) ;
+		return callEvent( this,handler,focusParams.target,ltEle
+			,focusParams ); 
+	} 
+	[ HANDLE_GROUPS.SCROLL ] = function(this,tag, he,cmd,prms){
+		var handler = this[[ SCROLL.mapProcName[cmd]  ]];
+		if( !handler ) return;
+		var scrollParams = raw_convert(prms, SCROLL_PARAMS()); 
+		scrollParams.pointer = prms;
+		
+		var ltEle = he ? ( element_t(he) ) ;
+		return callEvent( this,handler,scrollParams.target,ltEle
+			,scrollParams.pos,scrollParams );
+	}
+	[ HANDLE_GROUPS.BEHAVIOR ] = function(this,tag, he,cmd,prms){ 
+	
+		var funcName = BEHAVIOR.mapProcName[cmd]; 
+		var handler = funcName ? this[[funcName]];
+		if(!handler){
+			if( cmd >= 0x100 && this[["onApplicationEvent"]] ) handler = this[["onApplicationEvent"]];
+			else return; 
+		};
+		
+		var behaviorParams = raw_convert(prms, BEHAVIOR_EVENT_PARAMS());  
+		behaviorParams.pointer = prms;
+		
+		var ltEle = he ? ( element_t(he) ) ;
+		
+		return callEvent( this,handler,behaviorParams.target,ltEle
+		 	,behaviorParams.reason,behaviorParams );
+	}   
+	[ HANDLE_GROUPS.GESTURE ] = function(this,tag, he,cmd,prms){ 
+	
+		var funcName = GESTURE.mapProcName[cmd]; 
+		var handler = this[[funcName]];
+		if(!handler) return; 
+		var gestureParams = raw_convert(prms, GESTURE_PARAMS());  
+		gestureParams.pointer = prms;
+		
+		var ltEle = he ? ( element_t(he) ) ;
+		var ret = callEvent( this,handler,gestureParams.target,ltEle,gestureParams );
+		if( cmd == 0 ){ 
+			..raw.mixin(prms,gestureParams);
+		}
+		return ret;
+	} 
+	[ HANDLE_GROUPS.EXCHANGE ] = function(this,tag, he,cmd,prms){  
+		var funcName = EXCHANGE.mapProcName[cmd]; 
+		var handler = this[[funcName]];
+		if(!handler) return; 
+		var exParams = raw_convert(prms, EXCHANGE_PARAMS());  
+		
+		var ltEle = he ? (element_t(he) ) ;
+		var fetchData;
+		if( exParams.fetch_data ){
+			fetchData = function(data_type){
+				
+				if( data_type === null ) {
+					for(i=5;1;-1){
+						if( exParams.data_types >> i-1 ){
+							data_type = 1 << i-1; 
+							break ;
+						}
+					}
+				}
+				 
+				var fetch_data_c = ..raw.main.api(exParams.fetch_data,"bool(pointer params,INT data_type,pointer &ppDataStart,INT& pDataLength )" ,"stdcall")
+				var ok,p,len = fetch_data_c( prms,( data_type : 0/*_HL_EXF_UNDEFINED*/ ),,0); 
+				 ..raw._release(fetch_data_c);
+				 
+				if( ok ){
+					var str = ..raw.tostring(p,1,len);
+					if( data_type == 0x10/*_HL_EXF_FILE*/ || data_type = 4/*_HL_EXF_HYPERLINK*/ ){
+						var list = ..string.split(str,'\0');
+						for(k,v in list){
+							list[k] = v; 
+						} 
+						return list,data_type;
+					}
+					return str,data_type;
+				}
+			} 
+		} 
+		return  callEvent( this,handler,exParams.target,ltEle,exParams.pos.x,exParams.pos.y,exParams.drag_cmd,exParams.data_types,fetchData,exParams ); 
+	} 
+	[ HANDLE_GROUPS.DATA_ARRIVED ] = function(this,tag, he,cmd,prms){
+		var handler = this[["onDataArrived"]];
+		if(!handler) return; 
+		var p = raw_convert(prms, {
+  			ptr init; 
+  			poiter data; 
+  			INT size;
+  			INT dataType;
+  			INT status;
+  			ptr uri;
+			} );  
+		var ltEle = he ? (element_t(he) ) ;
+		return  callEvent( this,handler,p.init,ltEle
+				,p.size ? ..raw.tostring(p.data,1,p.size) : null ,p.dataType,p.status,fromUnicode(p.uri,,true) );
+	}
+	[ HANDLE_GROUPS.METHOD_CALL ] = function(this,tag, he,methodId,prms){  
+		if( methodId == 0xFF/*_HL_XCALL*/){  
+			var xcallParams = raw_convert(prms, XCALL_PARAMS());
+			var handler = this[[ xcallParams.method_name ]];
+			if( type(handler)!="function" ) return;
+			
+			var callOk,callRet;
+			var ltEle = he ? (element_t(he) ) //gc protect;
+			var argc = xcallParams.argc;
+			if( argc ){
+				var offset = 0;
+				var p = xcallParams.argv;
+				var tArgs = {};
+				for(i=1;argc;1){
+					var v = valueObjectLite_t();//禁止自动析构
+					raw_convert(p,v,offset); 
+					
+					offset += 16/*..raw.sizeof( valueObjectLite_t() )*/ 
+					v = v.getValue();
+					tArgs[i] = v;
+				}
+				
+				callOk,callRet = call( handler,this,ltEle, ..table.unpack(tArgs,1,argc) ) 
+			}
+			else {
+				callOk,callRet = call( handler,this,ltEle )
+			}
+			
+			if( callOk ){
+				if( callRet !== null ){
+					xcallParams.retval.setValue(callRet);
+					::CopyMemoryByStruct( topointer(prms,16/*retval offset*/),xcallParams.retval,16/* sizeof retval */)
+				}
+			}
+			elseif( callRet ){
+				errput(callRet,'HTMLayout xcall("' +xcallParams.method_name+ '") 错误:');
+			}
+			
+			return true; 
+		}
+		else { 
+			var funcName = METHOD_CALL.mapProcName[methodId]; 
+			var handler = this[[funcName]]; 
+			if(!handler)return;
+			
+			handler = _defaultHandlerMethodCalls[methodId] 
+			if( handler ){
+				return handler(this,element_t(he),tag, prms); 
+			}
+		} 
+	} 
+}
+
+var _defaultHandler = _defaultHandler;
+var _eventParam = { int cmd };
+_handler = function (tag, he, evtg, prms) {
+	var handle = _defaultHandler[evtg];
+	if ( handle) {
+		if(!prms) return handle(owner,tag,he ); 
+		
+		var cmd = raw_convert(prms, _eventParam ).cmd;
+		if( cmd & 0x8000/*_HL_SINKING*/ ){
+			owner = owner[["sinking"]];
+			cmd = cmd & 0x7FFF
+			if( !owner ) return;
+		}
+		elseif( cmd & 0x10000/*_HL_HANDLED*/ ){
+			owner = owner[["handled"]];
+			cmd = cmd & 0x7FFF
+			if( !owner ) return;
+		}
+		
+		return handle(owner,tag,he,cmd,prms );
+	}
+}
+
+_handlerByTagRegistry = ..util.registry();
+var _handlerByTagRegistry = _handlerByTagRegistry;
+var handlerByTagId = function (tagId, he, evtg, prms) {
+	
+	var handle = _defaultHandler[evtg]
+	if ( handle) {
+		var this = _handlerByTagRegistry[tagId] 
+		if( this ){ 
+			if(!prms) return handle(this,tagId,he ); 
+			var cmd = raw_convert(prms, _eventParam ).cmd;
+			if( cmd & 0x8000/*_HL_SINKING*/ ){
+				this = this[["sinking"]];
+				cmd = cmd & 0x7FFF;
+				if( !this ) return;
+			}
+			elseif( cmd & 0x10000/*_HL_HANDLED*/ ){
+				this = this[["handled"]];
+				cmd = cmd & 0x7FFF;
+				if( !this )return;
+			}
+			return handle(this,tagId,he,cmd,prms,true ); 
+		}
+	};  
+}
+
+_handlerByTagId_c = ..raw.tostdcall( handlerByTagId , "int(INT tagId,pointer he,INT evtg,pointer prms)" ); 
+element_t.__event = self;
+
+/**intellisense()
+web.layout.event.MOUSE_PARAMS() = 创建鼠标事件结构体参数,\n!hl_mouse_params.
+!hl_mouse_params.cmd = 命令ID
+!hl_mouse_params.target = 触发事件节点
+!hl_mouse_params.pos = 节点坐标\n!point.
+!hl_mouse_params.pos_document = 文档坐标\n!point.
+!hl_mouse_params.button_state = 按键状态\n在onMouseWheel事件中表示滚轮数据
+!hl_mouse_params.alt_state = 控制键状态
+!hl_mouse_params.cursor_type = 指针
+!hl_mouse_params.is_on_icon = 是否位于图标上,\n这里指的是前景图片,并具有 no-repeat 样式
+!hl_mouse_params.isdragging = 是否正在拖动,无论节点CSS是否指定draggable属性
+!hl_mouse_params.dragging = 正在被拖放的节点,节点要在CSS属性draggable中启用拖动\n该节点不为空值是,isdragging为真
+!hl_mouse_params.dragging_mode = 拖动类型,\n1 _HL_DRAGGING_MOVE 或 _HL_DRAGGING_COPY
+!hl_mouse_params.pointer = 结构体指针地址
+web.layout.event.KEY_PARAMS() = 创建鼠标事件结构体参数,\n!hl_key_params.
+!hl_key_params.cmd = 命令ID
+!hl_key_params.target = 触发事件节点
+!hl_key_params.key_code = 虚拟键码
+!hl_key_params.alt_state = 控制键状态
+!hl_key_params.pointer = 结构体指针地址
+
+_HL_MOUSE_ENTER=@0/*_HL_MOUSE_ENTER*/
+_HL_MOUSE_LEAVE=@1/*_HL_MOUSE_LEAVE*/
+_HL_MOUSE_MOVE=@2/*_HL_MOUSE_MOVE*/
+_HL_MOUSE_UP=@3/*_HL_MOUSE_UP*/
+_HL_MOUSE_DOWN=@4/*_HL_MOUSE_DOWN*/
+_HL_MOUSE_DCLICK=@5/*_HL_MOUSE_DCLICK*/
+_HL_MOUSE_WHEEL=@6/*_HL_MOUSE_WHEEL*/
+_HL_MOUSE_TICK=@7/*_HL_MOUSE_TICK*/
+_HL_MOUSE_IDLE=@8/*_HL_MOUSE_IDLE*/
+_HL_DROP=@9/*_HL_DROP*/
+_HL_DRAG_ENTER=@0xA/*_HL_DRAG_ENTER*/
+_HL_DRAG_LEAVE=@0xB/*_HL_DRAG_LEAVE*/
+_HL_DRAG_REQUEST=@0xC/*_HL_DRAG_REQUEST*/
+_HL_MOUSE_CLICK=@0xFF/*_HL_MOUSE_CLICK*/
+_HL_DRAGGING=@0x100/*_HL_DRAGGING*/
+_HL_KEY_DOWN=@0/*_HL_KEY_DOWN*/
+_HL_KEY_UP=@1/*_HL_KEY_UP*/
+_HL_KEY_CHAR=@2/*_HL_KEY_CHAR*/
+
+!weblayout.onMouseEnter = @.onMouseEnter = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onMouseLeave = @.onMouseLeave = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onMouseMove = @.onMouseMove = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onMouseUp = @.onMouseUp = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onMouseDown = @.onMouseDown = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onMouseDblClick = @.onMouseDblClick = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onMouseWheel = @.onMouseWheel = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onMouseTick = @.onMouseTick = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onMouseIdle = @.onMouseIdle = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onDrop = @.onDrop = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onDragEnter = @.onDragEnter = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onDragLeave = @.onDragLeave = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onDragRequest = @.onDragRequest = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onMouseClick = @.onMouseClick = function (ltTarget,ltOwner,x,y,ltMouseParams) {\n	__\n}
+!weblayout.onKeyDown = @.onKeyDown = function (ltTarget,ltOwner,keyCode, altState, ltKeyParams) {\n	__\n}
+!weblayout.onKeyUp = @.onKeyUp = function (ltTarget,ltOwner,keyCode, altState, ltKeyParams) {\n	__\n}
+!weblayout.onKeyChar = @.onKeyChar = function (ltTarget,ltOwner,keyCode, altState, ltKeyParams) {\n	__\n}
+!weblayout.onFocusLost = @.onFocusLost = function (ltTarget,ltOwner,focusParams) {\n	__\n}
+!weblayout.onFocusGot = @.onFocusGot = function (ltTarget,ltOwner,focusParams) {\n	__\n}
+
+!weblayout.onScrollHome = @.onScrollHome = function (ltTarget,ltOwner,pos,scrollParams) {\n	__\n}
+!weblayout.onScrollEnd = @.onScrollEnd = function (ltTarget,ltOwner,pos,scrollParams) {\n	__\n}
+!weblayout.onScrollStepPlus = @.onScrollStepPlus = function (ltTarget,ltOwner,pos, scrollParams) {\n	__\n}
+!weblayout.onScrollStepMinus = @.onScrollStepMinus = function (ltTarget,ltOwner,pos, scrollParams) {\n	__\n}
+!weblayout.onScrollPagePlus = @.onScrollPagePlus = function (ltTarget,ltOwner,pos, scrollParams) {\n	__\n}
+!weblayout.onScrollPageMinus = @.onScrollPageMinus = function (ltTarget,ltOwner,pos, scrollParams) {\n	__\n}
+!weblayout.onScrollPos = @.onScrollPos = function (ltTarget,ltOwner,pos, scrollParams) {\n	__\n}
+!weblayout.onSliderRelease = @.onSliderRelease = function (ltTarget,ltOwner,pos, scrollParams) {\n	__\n}
+ 
+!weblayout.onGestureRequest = @.onGestureRequest = function (ltTarget,ltOwner,ltGestureParams) {\n	ltGestureParams.flags = 0xFFFF/*_HL_GESTURE_FLAGS_ALL*/\n	return true;__\n}
+!weblayout.onGestureZoom = @.onGestureZoom = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*缩放*/\n}
+!weblayout.onGesturePan = @.onGesturePan = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*平移*/\n}
+!weblayout.onGestureRotate = @.onGestureRotate = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*旋转*/\n}
+!weblayout.onGestureTap1 = @.onGestureTap1 = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*单击*/\n}
+!weblayout.onGestureTap2 = @.onGestureTap2 = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*双击*/\n}
+
+!weblayout.onSize = @.onSize = function (ltOwner) {\n	__\n}
+!weblayout.onTimer = @.onTimer = function (ltOwner,timerId) {\n	__\n}
+!weblayout.onFrameDocumentComplete = @.onFrameDocumentComplete = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onApplicationEvent = @.onApplicationEvent = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*postEvent或sendEvent发出一大于0x100的消息*/\n}
+!weblayout.onButtonClick = @.onButtonClick = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onButtonPress = @.onButtonPress = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onButtonStateChanged = @.onButtonStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onEditValueChanging = @.onEditValueChanging = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onEditValueChanged = @.onEditValueChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onSelectSelectionChanged = @.onSelectSelectionChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltOption = ..web.layout.element( behaviorParams.he )\n	__\n}
+!weblayout.onSelectStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltOption = ..web.layout.element( behaviorParams.he )\n	__\n}
+!weblayout.onPopupRequest = @.onPopupRequest = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!weblayout.onPopupReady = @.onPopupReady = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!weblayout.onPopupDismissed = @.onPopupDismissed = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!weblayout.onMenuItemActive = @.onMenuItemActive = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!weblayout.onMenuItemClick = @.onMenuItemClick = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!weblayout.onContextMenuSetup = @.onContextMenuSetup = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!weblayout.onContextMenuRequest = @.onContextMenuRequest = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!weblayout.onVisualStateChanged = @.onVisualStateChanged = function (ltTarget,ltOwner,shown,behaviorParams) {\n	__\n}
+!weblayout.onDisabledStateChanged = @.onDisabledStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onPopupDismissing = @.onPopupDismissing = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onHyperlinkClick = @.onHyperlinkClick = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onTableHeaderClick = @.onTableHeaderClick = function (ltTarget,ltOwner,cellIndex,behaviorParams) {\n	__\n}
+!weblayout.onTableRowClick = @.onTableRowClick = function (ltTarget,ltOwner,rowIndex,behaviorParams) {\n	__\n}
+!weblayout.onTableRowDblClick = @.onTableRowDblClick = function (ltTarget,ltOwner,rowIndex,behaviorParams) {\n	__\n}
+!weblayout.onElementCollapsed = @.onElementCollapsed = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onElementExpanded = @.onElementExpanded = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onActiveChild = @.onActiveChild = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onInitDataView = @.onInitDataView = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onRowsDataRequest = @.onRowsDataRequest = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onUiStateChanged = @.onUiStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onFormSubmit = @.onFormSubmit = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var formData = behaviorParams.data.getValue();__\n}
+!weblayout.onFormReset = @.onFormReset = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n} 
+!weblayout.onClosePopup = @.onClosePopup = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onRequestTooltip = @.onRequestTooltip = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onAnimation = @.onAnimation = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!weblayout.onElementControlCreated = @.onElementControlCreated = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltCtrl = ltOwner.getCtrl();__/*自定义控件已创建*/\n}
+!weblayout.onDrawBackground = @.onDrawBackground = function(ltOwner,hdc,rc){
+	
+}
+!weblayout.onDrawContent = @.onDrawContent = function(ltOwner,hdc,rc){
+	
+}
+!weblayout.onDrawForeground = @.onDrawForeground = function(ltOwner,hdc,rc){
+	
+}
+!weblayout.onAttach = @.onAttach = function( ltOwner ){
+	__
+	return true	
+}
+
+!weblayout.onDetach = @.onDetach = function( ltOwner ){
+	__
+	return true	
+}
+!weblayout.onExchangeDrag = @.onExchangeDrag = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) {  \n	return true;__/*这里返回true才会显示可拖放鼠标指针*/\n}
+!weblayout.onExchangeDragEnter = @.onExchangeDragEnter = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) {  \n	return true;\n}
+!weblayout.onExchangeDragLeave = @.onExchangeDragLeave = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) {  \n	return true;\n}
+!weblayout.onExchangeDrop = @.onExchangeDrop = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) { \n    var data,dataType = fetchData( _HL_EXF__/*可选指定支持的拖放数据类型*/ );\n    if( data ) {\n        return true;\n    }\n}
+!weblayout.onDataArrived = @.onDataArrived = function(ltTarget,ltOwner,data,dataType,status,url){\n    return true;__/*返回true撤消数据不显示内容*/\n}
+
+end intellisense**/
+
+ 
+ /**intellisense()
+_HL_BUTTON_CLICK=@0/*_HL_BUTTON_CLICK*/
+_HL_BUTTON_PRESS=@1/*_HL_BUTTON_PRESS*/
+_HL_BUTTON_STATE_CHANGED=@2/*_HL_BUTTON_STATE_CHANGED*/
+_HL_EDIT_VALUE_CHANGING=@3/*_HL_EDIT_VALUE_CHANGING*/
+_HL_EDIT_VALUE_CHANGED=@4/*_HL_EDIT_VALUE_CHANGED*/
+_HL_SELECT_SELECTION_CHANGED=@5/*_HL_SELECT_SELECTION_CHANGED*/
+_HL_SELECT_STATE_CHANGED=@6/*_HL_SELECT_STATE_CHANGED*/
+_HL_POPUP_REQUEST=@7/*_HL_POPUP_REQUEST*/
+_HL_POPUP_READY=@8/*_HL_POPUP_READY*/
+_HL_POPUP_DISMISSED=@9/*_HL_POPUP_DISMISSED*/
+_HL_MENU_ITEM_ACTIVE=@0xA/*_HL_MENU_ITEM_ACTIVE*/
+_HL_MENU_ITEM_CLICK=@0xB/*_HL_MENU_ITEM_CLICK*/
+_HL_CONTEXT_MENU_SETUP=@0xF/*_HL_CONTEXT_MENU_SETUP*/
+_HL_CONTEXT_MENU_REQUEST=@0x10/*_HL_CONTEXT_MENU_REQUEST*/
+_HL_VISIUAL_STATUS_CHANGED=@0x11/*_HL_VISIUAL_STATUS_CHANGED*/
+_HL_DISABLED_STATUS_CHANGED=@0x12/*_HL_DISABLED_STATUS_CHANGED*/
+_HL_POPUP_DISMISSING=@0x13/*_HL_POPUP_DISMISSING*/
+_HL_HYPERLINK_CLICK=@0x80/*_HL_HYPERLINK_CLICK*/
+_HL_TABLE_HEADER_CLICK=@0x81/*_HL_TABLE_HEADER_CLICK*/
+_HL_TABLE_ROW_CLICK=@0x82/*_HL_TABLE_ROW_CLICK*/
+_HL_TABLE_ROW_DBL_CLICK=@0x83/*_HL_TABLE_ROW_DBL_CLICK*/
+_HL_ELEMENT_COLLAPSED=@0x90/*_HL_ELEMENT_COLLAPSED*/
+_HL_ELEMENT_EXPANDED=@0x91/*_HL_ELEMENT_EXPANDED*/
+_HL_ACTIVATE_CHILD=@0x92/*_HL_ACTIVATE_CHILD*/
+_HL_DO_SWITCH_TAB=@0x92/*_HL_DO_SWITCH_TAB*/
+_HL_INIT_DATA_VIEW=@0x93/*_HL_INIT_DATA_VIEW*/
+_HL_ROWS_DATA_REQUEST=@0x94/*_HL_ROWS_DATA_REQUEST*/
+_HL_UI_STATE_CHANGED=@0x95/*_HL_UI_STATE_CHANGED*/
+_HL_FORM_SUBMIT=@0x96/*_HL_FORM_SUBMIT*/
+_HL_FORM_RESET=@0x97/*_HL_FORM_RESET*/
+_HL_DOCUMENT_COMPLETE=@0x98/*_HL_DOCUMENT_COMPLETE*/
+_HL_HISTORY_PUSH=@0x99/*_HL_HISTORY_PUSH*/
+_HL_HISTORY_DROP=@0x9A/*_HL_HISTORY_DROP*/
+_HL_HISTORY_PRIOR=@0x9B/*_HL_HISTORY_PRIOR*/
+_HL_HISTORY_NEXT=@0x9C/*_HL_HISTORY_NEXT*/
+_HL_HISTORY_STATE_CHANGED=@0x9D/*_HL_HISTORY_STATE_CHANGED*/
+_HL_CLOSE_POPUP=@0x9E/*_HL_CLOSE_POPUP*/
+_HL_REQUEST_TOOLTIP=@0x9F/*_HL_REQUEST_TOOLTIP*/
+_HL_ANIMATION=@0xA0/*_HL_ANIMATION*/
+_HL_FIRST_APPLICATION_EVENT_CODE=@0x100/*_HL_FIRST_APPLICATION_EVENT_CODE*/
+_HL_DO_CLICK=@0/*_HL_DO_CLICK*/
+_HL_GET_TEXT_VALUE=@1/*_HL_GET_TEXT_VALUE*/
+_HL_SET_TEXT_VALUE=@2/*_HL_SET_TEXT_VALUE*/
+_HL_TEXT_EDIT_GET_SELECTION=@3/*_HL_TEXT_EDIT_GET_SELECTION*/
+_HL_TEXT_EDIT_SET_SELECTION=@4/*_HL_TEXT_EDIT_SET_SELECTION*/
+_HL_TEXT_EDIT_REPLACE_SELECTION=@5/*_HL_TEXT_EDIT_REPLACE_SELECTION*/
+_HL_SCROLL_BAR_GET_VALUE=@6/*_HL_SCROLL_BAR_GET_VALUE*/
+_HL_SCROLL_BAR_SET_VALUE=@7/*_HL_SCROLL_BAR_SET_VALUE*/
+_HL_TEXT_EDIT_GET_CARET_POSITION=@8/*_HL_TEXT_EDIT_GET_CARET_POSITION*/
+_HL_TEXT_EDIT_GET_SELECTION_TEXT=@9/*_HL_TEXT_EDIT_GET_SELECTION_TEXT*/
+_HL_TEXT_EDIT_GET_SELECTION_HTML=@0xA/*_HL_TEXT_EDIT_GET_SELECTION_HTML*/
+_HL_TEXT_EDIT_CHAR_POS_AT_XY=@0xB/*_HL_TEXT_EDIT_CHAR_POS_AT_XY*/
+_HL_IS_EMPTY=@0xFC/*_HL_IS_EMPTY*/
+_HL_GET_VALUE=@0xFD/*_HL_GET_VALUE*/
+_HL_SET_VALUE=@0xFE/*_HL_SET_VALUE*/
+_HL_XCALL=@0xFF/*_HL_XCALL*/
+_HL_FIRST_APPLICATION_METHOD_ID=@0x100/*_HL_FIRST_APPLICATION_METHOD_ID*/
+_HL_BUBBLING=@0/*_HL_BUBBLING*/
+_HL_SINKING=@0x8000/*_HL_SINKING*/
+_HL_HANDLED=@0x10000/*_HL_HANDLED*/
+_HL_DRAW_BACKGROUND=@0/*_HL_DRAW_BACKGROUND*/
+_HL_DRAW_CONTENT=@1/*_HL_DRAW_CONTENT*/
+_HL_DRAW_FOREGROUND=@2/*_HL_DRAW_FOREGROUND*/
+_HL_X_DRAG_ENTER=@0/*_HL_X_DRAG_ENTER*/
+_HL_X_DRAG_LEAVE=@1/*_HL_X_DRAG_LEAVE*/
+_HL_X_DRAG=@2/*_HL_X_DRAG*/
+_HL_X_DROP=@3/*_HL_X_DROP*/
+_HL_EXF_UNDEFINED=@0/*_HL_EXF_UNDEFINED*/
+_HL_EXF_TEXT=@1/*_HL_EXF_TEXT*/
+_HL_EXF_HTML=@2/*_HL_EXF_HTML*/
+_HL_EXF_HYPERLINK=@4/*_HL_EXF_HYPERLINK*/
+_HL_EXF_JSON=@8/*_HL_EXF_JSON*/
+_HL_EXF_FILE=@0x10/*_HL_EXF_FILE*/ 
+_HL_EXC_NONE=@0/*_HL_EXC_NONE*/
+_HL_EXC_COPY=@1/*_HL_EXC_COPY*/
+_HL_EXC_MOVE=@2/*_HL_EXC_MOVE*/
+_HL_EXC_LINK=@4/*_HL_EXC_LINK*/
+_HL_BY_MOUSE_CLICK=@0/*_HL_BY_MOUSE_CLICK*/
+_HL_BY_KEY_CLICK=@1/*_HL_BY_KEY_CLICK*/
+_HL_SYNTHESIZED=@2/*_HL_SYNTHESIZED*/
+_HL_MAIN_MOUSE_BUTTON=@1/*_HL_MAIN_MOUSE_BUTTON*/
+_HL_PROP_MOUSE_BUTTON=@2/*_HL_PROP_MOUSE_BUTTON*/
+_HL_MIDDLE_MOUSE_BUTTON=@4/*_HL_MIDDLE_MOUSE_BUTTON*/
+_HL_X1_MOUSE_BUTTON=@8/*_HL_X1_MOUSE_BUTTON*/
+_HL_X2_MOUSE_BUTTON=@0x10/*_HL_X2_MOUSE_BUTTON*/
+_HL_CONTROL_KEY_PRESSED=@1/*_HL_CONTROL_KEY_PRESSED*/
+_HL_SHIFT_KEY_PRESSED=@2/*_HL_SHIFT_KEY_PRESSED*/
+_HL_ALT_KEY_PRESSED=@4/*_HL_ALT_KEY_PRESSED*/
+_HL_NO_DRAGGING=@0/*_HL_NO_DRAGGING*/
+_HL_DRAGGING_MOVE=@1/*_HL_DRAGGING_MOVE*/
+_HL_DRAGGING_COPY=@2/*_HL_DRAGGING_COPY*/
+_HL_CURSOR_ARROW=@0/*_HL_CURSOR_ARROW*/
+_HL_CURSOR_IBEAM=@1/*_HL_CURSOR_IBEAM*/
+_HL_CURSOR_WAIT=@2/*_HL_CURSOR_WAIT*/
+_HL_CURSOR_CROSS=@3/*_HL_CURSOR_CROSS*/
+_HL_CURSOR_UPARROW=@4/*_HL_CURSOR_UPARROW*/
+_HL_CURSOR_SIZENWSE=@5/*_HL_CURSOR_SIZENWSE*/
+_HL_CURSOR_SIZENESW=@6/*_HL_CURSOR_SIZENESW*/
+_HL_CURSOR_SIZEWE=@7/*_HL_CURSOR_SIZEWE*/
+_HL_CURSOR_SIZENS=@8/*_HL_CURSOR_SIZENS*/
+_HL_CURSOR_SIZEALL=@9/*_HL_CURSOR_SIZEALL*/
+_HL_CURSOR_NO=@0xA/*_HL_CURSOR_NO*/
+_HL_CURSOR_APPSTARTING=@0xB/*_HL_CURSOR_APPSTARTING*/
+_HL_CURSOR_HELP=@0xC/*_HL_CURSOR_HELP*/
+_HL_CURSOR_HAND=@0xD/*_HL_CURSOR_HAND*/
+_HL_CURSOR_DRAG_MOVE=@0xE/*_HL_CURSOR_DRAG_MOVE*/
+_HL_CURSOR_DRAG_COPY=@0xF/*_HL_CURSOR_DRAG_COPY*/
+_HL_BY_CODE=@0/*_HL_BY_CODE*/
+_HL_BY_MOUSE=@1/*_HL_BY_MOUSE*/
+_HL_BY_KEY_NEXT=@2/*_HL_BY_KEY_NEXT*/
+_HL_BY_KEY_PREV=@3/*_HL_BY_KEY_PREV*/
+_HL_GESTURE_REQUEST=@0/*_HL_GESTURE_REQUEST*/
+_HL_GESTURE_ZOOM=@1/*_HL_GESTURE_ZOOM*/
+_HL_GESTURE_PAN=@2/*_HL_GESTURE_PAN*/
+_HL_GESTURE_ROTATE=@3/*_HL_GESTURE_ROTATE*/
+_HL_GESTURE_TAP1=@4/*_HL_GESTURE_TAP1*/
+_HL_GESTURE_TAP2=@5/*_HL_GESTURE_TAP2*/
+_HL_GESTURE_STATE_BEGIN=@1/*_HL_GESTURE_STATE_BEGIN*/
+_HL_GESTURE_STATE_INERTIA=@2/*_HL_GESTURE_STATE_INERTIA*/
+_HL_GESTURE_STATE_END=@4/*_HL_GESTURE_STATE_END*/
+_HL_GESTURE_FLAG_ZOOM=@1/*_HL_GESTURE_FLAG_ZOOM*/
+_HL_GESTURE_FLAG_ROTATE=@2/*_HL_GESTURE_FLAG_ROTATE*/
+_HL_GESTURE_FLAG_PAN_VERTICAL=@4/*_HL_GESTURE_FLAG_PAN_VERTICAL*/
+_HL_GESTURE_FLAG_PAN_HORIZONTAL=@8/*_HL_GESTURE_FLAG_PAN_HORIZONTAL*/
+_HL_GESTURE_FLAG_TAP1=@0x10/*_HL_GESTURE_FLAG_TAP1*/
+_HL_GESTURE_FLAG_TAP2=@0x20/*_HL_GESTURE_FLAG_TAP2*/
+_HL_GESTURE_FLAG_PAN_WITH_GUTTER=@0x4000/*_HL_GESTURE_FLAG_PAN_WITH_GUTTER*/
+_HL_GESTURE_FLAG_PAN_WITH_INERTIA=@0x8000/*_HL_GESTURE_FLAG_PAN_WITH_INERTIA*/
+_HL_GESTURE_FLAGS_ALL=@0xFFFF/*_HL_GESTURE_FLAGS_ALL*/
+_HL_BY_INS_CHAR=@3/*_HL_BY_INS_CHAR*/
+_HL_BY_INS_CHARS=@4/*_HL_BY_INS_CHARS*/
+_HL_BY_DEL_CHAR=@5/*_HL_BY_DEL_CHAR*/
+_HL_BY_DEL_CHARS=@6/*_HL_BY_DEL_CHARS*/
+_HL_FIRST_APPLICATION_EVENT_CODE=@0x100/*_HL_FIRST_APPLICATION_EVENT_CODE*/
+end intellisense**/

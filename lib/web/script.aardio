@@ -1,0 +1,97 @@
+//script 微软脚本引擎 
+//http://bbs.aardio.com/blog-17-19.html#xauto
+
+import com;
+namespace web;
+
+class script {
+	ctor(language = 'JavaScript'){
+		this.msc = ..com.CreateObject("ScriptControl");
+		this.msc.UseSafeSubset = true;
+		this.msc.Language = language;
+		this.msc.AllowUI = true;
+		this.msc.TimeOut = -1;
+		this.createArray = function(v){ 
+			if( ..string.cmp(owner.Language,"JavaScript") == 0 || ..string.cmp(owner.Language,"JScript") == 0 ){
+				var jsArray = owner.Eval("new Array()")
+				for(i=1;#v){ jsArray.push( v[i] ); } 
+				return jsArray;
+			}  
+			return ..com.SafeArrayV(v)
+		}
+
+		if(..string.cmp(language,"JavaScript") == 0 || ..string.cmp(language,"JScript") == 0 ){
+			var javascript = /*  
+ 			jsConstructor = function(jsObject) {
+				if(typeof(jsObject) == "string") jsObject = eval(jsObject);
+    			function ctor(args) { return jsObject.apply(this, args); }
+    			ctor.prototype = jsObject.prototype;
+    			return function() { return new ctor(arguments); }
+			};
+			
+			*/
+			this.msc.AddCode(javascript);
+			this.jsConstructor = this.msc.CodeObject.jsConstructor
+		} 
+		
+		this.doScript = this.msc.AddCode;
+		this.xcall = this.msc.Run;
+	}  
+	@_meta;
+}
+
+script._meta = {
+
+	_get = function(k){ 
+		if( k == "script" ) return owner.msc.CodeObject;
+		return owner.msc[k]
+	};
+	_set = function(k,v){ 
+		var t = type(v);
+		if( t ==type.table ) {
+			var dataType = v@[["_type"]];
+			if( (  #v  && (dataType != "object") ) || dataType == "array" ){
+				owner.msc[k] = owner.createArray(v);
+				return;
+			}
+			owner.msc.AddObject(k,..com.IsObject(v) ? v : ..com.ImplInterface(v) );  
+		}
+		elseif( t == type.function ){
+			owner.msc.AddObject(k,..com.ImplInterface(v) ); 
+		}
+		else{
+			if( k == "script" ) return owner.msc.AddCode(v);
+			owner.msc[k] = v;
+		} 
+	} 
+} 
+
+/**intellisense()
+!web_script.executeStatement("__") = 执行代码,无返回值
+!web_script.timeOut = 脚本超时时间,以毫秒为单位,默认为-1表示不超时,\n如设置超时脚本运行太久会弹出是否继续运行的对话框
+!web_script.useSafeSubset = 脚本控件是否可以运行未被标记为“脚本安全”的组件
+!web_script.reset() = 重置脚本虚拟机,丢弃所有对象和代码\n并将State属性设为0
+!web_script.jsConstructor("Array__") = 获取JS对象构造函数,\n参数可以是JS对象，或字符串类型的对象名字
+!web_script.addCode("__") = 添加脚本代码
+!web_script.language = 设置或获取正在使用的 Script 语言名称\n 可选值"VbScript","JavaScript"
+!web_script.eval("__") = 执行并计算表达式代码,返回表达式的值
+!web_script.executeStatement("__") = 执行代码,无返回值
+!web_script.xcall("函数名__",参数) = 运行js函数
+!web_script.modules = 组件模块集合\n可使用com.each()迭代器遍历 
+!web_script.procedures(__/*序号*/) =  模块中定义函数的集合 
+!web_script.procedures() = !web_script_func.
+!web_script_func.Name = 函数名字
+!web_script_func.NumArgs = 参数数目
+!web_script_func.HasReturnValue = 是否有返回值
+!web_script.SiteHwnd = 脚本中显示UI的父窗口句柄
+!web_script.State = 为0不转发事件\n为1则转发事件
+!web_script.error = 发生错误时此属性返回错误对象
+!web_script.allowUi = 是否允许消息框等界面元素
+!web_script.script = 获取属性时返回脚本对象\n通过此对象可直接调用脚本中的函数,\n\n写入属性时应使用字符串指定脚本代码,相当于调用doScript函数
+!web_script.script.? = 调用脚本函数并返回值,支持不定个数参数
+!web_script.createArray(__) = 参数传入aardio数组\n转换为当前脚本支持的数组
+web.script = 脚本解释器支持库
+web.script("JavaScript") = 创建Javascript脚本解释器
+web.script("VBScript") = 创建VBScript脚本解释器
+web.script() = 创建Javascript脚本解释器\n!web_script.
+end intellisense**/

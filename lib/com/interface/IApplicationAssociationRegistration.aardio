@@ -1,0 +1,359 @@
+import win.reg;
+import com.interface; 
+import com.activeX;
+
+namespace com.interface {
+
+	class IApplicationAssociationRegistration{
+		ctor( ){
+			this = ..com.interface.IUnknown(); 
+		}; 
+		pointer QueryCurrentDefault = "int(ustring pszQuery,int atQueryType,int alQueryLevel,pointer &ppszAssociation)"; 
+        pointer QueryAppIsDefault = "int(ustring pszQuery,int atQueryType,int alQueryLevel,ustring pszAppRegistryName,bool &pfDefault)"; 
+        pointer QueryAppIsDefaultAll = "int(int alQueryLevel,ustring pszAppRegistryName,bool &pfDefault)"; 
+        pointer SetAppAsDefault = "int(ustring pszAppRegistryName,ustring pszSet,int atSetType)"; 
+        pointer SetAppAsDefaultAll = "int(ustring pszAppRegistryName)"; 
+        pointer ClearUserAssociations= "int()";
+	}
+	IApplicationAssociationRegistration.IID = "{4e530b0a-e611-4c77-a3ac-9031d022281b}";
+	
+	var getAssociationInfoLocal = function(appName,query,queryType){
+		if( query === null ) query = "http";
+		if( queryType === null ) queryType = query[1] != '.'# ? 1/*_AT_URLPROTOCOL*/ : 0/*_AT_FILEEXTENSION*/ ;
+		
+		var reg = ..win.regReader("HKEY_LOCAL_MACHINE\SOFTWARE\RegisteredApplications");
+		if(!reg)  return;
+		
+		var assocName;
+    	var regPath = reg.queryValue(appName); reg.close();
+    	if( #regPath ) { 
+    		var regApp;
+			if( queryType == 1/*_AT_URLPROTOCOL*/ ){
+				regApp = ..win.regReader("HKEY_LOCAL_MACHINE\" + regPath + "\URLAssociations");  
+			}
+			elseif( queryType == 0/*_AT_FILEEXTENSION*/ ){
+				regApp = ..win.regReader("HKEY_LOCAL_MACHINE\" + regPath + "\FileAssociations")
+				
+			} 
+			if( regApp ) { 
+				assocName = regApp.queryValue(query);
+				regApp.close(); 
+			}
+		}
+		if( !assocName ){
+			if( appName = "Internet Explorer"){ 
+				if( queryType == 1/*_AT_URLPROTOCOL*/ ){
+					if( ..string.cmp(query,"http") == 0 ){
+						assocName = "IE.HTTP"; 
+					}
+					elseif( ..string.cmp(query,"httpS") == 0 ){
+						assocName = "IE.HTTPS"; 
+					}
+					elseif( ..string.cmp(query,"ftp") == 0 ){
+						assocName = "IE.FTP"; 
+					} 
+				}
+				if( !assocName) assocName = "htmlfile";
+			}
+			else{ return; };
+		}
+
+		var shCmdline,assocIcon; 
+		var reg = ..win.regReader("HKEY_CLASSES_ROOT\" + assocName + "\shell\open\command")
+		if( reg ){
+			shCmdline = reg.queryValue("");
+			reg.close();
+		}
+	
+		var reg = ..win.regReader("HKEY_CLASSES_ROOT\" + assocName + "\DefaultIcon")
+		if( reg ){
+			assocIcon = reg.queryValue("");
+			reg.close();
+		}
+
+		if( assocName && shCmdline )
+			return { name = assocName;command = shCmdline;icon = assocIcon }; 
+	} 
+	var setAppAsDefaultLocal = function(appName,pszSet,setType,predkey){
+		if( pszSet === null ) pszSet = "http"; 
+		if( setType === null ) setType = pszSet[1] != '.'# ? 1/*_AT_URLPROTOCOL*/ : 0/*_AT_FILEEXTENSION*/ ;
+
+		var assocInfo = getAssociationInfoLocal(appName,pszSet,setType);
+		if( ! assocInfo ) return;
+		
+		if( setType == 1/*_AT_URLPROTOCOL*/ ){
+			var reg = ..win.reg( predkey + "\" + pszSet + "\shell\open\command" )
+    		if(reg){ 
+        		reg.setSzValue("", assocInfo.command )
+        		reg.close();
+    		}
+    		
+    		if(assocInfo.icon){
+    			var reg = ..win.reg( predkey + "\" + pszSet + "\DefaultIcon");
+    			if( reg ){
+    				var ico = assocInfo.icon;
+    				if( ..string.indexOf(ico,"%") ){ //动态图标
+    					import string.cmdline;
+    					var args = ..string.cmdline( assocInfo.command ); 
+    					if( args[0] ) ico = ..string.format('"%s",0', args[0]);
+    				}
+    				reg.setSzValue("",ico);
+    				reg.close(); 
+    			}
+    		}
+    		
+    		//修正错误提示:"windows找不到HTTP"
+    		var reg = ..win.reg( predkey + "\" + pszSet + "\shell\open\ddeexec" )
+    		if( reg ){
+    			if( "Internet Explorer" == appName ){
+    				reg.setSzValue("",'"%1",,-1,0,,,,')
+    			}
+    			else {
+    				reg.setSzValue("",'');
+    			} 
+    		}
+    	}
+    	elseif( setType == 0/*_AT_FILEEXTENSION*/ ){
+			var reg = ..win.reg( predkey + "\" + pszSet )
+    		if(reg){
+        		reg.setSzValue("", assocInfo.name );
+        		reg.close();
+    		}
+    	}
+	}
+	
+	import string.cmdline;
+	var lstBrowserLocal = function(){ 
+		var apps = {}
+		var regClients  = ..win.regReader("HKEY_LOCAL_MACHINE\SOFTWARE\Clients\StartMenuInternet",true)
+		for(keyname,writetime in regClients.eachKey() ){
+			var regBrowser = regClients.openReg(keyname); 
+			var appName = regBrowser.queryValue("");
+ 			if(!appName) continue;
+			var regCommand  = regBrowser.openReg( "shell\open\command",true)
+			if( regCommand ){
+				var path = regCommand.queryValue("");
+				var cmdline = ..string.cmdline( path); 
+	
+				if( ..io.exist(cmdline[0]) ){
+					apps[appName] = cmdline[0]; 
+				}
+				elseif(  ..io.exist( path ) ){
+					apps[appName] = path 
+				} 
+				regCommand.close();
+			}
+			regBrowser.close()
+		}
+		if( !apps["Internet Explorer"] ){
+			var regApps  = ..win.regReader("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\IEXPLORE.EXE",true)
+			
+			if( regApps ) {
+				apps["Internet Explorer"] = regApps.queryValue("");
+				regApps.close();
+			}
+		}
+		regClients.close() 
+		return apps;
+	}
+	
+	var changeNotifyLocal = function(){
+		::Shell32.SHChangeNotify(0x8000000/*_SHCNE_ASSOCCHANGED*/,0,0,0);
+	}
+	
+	IApplicationAssociationRegistration.create = function(){
+		var asso;
+		try{
+			asso = create("{591209c7-767b-42b2-9fba-44ee4615f2c7}",IApplicationAssociationRegistration );
+		}
+		if( !asso ){
+			return {
+				changeNotify = changeNotifyLocal;
+				getAssociationInfo = getAssociationInfoLocal;
+				lstBrowser = lstBrowserLocal;
+				queryAppIsDefault = function(query,queryType,queryLevel,appName){
+					if( query === null ) query = "http"; 
+					if( queryType === null ) queryType = query[1] != '.'# ? 1/*_AT_URLPROTOCOL*/ : 0/*_AT_FILEEXTENSION*/ ;
+					if( queryLevel === null ) queryLevel = 1/*_AL_EFFECTIVE*/;
+					
+					var predkey = "HKEY_CLASSES_ROOT";
+					if( queryLevel == 2/*_AL_USER*/ ) predkey = "HKEY_CURRENT_USER\Software\Classes";
+					elseif( queryLevel == 2/*_AL_USER*/ ) predkey = "HKEY_LOCAL_MACHINE\SOFTWARE\Classes";
+					
+					var assocInfo = getAssociationInfoLocal(appName,query,queryType);
+					if( !assocInfo ) return;
+					
+					if( queryType == 0/*_AT_FILEEXTENSION*/ ){
+    					var reg = ..win.reg( predkey + "\" + query,true)
+    					if(reg){
+        					var assocName = reg.queryValue("") 
+        					if( #assocName ) query = assocName;
+        					reg.close();
+        					
+        					if( ..string.cmp(assocName,assocInfo.name ) == 0 ) return true;
+    					}
+    				}
+    				
+					var curShellCmd;
+					var reg = ..win.reg( predkey + "\" + query + "\shell\open\command",true)
+    				if( reg ){
+        				curShellCmd = reg.queryValue("")
+        				reg.close();
+    				}
+    				if( ! #curShellCmd ) return;
+    				if( ..string.cmp(curShellCmd,assocInfo.command ) == 0 ) return true;
+    				  
+    				import ..string.cmdline;
+    				var argsCur = ..string.cmdline( curShellCmd ); 
+    				var argsApp = ..string.cmdline( assocInfo.command );
+    				if( argsCur && argsApp ){   
+    					if(  ..fsys.path.cmp(argsCur[0],argsApp[0]) == 0 ) return true;
+    				} 
+				};
+				queryAppIsDefaultAll = function(level,appName){ 
+					return owner.queryAppIsDefault(".htm",,level,appName) 
+						&& owner.queryAppIsDefault(".html",,level,appName) 
+						&& owner.queryAppIsDefault("http",,level,appName) 
+						&& owner.queryAppIsDefault("https",,level,appName) 
+						&& owner.queryAppIsDefault("ftp",,level,appName);
+				};
+				queryCurrentDefault = function(query,queryType,queryLevel){
+					if( query === null ) query = "http";
+					if( queryType === null ) queryType = query[1] != '.'# ? 1/*_AT_URLPROTOCOL*/ : 0/*_AT_FILEEXTENSION*/ ;
+					if( queryLevel === null ) queryLevel = 1/*_AL_EFFECTIVE*/;
+					
+					var predkey = "HKEY_CLASSES_ROOT";
+					if( queryLevel == 2/*_AL_USER*/ ) predkey = "HKEY_CURRENT_USER\Software\Classes";
+					elseif( queryLevel == 2/*_AL_USER*/ ) predkey = "HKEY_LOCAL_MACHINE\SOFTWARE\Classes";
+					if( queryType == 1/*_AT_URLPROTOCOL*/ ){
+						var reg = ..win.reg( predkey + "\" + query + "\shell\open\command",true)
+    					if(reg){
+        					var path = reg.queryValue("")
+        					reg.close();
+        					return path;
+    					}
+    					return;
+    				}
+    				elseif( queryType == 0/*_AT_FILEEXTENSION*/ ){
+						var reg = ..win.reg( predkey + "\" + query,true)
+    					if(reg){
+        					var path = reg.queryValue("")
+        					reg.close();
+        					return path;
+    					}
+    					return;
+    				}
+				};
+				setAppAsDefault = function(appName,pszSet,setType,pred){
+					if( pred ) pred = ..string.trimright(pred,"\");
+					setAppAsDefaultLocal(appName,pszSet,setType,pred : "HKEY_CURRENT_USER\Software\Classes");
+				}
+				setAppAsDefaultAll = function(appName,pred){
+					if( pred ) pred = ..string.trimright(pred,"\");
+					setAppAsDefaultLocal(appName,".htm", 0/*_AT_FILEEXTENSION*/,pred : "HKEY_CURRENT_USER\Software\Classes")
+					setAppAsDefaultLocal(appName,".html", 0/*_AT_FILEEXTENSION*/,pred : "HKEY_CURRENT_USER\Software\Classes")
+					setAppAsDefaultLocal(appName,"http", 1/*_AT_URLPROTOCOL*/,pred : "HKEY_CURRENT_USER\Software\Classes")
+					setAppAsDefaultLocal(appName,"https", 1/*_AT_URLPROTOCOL*/,pred : "HKEY_CURRENT_USER\Software\Classes")
+					setAppAsDefaultLocal(appName,"ftp", 1/*_AT_URLPROTOCOL*/,pred : "HKEY_CURRENT_USER\Software\Classes")
+					if( "Internet Explorer" == appName ){
+						var reg = ..win.regReader((pred : "HKEY_CURRENT_USER\Software\Classes" ) + "\InternetShortcut\shell\open\command] ");
+						if( reg ){ 
+							reg.setSzValue("","rundll32.exe shdocvw.dll,OpenURL %l");
+							reg.close();
+						};
+						..com.activeX.install("shdocvw.dll",true);//仅XP该DLL可注册修复关联
+					}
+					owner.changeNotify();
+				}
+				clearUserAssociations = function(){
+					var reg = ..win.regReader("HKEY_CURRENT_USER\Software\Classes");
+					if(!reg) return;
+					reg.delKeyTree(".htm");
+					reg.delKeyTree(".html");
+					reg.delKeyTree("http");
+					reg.delKeyTree("https");
+					reg.delKeyTree("ftp");
+					reg.close();
+					owner.changeNotify();
+				};
+			} 
+		}
+		with asso {
+			changeNotify = changeNotifyLocal;
+			getAssociationInfo = getAssociationInfoLocal;
+			lstBrowser = lstBrowserLocal;
+			queryCurrentDefault = function(query,queryType,queryLevel){
+				if( query === null ) query = "http";
+				if( queryType === null ) queryType = query[1] != '.'# ? 1/*_AT_URLPROTOCOL*/ : 0/*_AT_FILEEXTENSION*/ ;
+				if( queryLevel === null ) queryLevel = 1/*_AL_EFFECTIVE*/;
+				
+				var hr,ptr = QueryCurrentDefault(..string.toUnicode(query),queryType,queryLevel);
+				if(  (hr)<0/*_FAILED*/ ) return;
+				
+				if( ptr ){
+					var prog =  ..string.fromUnicode(ptr,,true);
+					::CoTaskMemFree(ptr);
+					return prog;
+				}
+			};
+			queryAppIsDefault = function(query,queryType,queryLevel,appName){
+				if( query === null ) query = "http";
+				if( queryType === null ) queryType = query[1] != '.'# ? 1/*_AT_URLPROTOCOL*/ : 0/*_AT_FILEEXTENSION*/ ;
+				if( queryLevel === null ) queryLevel = 1/*_AL_EFFECTIVE*/;
+				
+				var hr,default = QueryAppIsDefault(..string.toUnicode(query),queryType,queryLevel,..string.toUnicode(appName) );
+				if(  (hr)<0/*_FAILED*/ ) return;
+				return default;
+			};
+			queryAppIsDefaultAll = function(queryLevel,appName){
+				if( queryLevel === null ) queryLevel = 1/*_AL_EFFECTIVE*/;
+				
+				var hr,default = QueryAppIsDefaultAll( queryLevel,..string.toUnicode(appName) );
+				if(  (hr)<0/*_FAILED*/ ) return;
+				return default;
+				
+			}
+			setAppAsDefault = function(appName,pszSet,setType){
+				if( pszSet === null ) pszSet = "http";
+				if( setType === null ) setType = pszSet[1] != '.'# ? 1/*_AT_URLPROTOCOL*/ : 0/*_AT_FILEEXTENSION*/ ;
+				
+				var hr,default = SetAppAsDefault( ..string.toUnicode(appName),..string.toUnicode(pszSet),setType );
+				if ( (hr)>=0/*_SUCCEEDED*/) return true; 
+			}
+			setAppAsDefaultAll = function(appName){  
+				var hr,default = SetAppAsDefaultAll( ..string.toUnicode(appName) );
+				if ( (hr)>=0/*_SUCCEEDED*/) return true;
+			}
+			clearUserAssociations = function(){
+				var hr = ClearUserAssociations();
+				return  (hr)>=0/*_SUCCEEDED*/; 	
+			};
+		
+		}
+		return asso;
+	}
+} 
+
+/**intellisense()
+com.interface.IApplicationAssociationRegistration = 主要用于默认浏览器设置\n普通文件关联不必要调用此接口
+com.interface.IApplicationAssociationRegistration.create() = 创建文件关联管理\n!IApplicationAssociationRegistration.
+!IApplicationAssociationRegistration.lstBrowser() = 返回已安装的浏览器应用程序ID以及路径对应表
+!IApplicationAssociationRegistration.setAppAsDefault(.("Internet Explorer","http") = 设置指定协议或后缀名的文件关联\nwin7可用,xp仅兼容式支持IE,win8已禁止使用此函数
+!IApplicationAssociationRegistration.setAppAsDefaultAll("Internet Explorer") = 恢复默认浏览器关联\nwin7可用,xp仅兼容式支持IE,win8已禁止使用此函数
+!IApplicationAssociationRegistration.queryAppIsDefault("http",,,"Internet Explorer") = 检测浏览器是否关联指定的协议或后缀名\n后缀名首字符追必须是圆点
+!IApplicationAssociationRegistration.queryCurrentDefault("http") = 返回协义关联的启动命令行或后缀名关联的文档类型\n后缀名首字符追必须是圆点
+!IApplicationAssociationRegistration.changeNotify() = 刷新文件关联 
+!IApplicationAssociationRegistration.getAssociationInfo(.("Internet Explorer","http") = 返加文件关联信息\n!IAppAssociationInfo.
+!IApplicationAssociationRegistration.clearUserAssociations() = 清除当前用户文件与协议关联并恢复公用设置
+!IApplicationAssociationRegistration.getAssociationInfo() = !IAppAssociationInfo.
+!IAppAssociationInfo.name = 关联名
+!IAppAssociationInfo.command = 命令行
+!IAppAssociationInfo.icon = 图标
+_AT_FILEEXTENSION=@0/*_AT_FILEEXTENSION*/
+_AT_URLPROTOCOL=@1/*_AT_URLPROTOCOL*/
+_AT_STARTMENUCLIENT=@2/*_AT_STARTMENUCLIENT*/
+_AT_MIMETYPE=@3/*_AT_MIMETYPE*/
+_AL_MACHINE=@0/*_AL_MACHINE*/
+_AL_EFFECTIVE=@1/*_AL_EFFECTIVE*/
+_AL_USER=@2/*_AL_USER*/
+end intellisense**/

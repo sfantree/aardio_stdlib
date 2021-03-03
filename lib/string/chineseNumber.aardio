@@ -1,0 +1,193 @@
+//chineseNumber 中文化数值
+namespace string;
+
+class chineseNumber{
+	ctor(numberChars,unitChars,wanUnitChars){
+		this.numberChars = numberChars: '零一二三四五六七八九'
+		this.unitChars = unitChars : '十百千' 
+		this.wanUnitChars = wanUnitChars : '万亿'
+		this.moneyUnitChars = "元角分"
+		this.minusChar = '负'
+		this.pointChar = '点'
+		this.onlyChar = "整"
+		this.wanwan = true;
+	};
+	$stringify = function(num){
+		if(type(num) == type.string){
+			num = ..string.replace(num,"(\d)[\,\_]","\1")
+			return ..string.match(num,"^([+-]?0*\d+\.?\d*)$")
+		} 
+		if(num!==null) return ..math.stringify(num);
+	};
+	replace = function(num){
+		num = this.$stringify(num); 
+		var numberChars  = ..string.split(this.numberChars);   
+		return ( ..string.replace(num,"\d",function(d){
+			return numberChars[d+1];
+		}) ) 
+	};
+	number = function (num,fmtTen) {  
+		var numberChars  = ..string.split(this.numberChars);      
+		var unitChars = ..string.split(this.unitChars);
+		var wanUnitChars = ..string.split(this.wanUnitChars);
+		var zero = numberChars [1];  
+		
+		num = this.$stringify(num); 
+		if(!num) return "";
+		if(num==="0") return zero;
+		
+		var minus,int,point,decimal  = ..string.match(tostring(num),"^([+-]?)0*(\d+)(\.?)(\d*)$");
+		minus = minus=="-" ? this.minusChar : (num[1]=='0'#?zero:"");
+		if(( minus === zero ) && (fmtTen===null) ) fmtTen = false;
+		
+		if (int===null) { return num;}
+			
+		var format;
+		format  = function(number,fmtTen) { 
+			number = ..string.trimleft(number,"0");
+				var len = #number;
+				var result = "";
+				
+			if (len == 1) return numberChars[number+1];
+			elseif (len == 2) { 
+				var n = number[[1]] + 0;
+				if(n != 1 || !fmtTen){
+					result = result ++  numberChars [n+1];
+				}
+				result = result ++ (n && unitChars[1]) 	
+					
+				var n = number[[2]] + 0; 
+				result = result ++ numberChars [n+1];	 
+			}
+			elseif (len <= 4) {  
+				for(i=1;len){
+					var n = number[[i]] + 0;
+					result = result ++  numberChars [n+1] ++ ( n ? unitChars[len - i ] : '')
+				} 
+			} 
+			else {    
+				var wanCount = ..math.floor(len / 4); //4位分级读数
+				var currentCount = len % 4;
+					
+				while (currentCount == 0 || !wanUnitChars[wanCount]) { 
+					currentCount += 4;
+					wanCount--; 
+				}
+				
+				var currentNumber = ..string.slice(number,1,currentCount); 
+				var nextNumber = ..string.slice(number,currentCount+1);   
+				
+				result =  format(currentNumber,fmtTen) ++ wanUnitChars[wanCount] 
+				if(nextNumber[1]=='0'#){result = result ++ zero}
+				result = result ++ format(nextNumber,#nextNumber>4 ? fmtTen : false)   
+			}
+			
+			result = ..string.replace(result,zero+"<"+zero+">+",zero);  
+			return ..string.replace(result,zero+"$","");
+		}
+	
+		result = format(int,fmtTen===null : fmtTen);
+		if (decimal) {
+			decimal  = ..string.trimright(decimal,"0");  
+			var d = "";
+			for(i=1;#decimal;1){  
+				d  = d ++ numberChars[decimal[[i]]+1]
+			}
+				
+			d  = #d  ? (this.pointChar ++ d ) : "";  
+			result = result ++ (d:"");
+		}
+
+		if (this.wanwan && #wanUnitChars > 1) { 
+			var wan = wanUnitChars[1]
+			var yi = wanUnitChars[2];
+			var last = ..string.lastIndexOf(result,yi);
+			if (last) {
+				result = ..string.replace( 
+					..string.slice(result,1,last-1)
+					,yi, wan ++ wan) ++ ..string.slice(result,last); 
+			} 
+		} 
+			
+		return minus ++ result;
+	};
+	money = function (num,complete,fmtTen) {
+		num = this.$stringify(num); 
+		var minus,int,point,decimal  = ..string.match(tostring(num),"^([+-]?)0*(\d+)(\.?)(\d*)$"); 
+		if (int===null) { return num; } 
+		
+		var moneyUnitChars = ..string.split(this.moneyUnitChars);
+		if (complete) {
+			var result =  this.number(int,!!fmtTen) ++ moneyUnitChars[1];
+			for(i=2;#moneyUnitChars) result = result ++ this.number( decimal[[i-1]] || "0" ) ++ moneyUnitChars[i]
+			return result;
+		} 
+		else {
+			var result =  "";
+			var resultDecimal = this.onlyChar;
+			
+			decimal = ..string.trimright(decimal,"0");
+			if(int!=="0" || !#decimal){
+				result = this.number(int,!!fmtTen) ++ moneyUnitChars[1];
+			}
+			
+			if (#decimal) { 
+				resultDecimal = "";
+				for(i=2;#moneyUnitChars){
+					var n = decimal[[i-1]]; 
+					if (n != "0") {
+						if(!n) break;
+						
+						if(i>2 && !#resultDecimal && #result){
+							resultDecimal = resultDecimal ++ ..string.charAt(this.numberChars,1);
+						}
+						resultDecimal = resultDecimal ++ this.number(n) ++ moneyUnitChars[i] 
+					}  
+				}  
+			}
+			
+			return result ++ resultDecimal;
+		} 
+	};
+	time = function(t,f,l,sunday){
+		var tm = ..time(t,f:"%p %I时%M分%S秒",l:"chs");
+		return ( ..string.replace(tostring(tm),"\d+",function(num){
+			if(#num>=4) return this.replace(num);
+			if(num=="0" && sunday) return sunday;
+			return this.number(tonumber(num),true)
+		}) )
+	};
+	date = function(t,f,l){
+		return this.time(t,f:"%Y年%m月%d日 星期%w",l,"日")
+	};
+	datetime = function(){
+		return this.time(t,f:"%Y年%m月%d日 %H时%M分%S秒",l)
+	}; 
+}
+
+/**intellisense()
+string.chineseNumber(.(中文数字,单位,万亿单位) = 创建中文数值转换对象,所有参数可省略,\n参数详细用法请参考库源码
+string.chineseNumber() = !stringChineseNumber.
+end intellisense**/
+
+/**intellisense(!stringChineseNumber)
+replace(.(数值) = 数字替换为中文,不包含单位
+number(.(数值,简化十位) = 数字转换为中文,包含单位,\n参数@1也可以用文本指定10进制数值（支持大数,首字符为0时不清除）,\n参数@2为true简化一十为十，参数@1首字符不为0时参数@2默认值为true
+money(.(数值,完整转换,简化十位) = 数字转换为金额,\n参数2为true时允许返回零角零分,\n参数3为true时简化一十为十
+time(.(时间,格式化串,语言) = 中文化时间,\n兼容time对象构造函数全部参数,\n所有参数可省略
+date(.(时间,格式化串,语言) = 中文化日期,\n兼容time对象构造函数全部参数,\n所有参数可省略
+datetime(.(时间,格式化串,语言) = 中文化日期时间,\n兼容time对象构造函数全部参数,\n所有参数可省略
+numberChars = 默认值为'零一二三四五六七八九'
+unitChars = 默认值为'十百千' 
+wanUnitChars = 默认值为'万亿'
+moneyUnitChars = 默认值为"元角分"
+minusChar = 默认值为'负'
+pointChar = 默认值为'点'
+onlyChar = 默认值为"整" 
+wanwan = 大数单位万万化
+end intellisense**/
+
+/*
+感谢:  
+https://github.com/cnwhy/nzh
+*/

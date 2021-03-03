@@ -1,0 +1,124 @@
+﻿//simpleWindow 简单标题栏
+
+import win.ui.shadow;
+import win.ui.resizeBorder;
+import win.ui.ctrl.plus;
+import win.ui.minmax;
+
+namespace win.ui;
+
+class simpleWindow{
+	ctor(winform,fontSize,width=33,height=27,theight){{
+		
+		this.targetForm = winform._parentForm || winform;
+		var ws = ..win.getStyle(this.targetForm.hwnd);
+		var font = LOGFONT(name='Marlett';charset=2/*_SYMBOL_CHARSET*/;h=fontSize);
+		if(theight===null){ theight = height *2 };
+		
+		winform.add(
+			titlebarClose={cls="plus";text="r";top=0;height=height;width=width;marginRight=0;dr=1;dt=1;font=font;z=3};
+			titlebar={cls="static";text="";left=0;top=0;marginRight=width*3;bottom=theight;dl=1;dr=1;dt=1;notify=1;center=1;clip=1;transparent=1;z=4};
+		)
+		
+		winform.titlebarClose.skin(style);
+		winform.titlebarClose.oncommand = function(id,event){
+			this.targetForm.close()
+		} 
+		
+		if( ws & 0x10000/*_WS_MAXIMIZEBOX*/ ){
+			winform.add( 
+				titlebarMax={cls="plus";text="1";top=0;height=height;width=width;marginRight=width;dr=1;dt=1;font=font;z=2};
+			)
+			
+			winform.titlebarMax.skin(style);
+			winform.titlebarMax.oncommand = function(id,event){
+				this.targetForm.hitMax();
+			}
+			
+			winform.titlebar.wndproc = {
+				[ 0x201/*_WM_LBUTTONDOWN*/ ] = function(hwnd,message,wParam,lParam){
+					this.targetForm.hitCaption();
+				}
+				[ 0x203/*_WM_LBUTTONDBLCLK*/] = function(hwnd,message,wParam,lParam){
+					this.targetForm.hitMax();
+				}
+			}
+			
+			this.targetForm.adjust = function( cx,cy,wParam ) {
+		 		if( wParam == 0x2/*_SIZE_MAXIMIZED*/ ){
+		 			winform.titlebarMax.checked = true;
+		 		}
+		 		elseif( wParam == 0x0/*_SIZE_RESTORED*/ ){
+		 			winform.titlebarMax.checked = false;
+		 		}
+		 		winform.titlebarMax.text = winform.titlebarMax.checked ? "2" : "1";
+			};
+		}
+		else {
+			winform.titlebar.wndproc = {
+				[ 0x201/*_WM_LBUTTONDOWN*/ ] = function(hwnd,message,wParam,lParam){
+					this.targetForm.hitCaption();
+				}
+			}	
+		}
+		
+		if( ws & 0x20000/*_WS_MINIMIZEBOX*/ ){
+			var marginRight = width;
+			if( winform.titlebarMax ) marginRight= width*2;
+			winform.add( 
+				titlebarMin={cls="plus";text="0";top=0;height=height;width=width;marginRight=marginRight;dr=1;dt=1;font=font;z=1}; 
+			)
+			
+			winform.titlebarMin.skin(style); 
+			winform.titlebarMin.oncommand = function(id,event){
+				this.targetForm.hitMin()
+			}
+		
+		}
+		
+		..win.ui.shadow( this.targetForm,70,3 ); 
+		..win.ui.minmax( this.targetForm );
+		
+		..win.setPos(winform.titlebar.hwnd,,,,,0x1/*_HWND_BOTTOM*/);
+		this._form = winform;
+		
+		this.titlebarClose = winform.titlebarClose;
+		this.titlebarMax = winform.titlebarMax;
+		this.titlebarMin = winform.titlebarMin;
+		this.titlebar = winform.titlebar;
+	}};
+	skin = function(style){
+		if(this.titlebarMin)this.titlebarMin.skin(style);
+		if(this.titlebarMax)this.titlebarMax.skin(style);
+		this.titlebarClose.skin(style);	
+	};
+}
+
+namespace simpleWindow{
+    
+    style = {  
+		background = { 
+			hover = 0xff99ffcc;
+			active = 0xffff6666; 
+			default = 0x00000000; 
+		}
+		color = { 
+			hover = 0xff666666;
+			active = 0xffffffff; 
+			default = 0xffffffff; 
+		}
+	}
+}
+
+/**intellisense()
+win.ui.simpleWindow = 简单初始化无边框窗口\n使用plus控件创建标题栏按钮,拖动边框,阴影等,\n标题栏上添加最小化、最大化、关闭窗口等按钮,\n并自动添加拖动边框、窗口阴影、设置窗口最大化范围等,\n禁用最大化按钮以后不添加用于拖动调整窗体大小的边框
+win.ui.simpleWindow(.(窗体对象,字体大小,按钮宽度,按钮高度,标题栏高度) = 为参数@1指定的无边框窗口添加简单的标题栏,\n标题栏是透明的，建议在标题栏拖一个bk控件上去设置合适的背景色,\n标题栏是透明的，建议在标题栏拖一个bk控件上去设置合适的背景色,\n可选使用参数@2指定标题栏按钮字体大小,以像素为单位,\n可选用参数@3,@4指定关闭等按钮宽度,高度\n标题栏高度为可选参数
+win.ui.simpleWindow() = !win_ui_simpleWindow.
+!win_ui_simpleWindow.skin(style) = @.skin(\n	background = { \n		hover = 0xff99ffcc;\n		active = 0xffff6666; \n		default = 0x00000000; \n	}\n	color = { \n		hover = 0xff666666;\n		active = 0xffffffff; \n		default = 0xffffffff; __/*自定义标题栏关闭、最大化、最小化按钮样式\n用法与plus控件的skin函数相同*/\n	}\n)
+!win_ui_simpleWindow.titlebarMin = 最小化按钮,plus控件\n如果窗体设置了禁用最小化按钮则不创建此控件\n!ui_ctrl_plus.
+!win_ui_simpleWindow.titlebarMax = 最大化按钮,plus控件\n如果窗体设置了禁用最大化按钮则不创建此控件,并且不添加拖动边框\n!ui_ctrl_plus.
+!win_ui_simpleWindow.titlebarClose = 关闭按钮,plus控件\n!ui_ctrl_plus.
+!win_ui_simpleWindow.titlebar = 标题栏,static控件\n!static.
+!win_ui_simpleWindow._form = 标题栏所在窗口\n!winform.
+!win_ui_simpleWindow.targetForm = 要控制的目标窗口\n!winform.
+end intellisense**/

@@ -1,0 +1,26 @@
+//7)捕获标准输出
+import console;
+import py;
+
+var pyCode = /**
+import sys
+class CatchOutErr:
+    def __init__(self):
+        self.value = ''
+    def write(self, txt):
+        self.value += txt
+catchOutErr = CatchOutErr()
+sys.stdout = catchOutErr
+sys.stderr = catchOutErr
+**/
+py.exec( pyCode )
+
+//执行Python代码
+py.exec("print(1+123)");
+
+//获取Python中的属性值
+var pyStdoutStr = tostring(  py.main.catchOutErr.value );
+console.log( pyStdoutStr )
+
+console.pause()
+

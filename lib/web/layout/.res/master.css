@@ -1,0 +1,9 @@
+img:incomplete{ 
+	background:url(res:gif/activity.gif) no-repeat 50% 50%; 
+}
+#drag-selection-box{
+	position: absolute;
+	border: 1px #CCCCCC80 dotted;
+	background: #CCCCCC80;
+}
+a:link:focus { text-decoration:underline; }

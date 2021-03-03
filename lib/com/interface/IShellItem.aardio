@@ -1,0 +1,48 @@
+﻿import com.interface;
+namespace com.interface;
+
+class IShellItem {
+	ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	ptr BindToHandler = "int(ptr pbc,struct bhid,struct riid,ptr&ppv)"; 
+	ptr GetParent = "int(ptr &ppsi)"; 
+	ptr GetDisplayName = "int(int sigdnName,pointer &ppszName)";  
+	ptr GetAttributes = "int(INT sfgaoMask,INT &psfgaoAttribs)"; 
+	ptr Compare = "int(ptr psi,INT hint,int &piOrder)"; 
+	getDisplayFilePath = function(){ 
+			var hr,wpath = owner.GetDisplayName(0x80058000/*_SIGDN_FILESYSPATH*/); 
+			if( hr>=0/*_SUCCEEDED*/){
+				return  ..string.fromUnicode(wpath,,-1);
+			}  
+	} 
+}
+
+IShellItem.IID = ..win.guid.valid("{43826d1e-e718-42ee-bc55-a1e261c37bfe}") 
+	
+IShellItem.createFromParsingName = function(path){
+	var result = {ptr pItem}
+	var hr = ::Shell32.SHCreateItemFromParsingNameW(..io.fullpath(path),null,IShellItem.IID,result);
+
+	if( hr >= 0/*_SUCCEEDED*/){
+		var item = ..com.interface(result.pItem,IShellItem);
+		..com.Release(result.pItem);
+		return item;
+	}
+}
+
+IShellItem.query = function(ptr){
+	return ..com.interface(ptr,IShellItem);
+}
+
+/**intellisense(com.interface.IShellItem)
+createFromParsingName(__) = 参数@1指定路径,\n返回IShellItem接口对象
+query(__) = 自指针获取IShellItem接口对象
+createFromParsingName() = !IShellItem.
+query() = !IShellItem.
+end intellisense**/
+
+/**intellisense(!IShellItem)
+GetDisplayName(.(sigdnName,ppszName) = 获取显示名,\n用法参考接口类源码
+getDisplayFilePath() = 获取显示文件路径,\n返回字符串
+end intellisense**/

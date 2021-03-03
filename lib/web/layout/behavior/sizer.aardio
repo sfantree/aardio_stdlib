@@ -1,0 +1,52 @@
+//sizer 调整大小
+namespace web.layout.behavior;
+
+class sizer{
+	ctor( ltOwner,wbLayout ){
+		var tracking;
+    	var delta = ::SIZE();
+	};  
+	
+	//捕获模式(事件向下传递阶段)监听对象
+    sinking = { 
+    
+    	onMouseDown = function (ltTarget,ltOwner,x,y,mouseParams) {
+    		if( !tracking ) {  
+          		if( mouseParams.is_on_icon  && (mouseParams.button_state == 1/*_HL_MAIN_MOUSE_BUTTON*/)){
+            		// icon - foreground-image/foreground-repeat:no-repeat is serving role of gripper 
+            		tracking = true; 
+            		var rc = ltOwner.getRect(2/*_HL_SELF_RELATIVE*/ | 0/*_HL_CONTENT_BOX*/ );
+
+            		delta.cx = rc.right - mouseParams.pos.x;
+            		delta.cy = rc.bottom - mouseParams.pos.y;
+
+            		ltOwner.capture = true;
+            		return true; // handled
+          		}
+      		}
+    	}
+    	
+    	onMouseMove = function (ltTarget,ltOwner,x,y,mouseParams) {
+    		if( !tracking ) return;
+    		
+    		var w = ..math.max(0, mouseParams.pos.x + delta.cx); 
+			var h = ..math.max(0, mouseParams.pos.y + delta.cy);
+			 
+        	if ( ! (ltOwner.getCustomAttribute("resize")  == "vertical")  ) 
+        		ltOwner.style.width = w + "px";
+	
+        	if( ! (ltOwner.getCustomAttribute("resize") == "horizontal")  ) 
+         		 ltOwner.style.height = h + "px"; 
+
+			return true; // handled	
+    	}
+    	
+    	onMouseUp = function (ltTarget,ltOwner,x,y,mouseParams) {
+    		if( !tracking ) return;
+    		
+    		ltOwner.capture = false; 
+    		tracking = false; 
+    		return true;
+    	}
+    } 
+}

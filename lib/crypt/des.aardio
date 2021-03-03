@@ -1,0 +1,55 @@
+//des 加密算法(3DES)
+import crypt;
+namespace crypt
+
+class des {
+
+    ctor( initVector ) {  
+        this = ..crypt("Microsoft Enhanced Cryptographic Provider v1.0"); 
+        this.initVector = initVector;  
+    };
+    setPassword = function( key,flags) {
+    
+    	if( type(key) != type.string ) error("请指定正确的密钥",2);
+    	
+    	var algId;
+    	var keyLen = #key;
+    	if( keyLen <= 8 ){
+    		if( keyLen < 8 ) key = ..raw.buffer(8,key);
+    		algId = 0x6601/*_CALG_DES*/;
+    	}
+    	elseif( #key <= 16 ){
+    		if( keyLen < 16 ) key = ..raw.buffer(16,key);
+    		algId = 0x6609/*_CALG_3DES_112*/;
+    	}
+    	elseif( #key <= 24 ){
+    		if( keyLen < 24 ) key = ..raw.buffer(24,key);
+    		algId = 0x6603/*_CALG_3DES*/;
+    	}
+    	else {
+    		return this.setHashPassword(key,0x8003/*_CALG_MD5*/,0x6603/*_CALG_3DES*/,flags);
+    	} 
+    	 
+    	var ret,err  = this.setPlainPassword(key,algId,flags);
+		if(!ret) return null,err;
+		
+		return this.setInitVector( this.initVector or '\x12\x34\x56\x78\x90\xAB\xCD\xEF' );
+    }  
+}
+ 
+/**intellisense()
+crypt.des = DES,2DES,3DES加密算法支持库\n加密模式CBC，填充模式PKCS5，如果与其他编程语言互通要保持一致\n各编程语言兼容的DES兼容写法参考](http://bbs.aardio.com/forum.php?mod=viewthread&tid=13148) \n\n演示代码：\n\n```\nimport crypt.des; \n\nvar des = crypt.des(); \ndes.setPassword("abcd12" ) \n\n//加密\nvar sstr = des.encrypt("测试字符串");\n\n//解密\nvar str = des.decrypt(sstr);\n```
+crypt.des() = 返回DES加密容器,支持DES,2DES,3DES加密\n可选使用一个字符串参数指定密钥向量\n如果要与其他编程语言有相同加解密结果,建议不要设置该参数\n!crypy_3des.
+end intellisense**/
+
+/**intellisense(!crypy_3des)
+setPassword(.("密钥",选项) = 密钥使用补0方式进行8位对齐\n密钥长度小于等于8位时使用DES加密\n密钥长度小于等于16位时使用2DES加密\n密钥长度小于等于24位时使用3DES加密,\n超过24字节使用使用MD5算法创建转换为24位密钥,\n参数@2不需要指定
+decrypt(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回解密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+encrypt(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回加密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+setKeyParam(.(类型,数据值,选项) = 设置加密参数\n数据值可以是结构体,字符串，或缓冲区\n如果数据值一个数值参数,则转换为表示32位整型数值地址的结构体指针\n成功返回true,失败请使用 ..lasterr()获取错误信息
+setKeyParamMode(_CRYPT_MODE__) = 设置加密模式\n成功返回true,失败请使用 ..lasterr()获取错误信息
+setKeyParamPadding(_PKCS5__) = 设置加密填充方式\n成功返回true,失败请使用 ..lasterr()获取错误信息
+setInitVector(.(字符串向量,选项) = 设置初始化向量,成功返回true,\n参数2可选
+hasKey() = 检测是否已设置密钥
+blockSize = 加密填充的块大小，默认为8
+end intellisense**/

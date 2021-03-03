@@ -1,0 +1,68 @@
+//JSON-RPC服务端
+import console;
+import process;
+import wsock.tcp.simpleHttpServer;
+var server = wsock.tcp.simpleHttpServer("127.0.0.1",1428);
+
+console.setTitle("JSON-RPC服务端器已启动",server.getUrl());
+
+ //下面的代码也适用于IIS/FastCGI环境
+server.run(
+	function(response,request){
+		
+		if( request.path !="/jsonrpc" ){
+			response.error(404);
+		}
+		
+		import console;	
+		console.log(request.postData())
+		
+		import web.rpc.jsonServer;
+		var jsonServer = web.rpc.jsonServer(); 
+		
+		//可以定义允许客户端调用的函数
+		jsonServer.hello = function(name){
+			
+			/*
+			第一个返回值为客户端返回值(result)，
+			第二个返回值为错误对象(error)
+			*/
+			if(!name) return null,-32602/*_JSONRPC_INVALID_PARAMS*/; 
+			return "hello " + name;
+		}
+		
+		//也可以指定允许客户端调用的其他对象
+		jsonServer.aardio = {
+			
+			/*
+			如果函数名第一个字符为$，则第一个回调参数为$，
+			$参数表示可以在jsonServer.rpc.run函数的参数中指定,如果不指定则默认为当前 request对象
+			*/
+			$hello = function($,name){ 
+				return "aardio.hello " + name;
+			}
+			
+			err = function(){
+				error("假装抛出异常试试",2)
+			}	
+		}
+		
+		/* 
+			//下面这种写法也可以
+			jsonServer.rpc.external = {
+				hello = function(name){
+					
+				}
+			} 
+		*/
+		
+		jsonServer.rpc.onError = function(err,requestData){
+			//未捕获的服务端异常会触发这个函数，客户端错误代码为 _JSONRPC_INTERNAL_ERROR
+			console.log("发生错误",err,requestData)
+		}
+		
+		//运行服务端,可选在参数中指定回调$参数
+		jsonServer.rpc.run();
+	}
+) 
+

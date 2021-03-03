@@ -1,0 +1,103 @@
+//batch 批量处理
+import fsys;
+import fsys.codepage;
+namespace fsys;
+ 
+class batch{
+	ctor( dir,wildcard="*.*",charset){
+		this.dir = dir;
+		this.wildcard = wildcard;
+		this.charset = charset
+	};
+	
+	process = function(){ 
+		this.enumBinary( this.proc )
+	};
+	
+	enumBinary = function( proc,pattern ){
+		if( type(proc) != type.function ){
+			error("请先指定proc回调函数",2);
+		};
+		
+		..fsys.enum(  this.dir,this.wildcard, 
+			function(dir,file,fullpath,findData){ 
+				if(file){ 
+					if( pattern ?  ( ! ..string.find(fullpath,pattern) ) )
+						return;
+						
+		           	var content = ..string.load(fullpath);
+		           	if(content){
+		           		content = proc(content,fullpath,dir,file,findData)
+		           		if(type(content)==type.string)
+		           			..string.save(fullpath,content) 
+		           		else
+		           			return content;
+		           	}
+				} 
+			} 
+		);	
+	};
+	
+	enumText = function( proc,pattern,charset ){
+		if(charset===null){
+			charset = this.charset
+		}
+
+		if( type(proc) != type.function ){
+			error("请先指定proc回调函数",2);
+		};
+		
+		..fsys.enum(  this.dir,this.wildcard, 
+			function(dir,file,fullpath,findData){ 
+				if(file){ 
+					if( pattern ?  ( ! ..string.find(fullpath,pattern) ) )
+						return;
+
+		           	var text,codepage = ..fsys.codepage.load(fullpath,charset);
+		           	if(text){
+		           		text,codepage = proc(text,codepage,fullpath,dir,file,findData)
+		           		if(type(text)==type.string)
+		           			 ..fsys.codepage.save(fullpath,text,codepage) 
+		           		else
+		           			return text;
+		           	}
+				} 
+			} 
+		);	
+	};
+	
+	enumTo = function( proc,targetDir,pattern ){
+		if( type(proc) != type.function ){
+			error("请先指定proc回调函数",2);
+		};
+		targetDir = ..io.fullpath(targetDir);
+		..fsys.createDir(targetDir);
+		
+		..fsys.enum(  this.dir,this.wildcard, 
+			function(dir,file,fullpath,findData){ 
+				if(file){  
+					if( pattern ?  ( ! ..string.find(fullpath,pattern) ) )
+						return;
+					
+					var targetPath = ..fsys.path.replaceDir(fullpath,this.dir,targetDir); 
+		           	return  proc( targetPath,fullpath,dir,file,findData  )
+				} 
+			}
+			,function(fullpath,name) { 
+				var path = fsys.path.replaceDir(fullpath,compressPath,rootFtpPath);  
+				return ..fsys.createDir(path);
+			}
+		);	
+	};
+}
+
+/**intellisense()
+fsys.batch = 批量文件处理
+fsys.batch(批处理目录,后缀名,文本编码) = @.batch("__/*目录*/","*.*","utf-8");
+?fsys.batch = !batch.
+!batch.dir = 设置批处理目录
+!batch.wildcard = 设置批处理文件名掩码\n默认为"*.*"
+!batch.enumBinary(回调函数,路径模式匹配串) = @.enumBinary(\n	function(content,path){ \n		return __/*返回文本与编码更新文件,返回false终止,返回空忽略*/; \n	} \n	/*,可选指定路径模式匹配串,可选指定编码*/\n)
+!batch.enumText(回调函数,路径模式匹配串,文本编码)  = @.enumText(\n	function(text,codepage,path){ \n		return __/*返回文本与编码更新文件,返回false终止,返回空忽略*/; \n	} \n	/*,可选指定路径模式匹配串,可选指定编码*/\n)
+!batch.enumTo(回调函数,目标目录,路径模式匹配串) = @.enumTo(\n	function( dstPath,srcPath ){\n		return __/*返回false终止*/  \n	},"/目标目录"\n)
+end intellisense**/

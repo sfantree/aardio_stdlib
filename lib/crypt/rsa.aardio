@@ -1,0 +1,218 @@
+//rsa 算法
+import crypt;
+namespace crypt;
+
+class rsa{
+	ctor( provider,provType=1/*_PROV_RSA_FULL*/ ){
+		this = ..crypt( provider : "Microsoft Enhanced Cryptographic Provider v1.0",provType) 
+		if(!this) return null,..lasterr(,"创建密钥容器");
+		
+		this.allocBuffer(128);
+	};
+	importPemKey = function(pem){
+		var h = ..string.match(pem,"<@-----BEGIN@>\s+(.+?)<@-----@>");		
+		if(h=="PUBLIC KEY"){
+			if this.importPublicKeyX509FromPem(pem) return h;
+		}
+		elseif(h=="RSA PUBLIC KEY"){
+			if this.importPublicKeyPkcs1RawFromPem(pem) return h;
+		}
+		elseif(h=="RSA PRIVATE KEY"){
+			if this.importPrivateKeyPkcs1RawFromPem(pem) return h;
+		}
+		elseif(h=="PRIVATE KEY"){
+			if this.importPrivateKeyPkcs8FromPem(pem) return h;
+		}
+	};	
+	exportPublicKeyX509 = function(keySpec = 1/*_AT_KEYEXCHANGE*/){
+		var info = this.exportPublicKeyInfo(keySpec,0x10001/*_X509_PKCS_7_ASN_ENCODING*/);
+		if(info) return this.encodeObject(info,0x10001/*_X509_PKCS_7_ASN_ENCODING*/,8/*_X509_PUBLIC_KEY_INFO*/); 
+	};
+	exportPublicKeyX509ToPem = function(keySpec){
+		return ..crypt.pem(this.exportPublicKeyX509(keySpec),"PUBLIC KEY");
+	};
+	importPublicKeyX509 = function(derData){
+		var keyData = this.decodeObject(derData,0x10001/*_X509_PKCS_7_ASN_ENCODING*/,8/*_X509_PUBLIC_KEY_INFO*/) 
+		if(keyData) return this.importPublicKeyInfo(keyData,1/*_X509_ASN_ENCODING*/ ); 
+	};
+	importPublicKeyX509FromPem = function(bin){
+		return this.importPublicKeyX509( ..crypt.decodeBin(bin) )
+	};
+	exportPublicKeyPkcs1Raw = function(){
+		var info = this.exportPublicKey()
+		if(info){ 
+			var encoded = this.encodeObject(info,0x10001/*_X509_PKCS_7_ASN_ENCODING*/,19/*_RSA_CSP_PUBLICKEYBLOB*/);
+			return encoded;
+		} 
+	};
+	exportPublicKeyPkcs1RawToPem = function(){
+		return ..crypt.pem(this.exportPublicKeyPkcs1Raw(),"RSA PUBLIC KEY");
+	}; 
+	importPublicKeyPkcs1Raw = function(derData){
+		var keyData = this.decodeObject(derData,0x10001/*_X509_PKCS_7_ASN_ENCODING*/,19/*_RSA_CSP_PUBLICKEYBLOB*/) 
+		if(keyData){
+			return this.importKey(keyData);
+		} 
+	};
+	importPublicKeyPkcs1RawFromPem = function(bin){
+		return this.importPublicKeyPkcs1Raw( ..crypt.decodeBin(bin) )
+	};
+	exportPrivateKeyPkcs1Raw = function(){
+		var info = this.exportPrivateKey()
+		if(info){ 
+			var encoded = this.encodeObject(info,0x10001/*_X509_PKCS_7_ASN_ENCODING*/,43/*_PKCS_RSA_PRIVATE_KEY*/);
+			return encoded;
+		} 
+	};
+	exportPrivateKeyPkcs1RawToPem = function(){
+		return ..crypt.pem(this.exportPrivateKeyPkcs1Raw(),"RSA PRIVATE KEY");
+	};
+	importPrivateKeyPkcs1Raw = function(derData){
+		var keyData = this.decodeObject(derData,0x10001/*_X509_PKCS_7_ASN_ENCODING*/,43/*_PKCS_RSA_PRIVATE_KEY*/) 
+		if(keyData){
+			return this.importKey(keyData);
+		} 
+	};
+	importPrivateKeyPkcs1RawFromPem = function(bin){
+		return this.importPrivateKeyPkcs1Raw( ..crypt.decodeBin(bin) )
+	};  
+	exportPrivateKeyPkcs8 = function(keySpec = 1/*_AT_KEYEXCHANGE*/){
+		return this.exportPkcs8(keySpec, "1.2.840.113549.1.1.1");
+    }; 
+    exportPrivateKeyPkcs8ToPem = function(keySpec){
+		return ..crypt.pem(this.exportPrivateKeyPkcs8(keySpec),"PRIVATE KEY");
+	};
+    importPrivateKeyPkcs8 = function(data){
+		var keyInfo = this.decodeObject(data,1/*_X509_ASN_ENCODING*/,44/*PKCS_PRIVATE_KEY_INFO*/)
+		if(keyInfo) return this.importPrivateKeyInfo(keyInfo,0x10001/*_X509_PKCS_7_ASN_ENCODING*/,43/*_PKCS_RSA_PRIVATE_KEY*/);
+    };
+    importPrivateKeyPkcs8FromPem = function(bin){
+		return this.importPrivateKeyPkcs8( ..crypt.decodeBin(bin) )
+	};
+	encryptToArray = function(str,final=true,hHash,flags=0){
+		if( !str ) error("参数@1错误",2);  
+		if(!this.hasKey()) error("未指定正确的密钥",2);
+		var block = (this.getKeyBlockLen() : 1024) / 8;
+		this.blockSize = block;
+		
+		var t = {};
+		for(s in this.eachEncrypt(str,block-11,final,hHash,flags ) ){ 
+			..table.push(t,s);
+		} 
+	
+		return t; 
+	};
+	decryptToArray = function(str,final=true,hHash,flags=0){
+		if( !str ) error("参数@1错误",2);
+		if(!this.hasKey()) error("未指定正确的密钥",2);
+		var block = (this.getKeyBlockLen() : 1024) / 8;
+		this.blockSize = block;
+		
+		var t = {};
+		for(s in this.eachDecrypt(str,block,final,hHash,flags ) ){ 
+			..table.push(t,s);
+		} 
+	
+		return t; 
+	};
+	encrypt = function(str,final,hHash,flags=0){ 
+		var t = this.encryptToArray(str,final,hHash,flags); 
+		if(#t) return ..string.join(t);
+	};
+	decrypt = function(str,final,hHash,flags=0){
+		var t = this.decryptToArray(str,final,hHash,flags);
+		if(#t) return ..string.join(t);
+	};
+	encryptReverse = function(str,flags){
+		var t = this.encryptToArray(str,true,hHash,flags);
+		if(#t) {
+			..table.reverse(t);
+			return ..string.reverse( ..string.join(t) );
+		}
+	}; 
+	decryptReverse = function(str,flags){
+		var t = this.decryptToArray(..string.reverse(str),true,hHash,flags);
+		if(#t) {
+			..table.reverse(t);
+			return ..string.join(t); 
+		}
+	};
+}
+
+/**intellisense()
+crypt.rsa = RSA加密算法支持库
+crypt.rsa() = 创建RSA加密容器,不建议指定参数,\n!cryptrsa.
+end intellisense**/
+
+/**intellisense(!cryptrsa)
+importPemKey(__) = 参数@1使用字符串指定PEM格式密钥\n如果导入成功返回PEM格式头
+exportPublicKeyX509(__) = 导出X509格式公钥,\n如果是用于签名算法的公钥,请使用参数@1指定 _AT_SIGNATURE,也就是数值2,\n返回值为buffer类型
+exportPublicKeyX509ToPem(__) = 导出PEM/X509格式公钥,\n如果是用于签名算法的公钥,请使用参数@1指定 _AT_SIGNATURE,也就是数值2,\n返回值为string类型
+importPublicKeyX509(__) = 导入X509格式公钥,\n参数@1为string或buffer类型公钥数据
+importPublicKeyX509FromPem(__) = 导入PEM/X509格式公钥,\n参数@1为string或buffer类型公钥数据
+exportPublicKeyPkcs1Raw() = 导出PKCS1格式公钥,\n返回值为buffer类型
+exportPublicKeyPkcs1RawToPem() = 导出PEM/PKCS1格式公钥,\n返回值为string类型
+importPublicKeyPkcs1Raw(__) = 导入PKCS1格式公钥,\n参数@1为string或buffer类型私钥
+importPublicKeyPkcs1RawFromPem(__) = 导入PEM/PKCS1格式公钥,\n参数@1为string或buffer类型私钥 
+exportPrivateKeyPkcs1Raw() = 导出PKCS1格式私钥,\n返回值为buffer类型
+exportPrivateKeyPkcs1RawToPem() = 导出PEM/PKCS1格式私钥,\n返回值为string类型
+importPrivateKeyPkcs1Raw(__) = 导入PKCS1格式私钥,\n参数@1为string或buffer类型私钥
+importPrivateKeyPkcs1RawFromPem(__) = 导入PEM/PKCS1格式私钥,\n参数@1为string或buffer类型私钥 
+exportPrivateKeyPkcs8() = 导出PKCS8格式私钥,\n如果是用于签名算法的私钥,请使用参数@1指定 _AT_SIGNATURE,也就是数值2
+exportPrivateKeyPkcs8ToPem() = 导出PEM/PKCS8格式私钥,\n如果是用于签名算法的私钥,请使用参数@1指定 _AT_SIGNATURE,也就是数值2
+importPrivateKeyPkcs8(__) = 导入PKCS8格式私钥,\n参数@1为string或buffer类型私钥
+importPrivateKeyPkcs8FromPem(__) = 导入PEM/PKCS8格式私钥,\n参数@1为string或buffer类型私钥
+createHash() = !crypt_hash.
+createHashByKey() = !crypt_hash.
+createHashByKey(.(算法ID) = 使用当前密钥创建哈希
+createHashByMd2() = 创建MD2算法哈希对象\n可选使用一个字符串参数指定哈希数据\n!crypt_hash.
+createHashByMd4() = 创建MD4算法哈希对象\n可选使用一个字符串参数指定哈希数据\n!crypt_hash.
+createHashByMd5() = 创建MD5算法哈希对象\n可选使用一个字符串参数指定哈希数据\n!crypt_hash.
+createHashBySha1() = 创建Sha1算法哈希对象\n可选使用一个字符串参数指定哈希数据\n!crypt_hash.
+createHashByHmac() = !crypt_hash.
+createHashByHmac(.(哈希数据,哈希算法) = 所有参数可选,\n哈希算法默认为_CALG_SHA1
+genKey(.(algid,flags,size) = 产生一个随机的会话密钥或者公/私钥对,\n所有参数可选,algid指定算法,flags指定选项,size指定密钥长度
+getUserKey(.(keySpec) = 获取密钥,并设置为默认密钥\n参数指定密钥类型，例如 _AT_SIGNATURE\n成功返回true
+hasKey() = 检测是否已设置密钥
+setKey(.(密钥句柄) = 设置新的默认密钥句柄,\n该密钥将由密钥容器管理,不需要释放该密钥\n参数为null则删除密钥
+setKeyParam(.(类型,数据值,选项) = 设置加密参数\n数据值可以是结构体,字符串，或缓冲区\n如果数据值一个数值参数,则转换为表示32位整型数值地址的结构体指针\n成功返回true,失败请使用 ..lasterr()获取错误信息
+setKeyParamMode(_CRYPT_MODE__) = 设置加密模式\n成功返回true,失败请使用 ..lasterr()获取错误信息
+setKeyParamPadding(_PKCS5__) = 设置加密填充方式\n成功返回true,失败请使用 ..lasterr()获取错误信息
+getKeyParam(.(类型,数据值) = 获取密钥参数\n数据值应当指定一个结构体\n不指定数据值则自动分配buffer对象存储返回值\n失败返回null
+getKeyParamNumber(.(类型) = 获取数值类型密钥参数
+getKeyBlockLen() = 获取密钥块长度
+setInitVector(.(字符串向量,选项) = 设置初始化向量,成功返回true,\n参数2可选
+duplicateKey() = 获取并复制当前使用的密钥,\n该密钥必须调用 destroy 成员函数手动销毁\n!crypt_key.
+importKey(.(密钥,选项,公钥句柄) = 导入密钥,\n密钥可以是结构体或字符串格式,\n参数2可选,参数3可选\n成功返回true,失败返回null,错误信息
+exportKey(.(导出密钥类型,选项,加密密钥句柄) = 导出密钥,除参数一以外其他参数可选\n参数1为密钥类型,参数三为导出密钥可为空
+exportPlainTextKey(.(选项,加密密钥句柄) = 导出文本密钥,参数可选
+exportPrivateKey(.(选项,加密密钥句柄) = 导出私钥,参数可选
+exportPublicKey(.(选项,加密密钥句柄) = 导出公钥,参数可选
+setPassword(.("__/*密码*/",HASH算法ID,加密算法ID,选项) = 设置会话密钥\n成功返回密码容器对象,失败返回null
+hash(.(字符串,是否大写,返回16位结果,算法) = 计算哈希值,\n除第一个参数以外,其他参数可选\n默认使用MD5算法
+hashFile(.(文件路径,是否大写,算法) = 计算哈希值,\n除第一个参数以外,其他参数可选\n默认使用MD5算法
+setPassword() = 
+lastHash = 最后一次调用createHashXXX() 系列函数创建的哈希对象
+decryptToArray( = RSA解密,并返回字符串数组,\n解密模式为 RSA/ECB/PKCS1Padding\n与C#、Java等互通建议改用decryptReverse
+decryptToArray(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回解密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+encryptToArray( = RSA加密,并返回字符串数组,\n加密模式为 RSA/ECB/PKCS1Padding\n与C#、Java等互通建议改用encryptReverse
+encryptToArray(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回加密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+decrypt( = RSA解密\n解密模式为 RSA/ECB/PKCS1Padding\n与C#、Java等互通建议改用decryptReverse
+decrypt(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回解密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+encrypt( = RSA加密\n加密模式为 RSA/ECB/PKCS1Padding\n与C#、Java等互通建议改用encryptReverse
+encrypt(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回加密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+decryptReverse( = RSA解密，反转字节序,\n解密模式为 RSA/ECB/PKCS1Padding
+decryptReverse(.(字符串,选项) = 选项为可选参数\n成功返回解密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+encryptReverse( = RSA加密，反转字节序,\n加密模式为 RSA/ECB/PKCS1Padding
+encryptReverse(.(字符串,选项) = 选项为可选可选参数\n成功返回加密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+allocBuffer(.(大小,块大小) = 分配加解密需要用到的缓冲区\n如果不手动分配,程序将会自动按需分配缓冲区\n参数2可选,可使用对象的blockSize属性指定默认块大小
+blockSize = 加密填充的块大小
+verifySignature(.(sign,sDescription,flags) = 验证签名,\n参数@1为签名字符串,其他参数可选\n验证签名以前必须首先导入公钥,并创建哈希
+exportPublicKeyInfo(.(keySpec,encodingType) = 导出公钥信息(CERT_PUBLIC_KEY_INFO),返回值为buffer类型,\n用法参考 crypt.rsa中相关函数
+importPublicKeyInfo(.(certPublicKeyiNFO,encodingType) = 导入公钥信息(CERT_PUBLIC_KEY_INFO),参数@1为buffer或字符串,\n用法参考 crypt.rsa中相关函数,\n成功返回true
+importPrivateKeyInfo(.(certPrivateKeyInfo,encodingType,structType) = 导入私钥信息(CRYPT_PRIVATE_KEY_INFO),参数@1为buffer或字符串,\n用法参考 crypt.rsa中相关函数,\n成功返回true
+exportPkcs8(.(keySpec,objId) = 导出PKCS#8格式私钥,返回值为buffer类型,\n用法参考 crypt.rsa中相关函数
+decodeObject(.(encoded,encodingType,structType) = 解码对象,\n参数@1为buffer或字符串,返回值为buffer类型,\n用法参考 crypt.rsa中相关函数
+encodeObject(.(structInfo,encodingType,structType) = 编码对象,\n参数@1为buffer或字符串,返回值为buffer类型,\n用法参考 crypt.rsa中相关函数
+release() = 释放密码服务对象(CSP)\n此函数可在对象析构时自动调用 
+end intellisense**/

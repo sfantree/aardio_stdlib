@@ -1,0 +1,11 @@
+//淡入淡出效果
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=602;bottom=411;parent=...)
+winform.add()
+/*}}*/
+
+import win.ui.fade;
+win.ui.fade( winform ); 
+
+win.loopMessage();

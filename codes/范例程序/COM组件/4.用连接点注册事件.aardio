@@ -1,0 +1,44 @@
+//注册事件
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="flash - 用连接点注册事件";right=626;bottom=482)
+winform.add(
+edit={cls="edit";left=31;top=401;right=606;bottom=461;edge=1;multiline=1;vscroll=1;z=2};
+static={cls="static";left=32;top=16;right=608;bottom=392;db=1;dl=1;dr=1;dt=1;edge=1;z=1}
+)
+/*}}*/
+
+import com.flash.portable;
+var flash = com.flash(winform.static);    
+
+ShockwaveFlashEvents = {
+    OnReadyStateChange = function( newState ){
+          winform.edit.print("OnReadyStateChange")
+    }
+    OnProgress = function( percentDone ){
+          winform.edit.print( "OnProgress",percentDone)
+    }
+    FSCommand = function( command ,args ){
+          winform.edit.print( "FSCommand", command , args );
+    }
+}
+
+/*
+//注册事件
+ShockwaveFlashEvents =   com.ImplInterface( ShockwaveFlashEvents ,"ShockwaveFlash.ShockwaveFlash","_IShockwaveFlashEvents")
+var cookie = com.AddConnection( flash._object,ShockwaveFlashEvents );
+
+//释放事件
+com.ReleaseConnection(ie, DWebBrowserEvents2Handler, cookie) 
+*/
+
+//可以用上面的方法，也可以下面这样写简单一点
+var cookie = com.Connect(flash._object, ShockwaveFlashEvents);
+
+//打开flash
+flash._object.movie = io.fullpath("~\codes\范例程序\COM组件\嵌入 ActiveX 控件\Flash\testCall.swf");
+
+winform.show(true) 
+win.loopMessage();
+
+    

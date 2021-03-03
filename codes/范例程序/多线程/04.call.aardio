@@ -1,0 +1,30 @@
+//4、共享call
+import console;
+
+var thrdFunc = function(a,b){
+	import console;
+    console.log("参数",owner,a,b)
+    console.log("线程变量",gThrd) //thread.set写入的变量在这里就是全局变量
+    return 1,2,a + b
+}
+
+//将一个函数写入线程共享区(通常应当在主线程中一次性写入)
+thread.set("thrdFunc", thrdFunc);
+thread.set("gThrd", 123);
+
+//打开控制台
+io.open()
+
+/*
+实际上aardio建立了一个多线程共享的变量环境。
+这个线程共享环境中的变量可以使用 thread.set() thread.get() 函数去访问。
+而这个共享环境中的函数则可以用 thread.call() 去调用执行。
+
+thread.call() 函数的参数类似 call(), invoke() 等函数
+第二个参数显式指定owner参数,后面可以是任意多个其他参数
+*/ 
+var a,b,c = thread.call("thrdFunc","owner",3,11);
+
+console.log( a,b,c ) //在控制台输出所有返回值。
+execute("pause")
+ 

@@ -1,0 +1,53 @@
+﻿//打开隐藏目录
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="打开系统隐藏目录";right=759;bottom=469)
+winform.add(
+edit={cls="edit";left=7;top=10;right=752;bottom=414;db=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(h=-13);hscroll=1;multiline=1;vscroll=1;z=1};
+static={cls="static";text="系统有一些特殊的目录，在普通的文件系统中不可见。这些目录系统有的藏得很深，或者打开的方式复杂并且常常修改，有的甚至没有提供任何打开的链接。这里把当前系统的隐藏目录都提取了出来，可以调用上面的 aardio 代码直接打开。";left=13;top=418;right=750;bottom=457;db=1;dl=1;dr=1;transparent=1;z=2}
+)
+/*}}*/
+
+import win.reg;
+var reg = win.regReader("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FolderDescriptions");
+
+winform.edit.print("import process;")
+for(clsid,writetime in reg.eachKey() ){ 
+	var subKey = reg.open(clsid); 
+	if(subKey){
+		var name = subKey.queryValue("Name")
+		if(name){
+			var relativePath = subKey.queryValue("RelativePath")
+			if(relativePath){
+				winform.edit.printf(`process.explore("shell:%s"); //%s`,name,relativePath)
+			}
+			else {
+				winform.edit.printf(`process.explore("shell:%s");`,name)
+			} 
+		}
+		subKey.close();
+	}
+} 
+
+var reg = win.regReader("HKEY_CLASSES_ROOT\CLSID\");
+for(clsid,writetime in reg.eachKey() ){  
+	var subKey = win.regReader("HKEY_CLASSES_ROOT\CLSID\" + clsid,true); 
+	if(subKey){ 
+		var shellKey = subKey.open("ShellFolder",true) 
+		if(shellKey){  
+			var name = subKey.queryValue("");
+			if(name){
+				winform.edit.printf(`process.explore("shell:::%s"); //%s`,clsid,name)
+			}
+			else {
+				winform.edit.printf(`process.explore("shell:::%s");`,clsid)
+			} 
+			
+			shellKey.close(); 
+		}
+		subKey.close();
+	} 
+}
+
+winform.show();
+win.loopMessage();

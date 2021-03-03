@@ -1,0 +1,80 @@
+//conn 网卡连接
+import inet;
+namespace inet.conn;
+
+class INTERNET_PER_CONN_OPTION {
+    INT option; 
+    union value = {
+		INT number;
+		ustring str;
+		struct fileTime =::FILETIME() 
+    }
+} 
+ 
+class INTERNET_PER_CONN_OPTION_LIST {
+    INT size;
+    ustring connection;
+    INT optionCount;
+    INT optionError; 
+    pointer options;
+} 
+
+setProxy = function(conn,proxy,proxyBypass="<local>;<lan>;windows10.microdone.cn"){ 
+    if(proxyBypass){
+    	proxyBypass = ..string.replace(proxyBypass,"%\<\>",{
+    		["<local>"] = "<local>;localhost;127.*";
+			["<lan>"]  ="10.*;172.16.*;172.17.*;172.18.*;172.19.*;172.20.*;172.21.*;172.22.*;172.23.*;172.24.*;172.25.*;172.26.*;172.27.*;172.28.*;172.29.*;172.30.*;172.31.*;192.168.*"
+    	})
+    }
+    
+    list = INTERNET_PER_CONN_OPTION_LIST();
+    if(#conn)list.connection = conn;  
+    
+	var options = { 
+		INTERNET_PER_CONN_OPTION(); 
+		INTERNET_PER_CONN_OPTION(); 
+		INTERNET_PER_CONN_OPTION(); 
+	}
+
+    options[1].option = 1/*_INTERNET_PER_CONN_FLAGS*/;
+    if(#proxy){
+        if(proxyBypass=="<pac>"){
+    		list.optionCount = 2; 
+    		options[1].value.number = 4/*_PROXY_TYPE_AUTO_PROXY_URL*/ | 0x1/*_PROXY_TYPE_DIRECT*/;
+    		options[2].option = 4/*_INTERNET_PER_CONN_AUTOCONFIG_URL*/;
+    		options[2].value.str = proxy; 
+        }
+        else {
+    		list.optionCount = 3; 
+    		options[1].value.number = 2/*_PROXY_TYPE_PROXY*/;
+    		options[2].option = 2/*_INTERNET_PER_CONN_PROXY_SERVER*/;
+    		options[2].value.str = proxy;//"http://proxy:80";
+   			options[3].option = 3/*_INTERNET_PER_CONN_PROXY_BYPASS*/;
+    		options[3].value.str = proxyBypass;     
+        }
+    }
+	else {
+		list.optionCount = 1;
+		options[1].value.number = 1/*_PROXY_TYPE_DIRECT*/;
+	} 
+	list.options = ..raw.buffer( {struct options[]=options}  );
+	list.size = ..raw.sizeof( list );
+
+    var ret = ::InternetSetOption( ,0x4B/*_INTERNET_OPTION_PER_CONNECTION_OPTION*/,list,..raw.sizeof(list) );
+    ::InternetSetOptionPtr( , 39/*_INTERNET_OPTION_SETTINGS_CHANGED*/, , 0);
+    ::InternetSetOptionPtr( , 37/*_INTERNET_OPTION_REFRESH*/ , , 0);
+ 	return ret; 
+ };
+ 
+ setProxyAutoConfig = function(conn,url){ 
+ 	return setProxy(conn,url,"<pac>"); 
+ };
+ 
+/**intellisense(inet.conn)
+setProxy( = 为指定连接设置代理\n如果要设置拔号连接代理，请使用 inet.ras.setProxy 函数\n设置进程内代理请使用 inet.setProxy 函数
+setProxy(.() = 默认连接不使用代理
+setProxy(.("连接名") = 指定连接不使用代理
+setProxy(.("连接名","SOCKS=代理服务器地址:端口","绕过代理地址") = 省略连接名表示默认连接,\n设置SOCKS4代理服务器,不支持登录\n绕过代理地址可在域名或IP中使用通配符,多个以分号分隔
+setProxy(.("连接名","被代理协议=代理协议://主机地址:端口号","绕过代理地址") = 省略连接名表示默认连接,\n参数@2可以直接写代理服务器域名或IP,\n省略被代理协议相当于指定所有协议走相同的代理服务器，\n省略协议则默认为HTTP,省略端口则默认为80,\n绕过代理地址可在域名或IP中使用通配符*,多个地址以分号分隔,默认值为"<local>;<lan>"
+setProxyAutoConfig(.("连接名", "HTTP://主机地址:端口号") = 为指定连接设置自动配置代理（PAC）地址，\n省略连接名表示默认连接
+end intellisense**/

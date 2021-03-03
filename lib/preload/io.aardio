@@ -1,0 +1,42 @@
+﻿namespace preload;
+self.io = global.io;
+
+namespace io;
+
+::Shell32 = ..raw.loadDll("Shell32.dll")
+
+getSpecial = function(id,...){
+	var r = {WORD v[0x208/*_MAX_PATH_U16*/]}
+	if ( 0 <= ::Shell32.SHGetFolderPath(null,id,null,0,r) ){
+    	return joinpath(r.v,...);
+	} 
+}
+
+getSize = function(path){
+	var f = open(path,"rb");
+	if( f ){ 
+		var r = f.size();
+		f.close();
+		return r;
+	}
+}
+
+appData = function(p,d){
+	p  = getSpecial(0x1c /*_CSIDL_LOCAL_APPDATA*/,p);
+	if( (d!==null) && (getSize(p)!=#d ) && (! ..string.save(p,d) )  ) return;
+	return p;
+}
+
+/**intellisense(io)
+getSpecial(_CSIDL__) = 获取指定目录,参数@1指定_CSIDL开头的常量\n可选增加任意个拼接到目录后的子路径参数\n这个函数与fsys.getSpecial函数用法接近,\n但支持不定个数子路径参数, 不支持返回PIDL
+appData(.(path,data) = 将@path指定的相对路径转换为系统AppData目录下的绝对路径,\n可选使用@data指定需要存入的数据,\n只有在存入字节与目标文件内容长度不同时才会更新文件,\n最后返回转换所得的完整路径
+getSize(__) = 获取参数@1指定路径的文件字节长度,\n返回数值
+end intellisense**/
+
+/**intellisense(::)
+::Shell32 = 默认已加载的Shell32.dll模块对象（参考标准库：peload.io），\n提供Windows系统外壳 API
+::Shell32.api("__/*输入函数名字*/","void()" ) = 声明Kernel32 API函数
+::Shell32.SHChangeNotify(_SHCNE__,0,0,0) = 通知操作系统外壳刷新,例如刷新桌面图标等\n参数依次为@eventId,@flags,@item1,@item2
+::Shell32.? = 可不用声明直接在此输入函数名并调用API函数\n\n一、传入参数规则：\n1、null参数不可省略\n2、32位整数类型，小于32位的整数、以及枚举类型都可以直接在API参数中写数值。\n3、对于任何数值类型的指针（输出参数）一律使用结构体表示，例如double * v 表示为{ double v }\n4、数组使用结构体表示\n5、所有结构体传给API的都是指针地址，都是输出参数并增加返回值\n\n二、返回值规则：\n1、返回值默认为int类型\n2、可以使用[API尾标]改变返回值为其他类型\n\n三、所有可用的【API尾标】:\n::Shell32.ApiNameW() 切换到Unicode版本，字符串UTF8-UTF16双向转换\n::Shell32.ApiNameA() 切换到ANSI版本,字符串不作任何转换\n::Shell32.ApiNameL() 返回值为64位LONG类型\n::Shell32.ApiNameP() 返回值为指针类型\n::Shell32.ApiNameD() 返回值为double浮点数\n::Shell32.ApiNameF() 返回值为float浮点数\n::Shell32.ApiNameB() 返回值为C++中的8位bool类型\n注意【尾标】前必须是小写字母
+end intellisense**/
+

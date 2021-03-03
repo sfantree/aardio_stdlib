@@ -1,0 +1,37 @@
+//HTMLayout 调试
+import win.ui;
+/*DSG{{*/
+winform = ..win.form( text="aardio form";bottom=399;parent=...;right=599;border="resizable" )
+winform.add( 
+layoutWindow={ dr=1;dl=1;notify=1;right=580;left=10;dt=1;top=12;z=1;db=1;bottom=382;multiline=1;cls="edit" }
+)
+/*}}*/
+
+import web.layout;
+wbLayout = web.layout(winform.layoutWindow);
+ 
+wbLayout.html =/***
+<div id="my-button" >请点击这里</div>
+***/
+  
+ //小技巧: 输入 wbLayout.debug() 可自动完成下面的代码
+import web.layout.debug; //这句的作用是可使用控制台输出CSS内部错误
+wbLayout.attachEventHandler( web.layout.debug ); //这句代码为CSSS!增加了全局函数 debug()
+
+wbLayout.css = /**
+#my-button{ 
+  assigned!:
+    debug("CSS脚本中调用debug函数","输出一个或多个值")
+  ; 
+}
+**/
+
+wbLayout.css = /**
+#my-button{  
+  height 19px; //这里制造了一个CSS语法错误
+}
+**/
+
+
+winform.show() 
+win.loopMessage(); 

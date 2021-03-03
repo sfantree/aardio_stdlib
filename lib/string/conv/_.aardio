@@ -1,0 +1,85 @@
+namespace string.conv;
+
+mapString = function(str,locale,flags){
+	str = ..string.toUnicode(str);
+	var len = LCMapString( locale,flags, str, #str/2, 0,0) 
+	if(len){
+		var len,str = LCMapString( locale,flags, str, #str/2, (len+1)*2,len) 
+		return str;
+	}
+}
+LCMapString = ::Kernel32.api("LCMapString","int(int locale,INT flags,ustring src,int cchSrc,ustring &dest,int cchDest)") 
+
+var defaultLCID = ::Kernel32.GetSystemDefaultLCID();
+upper = function(str){
+	return  mapString(  str ,defaultLCID, 0x200/*_LCMAP_UPPERCASE*/);	
+}
+
+lower = function(str){
+	return  mapString(  str ,defaultLCID, 0x100/*_LCMAP_LOWERCASE*/);	
+}
+
+toWide = function(str){
+	return  mapString(  str ,defaultLCID, 0x800000/*_LCMAP_FULLWIDTH*/);	
+}
+
+fromWide = function(str){
+	return  mapString(  str ,defaultLCID, 0x400000/*_LCMAP_HALFWIDTH*/);	
+}
+
+traditionalized = function(str,lcid){
+	if( lcid === null ){lcid = 0x804;}
+	return mapString(  str ,lcid, 0x4000000/*_LCMAP_TRADITIONAL_CHINESE*/ ); 
+}
+
+simplized = function(str,lcid){
+	if( lcid === null ){lcid = 0x804;}
+	str = mapString(  str ,lcid, 0x2000000/*_LCMAP_SIMPLIFIED_CHINESE*/);
+	return str;
+} 
+
+gbkToBig5 = function(str){ 
+	str = ..string.fromto(str,936,65001) 
+	str = traditionalized(str);
+	return ..string.fromto(str,65001,950); 
+}
+
+big5ToGbk = function(str){
+	str = ..string.fromto(str,950,65001) 
+	str = simplized(str);
+	return ..string.fromto(str,65001,936); 
+}
+
+var codepage = ::Kernel32.GetACP();
+localized = function(value){
+	var t =  type(value);
+	if( t == "table" ){
+		for(k,v in value){ value[k] = localized(v) }
+	 	return value; 
+	}
+	elseif( t == "string" ){
+		if( !#value ) return value; 
+		if(!(..string.isUtf8(value) || ..string.isUnicode(value) ) ) ..string.setUtf(value,1);
+		if( codepage == 950 ) return traditionalized(value)
+		elseif( codepage == 936 ) return simplized(value);
+	}
+	return value;
+}
+
+isGb2312 = function(strUtf8){
+	var str = ..string.fromto(strUtf8,65001,936);
+	return !!..string.match(str,'^<\xB0-\xF7\xA1-\xFE>+$')
+}
+
+/**intellisense(string.conv)
+toWide(__/*字符串*/) = 半角转全角
+fromWide(__/*字符串*/) = 全角转半角
+upper(__/*字符串*/) = 转大写
+lower(__/*字符串*/) = 转小写
+localized("__") = 根据默认内码自动转换简繁体字\n此函数并不转换内码
+traditionalized(.(简体字) = 简体字转繁体字\n输入参数应当是UTF8或UTF16字符串
+simplized(.(繁体字) = 繁体字转简体字\n输入参数应当是UTF8字符串
+gbkToBig5(__/*GBK字符串*/) = GBK简体转BIG5繁体
+big5ToGbk(__/*GBK字符串*/) = BIG5繁体转GBK简体 
+isGb2312(__/*UTF8字符串*/)  = 判断UTF8字符串包含的所有字符\n是否都是GB2312编码范围内的常用汉字
+end intellisense**/

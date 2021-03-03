@@ -1,0 +1,36 @@
+//自动完成1
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="自动完成( 调用百度接口 )";right=600;bottom=400)
+winform.add(
+combobox={cls="combobox";left=176;top=136;right=384;bottom=160;edge=1;items={};mode="dropdown";z=1}
+)
+/*}}*/
+
+import web.rest.jsonLiteClient;
+var http = web.rest.jsonLiteClient();
+var suggestion = http.api("http://suggestion.baidu.com/su?cb=&wd={0}") //{0}会替换为请求关键字并以UTF8编码
+
+// 等价于在winform.combobox.conmmand中处理event 为 _CBN_EDITCHANGE 的事件
+winform.combobox.onEditChange = function(){ 
+    var result = suggestion[ winform.combobox.text ].get();
+    winform.combobox.autoComplete(result.s,1) //更新下拉列表
+}
+
+// 等价于在winform.combobox.conmmand中处理event 为 _CBN_SELCHANGE 的事件
+winform.combobox.onListChange = function(){ 
+	
+}
+
+// 等价于在winform.combobox.conmmand中处理event 为 _CBN_SELENDOK 的事件
+winform.combobox.onOk= function(){ 
+	
+}
+
+// 取消选择，例如直接点击其他控件，或直接按ESC键，直接关闭窗口等等
+winform.combobox.onCancel= function(){ 
+ 
+}
+
+winform.show() 
+win.loopMessage();

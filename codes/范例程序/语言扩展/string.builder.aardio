@@ -1,0 +1,53 @@
+//字符串生成器
+import console; 
+import string.builder;
+
+//创建字符串生成器
+var bs = string.builder()
+
+//设置初始值
+bs.assign("  初始值")
+
+for(i=1;100;1){
+    bs.append( tostring(i) );//追加字符串
+    bs.appendf( "%d",i );
+}
+
+//清除两侧空格
+bs.trim()
+
+//字符串操作函数
+console.log("右侧取3个字符" ,bs.rightString(3) );
+
+//转换为字符串
+console.log("转换为字符串" ,tostring(bs) );
+
+console.log("预分配内存大小",bs.capacity())
+
+console.log("实际存储内容大小",bs.size())
+
+//重新调整字符串长度
+bs.resize(10)
+
+//释放多余的内存
+bs.reserve(0);
+
+//bs对象在不使用时可自动释放，但也可以主动调用free()函数尽量释放不用的内存
+bs.free(); //在重新分配内存之前就不能再读写该内存了
+
+if( ! bs.capacity() ){
+	//但是重新分配内存又可以用了
+	bs.reserve(100);
+}
+
+bs += "重新分配内存又可以用了";
+
+console.log(bs)
+
+console.log( bs.str() )
+
+//可如下与结构体连接
+bs += {BYTE x[] ='dbcd\0'}
+console.log( bs.toUnicode() )
+
+console.pause(true);

@@ -1,0 +1,62 @@
+//RUNAS//抓包
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="抓包测试程序";right=399;bottom=120;max=false;parent=...)
+winform.add(
+btnSniff={cls="button";text="抓包";left=64;top=37;right=196;bottom=77;z=1};
+btnStop={cls="button";text="停止";left=210;top=37;right=342;bottom=77;disabled=1;z=2}
+)
+/*}}*/
+
+import thread.event;
+var eventCtrl = thread.event("wsock.sniff.给我抓");
+winform.btnStop.oncommand = function(id,event){
+	winform.btnStop.disabled = true;
+	winform.btnStop.text = "正在停止..."
+	eventCtrl.set()
+}
+
+winform.btnSniff.oncommand = function(id,event){ 
+	winform.btnSniff.disabled = true;
+	winform.btnStop.disabled = false;
+	eventCtrl.reset();
+	
+	win.invoke(
+		function(){
+			import win;
+			import wsock.sniff;
+			import thread.event;
+			import console;
+			
+			var eventCtrl = thread.event("wsock.sniff.给我抓");
+			console.log("正在抓取HTTP包,打开网页试试......") 
+			
+			for(sockdata in wsock.sniff() ){ 
+
+  				if ( sockdata.ok ){
+  					if( sockdata.tcpheader ){ 
+						tinfo = wsock.decodeHttpPack( sockdata.tcpdata ) 
+						if( tinfo.http ){
+							if(tinfo.method == "POST" or tinfo.method == "GET"){        
+				 				console.log(tinfo.method , tinfo.url,tinfo.host)       
+							} 
+							else {
+								console.log("服务器响应",tinfo.http,tinfo.statusCode,tinfo.reasonPhrase )
+							} 
+						} 
+   					} 
+  				}
+  				if( eventCtrl.wait(1) ) break;
+			}
+			
+			console.log("title 抓包结束") 
+		} 
+	)
+	
+	winform.btnStop.text = "停止"
+	winform.btnStop.disabled = true;
+	winform.btnSniff.disabled = false;
+}
+
+winform.show() 
+win.loopMessage();

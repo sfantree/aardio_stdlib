@@ -1,0 +1,150 @@
+//log 日志文件
+import web.json;
+import util.table;
+import process.mutex;
+
+namespace fsys;
+
+class log{
+	ctor( path ){{
+		if(!path){
+			path = ..thread.get("fsys.log.default.path"):"/config/app$.log"; 
+		}
+		
+		path = ..io.fullpath( path );
+		var dir = ..io.splitpath(path).dir;
+		if(!..io.exist(dir) ) ..io.createDir(dir);
+		
+		this.path = path;
+		this.mutex = ..process.mutex("fsys.log" + ..string.replace(path,"@\","/") );
+		
+		if(!this.mutex ){
+			
+			//遇到服务进程,权限被拒
+			this.mutex = ..process.mutex("fsys.log" + ..string.replace(path,"@\","/") ++ ::Kernel32.GetCurrentProcessId() ) ;
+			
+			if(!this.mutex){
+				this.mutex = {
+					waitOne = function(){ };
+					release = function(){ }; 
+					close = function(){ };
+				}
+			}
+		}
+	}}; 
+	close = function(){
+		if( this.mutex ){
+			this.mutex.close();
+			this.mutex = null;
+		}
+	};
+	print = function(...){
+		var args = {...};
+		
+		if( this.mutex.waitOne() ){
+			var file = ..io.open(this.path,"a+t");
+			
+			for(i=1;#args;1){
+				file.write( ..string.crlf(args[i]),'\t');
+			}
+			file.write('\n');
+			file.close();
+			
+			this.mutex.release();
+		}
+	};
+	printf = function(s,...){
+		if( ...!== null ) s = ..string.format(s,... )
+		this.print( s );
+	}
+	dump = function(...){ 
+		var args = {...};
+		
+		if( this.mutex.waitOne() ){
+			var file = ..io.open(this.path,"a+t");
+			
+			for(i=1;#args;1){ 
+				if( type(args[i]) == type.table ) file.write( ..util.table.stringify(args[i],#args==1),'\t')
+				else file.write( tostring(args[i]),'\t')
+			}
+			file.write('\n');
+			file.write('\n');
+			file.close(); 
+			
+			this.mutex.release();
+		}
+	}  
+	dumpJson = function(...){ 
+		var args = {...};
+		
+		if( this.mutex.waitOne() ){
+			var file = ..io.open(this.path,"a+t");
+			
+			for(i=1;#args;1){ 
+				if( type(args[i]) == type.table ) file.write( ..web.json.stringify(args[i],#args==1),'\t')
+				else file.write( tostring(args[i]),'\t')
+			}
+			file.write('\n');
+			file.write('\n');
+			file.close(); 
+			
+			this.mutex.release();
+		}
+	}
+}
+
+namespace log{ 
+
+	var logFile;
+	setPath = function( path ){
+		if(logFile) logFile.close();
+		
+		..thread.set("fsys.log.default.path", path )
+		logFile = ..fsys.log();
+		
+		print = logFile.print;
+		printf = logFile.printf;
+		dump = logFile.dump;
+		dumpJson = logFile.dumpJson;
+		return logFile; 
+	}
+	getPath = function(){
+		return logFile.path;
+	}
+	
+	print = function(...){
+		setPath( ..thread.get("fsys.log.default.path") );
+		return logFile.print(...);
+	}
+	
+	printf = function(...){
+		setPath( ..thread.get("fsys.log.default.path") );
+		return logFile.printf(...);
+	}
+	
+	dump = function(...){
+		setPath( ..thread.get("fsys.log.default.path") );
+		return logFile.dump(...);		
+	}
+	
+	dumpJson = function(...){
+		setPath( ..thread.get("fsys.log.default.path") );
+		return logFile.dumpJson(...);	
+	}
+}
+
+/**intellisense()
+fsys.log = 日志文件\n用于代替控制台在文件中输出变量或文本
+fsys.log(.("日志文件路径") = 创建日志文件
+fsys.log() = !stdfsyslog.
+fsys.log.print(__) = 输出一行文本,支持多参数
+fsys.log.printf("%s__", ) = 输出格式化字符串,\n格式化语法与string.format相同
+fsys.log.dump(__/*变量*/) = 显示变量的值,支持多参数\n注意仅显示普通table,string,number等类型的值,不显示函数等
+fsys.log.dumpJson(__/*变量*/) = 将对像转换为格式化的JSON文本并输出到控制台
+fsys.log.setPath("/config/app$->log") = 设志日志文件路径,进程内全局有效,\n如果不指定路径,默认设置为 /config/app$.log
+!stdfsyslog.close() = 关闭对象
+!stdfsyslog.print(__) = 输出一行文本,支持多参数
+!stdfsyslog.printf("%s__", ) = 输出格式化字符串,\n格式化语法与string.format相同
+!stdfsyslog.dump(__/*变量*/) = 显示变量的值,支持多参数\n注意仅显示普通table,string,number等类型的值,不显示函数等
+!stdfsyslog.dumpJson(__/*变量*/) = 将对像转换为格式化的JSON文本并输出到控制台\n支持多参数
+end intellisense**/

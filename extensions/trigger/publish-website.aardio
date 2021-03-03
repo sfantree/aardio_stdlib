@@ -1,0 +1,168 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio -  网站已发布成功";right=550;bottom=185;max=false;parent=...)
+winform.add(
+btnClose={cls="button";text="关闭(ESC)";left=366;top=136;right=495;bottom=168;db=1;dr=1;z=2};
+btnExplorer={cls="button";text="打开发布目录(Enter)";left=154;top=136;right=359;bottom=168;db=1;dr=1;z=1};
+chkBuildNumInc={cls="checkbox";text="版本号自增";left=362;top=93;right=493;bottom=111;ah=1;aw=1;z=6};
+chkLostFocusClose={cls="checkbox";text="对话框失去焦点自动关闭";left=32;top=93;right=198;bottom=112;ah=1;aw=1;checked=1;z=5};
+editPublishPath={cls="edit";left=33;top=53;right=513;bottom=82;dl=1;dr=1;edge=1;readonly=1;z=3};
+lbTitle={cls="syslink";text="点这里查看部署网站教程。";left=33;top=9;right=296;bottom=46;ah=1;align="left";dl=1;dr=1;dt=1;z=4}
+)
+/*}}*/
+
+import ide;
+import fsys;
+import config;
+import process;
+winform.lbTitle.text = '<a href="http://bbs.aardio.com">点这里查看部署网站教程。</a>'
+winform.lbTitle.onHyperlinkClick = function(nmSysLink,url,id){ 
+    ide.createProcess("~\codes\范例程序\Web应用\FastCGI\wizard.aardio");
+}
+
+win.setOwner(winform.hwnd,ide.getMainHwnd()); //避免窗口跑到IDE后面
+win.setForeground(winform.hwnd);
+
+if( ide.projectIsOpened() ){
+	fsys.delete( ide.getPublishPath() )
+}
+winform.enableDpiScaling();
+winform.chkLostFocusClose.checked = config.publish.chkLostFocusClose;
+winform.chkBuildNumInc.checked = ( config.publish.chkBuildNumInc === null ) 
+	? true : config.publish.chkBuildNumInc;
+
+var resLibs = {}; 
+var publishFile = ide.getPublishPath();
+var publisDir = ide.getPublisDir();
+
+import fsys;
+fsys.enum( io.joinpath(publisDir,"/lib"), "*.aardio",
+	function(dir,filename,fullpath,findData){ 
+		if(filename){ 
+		   if( filename == "_.aardio"  ) {
+		   		fullpath = fsys.getParentDir(fullpath)
+          		var path = fsys.path.relative(fullpath,publisDir);
+          		
+          		var builder = fsys.joinpath(..io.joinpath("~\",path),".build\main.aardio");
+          		if(!builder) builder = fsys.joinpath(..io.joinpath("\",path),".build\main.aardio");
+				if( io.exist( builder ) ){
+					var tHnd = thread.create(builder)
+					if(tHnd){
+						thread.waitOne(tHnd);
+						raw.closehandle(tHnd);
+					}
+				}
+           }
+		} 
+	} 
+);
+
+var projectPath = ide.getProjectPath();
+var projectFileName = io.splitpath(projectPath).name;
+var builder = fsys.joinpath(ide.getProjectDir(),".build\" + projectFileName + ".main.aardio");
+if( io.exist( builder ) ){  
+	var tHnd = thread.create(builder)
+	if(tHnd){
+		thread.waitOne(tHnd);
+		raw.closehandle(tHnd);
+	}
+}
+else { 
+	var code =/*
+//此触发器在发布以后执行
+import ide;
+import fsys; 
+
+//获取生成的EXE文件路径
+var publishFile = ide.getPublishPath();
+*/
+	var builder = fsys.joinpath(ide.getProjectDir(),".build\" + projectFileName + ".main.aardio");
+	..string.save(builder,code)  
+}
+
+/*自增版本号{{*/
+if( winform.chkBuildNumInc.checked ){
+
+	import fsys.version;
+	
+	var fileVersion = ide.getProjectProperty("FileVersion"); 
+	if( fileVersion ){
+		var verInfo = fsys.version(fileVersion);
+		
+		verInfo.revision++;
+		if( verInfo.revision >=  1000 ){
+			verInfo.revision = 0;
+			verInfo.build++;
+		}
+		if( verInfo.build >=  1000 ){
+			verInfo.build = 0;
+			verInfo.minor++;
+		}
+		if( verInfo.minor >=  100 ){
+			verInfo.minor = 0;
+			verInfo.major++;
+		}
+		ide.setProjectProperty("FileVersion",tostring(verInfo));
+	}
+	
+	var productVersion = ide.getProjectProperty("ProductVersion");
+	if(productVersion){
+		var verInfo = fsys.version(productVersion);
+		
+		verInfo.revision++;
+		if( verInfo.revision >=  1000 ){
+			verInfo.revision = 0;
+			verInfo.build++;
+		}
+		if( verInfo.build >=  1000 ){
+			verInfo.build = 0;
+			verInfo.minor++;
+		}
+		if( verInfo.minor >=  100 ){
+			verInfo.minor = 0;
+			verInfo.major++;
+		}
+		ide.setProjectProperty("ProductVersion",tostring(verInfo));
+	}
+} 
+
+winform.editPublishPath.text = ide.getPublisDir()
+winform.show();
+
+ide.setConfig("project_CompanyName",ide.getProjectProperty("CompanyName") );
+/*}}*/
+
+winform.btnClose.oncommand = function(id,event){
+	winform.close()
+}
+
+winform.btnExplorer.oncommand = function(id,event){
+	winform.btnExplorer.text = "请稍候..."
+	winform.btnExplorer.disabled = true;
+	process.explore_select( winform.editPublishPath.text )
+	winform.close();
+}
+
+winform.wndproc = function(hwnd,message,wParam,lParam){
+	select( message ) { 
+		case 0x1C/*_WM_ACTIVATEAPP*/ {
+			if(!wParam){
+				if( winform.chkLostFocusClose.checked ){
+					winform.close();
+				}
+			}
+		} 
+		case 0x100/*_WM_KEYDOWN*/{
+			if( wParam = 0x74/*_VK_F5*/ ){
+				winform.btnRun.oncommand();
+			}
+		}
+	} 
+}
+
+winform.onClose = function(hwnd,message,wParam,lParam){
+    config.publish.chkLostFocusClose = winform.chkLostFocusClose.checked
+    config.publish.chkBuildNumInc = winform.chkBuildNumInc.checked;
+}
+
+win.loopMessage();

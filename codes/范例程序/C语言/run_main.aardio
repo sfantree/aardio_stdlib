@@ -1,0 +1,32 @@
+code_c = /** //使C代码第一行位于文件第一行,这样就不需要计算错误信息的行号
+
+	#include <stdio.h> 
+	
+	int main ( int argc, char *argv[] )     
+	{     
+		//在IDE或win程序中打开控制台窗口需要调用下面这句代码
+    	io_reopen();
+    	
+    	int i = 0; 
+    	for( i=1;i<argc;i++){
+    		printf( "%s \n" , argv[i] );
+    	
+    	}
+     	
+    	return 0; 
+	}
+**/
+
+
+import tcc; 
+vm = tcc(); //创建TCC编译器 
+vm.compile(code_c);//编译C源码 
+ 
+//直接运行 main() 入口函数
+var ret = vm.run("測試命令參數","測試命令參數2","支持任意多個參數");
+io.print( ret )
+
+vm.close(); 
+
+execute("pause") //按任意键继续
+io.close();//关闭控制台

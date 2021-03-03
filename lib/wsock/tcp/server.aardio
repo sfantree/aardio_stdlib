@@ -1,0 +1,153 @@
+//server 服务端
+import wsock.err; 
+import wsock.tcp.client;
+namespace wsock.tcp;
+
+class server{
+	ctor(ip,port,backlog){{
+		if(! ..wsock.open() ){ 
+			error( ( ..wsock.err.lasterr() ),2 ) 
+		}
+		 
+		var hSocket= ..wsock.socket(0x2/*_AF_INET*/,0x1/*_SOCK_STREAM 建立流式套接口*/,0x6/*_IPPROTO_TCP*/ )
+		if( hSocket = _INVALID_SOCKET ){ 
+			..wsock.close() //关闭wsock
+			return null,..wsock.err.lasterr();
+		} 
+		this.hSocket = hSocket;
+		this._serverAddress = ..wsock.sockaddr_in();  
+		
+		this.bind = function(ip,port){
+			var service = ..wsock.sockaddr_in( ip,port : 0 ); 
+			service.sin_family = 0x2/*_AF_INET*/ 
+			if ..wsock.bind( this.hSocket,service,..raw.sizeof(service)) =-1/*_SOCKET_ERROR*/	{ 
+				return null, ..wsock.err.lasterr() ;
+			} 
+			..wsock.getsockname(this.hSocket, this._serverAddress,..raw.sizeof(this._serverAddress) );
+			return true;
+		}
+		this.listen = function(backlog){ 
+			if( ..wsock.listen(this.hSocket,backlog : 5 )=-1/*_SOCKET_ERROR*/){
+				return null, ..wsock.err.lasterr() ;
+			}
+			return true;
+		};
+		
+		var ok,err = this.bind (ip,port);
+		if( ! ok ){
+			..wsock.closesocket(this.hSocket); 
+			..wsock.close() //关闭wsock
+			return null,err;
+		}
+		
+		var ok,err = this.listen ( backlog );
+		if( ! ok ){
+			..wsock.closesocket(this.hSocket); 
+			..wsock.close() //关闭wsock
+			return null,err;
+		}
+		
+		
+		this.getLocalIp = function(){
+			return ..wsock.inet_ntoa(this._serverAddress.sin_addr),..wsock.ntohs( this._serverAddress.sin_port );
+		};
+		
+		var ip,port = this.getLocalIp();
+		this.id = "wsock.tcp.server["+ip +":"+port+"]";
+		
+		..thread.set(this.id,true);
+	}};
+	close = function(){
+		if( this.hSocket ){
+			..wsock.closesocket(this.hSocket); 
+			..wsock.close();
+			this.hSocket = null;
+		}
+	};
+	forever = function(handle){
+		if( type(handle) != type.function ) error("参数@1必须是一个函数对象",2);
+	 
+		while( true ){
+			var acceptSocket = ..wsock.accept(this.hSocket)
+			if( acceptSocket!= _INVALID_SOCKET ){ 
+				if( ! ..thread.get(this.id)) {
+     				..wsock.closesocket(acceptSocket);
+     				break;
+     			}
+     				
+				this.lastRequestSocket = acceptSocket;
+				if( handle(acceptSocket) ===  false ){
+					break;
+				}
+			}
+			else {
+				if( ! ..thread.get(this.id))  break;
+			}
+		}
+
+		if(this._beforeClose){this._beforeClose();}
+		if(this.beforeClose){this.beforeClose();}
+		this.close();
+	};
+};
+
+namespace server{
+    
+    closeById = function(id){
+    	var ip,port = ..string.match(id,"^wsock\.tcp\.server\[(.+)\:(\d+)\]$");
+    	if(ip=="0.0.0.0") ip =  "localhost";
+    	
+    	..thread.set(id,null);
+    	var client = ..wsock.tcp.client(); 
+		client.connect(ip,tonumber(port));
+		client.close();
+		sleep(10);
+    }
+    
+	getFreePort = function(ip,ports,...){
+		if(ports){
+			if(type(ports)!="table") ports = {ports,...}
+
+			for(i=1;#ports){
+				var server = ..wsock.tcp.server(ip,ports[i]);
+				if( server ){
+					server.close();
+					return ports[i];
+				}
+			}
+		}
+
+		return ..wsock.getFreePort(ip);
+	}
+	
+	isFreePort = function(port,ip){
+		var server = ..wsock.tcp.server(ip,port);
+		if( server ){ 
+			server.close(); 
+			return true;	
+		}	
+	} 
+}
+
+/*
+http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml
+*/
+
+/**intellisense()
+wsock.tcp.server = TCP服务端
+wsock.tcp.server(.(IP,端口,请求队列大小) = 创建TCP服务端,所有参数可选,\n\n如果不写IP，则默认设为"0.0.0.0"也即监听本机所有IP,访问此服务端也不限制IP\n限制仅本机可以访问建议写127.0.0.1\n\n端口为0或省略则自动查找1025以后的空闲端口\n注意0-1023为系统通用服务保留端口,\n1024-49151为用户服务端口,其中大约%9已由IANA注册分配\n49152-65535为私有或临时端口
+wsock.tcp.server() = !stdWsockTcpServer.
+wsock.tcp.server.closeById(.(serverId) = 参数指定wsock.tcp.server对象的ID属性\n关闭指定ID的服务器
+wsock.tcp.server.getFreePort(.(ip,->->->) =  获取空闲TCP服务端口，\nIP参数需要与实际创建服务器使用的IP参数完全一致，\n可选在参数中使用数值数组或任意个数值参数指定优先测试的端口号，\n如果没有找到参数指定的空闲凋口,则自动分配空闲端口，\n自动空闲端口为49152到65535之间的值，\nXP系统则为 1025到5000之间的值
+wsock.tcp.server.isFreePort(__) = 检查参数指定的端口号是否空闲
+!stdWsockTcpServer.id = 服务器唯一ID,字符串
+!stdWsockTcpServer.bind(.(IP,端口) = 绑定IP端口
+!stdWsockTcpServer.listen(.(请求队列大小) = 监听指定的IP端口
+!stdWsockTcpServer.close() = 关闭TCP服务端
+!stdWsockTcpServer.getLocalIp() = 返回当前绑定的IP,端口号
+!stdWsockTcpServer.forever(回调函数) = @.forever(\n	function(acceptSocket){\n		var request = wsock.tcp.client(,acceptSocket)\n	}\n)	
+!stdWsockTcpServer._serverAddress = 服务端监听地址\n!sockaddr_in.
+!stdWsockTcpServer.beforeClose() = @.beforeClose = function(){
+	__/*服务器关闭前调用此函数*/
+}
+end intellisense**/

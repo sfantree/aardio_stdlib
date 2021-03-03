@@ -1,0 +1,125 @@
+//主进程通信
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="在aardio中嵌入electron";right=1276;bottom=767;bgcolor=16777215;border="none";clipch=1)
+winform.add(
+custom={cls="custom";text="custom";left=80;top=8;right=1262;bottom=763;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;z=1}
+)
+/*}}*/
+
+import electron.runtime;//自动安装electron到系统目录
+import electron.app;//导入electron扩展库
+
+// 如果第3个参数为true，可以查看js主进程里的console.log输出
+var app = electron.app(winform.custom,,true);//子窗口的四边固定边距属性都设为true，以支持自动缩放
+
+/*
+electron是多进程运行环境，
+显示网页的叫渲染进程（类似浏览器环境）而启动electron的main.js则称为主进程，
+主进程、渲染进程与aardio交互的方法是一样的（不一样的麻烦地方我给大家处理好了），
+在js中aardio = require('aardio') 导入aardio接口就可以与aardio交互了。。
+*/
+
+app.jsMain =/**  
+    const aardio = require('aardio')  //启动RPC服务允许调aardio/electron互调函数,创建BrowserWindow主窗口
+    const app = require('electron').app //管理electron进程的生命周期
+ 
+    /*
+    aardio-electron 主进程已准备就绪,主窗口已创建触发此事件, 
+    */
+	aardio.ready( win=> { 
+		console.log("abc已创建窗口");
+		
+		// 参数win是BrowserWindow对象
+		if( !aardio.studioInvoke ){
+			win.setMenu( null ) 
+		} 
+		
+		win.on('closed', () => {  
+			
+		})  	
+	} )  
+    
+    // 可以继续注册其他导出给aardio的回调函数
+    aardio.on('main.hello', (str) => {   
+    
+    	// 可以在JS里调用winapi函数
+       aardio.MessageBox(
+       		aardio.hwndElectron,
+       		"electron调用winapi测试",
+       		"electron",0
+       		);
+       
+        return "electron主进程应答" + str;
+    }) 
+  
+    app.on('window-all-closed', () => {
+        app.quit();
+          
+    }) 
+**/
+
+//可选在这里直接指定index.js的代码，实际开发请写到工程文件里
+app.html = /** 
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="UTF-8">
+    <title>aardio嵌入electron演示</title>
+    <script>
+    const aardio = require('aardio') //这句用来导入aardio支持模块
+    </script>
+  </head>
+  
+  <body>
+  
+    <h2 onmousedown="aardio.hitCaption();return false;" 
+    	style="-webkit-user-select: none;cursor:default;">按这里调用aardio.hitCaption()拖动窗口!</h2>
+   
+   <button onclick="aardio.quit();">点这里调用aardio关闭窗口</button>
+</html>
+**/
+
+/*
+在下面的external对象中指定允许electron渲染进程中使用JS直接调用的函数
+下面的external 会直接转换为js中的aardio对象，在JS中require('aardio')就可以使用
+*/
+app.external = {
+    MessageBox = ::User32.MessageBox;
+}
+
+/*
+接收返回值,服务端为什么要用这种格式接收返回值呢？
+当然这不是因为electron的原因，而是作为一个WebSocket服务端，他可能会有较多连接，
+如果每个连接都注册回调函数，如果连接丢失的话，可能就会不必要的浪费时间去回收，
+所以统一用一个同名的回调函数，hSocket，函数名，以及RPC本身参数中附带的信息都可以区分消息来源。
+这样可以避免创建大量重复的回调函数，客户端我们把方便放第一位，而服务端要稍加考虑性能的问题。
+*/
+app.callback("main.hello",function(hSocket,result,err){
+	winform.msgbox(result : err,"调用electron主进程的main.add函数以后返回值了");
+})
+
+//electron窗口准备就绪会触发这个函数
+app.onReady = function(hwndElectron){
+	app.xcall("main.hello","aardio"); 
+}
+
+//WebSocke/RPC中遇到的错误都会触发这个函数,可以在这里自定义错误处理方式
+app.ws.onError = function(hSocket,err){
+	errput(err,"electron/rpc error");//当然也可以在 global.onError 里自定义全部的错误信息怎么显示
+}
+
+//正式的启动electron进程，并打开主页
+app.start("/res/main.aardio");
+
+//来点窗口阴影
+import win.ui.shadow;
+win.ui.shadow(winform);
+
+//再来个可拖动缩放的窗口边框
+import win.ui.resizeBorder;
+win.ui.resizeBorder(winform);
+
+winform.show() 
+win.loopMessage();

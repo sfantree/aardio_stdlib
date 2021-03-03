@@ -1,0 +1,31 @@
+//PHP/CGI服务器
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="Hello World / PHP_CGI 服务器";right=759;bottom=469)
+winform.add()
+/*}}*/
+
+var code = /*
+<html>
+<head> 
+<meta charset="utf-8">
+<title>PHP 测试</title>
+</head>
+<body>
+<?php echo '<p>Hello World / PHP_CGI 服务器</p>'; ?>
+</body>
+</html>
+*/
+string.save("/test.php",code);
+
+import php.simpleHttpServer;
+var url = php.simpleHttpServer.startUrl("/test.php");
+////如果要自行指定php_cgi.exe路径，请改用 process.php.simpleHttpServer.startUrl() 
+
+import web.form;
+var wb = web.form( winform);
+ 
+wb.go(url);
+winform.show();
+
+win.loopMessage();

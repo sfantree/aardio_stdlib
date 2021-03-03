@@ -1,0 +1,129 @@
+﻿//socks5Client 代理客户端
+
+import wsock.tcp.client;
+namespace wsock.tcp;
+
+class socks5Client{
+	ctor(ip,port,user,pwd){
+		
+		this = ..wsock.tcp.client();
+		this.realConnect = this.connect;
+		
+		if( this.realConnect(ip,port) ) {
+			var req = {
+				BYTE ver = 5;
+				BYTE nmethods = 1;
+				BYTE methods[] = {user ? 2 : 0};
+			}
+			this.write(req) 
+				
+			var rep = this.read({
+				BYTE ver;
+				BYTE method;
+			}); 
+			
+			if(rep[["ver"]]!=5){
+				return null,"服务器不支持SOCKS5协议";
+			}
+	
+			if( rep[["method"]] == 2 ){
+				if(! (user && pwd) ){
+					return null,"代码服务器需要用户名与密码";
+				}
+				var req = {
+					BYTE ver = 5;
+					BYTE userLen = #user;
+					BYTE user[] = user;
+					BYTE pwdLen = #pwd;
+					BYTE pwd[] = pwd;
+				}
+				this.write(req) 
+					
+					var rep = this.read({
+					BYTE ver;
+					BYTE status;
+				}); 
+				
+				if(rep.status!=0) return null,"认证失败"
+			}
+			elseif(rep[["method"]]){
+				return null,"连接代理服务器时遇到错误";
+			}
+			
+			this.connect = function(ip,port){
+				if( (port===null) && (ip===null) ) error("请指定域名或端口地址",2);
+				if(!#ip){
+					error("域名或IP不能为空",2);
+				}
+				
+				var atyp = ..string.match(ip,"^\d+\.\d+\.\d+\.\d+$") ? 1 : 3;
+		
+				if(atyp==1){
+					var service = ..wsock.sockaddr_in( ip,port );
+					if(!service) return;
+					service.sin_family = 0x2/*_AF_INET*/
+					
+					//必须一次写过去
+					this.write({ 
+						BYTE ver = 5;
+							BYTE cmd = 1;
+							BYTE rsv = 0;
+							BYTE atyp = atyp;
+							struct dstAddr = service.sin_addr; 
+							WORD dstPort = service.sin_port;
+							_struct_aligned = 1;
+					} );  	
+					}
+				else {
+					//必须一次写过去
+					this.write({ 
+						BYTE ver = 5;
+							BYTE cmd = 1;
+							BYTE rsv = 0;
+							BYTE atyp = atyp; 
+							BYTE len = #ip;
+							BYTE domain[] = ip;
+							WORD dstPort = ..wsock.htons((tonumber(port)));
+							_struct_aligned = 1;
+					} ); 
+				}
+					
+				var rep = this.read({
+					BYTE ver;BYTE status;BYTE rsv;BYTE atyp;   
+				} )
+				
+				if(!rep) return false,"协议错误";
+				if(rep.status){
+					return false,({"普通SOCKS服务器连接失败";"现有规则不允许连接";"网络不可达";"主机不可达";
+						"连接被拒";"TTL超时";"不支持的命令";"不支持的地址类型";"0xFF未定义"})[rep.status];
+				} 
+				
+				if( rep.atyp =  1 ){
+					if(!this.read({INT bndAddr;})) return false; 
+					if(!this.read({WORD bndPort;})) return false;  
+				}  
+				else if( rep.atyp =  3 ){
+					var rep = this.read({
+						BYTE len;   
+					});
+					this.read(rep.len);
+					this.read({WORD bndPort;}); 
+				}
+				else {
+					return false;
+				} 
+				
+				this.readyState = 1;
+				return true; 
+			};
+		}
+		else {
+			return null,"连接服务器失败";
+		}
+	};
+}
+
+/**intellisense()
+wsock.tcp.socks5Client(.(IP或域名,端口号,用户名,密码) = 创建SOCKS5代理TCP客户端，用户名和密码为可选参数\n连接失败返回null,错误信息
+wsock.tcp.socks5Client() = !stdtcpclient.
+end intellisense**/

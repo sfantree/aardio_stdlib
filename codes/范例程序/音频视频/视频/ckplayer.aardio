@@ -1,0 +1,64 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="ckplayer播放器交互控制演示";right=759;bottom=469)
+winform.add(
+btnPause={cls="button";text="暂停播放";left=540;top=428;right=729;bottom=464;db=1;dr=1;z=2};
+custom={cls="custom";text="custom";left=16;top=15;right=744;bottom=415;db=1;dl=1;dr=1;dt=1;z=1}
+)
+/*}}*/
+
+import com.flash;
+var flash = com.flash(winform.custom);
+flash.allowFullScreen = true;
+flash.allowScriptAccess = "always";
+flash.allowNetworking = "all";
+flash.quality = 'high';
+flash.bgcolor = '#000';
+
+//导出函数给flash脚本
+import inet.url;
+flash.external = { 
+    playerstop = function(){
+        
+    }
+    loaded = function(){
+        flash.addListener("time","time");//添加事件 
+    } 
+    time = function(sec){
+        //播放进度触发此事件,sec为秒数  
+    }
+}
+
+//flashVars参数说明： http://www.ckplayer.com/tool/help/29.htm
+flash.flashVars ={  
+    f = "http://download.aardio.com/demo/video.aardio";//视频地址
+    c = 0;//调用flash.external.ckstyle获取配置
+    e = 0;//播放结束调用flash.external.playerstop
+    loaded = "loaded"; //播放成功调用 flash.external.loaded
+    p = 1;//自动播放
+    v = 80; //音音,-1静音
+}
+
+/*
+可以将ckplayer.swf下载到本地，
+因为ckplayer.swf还需要通过网址调用插件，语言包这些，
+使用 wsock.tcp.simpleHttpServer 创建嵌入式HTTP服务器
+*/
+import wsock.tcp.simpleHttpServer;
+//flash.movie = wsock.tcp.simpleHttpServer.startUrl("\res\ckplayer.swf");//ckplayer6.8
+flash.movie = "http://download.aardio.com/demo/ckplayer/ckplayer.swf";
+flash.play();
+
+
+winform.btnPause.oncommand = function(id,event){
+    
+    /*
+    所有可用的flash播放器控制函数
+    http://www.ckplayer.com/tool/help/54.htm
+    注意在aardio旧版里要写 flash.xcall("videoPause")
+    */
+    flash.videoPause();
+}
+
+winform.show() 
+win.loopMessage();

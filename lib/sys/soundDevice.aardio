@@ -1,0 +1,46 @@
+//soundDevice 声音设备
+import com.lite;
+import com.interface.IKsPropertySet;
+namespace sys.soundDevice;
+ 
+var dll = ..com.lite("dsound.dll")
+
+class DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_DATA{
+    int dataType;
+    int dataFlow;
+    struct deviceId = ..win.guid();
+    string description;
+    string module;
+    string interface;
+    INT waveDeviceId;
+}
+
+DSPROPSETID_DirectSoundDevice = ..win.guid(0x84624f82, 0x25ec, 0x11d1, 0xa4, 0xd8, 0x0, 0xc0, 0x4f, 0xc2, 0x8a, 0xca);
+
+enum = function(callback){
+
+    var propertySet = dll.createInstance("{11AB3EC0-25EC-11d1-A4D8-00C04FC28ACA}",..com.interface.IKsPropertySet);
+        
+    var proc = function(pdsdd,pv){
+        var dsd = ..raw.convert(pdsdd,DSPROPERTY_DIRECTSOUNDDEVICE_DESCRIPTION_DATA() );
+        dsd.description = ..string.fromto(dsd.description,0,65001);
+        dsd.module = ..string.fromto(dsd.module,0,65001);
+        dsd.interface = ..string.fromto(dsd.interface,0,65001);
+        return callback(dsd.description,dsd.dataFlow,dsd.dataType,dsd.deviceId,dsd.module,dsd.interface,dsd.waveDeviceId);
+    }
+    
+    var dsdd = {
+        pointer callback = ..raw.tostdcall(proc,"bool(pointer pdsdd,pointer pv) ");
+        pointe context;
+    }
+    
+    propertySet.Get( DSPROPSETID_DirectSoundDevice,7/*DSPROPERTY_DIRECTSOUNDDEVICE_ENUMERATE*/,null,0,..raw.buffer(dsdd),..raw.sizeof(dsdd),0)
+    ..com.Release(propertySet);
+    ..raw._release(dsdd.callback);
+}
+
+/**intellisense()
+sys.soundDevice.enum( callback ) = @.enum(\n    function(description,dataFlow,dataType,deviceId,module,interface,waveDeviceId){\n        if( !dataFlow ){\n            __\n        }\n        return true;\n    }\n)	
+_DIRECTSOUNDDEVICE_DATAFLOW_RENDER=@0/*_DIRECTSOUNDDEVICE_DATAFLOW_RENDER*/
+_DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE=@1/*_DIRECTSOUNDDEVICE_DATAFLOW_CAPTURE*/
+end intellisense**/

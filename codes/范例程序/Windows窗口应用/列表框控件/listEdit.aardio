@@ -1,0 +1,21 @@
+﻿//列表编辑框
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="可编辑listbox演示";right=759;bottom=469)
+winform.add(
+listbox={cls="listbox";left=41;top=15;right=703;bottom=423;edge=1;items={};z=1}
+)
+/*}}*/
+
+import win.ui.listEdit;
+var listEdit = win.ui.listEdit(winform.listbox);
+
+winform.listbox.items = {
+  "双击这里启动编辑";
+  "文本框失去焦点自动完成编辑";
+  "回车也可以完成编辑";
+  "按ESC可以取消编辑"; 
+}
+
+winform.show() 
+win.loopMessage();

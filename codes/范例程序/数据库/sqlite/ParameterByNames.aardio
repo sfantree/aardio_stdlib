@@ -1,0 +1,56 @@
+//使用命名参数
+import sqlite
+
+//打开数据库连接
+var sqlConnection = sqlite("/testParameters.db")
+
+//创建表 
+if( not sqlConnection.existsTable("film") ){  
+	sqlConnection.exec( "CREATE TABLE film(title, length, year, starring);")  
+}  
+ 
+//用@表示命名参数
+var command = sqlConnection.prepare("INSERT INTO film VALUES (@title,@length,@year, 'Jodie Foster');" )
+command.bind.parameterAtNames( 
+	["title"] = "标题";
+	["length"] = 4;
+	["year"] = time.now();
+);
+command.step();
+command.finalize();//释放命令对象,这句如果忘记写会在内存回收时自动调用
+
+//上面的代码也可以简写为一句,如下：
+sqlConnection.prepare("INSERT INTO film VALUES (@title,@length,@year, 'Jodie Foster');" ).step(
+ 	title = "标题11111";
+	length = 4;
+	year = time.now();	
+ )
+ 
+/*
+默认aardio中的string类型字符串存为sqlite的text类型(utf-8文本)，
+aardio中的buffer类型字节数组存为sqlite的blob类型。
+
+可在命名参数名中使用blob,utf8,utf16前缀指定字符串值的编码、或数据类型
+blob前缀显示指定该字符串为二进制数据,下面演示用法。
+*/
+sqlConnection.prepare("INSERT INTO film VALUES (@blobTitle,@length,@year, 'Jodie Foster');" ).step(
+ 	blobTitle = "blob二进制类型原样存储";
+	length = 4;
+	year = time.now();	
+);
+
+sqlConnection.prepare("INSERT INTO film VALUES (@utf16Title,@length,@year, 'Jodie Foster');" ).step(
+ 	utf16Title = string.toUnicode("UTF16编码文本");
+	length = 4;
+	year = time.now();	
+);
+ 
+//迭代方式查询数据 
+import console;
+for title, length, year, starring in sqlConnection.each("SELECT * FROM film") {
+	console.log( title, length, year, starring  ) 
+}
+
+//删除表 
+sqlConnection.exec("drop table film" ); 
+execute("pause")

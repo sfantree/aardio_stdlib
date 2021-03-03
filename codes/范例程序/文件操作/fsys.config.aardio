@@ -1,0 +1,18 @@
+//fsys.config 读写配置文件
+import console;
+import fsys.config;
+
+//写入配置文件
+var cfgPath = io.appData("/aardio/test.fsys.config");
+var cfg = fsys.config(cfgPath)
+cfg.配置文件名.字段名 = {
+	a = 123;
+	b = "字符串"
+}
+
+//读取配置文件
+var cfgPath = io.appData("/aardio/test.fsys.config");
+var cfg = fsys.config(cfgPath)
+console.dumpJson( cfg.配置文件名 )
+
+console.pause()

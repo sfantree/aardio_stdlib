@@ -1,0 +1,29 @@
+//UDP广播
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="UDP 广播服务端";right=759;bottom=469)
+winform.add(
+btnClient={cls="button";text="测试客户端";left=535;top=390;right=723;bottom=455;z=2};
+edit={cls="edit";left=22;top=17;right=732;bottom=353;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+import wsock.udp.asynClient;
+var udpServer = wsock.udp.asynClient();
+
+udpServer.setBroadcast(true);
+udpServer.bind("0.0.0.0",1000);
+udpServer.onReceive = function(err){
+    var str = udpServer.recvfrom(1024); 
+    winform.edit.print(str)	
+}
+
+winform.btnClient.oncommand = function(id,event){
+    
+    var udpClient = wsock.udp.client();
+    udpClient.setBroadcast(true);
+    udpClient.sendto("test","255.255.255.255",1000); 
+}
+
+winform.show() 
+win.loopMessage();

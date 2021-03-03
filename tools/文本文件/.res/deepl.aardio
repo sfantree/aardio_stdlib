@@ -1,0 +1,33 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add()
+/*}}*/
+
+import web.form;
+var wbDeepl = web.form( winform );  
+wbDeepl.noScriptErr = true;
+wbDeepl.go("https://www.deepl.com/translator"); 
+
+
+winform.getValue = function(){
+	var ggInput = wbDeepl.querySelector(".lmt__inner_textarea_container textarea")
+	if( ggInput ){
+		return ggInput.innerText;
+	}
+}
+
+winform.setValue = function(value){
+	var ggInput = wbDeepl.querySelector(".lmt__inner_textarea_container textarea")
+	if( ggInput ){
+		ggInput.innerText = value;
+	}
+}
+
+winform.translate = function(word){
+	wbDeepl.go("https://translate.google.cn/#en/zh-CN/" + word); 
+}
+
+winform.show();
+win.loopMessage();
+return winform;

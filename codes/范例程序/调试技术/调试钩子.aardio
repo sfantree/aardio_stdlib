@@ -1,0 +1,44 @@
+import debug;    
+ 
+//注册一个新的调试钩子
+var dbg = debug.hook()
+
+//每行代码触发
+dbg.line = function(line){
+
+    io.print( "line",line )
+    
+    //可用类似sql语法查询调试信息
+    var info = debug.queryinfo(2,"select source,function,upvars,name,currentline,activelines");
+    io.print( info.name,info.name_where /* ,info.source.code*/ )
+}
+
+//调用函数触发
+dbg.call=function(){
+	io.print( "call" )
+	io.print( debug.traceback(,"调用栈",2));
+}
+
+//返回值触发
+dbg.return=function(line){
+	io.print( "return" )
+}
+
+//尾调用触发
+dbg.tailreturn=function(line){
+	io.print( "tailreturn" )
+}
+
+io.open()
+function func(){
+    
+}
+func()
+io.print("aaa") 
+
+dbg.line = null; //注销一个钩子函数
+dbg.call = null; //注销一个钩子函数
+dbg.return = null; //注销一个钩子函数
+dbg.tailreturn = null; //注销一个钩子函数
+ 
+execute("pause")

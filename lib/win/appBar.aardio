@@ -1,0 +1,130 @@
+//appBar 桌面任务栏
+namespace win.appBar;
+
+class APPBARDATA {
+  	INT cbSize = 36;
+  	addr hwnd;
+  	INT uCallbackMessage;
+  	INT uEdge;
+  	struct rc = {
+  		int left;
+		int top;
+		int right;
+		int bottom
+  	}
+  	addr lParam;
+}
+
+message = function(msg,data){ 
+	data = ..table.mix(APPBARDATA(),data); 
+	return ::Shell32.SHAppBarMessage( msg,data );
+}; 
+
+regist = function(hwnd,msg){
+	return message( 0x0/*_ABM_NEW*/,{
+		hwnd = hwnd;
+		uCallbackMessage = msg;
+	} );
+};
+
+unRegist = function(hwnd){
+	return message( 0x1/*_ABM_REMOVE*/,{
+		hwnd = hwnd;
+	} );  
+}; 
+
+autoHide = function(hwnd,hide){ 
+	return message( 0xA/*_ABM_SETSTATE*/,{
+		hwnd = hwnd;
+		lParam = hide ? 0x1/*_ABS_AUTOHIDE*/ : 0x2/*_ABS_ALWAYSONTOP*/
+	} );
+}; 
+
+isAutoHide = function(hwnd){
+	return 1 == message( 0x4/*_ABM_GETSTATE*/,{
+		hwnd = hwnd;
+	} );
+};
+	
+setAutoHideBar = function(hwnd,edge){
+	return message( 0x8/*_ABM_SETAUTOHIDEBAR*/,{
+		hwnd = hwnd;
+		uEdge = edge;
+	} );
+}; 
+
+getAutoHideBar = function() {
+	return message( 7,{uEdge = 0/*_ABE_LEFT*/ }), message( 7,{uEdge = 1/*_ABE_TOP*/}),
+		   message( 7,{uEdge = 2/*_ABE_RIGHT*/}), ( message( 7,{uEdge = 3/*_ABE_BOTTOM*/}) );
+}
+
+find = function(){
+	return ::User32.FindWindowW("Shell_TrayWnd",null);
+}
+
+getTaskBar = function(){ 
+	var data = APPBARDATA();
+	data.hwnd = ::User32.FindWindowW("Shell_TrayWnd",null);
+	data.state = ::Shell32.SHAppBarMessage(0x4/*_ABM_GETSTATE*/,data); 
+	var ret,data =  ::Shell32.SHAppBarMessage(0x5/*_ABM_GETTASKBARPOS*/,data);
+	if(!ret) return;
+	
+	var rc = data.rc; 
+    if (rc.top == rc.left ){ 
+        data.uEdge = rc.bottom < rc.right ? 1/*_ABE_TOP*/ :   0/*_ABE_LEFT*/; 
+    }
+    else {
+        data.uEdge = (rc.top > rc.left) ? 3/*_ABE_BOTTOM*/ : 2/*_ABE_RIGHT*/;;
+    }
+         
+	return data;
+};  
+
+/**intellisense(win.appBar)
+message(.(_ABM__,{} ) = 发送任务栏命令,\n可选在第二个参数中使用表对象指定APPBARDATA属性
+find() = 返回系统任务栏句柄
+getTaskBar() = 返回系统任务栏信息,失败返回null\n!STDAPPBARDATA.
+getAutoHideBar() = 返回左,上,右,下四个被设置为自动隐藏的任务栏句柄
+setAutoHideBar(.( 任务栏句柄,_ABE_BOTTOM ) = 设置为自动停靠
+regist(.(窗口句柄,自定义回调消息ID) = 将窗口注册接收任务栏通知消息,例如 _ABN_FULLSCREENAPP
+unRegist(.(窗口句柄) = 取消注册的任务栏回调消息
+autoHide(.( 任务栏句柄,true) = 设置为自动隐藏
+autoHide(.( 任务栏句柄,false) = 取消自动隐藏
+isAutoHide(.( 任务栏句柄 ) = 任务栏是否自动隐藏
+end intellisense**/
+
+/**intellisense()
+win.appBar = 任务栏
+win.appBar(.(句柄) = 可选指定句柄,\n可选在第二个参数中使用表对象指定APPBARDATA属性
+win.appBar() = !win_appBar. 
+!STDAPPBARDATA.hwnd = 窗口句柄
+!STDAPPBARDATA.state = 状态\n_ABS_前缀常量
+!STDAPPBARDATA.rc = 屏幕区块位置
+!STDAPPBARDATA.rc.left = 左
+!STDAPPBARDATA.rc.top = 上
+!STDAPPBARDATA.rc.right = 右
+!STDAPPBARDATA.rc.bottom = 下
+!STDAPPBARDATA.uEdge = 状态栏靠在屏幕哪个边\n_ABE_ 前缀常量
+
+_ABS_ALWAYSONTOP=@0x2/*_ABS_ALWAYSONTOP*/
+_ABS_AUTOHIDE=@0x1/*_ABS_AUTOHIDE*/
+_ABE_BOTTOM=@0x3/*_ABE_BOTTOM*/
+_ABE_LEFT=@0x0/*_ABE_LEFT*/
+_ABE_RIGHT=@0x2/*_ABE_RIGHT*/
+_ABE_TOP=@0x1/*_ABE_TOP*/
+_ABM_SETSTATE=@0xA/*_ABM_SETSTATE*/
+_ABM_ACTIVATE=@0x6/*_ABM_ACTIVATE*/
+_ABM_GETAUTOHIDEBAR=@0x7/*_ABM_GETAUTOHIDEBAR*/
+_ABM_GETSTATE=@0x4/*_ABM_GETSTATE*/
+_ABM_GETTASKBARPOS=@0x5/*_ABM_GETTASKBARPOS*/
+_ABM_NEW=@0x0/*_ABM_NEW*/
+_ABM_QUERYPOS=@0x2/*_ABM_QUERYPOS*/
+_ABM_REMOVE=@0x1/*_ABM_REMOVE*/
+_ABM_SETAUTOHIDEBAR=@0x8/*_ABM_SETAUTOHIDEBAR*/
+_ABM_SETPOS=@0x3/*_ABM_SETPOS*/
+_ABM_WINDOWPOSCHANGED=@0x9/*_ABM_WINDOWPOSCHANGED*/
+_ABN_FULLSCREENAPP=@0x2/*_ABN_FULLSCREENAPP*/
+_ABN_POSCHANGED=@0x1/*_ABN_POSCHANGED*/
+_ABN_STATECHANGE=@0x0/*_ABN_STATECHANGE*/
+_ABN_WINDOWARRANGE=@0x3/*_ABN_WINDOWARRANGE*/
+end intellisense**/

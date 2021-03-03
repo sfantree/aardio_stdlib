@@ -1,0 +1,24 @@
+import win.ui;
+
+namespace AardioTestControl;
+class SampleForm{
+	ctor(parent,tParam){
+	/*DSG{{*/
+	this = ..win.form(text="test.control";right=757;bottom=467;border="none";exmode="none";mode="child";parent=parent;tParam=tParam)
+	this.add(
+	button={cls="button";text="Button";left=71;top=60;right=283;bottom=150;z=1}
+	)
+	/*}}*/
+	
+	this.button.oncommand = function(id,event){
+		this.externalEvent.onHello("hello")
+	}
+
+	this.show()
+    };
+}
+
+if( !owner ) ..AardioTestControl.SampleForm().doModal();
+/**intellisense()
+AardioTestControl.SampleForm() = 窗口类\n!winform.
+end intellisense**/

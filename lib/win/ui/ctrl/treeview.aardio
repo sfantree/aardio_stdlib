@@ -1,0 +1,909 @@
+//treeview 树形控件
+import win.ui.ctrl.metaProperty;//导入控件属性元表支持
+namespace win.ui.ctrl; 
+
+class treeview{
+    ctor(parent,tParam){ 
+    	if(tParam){ 
+    		tParam.cls = "SysTreeView32";
+			if(tParam.edge) 
+				tParam.exstyle |= 0x20000/*_WS_EX_STATICEDGE*/;	
+	 		
+	 		//允许复选框作为树项控件的项目
+	 		if(tParam.chkBox)
+	 			tParam.style |= 0x100/*_TVS_CHECKBOXES*/
+	 			
+	 		// 阻止发送TVN_BEGINDRAG通知消息
+	 		if(tParam.nDrag)
+	 			tParam.style |= 0x10/*_TVS_DISABLEDRAGDROP*/ 
+	 		
+	 		//允许用户编辑项目的标签
+	 		if( tParam.editable )
+	 			tParam.style |= 8/*_TVS_EDITLABELS*/	 
+	
+			if( tParam.fullRow )
+	 			tParam.style |= 0x1000/*_TVS_FULLROWSELECT*/
+	 			
+	 		//显示分层项目时使用线条
+	 		if( ! tParam.nLine )
+	 			tParam.style |= 2/*_TVS_HASLINES*/ 
+			
+			//用线条将根项目连接起来,必须同时设置TVS_HASLINES
+			if( ! tParam.nLineRoot )
+	 			tParam.style |= 4/*_TVS_LINESATROOT*/
+	 			
+			if( ! tParam.nButton )
+	 			tParam.style |= 1/*_TVS_HASBUTTONS*/
+	 		
+	 		if( tParam.nTip )
+	 			tParam.style |= 0x80/*_TVS_NOTOOLTIPS*/
+	 			
+	 		if( tParam.infoTip )
+	 			tParam.style |=  0x800/*_TVS_INFOTIP*/ 
+	 			
+	 		//仅展开选中项
+	 		if(tParam.singleExpand === null || tParam.singleExpand ) { 
+    			tParam.style |= 0x400/*_TVS_SINGLEEXPAND*/
+    		}
+	 			
+			if(tParam.asel===null || tParam.asel ) 
+    			tParam.style |= 0x20/*_TVS_SHOWSELALWAYS*/
+    				
+    		if( !  tParam.vscroll )
+    			tParam.style |= 0x2000/*_TVS_NOSCROLL*/ 
+    			
+    		if( !  tParam.hscroll )
+    			tParam.style |= 0x8000/*_TVS_NOHSCROLL*/ 
+    			
+    		this._customItemData = {};
+    		
+    	}
+    }
+	@_metaProperty;
+}
+  
+namespace treeview{
+	
+	_metaProperty = ..win.ui.ctrl.metaProperty(  
+		bgcolor = {
+			_get = function(){
+				::SendMessage(owner.hwnd,0x111F/*_TVM_GETBKCOLOR*/);
+			}
+			_set = function(v){
+				::SendMessageInt(owner.hwnd,0x111D/*_TVM_SETBKCOLOR*/,0,v);
+			} 
+		};
+		color = {
+			_get = function(){
+				::SendMessage(owner.hwnd,0x1120/*_TVM_GETTEXTCOLOR*/);
+			}
+			_set = function(v){
+				::SendMessageInt(owner.hwnd,0x111E/*_TVM_SETTEXTCOLOR*/,0,v);
+			} 
+		};
+		getImageList = function (wParam = 0 /*_TVSIL_NORMAL*/) {
+				return topointer( ::SendMessageInt(owner.hwnd, 0x1108/*_TVM_GETIMAGELIST*/, wParam, 0) ); 
+		};
+		setImageList = function (v,wParam = 0 /*_TVSIL_NORMAL*/) {  
+				return topointer( ::SendMessage(owner.hwnd, 0x1109/*_TVM_SETIMAGELIST*/,topointer(wParam), v) );
+		};
+		count = {
+			_get = function(){  
+				return ::SendMessage(owner.hwnd, 0x1105/*_TVM_GETCOUNT*/ )  
+			} 
+		};
+		visibleCount = {
+			_get = function(){  
+				return ::SendMessage(owner.hwnd, 0x1110/*_TVM_GETVISIBLECOUNT*/ )  
+			} 
+		};
+		editLabel = function(hItem){
+			::SendMessage(owner.hwnd,0x1141/*_TVM_EDITLABELW*/, ,hItem);
+		};
+		endEdit = function(cancel){
+			::User32.SendMessage(owner.hwnd,0x1116/*_TVM_ENDEDITLABELNOW*/,!!cancel,null);
+		};
+		getEditControl = function(){
+			var hwnd = ::SendMessage(owner.hwnd, 0x110F/*_TVM_GETEDITCONTROL*/ )
+			if( hwnd ){
+				var ctrl = ..win.ui.ctrl.edit();
+				ctrl.hwnd = hwnd;
+				return ctrl;
+			} 
+		}
+		getItem = function(item){
+			if(type(item)!=type.table){
+				item = ..table.assign( TVITEM(), { hItem = item } )
+				item.mask = 1/*_TVIF_TEXT*/ 
+			}
+			elseif(!item._struct)
+				item = ..table.assign( TVITEM(), item )
+				
+			if(item.mask & 1/*_TVIF_TEXT*/ ){
+				if( ! item.cchTextMax ) item.cchTextMax = 100;
+				item.textPtr = ..raw.buffer(item.cchTextMax*2);
+			} 
+			if(!item.hItem){
+				item.hItem = owner.getSelection();
+				if(!item.hItem)
+					return;
+			}
+			
+			if( ::SendMessageByStruct(owner.hwnd,0x113E/*_TVM_GETITEMW*/,0,item) ){ 
+				tvItemCheckMask(item);
+				return item;
+			}
+		}; 
+		setItem = function(item){
+			if(!item._struct)
+				item = ..table.assign( TVITEM(), item )
+			if(item.text){
+				item.mask |= 1/*_TVIF_TEXT*/
+				item.cchTextMax = #item.text /2
+			}
+			if(!item.hItem){
+				item.hItem = owner.getSelection();
+				if(!item.hItem)
+					return;
+			}	
+			tvItemUpdateMask (item);
+			return !!( ::SendMessageByStruct(owner.hwnd,0x113F/*_TVM_SETITEMW*/,0,item) ) 
+		};
+		getItemText = function(hItem,len){
+			var item = owner.getItem( hItem = hItem;mask = 1/*_TVIF_TEXT*/;cchTextMax=len)
+			if( item && ( item.text != _LPSTR_TEXTCALLBACK) ) return item.text;
+		};
+		setItemText = function(hItem,text){
+			return owner.setItem( hItem = hItem;mask = 1/*_TVIF_TEXT*/;text=text) 
+		};
+		getItemPath = function(hItem,len){
+			var tab = { owner.getItemText(hItem) };
+			while( 
+				var hParent = hItem;
+				hParent = owner.getParentItem(hParent); 
+				hParent
+			) {
+				..table.unshift(tab,owner.getItemText(hParent) );
+			}
+			
+			return ..string.join(tab,"\");
+		};
+		setItemState = function(hItem,data,mask = 0xF000/*_TVIS_STATEIMAGEMASK*/){
+			owner.setItem(
+				hItem = hItem;
+				mask = 8/*_TVIF_STATE*/ ;
+				stateMask = mask;
+				state = data;
+			)
+		} 
+		getItemState = function(hItem,mask = 0xF000/*_TVIS_STATEIMAGEMASK*/){
+			return ::SendMessage(owner.hwnd,0x1127/*_TVM_GETITEMSTATE*/,hItem,topointer(mask))
+		}
+		getChecked = function(hItem){
+    		return ( owner.getItemState(hItem,0xF000/*_TVIS_STATEIMAGEMASK*/) >> 12 ) != 1;
+		}
+		setChecked = function(hItem,v=true){
+			return owner.setItemState(hItem,( (v)?2:1 )<<12 ,0xF000/*_TVIS_STATEIMAGEMASK*/) ;
+		}
+		checkAll = function(hItem,v=true){ 
+			var this = owner;
+			this.enum(
+				function(h) this.setChecked(h,v) ,hItem
+			) 
+			this.setChecked(hItem,v);
+			
+			this.enumParent(
+				function(p){ 	
+					var c = false;
+					for( h in this.each(p) ) if( this.getChecked(h) ){
+						c = true; 
+						break;
+					} 
+					 
+					if( this.getChecked(p) == c ) return false;
+					this.setChecked(p,c) ; 
+				},hItem
+			) 
+		}
+		findPath = function(hParent,path){
+			if(!path) {
+				path = hParent;
+				hParent = null;
+			}
+			return owner.find(hParent,..table.unpack( (..string.split(path,"<\>")) ) );
+		} 
+		find = function(hParent,text,...){
+			var tp = type(hParent);
+			if( hParent && tp != "pointer" ){
+				if( tp = "table" ) return owner.find( , ..table.unpack(hParent) );
+				if( tp = "string" ) return owner.find(,hParent,text,...);
+				error("参数@1请指定节点句柄",2);
+			}
+			
+			var hItem;
+			for h in owner.each(hParent){
+				if(owner.getItemText(h)==text){ 
+					hItem = h; 
+					break;
+				}
+			}
+			
+			if(hItem){
+				if(!...) return hItem;
+				owner.expand(hItem);
+				return owner.find(hItem,...)
+			} 
+		}
+		each = function(hRoot){
+			var this = owner;
+			if(!hRoot) hRoot = _TVI_ROOT;
+			var hNext = this.getChildItem(hRoot);
+			
+			return function(){
+				hItem = hNext;
+				if(hItem){
+					hNext = this.getNextSibling (hNext)
+					return hItem;
+				}
+			};
+		}
+		enumParent = function(proc,hItem){
+			var hParent = owner.getParentItem(hItem);
+			if(hParent) {
+				if( proc( hParent,hItem ) === false ) return false;
+				if( owner.enumParent(proc,hParent) === false ) return false;
+			}
+		};
+		enum = function(proc,parent,first){
+			if(!parent) parent = _TVI_ROOT;
+			if(!first) first = owner.getChildItem(parent);
+			if(!first) return;
+			
+			var next = first;
+			do {
+				if( proc( next,parent ) === false ) return false;
+				var child = owner.getChildItem(next)
+				if(child) if( owner.enum( proc,next,child ) === false ) return false;
+				
+				next = owner.getNextSibling (next); //防止在proc里移除hItem
+			}while(next);;
+			
+			return true;
+		}
+		insertItem = function(item,parent,after){
+			var customItemData; 
+			if( type(item) == type.string){
+				item = ..table.assign( TVITEM(), {
+						text = item;
+						cchTextMax = #item;
+						mask = 1/*_TVIF_TEXT*/ 
+					} 
+				)
+			}
+			else{
+				if( #item && ! ( item.text || item.tagName ) ){
+					for(i=1;#item;1){
+						owner.insertItem( item[i],parent,after );
+					}
+					return parent;
+				}; 
+			
+				if(!item._struct){ 
+					customItemData = item;
+					item = ..table.assign( TVITEM(), item )
+				}  
+				
+				//string.xml
+				var tagName = item.tagName;
+				if( tagName ) {
+					if( tagName[1] == '?'# || tagName[1] == '!'# ){
+ 						return;
+ 					}
+ 					if( !item.text )
+ 						item.text = item.label || item.title || item.name || tagName;
+				}
+				if( !item.text ) return; 
+			}
+			tvItemUpdateMask (item);
+			
+			var inst = {
+    			pointer hParent = parent;
+    			pointer hInsertAfter = after; 
+    			struct item = item; 
+			}  
+			
+			var hItem = topointer( ::SendMessageByStruct(owner.hwnd,0x1132/*_TVM_INSERTITEMW*/,0,inst ) )
+			if( hItem ){
+				var children = item.children || item;
+				for(i=1;#children;1){
+					if( ! ( item.tagName && children[i].text ) )
+						owner.insertItem(children[i],hItem) 
+				} 
+				
+				owner._customItemData[hItem] = customItemData;
+			} 
+			
+			return hItem;
+		};
+		setItemData = function(hItem,data){
+			owner._customItemData[hItem] = data;
+		};
+		getItemData = function(hItem){
+			return owner._customItemData[hItem];
+		};
+		getParentItemData = function(hItem){
+			var hp = owner.getNextItem(hItem,3/*_TVGN_PARENT*/);
+			return hp ? owner._customItemData[hp];
+		};
+		insertTable = function(tab,hParent){
+			if(type(tab)=="table"){
+				for k,v in ..table.eachName(tab){
+					var t = type(v)=="table";
+					var hItem = owner.insertItem(t?k:k+": "+tostring(v),hParent)
+					owner.setItemData(hItem,v);
+					
+					if(t){ owner.insertTable(v,hItem); } 
+				}
+				
+				for(i=1;#tab){
+					var v = tab[i];
+					if(type(v)=="table"){ 
+						var hItem = owner.insertItem("["+i+"]",hParent);
+						owner.setItemData(hItem,v);
+						owner.insertTable(v,hItem);
+					}
+					else {
+						owner.insertItem(tostring(v),hParent);
+					}
+				}  
+			} 	
+		};
+		clear = function(){
+			for(k,v in owner._customItemData){
+				owner._customItemData[k] = null; 
+			} 
+			return owner.delItem(_TVI_ROOT);
+		}; 
+		delItem = function(hItem){
+			owner._customItemData[hItem] = null;
+			var ret = !!::SendMessage(owner.hwnd,0x1101/*TVM_DELETEITEM*/,,hItem )  
+			if( ! ::SendMessageInt(owner.hwnd,0x110A/*_TVM_GETNEXTITEM*/,0/*_TVGN_ROOT*/,0) ){ 
+				 ::SendMessage( owner.hwnd,0x5/*_WM_SIZE*/);
+			}
+			return ret; 
+		};
+		getNextItem = function(hItem,code=1/*_TVGN_NEXT*/){
+			return ::User32.SendMessageP(owner.hwnd,0x110A/*_TVM_GETNEXTITEM*/,code,hItem);
+		};
+		getChildItem = function(hItem){
+			return ::User32.SendMessageP(owner.hwnd,0x110A/*_TVM_GETNEXTITEM*/,4/*_TVGN_CHILD*/,hItem); 
+		};
+		getNextSibling = function(hItem){
+			return ::User32.SendMessageP(owner.hwnd,0x110A/*_TVM_GETNEXTITEM*/,1/*_TVGN_NEXT*/,hItem);  
+		};
+		getPrevSibling  = function(hItem){
+			return owner.getNextItem(hItem,2/*_TVGN_PREVIOUS*/)
+		};
+		getParentItem  = function(hItem){
+			return owner.getNextItem(hItem,3/*_TVGN_PARENT*/)
+		};
+		getFirstVisible  = function(){
+			return owner.getNextItem( ,5/*_TVGN_FIRSTVISIBLE*/)
+		};
+		getNextVisible  = function(hItem){
+			return owner.getNextItem(hItem,6/*_TVGN_NEXTVISIBLE*/)
+		};
+		getPrevVisible  = function(hItem){
+			return owner.getNextItem(hItem,7/*_TVGN_PREVIOUSVISIBLE*/)
+		}; 
+		getSelection  = function(){
+			return ::User32.SendMessageP(owner.hwnd,0x110A/*_TVM_GETNEXTITEM*/,9/*_TVGN_CARET*/,null); 
+		};
+		getDropHilight  = function(){
+			return owner.getNextItem( ,8/*_TVGN_DROPHILITE*/)
+		};
+		getFirst  = function(){
+			return owner.getNextItem( ,0/*_TVGN_ROOT*/)
+		} ;
+		getRoot  = function(){
+			return _TVI_ROOT;
+		} ;
+		ensureVisible  = function(hItem){
+			return ::SendMessage(owner.hwnd,0x1114/*_TVM_ENSUREVISIBLE*/,,hItem);
+		}; 
+		getEditHwnd = function(){
+			return ::SendMessage(owner.hwnd,0x110F/*_TVM_GETEDITCONTROL*/);
+		};
+		isExpandedOnce = function(hItem){
+			return (owner.getItemState(hItem,0x40/*_TVIS_EXPANDEDONCE*/) & 0x40/*_TVIS_EXPANDEDONCE*/ )== 0x40/*_TVIS_EXPANDEDONCE*/;
+		};
+		isExpanded = function(hItem){
+			return (owner.getItemState(hItem,0x20/*_TVIS_EXPANDED*/) & 0x20/*_TVIS_EXPANDED*/) == 0x20/*_TVIS_EXPANDED*/;
+		};
+		expandTo = function(hItem,flag){
+			owner.expand(hItem,flag);
+			var hParent = owner.getParentItem(hItem);
+			if(hParent) return owner.expandTo(hParent);
+		};
+		expand = function(hItem,flag=2/*_TVE_EXPAND*/){
+			if(!hItem) hItem = owner.getSelection(); 
+			if(hItem) return ::SendMessage(owner.hwnd,0x1102/*_TVM_EXPAND*/,topointer(flag),hItem);
+		};
+		expandAll = function(hItem){
+			var this = owner;
+			this.enum( function(h) this.expandAll(h), hItem);
+			this.expand(hItem);
+		};
+		collapse = function(hItem){
+			return owner.expand(hItem,1/*_TVE_COLLAPSE*/)
+		};
+		collapseReset = function(hItem){
+			return owner.expand(hItem,1/*_TVE_COLLAPSE*/ | 0x8000/*_TVE_COLLAPSERESET*/ )
+		};
+		toggle = function(hItem){
+			return owner.expand(hItem,3/*_TVE_TOGGLE*/)
+		};
+		expandPartial  = function(hItem){
+			return owner.expand(hItem,1/*_TVE_COLLAPSE*/ | 0x4000/*_TVE_EXPANDPARTIAL*/ )
+		};
+		getItemRect  = function(hItem,fItem=false){
+			var rc = ::RECT(tonumber(hItem : owner.getSelection() ));
+			if( ::SendMessageByStruct(owner.hwnd,0x1104/*_TVM_GETITEMRECT*/,tonumber(fItem),rc) )
+				return rc;
+		};
+		setSelected = function(hItem,flag=9/*_TVGN_CARET*/){
+			return ::SendMessage(owner.hwnd,0x110B/*_TVM_SELECTITEM*/ ,topointer(flag),hItem)
+		};
+		selDropHiLite = function(hItem){
+			return owner.setSelected(hItem,8/*_TVGN_DROPHILITE*/)
+		};
+		selFirstVisible = function(hItem){
+			return owner.setSelected(hItem,5/*_TVGN_FIRSTVISIBLE*/)
+		}; 
+		hitTest = function(x,y,screen=false){
+			if( !(x && y) ){
+				x,y = ..win.getMessagePos();
+				screen = true;
+			}
+			var hinfo = TVHITTESTINFO();
+			if(screen) x,y = ..win.toClient(owner.hwnd,x,y)
+			hinfo.pt.x = x; hinfo.pt.y = y; 
+			if( ::SendMessageByStruct(owner.hwnd,0x1111/*_TVM_HITTEST*/,0,hinfo) )
+				return hinfo.hItem,hinfo.flags;
+		};
+		getNotifyMessage = function(code,ptr){
+			if(type(ptr)!=type.pointer)
+				error("请指定有效NMTREEVIEW指针",2) 
+				
+			if( code == 0xFFFFFE3A/*_TVN_ITEMEXPANDINGW*/ || code == 0xFFFFFE39/*_TVN_ITEMEXPANDEDW*/ 
+				|| code == 0xFFFFFE3E/*_TVN_SELCHANGINGW*/ || code == 0xFFFFFE3D/*_TVN_SELCHANGEDW*/ ) {
+				var nm =  ..raw.convert(ptr,NMTREEVIEW() ); 
+				tvItemCheckMask(nm.itemOld)
+				tvItemCheckMask(nm.itemNew)
+				return nm;
+			} 
+		};
+		getNotifyCustomDraw = function(code,ptr){
+			if(type(ptr)!="pointer") error("请指定有效NMLISTVIEW指针",2)  
+			if( code == 0xFFFFFFF4/*_NM_CUSTOMDRAW*/ ){ 
+				var lvcd =  ..raw.convert(ptr,{
+  					struct nmcd =  {
+						struct hdr = { addr hwndFrom; ADDR idFrom; INT code; }
+						int dwDrawStage;
+						pointer hdc;
+						struct rc = ::RECT();//Handling subitem pre-paint messages on Windows XP receives incorrect top and bottom values
+						addr dwItemSpec;
+						int uItemState;
+						pointer lItemlParam;
+					}
+  					int clrText;
+  					int clrTextBk;
+  					int iLevel;
+				}  );
+				lvcd.update = function(){
+					..raw.mixin(ptr,lvcd);
+				}
+				return lvcd;
+			} 
+		};
+		getNotifyDispInfo = function(code,ptr){
+			if(type(ptr)!=type.pointer)
+				error("请指定有效NMTREEVIEW指针",2) 
+				
+			if(code==0xFFFFFE3C/*_TVN_GETDISPINFOW*/ || code == 0xFFFFFE34/*_TVN_ENDLABELEDITW*/ ){ 
+				var nm =  ..raw.convert(ptr,TV_DISPINFO() ); 
+				tvItemCheckMask(nm.item) 
+				return nm;
+			} 
+		} ;
+	);
+	
+	// @Deprecated
+	namespace _metaProperty{
+		getTreeNotifyDispInfo = getNotifyDispInfo;
+		getTreeNotifyMessage = getNotifyMessage;
+		getTreeItem = getItem;
+		setTreeItem = setItem;
+		editLable = editLabel; 
+	};
+ 
+ 	_LPSTR_TEXTCALLBACK = topointer(-1)/*_LPSTR_TEXTCALLBACK*/;
+ 	
+	class TVITEM {
+    	INT mask = 0;
+    	pointer hItem;
+    	INT state;
+    	INT stateMask;
+    	ptr textPtr; // 这里有可能是无效的指针
+    	int cchTextMax;
+    	int iImage;
+    	int iSelectedImage;
+    	int cChildren;
+    	INT lParam; 
+	}; 
+	
+	tvItemCheckMask = function(item){
+		if( (item.mask & 1/*_TVIF_TEXT*/) && (item.textPtr) ) {
+			if( item.textPtr != _LPSTR_TEXTCALLBACK)  item.text = ..string.str( ..string.fromUnicode(item.textPtr,,item.cchTextMax*2) );
+			else item.textPtr = _LPSTR_TEXTCALLBACK;
+		}
+		else 
+			item.text = null;
+	}
+	
+	tvItemUpdateMask  = function(item){
+		 
+		if( item.text ){
+			item.textPtr = item.text;
+			if( type(item.textPtr) == type.buffer ) {
+				item.cchTextMax = #item.textPtr /2;
+			}
+			elseif( type(item.textPtr) != type.pointer ) {
+				item.textPtr = ..string.toUnicode( (tostring(item.textPtr) ) );
+				item.cchTextMax = #item.textPtr /2;
+			}; 
+			item.mask |= 1/*_TVIF_TEXT*/;
+		}
+		if( item.cChildren !==null ){
+			item.mask |= 0x40/*_TVIF_CHILDREN*/ 
+		}
+		if( item.state !==null ){
+			item.mask |= 8/*_TVIF_STATE*/  
+		}
+		if( item.iSelectedImage !==null ){
+			item.mask |= 0x20/*_TVIF_SELECTEDIMAGE*/  
+		}
+		if( item.iImage !==null ){
+			item.mask |=  2/*_TVIF_IMAGE*/  
+		}
+		if( item.lParam !==null ){
+			item.mask |= 4/*_TVIF_PARAM*/ 
+		}
+	}  
+	 
+	var TVITEM = TVITEM;
+	
+	class TVHITTESTINFO {
+    	struct pt = ::POINT();
+    	INT flags;
+    	pointer hItem;
+	};
+ 
+	class NMTREEVIEW {
+    	struct hdr = ::NMHDR();
+    	INT action; 
+    	struct itemOld =  TVITEM();
+    	struct itemNew =  TVITEM();
+    	struct ptDrag = ::POINT();
+	} ; 
+	class TV_DISPINFO { 
+		struct hdr = ::NMHDR(); 
+		struct item =  TVITEM();
+  	}  
+  	
+	_TVI_ROOT = topointer(-0x10000)
+	_TVI_FIRST = topointer(-0x0FFFF)
+	_TVI_LAST = topointer(-0x0FFFE)
+}
+
+/**intellisense(!treeview)  
+getNotifyMessage() = !NMTREEVIEW.
+getNotifyDispInfo() = !TV_DISPINFO.
+setItemData(.(hItem,data) = 设置关联数据\ndata可以是任意对象\n如果添加项时使用的参数是表而不是结构体,默认设置为关联数据
+getItemData(.(hItem) = 返回节点关联数据
+getParentItemData(.(hItem) = 返回父节点关联数据
+getNotifyDispInfo(code,ptr) = 该函数限用于onnotify通知回调函数中\ncode参数为通知码,ptr参数为NMHDR指针\n如果NMHDR指针指向TV_DISPINFO对象则返回该对象,否则返回空值
+getNotifyMessage(code,ptr) = 该函数限用于onnotify通知回调函数中\ncode参数为通知码,ptr参数为NMHDR指针\n如果code不是大于_TVN_FIRST,并小于_TVN_LAST的消息,\n该函数返回空值,否则返回NMTREEVIEW对象.
+getEditControl() = 开始编辑时返回编辑控件,\n此控件在完成编辑后会自动销毁,不必手动销毁\n取消发送_WM_CANCELMODE消息即可\n!edit.
+visibleCount = 获取可见项总数
+imageList =  获取设置图像列个\n支持 win.imageList 对象
+hitTest(.(x坐标,y坐标,是否屏幕坐标) = 该函数返回指定坐标的句柄,参数三可省略,默认为false.\n如果不指定任何参数,则自动调用 win.getMessagePos() 获取消息坐标\n第二个返回值指定测试结果,该值可以是一个或多个_TVHT_开头的常量组合\n
+setSelected() = 不选定任何节点
+setSelected(hItem) = 选定节点\n参数指定节点句柄
+selDropHiLite(hItem) = 选定节点\n似拖放操作的目标项目高亮显示\n参数指定节点句柄
+selFirstVisible(hItem) = 选定节点并设置到可视区第一行\n参数指定节点句柄
+getItemRect(hItem) = 返回句柄指定节点整行区块(RECT对象)\n省略节点句柄则取当前选中节点
+getItemRect(hItem,true) = 返回句柄指定节点文本区块(RECT对象)\n省略节点句柄则取当前选中节点
+getEditHwnd() = 返回编辑文本框句柄; 
+expand(hItem) = 展开项\n参数为节点句柄,省略则取当前选中项
+expandAll(hItem) = 展开指定项,并展开指定项的所有下级子级点\n包含子级点的所有下级子节点都会被展开
+isExpandedOnce(hItem) = 节点是否至少展开过一次
+isExpanded(hItem) = 节点是否展开状态
+expandTo(hItem) = 展开项以及其所有上级父节点\n参数为节点句柄,省略则取当前选中项
+collapse(hItem) = 折叠项\n参数为节点句柄,省略则取当前选中项
+collapseReset(hItem) = 折叠并删除子项\n参数为节点句柄,省略则取当前选中项
+toggle(hItem) = 折叠的就展开,展开的就折叠 \n参数为节点句柄,省略则取当前选中项
+expandPartial(hItem) = 部分展开\n参数为节点句柄,省略则取当前选中项
+count = 获取项目总数
+ensureVisible(hItem) = 确保指定项目是可见的,通过展开父项目或滚动树型控件窗,\n参数为节点句柄
+editLabel(hItem) = 开始编辑项,参数为节点句柄
+endEdit(true) = 结束编辑并取消
+endEdit() = 结束编辑并 
+getItem(__) = 返回TVITEM对象,参数为TVITEM结构体或指定部分成员的table对象.\n参数一也可以是空值,或树节点句柄\n如果参数未指定节点句柄,则取当前选中节点
+setItem(__) = 更新项节点,参数为TVITEM结构体或指定部分成员的table对象\n如果参数未指定节点句柄,则取当前选中节点\n成功返回true;\n此函数可自动检测非空成员并自动设定相应mask位
+getItemPath(.(节点句柄) = 返回节点路径,以反斜杠分隔父子项目文本\n省略节点参数则取当前选中节点
+getItemText(.(节点句柄,缓冲区长度) = 返回节点文本\n省略节点参数则取当前选中节点\n缓冲区长度参数可省略,默认为100
+setItemText(.(节点句柄,文本) = 设置节点文本\n省略节点参数则取当前选中节点
+clear() = 清空所有项
+delItem(hItem__/*节点句柄*/) = 删除节点\n参数:节点句柄 
+getChildItem(hItem__/*节点句柄*/) = 返回子节点\n参数:节点句柄 
+getNextSibling (hItem__/*节点句柄*/) = 返回后面的兄弟节点\n参数:节点句柄 
+getPrevSibling(hItem__/*节点句柄*/) = 返回前面的兄弟节点\n参数:节点句柄
+getParentItem(hItem__/*节点句柄*/) = 返回父节点\n参数:节点句柄
+getNextItem(hItem__/*节点句柄*/) = 返回下一个节点,\n第二个参数可选使用 _TVNI_ 前缀的常量指定选项
+getFirstVisible() = 返回第一个可见节点\n参数:节点句柄
+getNextVisible(hItem__/*节点句柄*/) = 返回下一个可见节点\n参数:节点句柄
+getPrevVisible(hItem__/*节点句柄*/) = 返回上一个可见节点\n参数:节点句柄
+getChecked(hItem__/*节点句柄*/) = 返回指定项的复选框是否勾选
+setChecked(.(节点句柄,是否选中) = 勾选指定项的复选框\n参数@2,默认值是true
+checkAll(.(节点句柄,是否选中) = 勾选或取消勾选所有下级子节点\n并且更新所有上级父节点的勾选状态为：是否有任意的子节点是勾选状态\n参数@1如果不指定则表示根节点(_TVI_ROOT)\n参数@2不指定则默认赋值为true
+getSelection() = 返回当前选中节点 
+getDropHilight() ＝ 返回拖放操作的目标项目;
+getRoot() = 返回根节点( TVI_ROOT )\n注意TVI_ROOT的子节点并没有父节点
+getFirst() = 返回树视图中的第一个节点\n也即_TVI_ROOT的第一个子节点
+insertItem(.("插入文本",父项,前面的子项) = 参数@1可以是普通文本,\n可使用数组添加多个兄弟节点,使用children成员添加多个子节点\n参数@2指定父项(可省略),参数@3指定插入位置前面的子项(可省略)\n返回新节点句柄,示例\nvar item = winform.treeview.insertItem("子节点",item)
+insertItem(.(插入TVITEM结构体,父项,前面的子项) = 参数@1可以是TVITEM结构体或指定部分成员的table对象\n参数@1可使用数组添加多个兄弟节点,使用children成员添加多个子节点\n此函数可自动检测非空成员并自动设定相应mask位\n参数@2指定父项(可省略),参数@3指定插入位置前面的子项(可省略)\n返回新节点句柄,示例\n\nvar item = winform.treeview.insertItem( text = "根目录" )
+insertItem(.(数据表,父项,前面的子项) = 参数@1可以使用string.xml对象,\n或者使用相同结构的普通表对象,\n每个节点对象必须指定tagName或text属性,\ntreeview按text,label,title,name,tagName的顺序确定显示标题\n每个节点可以用数组包含子节点(但节点本身必须指定tagName或text属性)\n也可以使用children成员指向一个数组表示多个子节点\n参数@2指定父项(可省略),参数@3指定插入位置前面的子项(可省略)\n返回新节点句柄,\n\n此用法请参考aardio范例中的treeview控件演示、\n以及fsys.asar下面几个库的treeData函数
+insertTable( = 显示表对象中的名值对以及数组
+insertTable(.(tab,hParent) = 显示表对象中的名值对以及数组,\n支持显示嵌套表，表中不应出现循环引用的成员,\n可选用hParent指定父节点句柄
+cls = 设计时类名
+className = 运行时类名
+hwnd = 控件句柄
+id = 控件ID
+text = 控件文本
+_parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+getParent() = 返回父窗口\n
+setParent(__/*控件对象*/) = 改变父窗口 
+addCtrl = @.addCtrl(\n	button={ cls="button";text="button";left=33;top=32;right=126;bottom=81;autoResize=false }  \n)
+hide = 控件是否隐藏
+disabled = 是否禁用
+left = 左侧坐标
+right = 右侧坐标
+top = 顶部坐标
+bottom = 底部坐标
+width = 宽度
+height = 高度
+redraw() = 刷新
+setRedraw(false) = 禁止重绘
+setRedraw(true) = 恢复重绘
+show(true__) = 显示控件
+getRect() = 控件区块位置(::RECT结构体)
+getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+setRect(rc) = 设置控件区块位置(::RECT结构体)  
+setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+getFont() = 控件字体(::LOGFONT结构体)\n!logfont.
+setFont(__/*指定字体*/) = 指定LOGFONT字体对象,或逻辑字体句柄 
+setFont(混入字体属性) = @.setFont(point=10;name="宋体");
+theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+capture = 是否捕获全局鼠标消息
+close() = 关闭控件窗口
+invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+update() = 重绘invalidate函数指定的区块
+threadCallable() = 开启此控件的跨线程调用功能
+getNotifyCustomDraw(code,ptr) =  NM_CUSTOMDRAW通知消息返回NMLVCUSTOMDRAW结构体
+getNotifyCustomDraw() = !NMTVCUSTOMDRAW.
+sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+setFocus() = 设置焦点 
+setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd)
+enum = @.enum(\n	function(hItem,parent){\n		io.print( \n			"节点",hItem ,\n			"父节点",parent \n		)					\n		winform.treeview.setChecked(hItem)\n	}\n)
+enum(回调函数,节点句柄) = @.enum(\n	function(hItem,parent){\n		__/*枚举所有下级子节点,\nhItem为当前节点,parent为当前节点的父节点\n返回false停止枚举*/\n	}\n)
+enumParent(回调函数,节点句柄) = @.enumParent(\n	function(parent,child){\n		__/*枚举所有上级父节点,\nparent为当前父节点,child为该节点的子节点\nchild是上一次枚举到的父节点或者自身\n返回false停止枚举*/\n	}\n)
+getImageList( _TVSIL__ ) = 获取图像列表,\n可选使用 _LVSIL_ 前缀常量指定类型
+setImageList( imageList,_TVSIL__ ) = 指定图像列表,\n可选使用 _LVSIL_ 前缀常量指定类型\ntreeview控件不负责销毁图像列表，用户应在控件不再使用图像列表后释放图像列表。
+findPath(.(父节点,"路径\子项") = 按路径查找子项,展开上级父节点\n父节点参数可省略不写,默认为根节点,
+find(.(父节点,"子项标题",->->->) = 查找子项,展开上级父节点,\n可以用多个文本参数多级向下查找子项,\n父节点参数可省略,参数也可以是一个字符串数组
+each(父节点句柄) = @for hChild in ??.each(){
+	__/*遍历父节点句柄的下级子级点\n不包含子节点的子节点*/
+}
+onDestroy = @.onDestroy = function(){\n	__/*窗口销毁前触发*/\n}
+onnotify = @.onnotify = function(id,code,ptr){\n	__/*通知事件触发*/\n}
+oncommand = @.oncommand = function(id,event){\n	__/*命令事件触发*/\n}
+wndproc = @.wndproc = function(hwnd,message,wParam,lParam){\n	__/*窗口消息回调，返回任意非null值阻止默认回调\nwndproc重复赋值时追加函数而不是覆盖之前的回调\n设为null添除所有消息回调函数\nwndproc也可以是一个表,键要为处理的消息,值为对应的消息回调函数*/	\n}
+getItem() = !tvitem.
+orphanWindow() = 使控件脱离原来的窗口,可以显示在父窗口外面,\n但仍然显示在原来的位置,继续如影随形的跟随父窗口移动或改变大小,\n控件原来的固定边距等参数仍然有效
+end intellisense**/
+
+/**intellisense()
+?win.ui.ctrl.treeview  = !treeview.
+win.ui.ctrl.treeview() = 树形视图控件\n!treeview.
+!NMTREEVIEW.hdr = !nmhdr.
+!NMTREEVIEW.itemOld = !tvitem.
+!NMTREEVIEW.itemNew = !tvitem.
+!NMTREEVIEW.ptDrag = !point.
+!NMTREEVIEW.action = 0; 
+!TV_DISPINFO.hdr = !nmhdr.
+!TV_DISPINFO.item = !tvitem.
+!NMTVCUSTOMDRAW.update() = 更新数据
+!NMTVCUSTOMDRAW.nmcd.dwDrawStage = 绘图状态
+!NMTVCUSTOMDRAW.nmcd.hdr = !nmhdr.
+!NMTVCUSTOMDRAW.nmcd.hdc = 设置句柄
+!NMTVCUSTOMDRAW.nmcd.rc = !rect.
+!NMTVCUSTOMDRAW.nmcd.dwItemSpec = 行序号
+!NMTVCUSTOMDRAW.nmcd.uItemState = uItemState
+!NMTVCUSTOMDRAW.nmcd.lItemlParam = lItemlParam
+!NMTVCUSTOMDRAW.clrText = 文字颜色
+!NMTVCUSTOMDRAW.clrTextBk = 文字背景色 
+!NMTVCUSTOMDRAW.iLevel = 嵌套级别
+!tvitem.mask = 可使用一个或多个TVIF_开头的常量组合\n以指定当前结构体哪些成员有效
+!tvitem.hItem = 节点句柄
+!tvitem.state = 可使用一个或多上TVIS_开头的常量组合
+!tvitem.stateMask = 数值
+!tvitem.text = 文本 
+!tvitem.cchTextMax = 取文本时可在此指定缓冲区长度
+!tvitem.iImage = 项目非选取状态下,要使用的image在图象列表中的索引
+!tvitem.iSelectedImage = 项目选取状态下,要使用的image在图象列表中的索引
+!tvitem.cChildren = 子项目数目\n如果为-1则向父窗体发送_TVN_GETDISPINFO通知消息
+!tvitem.lParam = 数值
+end intellisense***/
+ 
+ /**intellisense()
+_TVI_ROOT=treeview中表示根节点的伪句柄
+_TVI_FIRST=treeview中表示同级节点中第一个节点的伪句柄
+_TVI_LAST=treeview中表示同级节点中最后一个节点的伪句柄
+_TVI_SORT=topointer(-0x0FFFD)/*_TVI_SORT*/
+_TVN_GETDISPINFOW=@0xFFFFFE3C/*_TVN_GETDISPINFOW*/
+_TVS_DISABLEDRAGDROP=@0x10/*_TVS_DISABLEDRAGDROP*/
+_TVS_SHOWSELALWAYS=@0x20/*_TVS_SHOWSELALWAYS*/
+_TVS_RTLREADING=@0x40/*_TVS_RTLREADING*/
+_TVS_TRACKSELECT=@0x200/*_TVS_TRACKSELECT*/
+_TVS_NONEVENHEIGHT=@0x4000/*_TVS_NONEVENHEIGHT*/ 
+_TVS_EX_MULTISELECT=@2/*_TVS_EX_MULTISELECT*/
+_TVS_EX_DOUBLEBUFFER=@4/*_TVS_EX_DOUBLEBUFFER*/
+_TVS_EX_NOINDENTSTATE=@8/*_TVS_EX_NOINDENTSTATE*/
+_TVS_EX_RICHTOOLTIP=@0x10/*_TVS_EX_RICHTOOLTIP*/
+_TVS_EX_AUTOHSCROLL=@0x20/*_TVS_EX_AUTOHSCROLL*/
+_TVS_EX_FADEINOUTEXPANDOS=@0x40/*_TVS_EX_FADEINOUTEXPANDOS*/
+_TVS_EX_PARTIALCHECKBOXES=@0x80/*_TVS_EX_PARTIALCHECKBOXES*/
+_TVS_EX_EXCLUSIONCHECKBOXES=@0x100/*_TVS_EX_EXCLUSIONCHECKBOXES*/
+_TVS_EX_DIMMEDCHECKBOXES=@0x200/*_TVS_EX_DIMMEDCHECKBOXES*/
+_TVS_EX_DRAWIMAGEASYNC=@0x400/*_TVS_EX_DRAWIMAGEASYNC*/
+_TV_FIRST=@0x1100/*_TV_FIRST*/
+_TVM_DELETEITEM=@0x1101/*__TVM_DELETEITEM*/
+_TVM_INSERTITEMW=@0x1132/*_TVM_INSERTITEMW*/ 
+_TVM_GETITEMRECT=@0x1104/*_TVM_GETITEMRECT*/
+_TVM_GETCOUNT=@0x1105/*_TVM_GETCOUNT*/
+_TVM_GETINDENT=@0x1106/*_TVM_GETINDENT*/
+_TVM_SETINDENT=@0x1107/*_TVM_SETINDENT*/
+_TVM_GETIMAGELIST=@0x1108/*_TVM_GETIMAGELIST*/
+_TVSIL_NORMAL=@0/*_TVSIL_NORMAL*/
+_TVSIL_STATE=@2/*_TVSIL_STATE*/
+_TVM_SETIMAGELIST=@0x1109/*_TVM_SETIMAGELIST*/
+_TVM_GETNEXTITEM=@0x110A/*_TVM_GETNEXTITEM*/
+_TVGN_ROOT=@0/*_TVGN_ROOT*/
+_TVGN_NEXT=@1/*_TVGN_NEXT*/
+_TVGN_PREVIOUS=@2/*_TVGN_PREVIOUS*/
+_TVGN_PARENT=@3/*_TVGN_PARENT*/
+_TVGN_CHILD=@4/*_TVGN_CHILD*/
+_TVGN_FIRSTVISIBLE=@5/*_TVGN_FIRSTVISIBLE*/
+_TVGN_NEXTVISIBLE=@6/*_TVGN_NEXTVISIBLE*/
+_TVGN_PREVIOUSVISIBLE=@7/*_TVGN_PREVIOUSVISIBLE*/
+_TVGN_DROPHILITE=@8/*_TVGN_DROPHILITE*/
+_TVGN_CARET=@9/*_TVGN_CARET*/
+_TVGN_LASTVISIBLE=@0xA/*_TVGN_LASTVISIBLE*/
+_TVGN_NEXTSELECTED=@0xB/*_TVGN_NEXTSELECTED*/
+_TVSI_NOSINGLEEXPAND=@0x8000/*_TVSI_NOSINGLEEXPAND*/
+_TVN_ITEMCHANGINGW=@0xFFFFFE5F/*_TVN_ITEMCHANGINGW*/
+_TVN_ITEMCHANGEDW=@0xFFFFFE5D/*_TVN_ITEMCHANGEDW*/
+_TVN_ASYNCDRAW=@0xFFFFFE5C/*_TVN_ASYNCDRAW*/
+_TVN_SELCHANGEDW=@0xFFFFFE3D/*_TVN_SELCHANGEDW*/
+end intellisense**/
+
+/**intellisense()
+_TVNRET_DEFAULT=@0/*_TVNRET_DEFAULT*/
+_TVNRET_SKIPOLD=@1/*_TVNRET_SKIPOLD*/
+_TVNRET_SKIPNEW=@2/*_TVNRET_SKIPNEW*/
+
+_TVN_FIRST=@0xFFFFFE70/*_TVN_FIRST*/
+_TVN_LAST=@0xFFFFFE0D/*_TVN_LAS*/
+_TVN_ITEMEXPANDINGW=@0xFFFFFE3A/*_TVN_ITEMEXPANDINGW*/
+_TVN_ITEMEXPANDEDW=@0xFFFFFE39/*_TVN_ITEMEXPANDEDW*/
+_TVN_BEGINDRAGW=@0xFFFFFE38/*_TVN_BEGINDRAGW*/
+_TVN_BEGINRDRAGW=@0xFFFFFE37/*_TVN_BEGINRDRAGW*/
+_TVN_DELETEITEMW=@0xFFFFFE36/*_TVN_DELETEITEMW*/
+_TVN_BEGINLABELEDITW=@0xFFFFFE35/*_TVN_BEGINLABELEDITW*/
+_TVN_ENDLABELEDITW=@0xFFFFFE34/*_TVN_ENDLABELEDITW*/
+_TVN_KEYDOWN=@0xFFFFFE64/*_TVN_KEYDOWN*/
+_TVN_GETINFOTIPW=@0xFFFFFE62/*_TVN_GETINFOTIPW*/
+_TVN_SINGLEEXPAND=@0xFFFFFE61/*_TVN_SINGLEEXPAND*/
+_TVN_SELCHANGINGW=@0xFFFFFE3E/*_TVN_SELCHANGINGW*/
+_LPSTR_TEXTCALLBACK = topointer(-1)
+_I_CHILDRENCALLBACK=@-1/*_I_CHILDRENCALLBACK*/
+_I_IMAGECALLBACK=@-1/*_I_IMAGECALLBACK*/ 
+end intellisense**/
+
+
+ /**intellisense()  
+_TVM_SETITEMW=@0x113F/*_TVM_SETITEMW*/
+_TVM_GETITEMW=@0x113E/*_TVM_GETITEMW*/
+_TVM_EDITLABELW=@0x1141/*_TVM_EDITLABELW*/ 
+_TVM_GETVISIBLECOUNT=@0x1110/*_TVM_GETVISIBLECOUNT*/
+_TVM_HITTEST=@0x1111/*_TVM_HITTEST*/
+_TVM_CREATEDRAGIMAGE=@0x1112/*_TVM_CREATEDRAGIMAGE*/
+_TVM_SORTCHILDREN=@0x1113/*_TVM_SORTCHILDREN*/
+_TVM_ENSUREVISIBLE=@0x1114/*_TVM_ENSUREVISIBLE*/
+_TVM_SORTCHILDRENCB=@0x1115/*_TVM_SORTCHILDRENCB*/
+_TVM_ENDEDITLABELNOW=@0x1116/*_TVM_ENDEDITLABELNOW*/
+_TVM_GETISEARCHSTRINGA=@0x1117/*_TVM_GETISEARCHSTRINGA*/
+_TVM_GETISEARCHSTRINGW=@0x1140/*_TVM_GETISEARCHSTRINGW*/
+_TVM_SETTOOLTIPS=@0x1118/*_TVM_SETTOOLTIPS*/
+_TVM_GETTOOLTIPS=@0x1119/*_TVM_GETTOOLTIPS*/
+_TVM_SETINSERTMARK=@0x111A/*_TVM_SETINSERTMARK*/
+_TVM_SETITEMHEIGHT=@0x111B/*_TVM_SETITEMHEIGHT*/
+_TVM_GETITEMHEIGHT=@0x111C/*_TVM_GETITEMHEIGHT*/
+_TVM_SETSCROLLTIME=@0x1121/*_TVM_SETSCROLLTIME*/
+_TVM_GETSCROLLTIME=@0x1122/*_TVM_GETSCROLLTIME*/
+_TVM_SETINSERTMARKCOLOR=@0x1125/*_TVM_SETINSERTMARKCOLOR*/
+_TVM_GETINSERTMARKCOLOR=@0x1126/*_TVM_GETINSERTMARKCOLOR*/
+_TVM_GETITEMSTATE=@0x1127/*_TVM_GETITEMSTATE*/
+_TVM_SETLINECOLOR=@0x1128/*_TVM_SETLINECOLOR*/
+_TVM_GETLINECOLOR=@0x1129/*_TVM_GETLINECOLOR*/
+end intellisense**/
+ 
+
+ /**intellisense()
+_TVHT_NOWHERE=@1/*_TVHT_NOWHERE*/  //位于客户区内,但在最后项目之下
+_TVHT_ONITEMICON=@2/*_TVHT_ONITEMICON*/  //在位图上
+_TVHT_ONITEMLABEL=@4/*_TVHT_ONITEMLABEL*/  //在标签上 
+_TVHT_ONITEMINDENT=@8/*_TVHT_ONITEMINDENT*/  //在项目的缩进部份 
+_TVHT_ONITEMBUTTON=@0x10/*_TVHT_ONITEMBUTTON*/  //在+ -号按钮上
+_TVHT_ONITEMRIGHT=@0x20/*_TVHT_ONITEMRIGHT*/  //在项目右边的区域内
+_TVHT_ONITEMSTATEICON=@0x40/*_TVHT_ONITEMSTATEICON*/ //在状态图标上. 
+_TVHT_ABOVE=@0x100/*_TVHT_ABOVE*/ //测试的点位于客户区上
+_TVHT_BELOW=@0x200/*_TVHT_BELOW*/ //位于客户区下 
+_TVHT_TORIGHT=@0x400/*_TVHT_TORIGHT*/  //位于客户区的左边
+_TVHT_TOLEFT=@0x800/*_TVHT_TOLEFT*/ //位于客户区的右边
+_TVHT_ONITEM=@0x46/*_TVHT_ONITEM*/  //在位图或标签上  
+
+_TVIF_TEXT=@1/*_TVIF_TEXT*/ //text和cchTextMax成员有效
+_TVIF_IMAGE=@2/*_TVIF_IMAGE*/ //iImage成员有效
+_TVIF_PARAM=@4/*_TVIF_PARAM*/ //lParam成员有效
+_TVIF_STATE=@8/*_TVIF_STATE*/ //state和stateMask成员有效
+_TVIF_HANDLE=@0x10/*_TVIF_HANDLE*/ //hItem成员有效
+_TVIF_SELECTEDIMAGE=@0x20/*_TVIF_SELECTEDIMAGE*/ //iSelectedImage成员有效
+_TVIF_CHILDREN=@0x40/*_TVIF_CHILDREN*/ //cChildren成员有效
+_TVIF_INTEGRAL=@0x80/*_TVIF_INTEGRAL*/
+_TVIF_STATEEX=@0x100/*_TVIF_STATEEX*/
+_TVIF_EXPANDEDIMAGE=@0x200/*_TVIF_EXPANDEDIMAGE*/
+_TVIS_SELECTED=@2/*_TVIS_SELECTED*/
+_TVIS_CUT=@4/*_TVIS_CUT*/
+_TVIS_DROPHILITED=@8/*_TVIS_DROPHILITED*/
+_TVIS_BOLD=@0x10/*_TVIS_BOLD*/
+_TVIS_EXPANDED=@0x20/*_TVIS_EXPANDED*/
+_TVIS_EXPANDEDONCE=@0x40/*_TVIS_EXPANDEDONCE*/
+_TVIS_EXPANDPARTIAL=@0x80/*_TVIS_EXPANDPARTIAL*/
+_TVIS_OVERLAYMASK=@0xF00/*_TVIS_OVERLAYMASK*/
+_TVIS_STATEIMAGEMASK=@0xF000/*_TVIS_STATEIMAGEMASK*/
+_TVIS_USERMASK=@0xF000/*_TVIS_USERMASK*/
+_TVIS_EX_FLAT=@1/*_TVIS_EX_FLAT*/
+_TVIS_EX_DISABLED=@2/*_TVIS_EX_DISABLED*/
+_TVIS_EX_ALL=@2/*_TVIS_EX_ALL*/
+_TVE_COLLAPSE=@1/*_TVE_COLLAPSE*/
+_TVE_EXPAND=@2/*_TVE_EXPAND*/
+_TVE_TOGGLE=@3/*_TVE_TOGGLE*/
+end intellisense**/

@@ -1,0 +1,106 @@
+﻿import web.json;
+import fsys.file;
+import fsys;
+
+namespace sessionHandler.default;
+
+//载入用户session
+startSession = function(expires){ 
+    var id = ..request[["sessionId"]];
+    if(!id) return error("request.sessionId 不能为 null");
+    
+    var path = "/config/session/#." + id;
+    if(!..io.exist(path) ) return {};
+    
+	var file;
+	for(i=1;10;1){
+		file = ..fsys.file(path,"rb",0x1/*_FILE_SHARE_READ*/);
+		if(file) break;
+		sleep(100);
+	}
+	if(!file) error("打开session文件失败!");
+	var write = file.getTime().write;
+
+	expires = expires : 1800;
+	if( write &&( ..time().diffsecond(write) > expires ) ){
+		file.close();
+		..fsys.delete(path) ;
+		return {};
+	}
+						
+	var str = file.read(-1);
+	file.close();
+	
+	var ses = ..web.json.tryParse(str) : {}; 	 
+	return ses;
+}
+
+//用户修改了session
+updateSession = function(ses,k,v){
+	saveSession(ses);
+}
+
+//清空session
+clearSession = function(){
+	saveSession({});
+}
+
+//保存session
+saveSession = function(ses,expires){
+    var id = ..request[["sessionId"]];
+    if(!id) return error("request.sessionId 不能为 null",2);
+
+    ..io.createDir("/config/session/");
+    var path = "/config/session/#." + id;
+	var file,err;
+	for(i=1;10;1){
+		file ,err= ..io.open(path,"w+b",0x10/*独占读写*/);
+		if(file) break;
+		sleep(100);
+	}
+	if(!file) error( ..string.concat("打开session文件失败!",err) );
+
+	var ses = ..web.json.stringify(ses);
+	file.write(ses);
+	file.close();
+
+	if( expires === null ) return;
+	
+	var now =  tonumber(..time());
+	var last = ..thread.get("webServerLastClearSessionTime") ;
+	if( last && ( now -last > expires ) ){
+		..thread.invoke( 
+			function(expires){
+				sleep(100);
+				
+				import fsys;
+				import fsys.file;
+				
+				var files = ..fsys.list("/config/session/");
+				
+				var now = tonumber(..time())
+				for(i,id in files){
+					var path = "/config/session/"+id;
+					var file = ..fsys.file(path);
+					if(file){
+						var write = file.getTime().write;
+						file.close();
+						
+						if( tonumber(now) -tonumber(write) > expires ){
+							..fsys.delete(path) 
+						}
+					} 
+				} 				
+			},expires
+		)
+		..thread.set("webServerLastClearSessionTime", tonumber(..time()));
+	}
+	if(!last) ..thread.set("webServerLastClearSessionTime", tonumber(..time()));
+	
+}
+
+
+/*
+实现自定义的sessionHandler，都必须实现上面的4个接口函数,并且是session名字空间的成员
+服务器会首先查找sessionHandler名字空间下符合规范的sessionHandler实现，如果没有找到默认调用此实现
+*/

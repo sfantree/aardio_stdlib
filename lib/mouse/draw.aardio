@@ -1,0 +1,314 @@
+//draw 鼠标画线 
+//鼠标画线//在屏幕上使用鼠标画线
+namespace mouse.draw 
+import mouse
+import math;
+
+//返回屏幕宽度,高度
+function getScreenWidthHeight(){
+	return ::User32.GetSystemMetrics(0x0/*_SM_CXSCREEN*/), ::User32.GetSystemMetrics(0x1/*_SM_CYSCREEN*/ ) 
+}
+
+/*
+画线回调函数
+
+参数:
+ x,y : 当前坐标
+
+返回值: 为true表示继续,返回false表示停止画线
+*/
+move = function(x,y){ 
+	error("使用mouse.draw函数库以前,必须重写mouse.draw.move函数",2);
+	return false;
+} 
+ 
+ 
+/*
+画直线
+
+参数:
+  x1,y1 起始坐标
+  x2,y2 结束坐标  
+*/
+line = function(x1,y1,x2,y2)	{
+	var step = 1;
+	var x,y;
+	var xx = x2-x1;
+	var yy = y2-y1;
+	var k;
+	if(math.abs(xx) > math.abs(yy) ) {
+			if(x2<x1) 
+				step = -1;
+			k = yy / xx ; //计算斜率
+			for x=x1;x2;step {
+					y = k * (x - x1) + y1  
+					if(! move(x,y) ) 
+						return false;;
+			} 
+	}
+	else {
+			if(y2<y1)//坐标如果是反过来的
+				step = -1;
+			k = xx / yy  //计算斜率
+			for y=y1;y2;step {
+					x = k * (y - y1) + x1  
+					if(! move(x,y) ) 
+						return false;;
+			} 
+	} 
+	
+	return true; 	
+} 
+
+ 
+/*
+画矩形
+
+参数:
+	x1,y1 起始坐标
+	x2,y2 结束坐标  
+*/
+rect = function(x1,y1,x2,y2){
+	if ! line(x1,y1,x2,y1) return false;;
+	if ! line(x2,y1,x2,y2) return false;;
+	if ! line(x2,y2,x1,y2) return false;;
+	if ! line(x1,y2,x1,y1) return false;;
+	return true;
+} 
+
+
+/*
+画正弦曲线 
+
+参数:
+	w,h   宽高
+*/
+sin = function(w,h){ 
+    if(!w or !h)
+    	w,h = getScreenWidthHeight();
+    	
+	var y = 1;
+	for x=1;w;1 {		
+			y = 300 - math.sin(x/30) * 100;
+			if(! move(x,y) ) 
+				return false;;
+	}
+	return true;
+} 
+
+
+/*
+画渐开线 
+
+参数:
+	fx,fy   宽高,参数可以忽略(默认为屏幕范围)
+*/
+involute = function(fx,fy){
+	if(! ( fx and fy) ) {
+			fx,fy = getScreenWidthHeight()
+	}
+	
+	var x0,n,y0 = fx/2,1,fy/2;
+	
+	while( n<88 ) { 
+			x = x0+4*( math.cos(n)+n*math.sin(n) );
+			y = y0+3*( math.sin(n)-n*math.cos(n) );
+			if(! move(x,y) ) 
+				return false;;
+			n = n+.2;
+	} 
+	
+	var x1,n,y1 = fx/2,88,fy/2;
+	while( n>1 ) {
+			x = x1+4*( math.cos(n)+n*math.sin(n) );
+			y = y1+3*( math.sin(n)-n*math.cos(n) );
+			if(! move(x,y) ) 
+				return false;;
+			n = n-.2
+	}
+	
+	return true;
+} 
+
+
+/*
+画渐开线2 
+
+参数:
+	x,y   基圆圆心
+	R  	基圆半径
+	n  	渐开线周波数
+
+*/
+involute2 = function(x,y,R,n) {
+	for a=0;2 * 360 * n;2   { 
+			x = x + R * (math.cos(a * math.pi / 360) + (a * math.pi / 360) * math.sin(a * math.pi / 360));
+			y = y + R * (math.sin(a * math.pi / 360) - (a * math.pi / 360) * math.cos(a * math.pi / 360));
+			if(! move(x,y) ) return false;;
+	}
+	
+	return true;
+} 
+
+
+/*
+画方形仿渐开线 
+
+参数:
+	step   步长
+	n  		起始正方形边长,指定中间忽略不扫描的正方形边长(默认等于20)
+	x1,y1   扫描范围坐标,参数可省略(默认等于 1 X 1)
+	x2,y2   扫描范围坐标2,参数可省略(默认等于屏幕大小)
+*/
+rectInvolute = function(step,n,x1,y1,x2,y2){
+	step = step or 1;
+	step = math.abs(step);
+	step = 0 - math.abs(step);
+	n = n or 20;
+	
+	x1 = x1 or 1;
+	y1 = y1 or 1; 
+
+
+	if(! ( x2 and y2) ) {
+			x2,y2 = getScreenWidthHeight()
+	}
+	
+	var fx,fy = 1,1;
+	if(x1<x2){
+			fx = x1;x1=x2;x2=fx;
+	}
+	if(y1<y2){
+			fx = y1;y1=y2;y2=fx;
+	}
+	
+	fx = x1; fy = y1;
+	x1 = fx/2;y1= fy/2;
+	 
+	
+	var x,y = 1,1;
+	for x=x1-n/2;x2;step   {	
+			y = (y2 - y1) / (x2 - x1) * (x - x1) + y1;
+			if ! rect( x,y,x1+(x1-x),y1+(y1-y) ) return false;;
+	}
+	
+	return true;
+} 
+
+
+/*
+画方形仿渐开线2 
+
+参数:
+	x,y   坐标
+	m   扫描范围
+	n   扫描速度,可省略(默认等于5)
+	k   扫描密度,可省略(默认等于50)
+		
+示例:
+	rectInvolute2(322,384,300);
+*/
+function rectInvolute2(x,y,m,n=5,k=50) {	 
+	var l = 0; //控制扫描范围   
+				
+	var tx = {};
+	var ty={};
+	for i=1;5;1   { 
+			..table.insert(tx,x );
+			..table.insert(ty,y )	
+		}
+		
+	while( l<m ) { 
+			tx[1] = tx[1]-k; tx[2] = tx[2]+k;
+			tx[3] = tx[3]+k; tx[4] = tx[4]-k;
+			ty[1] = ty[1]-k; ty[2] = ty[2]-k;
+			ty[3] = ty[3]+k; ty[4] = ty[4]+k;
+	
+			for i=tx[1];tx[2];n   { 
+					if(! move(i ,ty[1]) ) return false;; 
+			}
+																												
+			for i=ty[2];ty[3];n   { 
+					if(! move(tx[2] ,i) ) return false;;
+			}
+																															
+			for i=tx[3];tx[4];0-n   { 
+					if(! move(i ,ty[3]) ) return false;;
+					mouse.move( i ,ty[3],true   ); 
+			}
+																															
+			for i=ty[4];ty[1];0-n   { 
+					if(! move(tx[4] ,i) ) return false;; 
+			}
+			
+		l = l+50
+	} 
+} 
+
+
+
+
+/*
+画多边形 
+
+参数:
+	x,y 中心所在的屏幕坐标(像素)
+	r   多边形外接圆半径(像素)
+	n   多边形的边数
+*/
+function poly(x,y,r,n){
+	var i;
+	var theta=math.pi;
+	var x1=x;
+	var y1=y-r;
+	var x2,y2;
+	for i=1;n;1   {
+			theta=theta - (2*math.pi/n);
+			x2=x+r*math.sin(theta);
+			y2=y+r*math.cos(theta);
+			if ! line(x1,y1,x2,y2) return false;;
+			x1=x2;
+			y1=y2;
+	}
+} 
+
+
+/*
+画椭圆 
+
+参数:
+  x,y 中心所在的屏幕坐标(像素)
+  a,b 长轴和短轴的长度(像素)
+  precision   边缘精细度
+*/
+function ellipse(x,y,a,b,precision){
+	var i;
+	var iMax=2*math.pi;
+	var step=2*math.pi/(precision*math.sqrt(a*b)*4.5); 
+
+
+	for i=1;iMax;step   { 
+			if(! move(x+a*math.cos(i),y+b*math.sin(i)) ) 
+				return false;;
+	}
+}	
+
+
+/**intellisense(mouse.draw)
+move = @.move = function(x,y){ 
+ 
+	mouse.move(x,y,true)
+	sleep(10) 
+	
+	return true;/*继续画线*/
+} 
+ellipse(.(x,y,a,b,precision) = x,y 中心所在的屏幕坐标(像素)\na,b 长轴和短轴的长度(像素)\nprecision   边缘精细度
+poly(.(x,y,r,n)= x,y 中心所在的屏幕坐标(像素)\nr   多边形外接圆半径(像素)\nn   多边形的边数
+rectInvolute2(.(x,y,m,n=5,k=50) = x,y   坐标\nm   扫描范围\nn   扫描速度,可省略(默认等于5)\nk   扫描密度,可省略(默认等于50)
+rectInvolute(.(step,n,x1,y1,x2,y2)=画方形仿渐开线 \nstep   步长\nn  		起始正方形边长,指定中间忽略不扫描的正方形边长(默认等于20)\nx1,y1   扫描范围坐标,参数可省略(默认等于 1 X 1)\nx2,y2   扫描范围坐标2,参数可省略(默认等于屏幕大小)
+involute2(.(x,y,R,n)=画渐开线2 \nx,y   基圆圆心\nR  	基圆半径\nn  	渐开线周波数
+involute(.(fx,fy)=画渐开线\nfx,fy   宽高,参数可以忽略(默认为屏幕范围)
+sin(.(w,h)=画正弦曲线\nw,h 宽,高,可省略(默认取屏幕范围)
+rect(.(x1,y1,x2,y2)=画矩形\nx1,y1 起始坐标\nx2,y2结束坐标
+line(.(x1,y1,x2,y2)=画直线\nx1,y1 起始坐标\nx2,y2结束坐标
+end intellisense**/

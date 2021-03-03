@@ -1,0 +1,44 @@
+//3、线程共享表
+import console;
+import thread.table;
+
+/*
+前面的范例说过：线程都是独享自己的全局变量环境的。
+而thread.table则是创建了一个线程间共享的table对象,对同一名称的共享表的修改对其他线程都会同时生效。 
+*/
+var thrdTable = thread.table("线程共享表名称",true/*清空*/ )
+
+var thrdHandle1 = thread.create(
+	function(){
+		import thread.table; 
+		
+		var thrdTable = thread.table("线程共享表名称")
+		thrdTable.push( "线程ID:" + thread.getId() )
+	} 
+)
+
+var thrdHandle2  = thread.create(
+	//线程共享表可以作为线程参数直接跨线程传递
+	function(thrdTable){ 
+		thrdTable.a = 12; //线程共享表也可以象普通表一样访问
+		thrdTable.b = 34;
+		thrdTable.c = 56;
+		thrdTable.d = {}; //注意线程共享表的表成员可不是共享表,这里只能赋值不要修改其成员
+		
+		thrdTable.push( "线程ID:" + thread.getId() )
+	},thrdTable
+)
+
+//等待线程执行完,并关闭所有线程句柄
+thread.waitClose( thrdHandle1,thrdHandle2) 
+
+console.log( thrdTable.pop(2) )
+console.log( thrdTable.a ); //线程共享表也可以象普通表一样访问
+console.log("--------------")
+
+//遍历共享表
+for( k,v in thrdTable.each() ){
+	console.log(k,v) 
+}
+
+console.pause();

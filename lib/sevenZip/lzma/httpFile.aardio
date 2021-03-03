@@ -1,0 +1,157 @@
+//httpFile 网络安装包
+import fsys;
+import inet.http;
+import sevenZip.lzma;
+import fsys.untar;
+import inet.downBox;
+namespace sevenZip.lzma.httpFile;
+
+download = function(url,title="下载",saveDir,extraDir,saveName,parentForm){
+	var tUrl = ..inet.url.split(url);
+	if(!tUrl){
+		error("错误的URL参数",2)
+	}
+	var tPath = ..io.splitpath(tUrl.path)
+	
+	saveDir = ..io.fullpath(saveDir : "~\download\" )
+	..fsys.createDir(saveDir);
+	
+	if(!saveName){
+		saveName = tPath.file;
+	}
+	if(!extraDir){
+		extraDir = ..string.match(saveName,"(.+)\.[^\.]+$"  );
+		if(!extraDir) extraDir = saveName + ".uncompress";
+		extraDir = ..fsys.joinpath(saveDir,extraDir)
+	}
+	else {
+		extraDir = ..io.fullpath(extraDir);
+	} 
+
+	var pathCabinet = ..fsys.joinpath(saveDir,saveName)
+	var downBox = ..inet.downBox(parentForm,title,false) 
+	downBox.headers = self.headers;
+	downBox.referer = self.referer;
+	downBox.userAgent = self.userAgent;
+	downBox.preget = self.preget;
+	
+	downBox.endProc = function(){
+		downBox.text = "正在解压缩:" + saveName; 
+		..win.peekPumpInputMessage();
+		
+		var tarTempName = pathCabinet + ".tar";   
+		downBox.progress.hide = false;
+		 
+		var processed = 0;
+		var step = downBox.contentLength / 1000;
+		downBox.progress.setProgressRange(1,1000);  
+		
+		var peekMsg = ..win.peekPumpMessage;
+		var ret = ..sevenZip.lzma.decodeFile(pathCabinet,tarTempName,function(inProcessed,outProcessed){ 
+			if( (peekMsg()!==null) && downBox.continueModal ){
+			 	processed = processed + inProcessed; 
+			 	downBox.progress.progressPos = processed / step;
+			}
+			else {
+				return true;
+			}
+			
+		} ); 
+		
+		if(!ret){
+			owner.complete = false;
+			owner.endModal(); 
+			return;
+		} 
+		
+		downBox.onClose = function(){ 
+			return false;
+		}
+		downBox.text = "正在展开:" + saveName; 
+		var tarFile = ..fsys.untar(tarTempName,extraDir);
+		tarFile.onProgressFile = function(path){
+			downBox.labInfo.text = path;
+		};
+		  
+		downBox.progress.setProgressRange(1,1000 ); 
+		for(fileName,writeSize,remainSize,pos in tarFile.eachBlock(1000) ){ 
+			if( peekMsg()!==null ){
+				downBox.progress.progressPos = pos;
+			}
+			else {
+				break ;
+			} 
+		}
+		
+		tarFile.close()
+		..io.remove( tarTempName );
+		downBox.onClose = null;
+		if(tarFile.complete){
+			owner.endModal(); 
+		}
+		else {
+			downBox.text = tarFile.lastError
+		} 
+	}
+	downBox.download(url,pathCabinet,null,null,"" ) 
+	
+	if(!downBox.complete){ 
+		return;
+	} 
+	
+	if( ! ..io.exist(pathCabinet,4) ){  
+		return false; 
+	} 
+ 
+ 	var fileRootDir;
+ 	..fsys.enum( extraDir, "*.*",
+ 		function(dir,filename,fullpath,findData){ 
+ 			if(filename){ 
+ 				fileRootDir = dir;
+ 	           	return false;
+ 			} 
+ 		}  
+ 	);
+ 	if(!fileRootDir)return;
+ 	
+ 	var setupFile = ..fsys.joinpath(fileRootDir,"setup.dl.aardio")
+	if( ..io.exist(setupFile) ){
+		var handle = ..thread.create( setupFile ); 
+		if( ..win.isClosed() ){
+			..thread.wait(handle) 
+		}
+		else {
+			..thread.waitOne(handle) 
+		} 
+		..raw.closehandle(handle) 
+	}
+	return true; 		
+}
+
+saveFromUrl = function(url,path){ 
+	var http = ..inet.http(); 
+	http.disableCache();
+	
+	var bin,err = http.get(url); 
+	if(bin){ 
+		bin = ..sevenZip.lzma.unCompress(bin);
+		if(bin){
+			..string.save(path,bin) 
+			return true;
+		}
+	}
+	else {
+		return null,err;
+	}	
+}
+
+
+/**intellisense(sevenZip.lzma)
+httpFile = 网络安装包
+httpFile.headers =下载时添加的HTTP请求头
+httpFile.referer = 下载时的HTTP引用页
+httpFile.userAgent =  下载时用到的User Agent
+httpFile.preget = 首次连接慢的下载服务器请设为true
+httpFile.download(.(URL,对话框标题,下载目录,解压目录,存储文件名,父窗口) = 下载zip文件,除url以外,其他所有参数可选\n如果zip文件第一个包含文件的目录下包含 setup.dl.aau ,自动执行该文件安装
+httpFile.saveFromUrl(.(url,path) = 自url指定的网址下载lzma文件，\n并解压后保存到path指定的路径,\n适合下载小文件,建议放到线程中
+end intellisense**/

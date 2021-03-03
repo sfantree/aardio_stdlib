@@ -1,0 +1,186 @@
+//changeNotification 监控资源管理器
+import fsys;
+namespace win.util; 
+
+//可以把下面的类放到库里面
+class changeNotification {
+
+    ctor( winform ){ 
+    	if(!winform){
+			winform = ..win.form( {} );
+			winform.messageOnly();
+		}
+		this._form = winform;
+		
+		this.notifyEntrys = {}; 
+		..table.gc(this,"deregister");
+    } 
+    watch = function(watchPath,recursive){
+    	var shEntry = SHChangeNotifyEntry();
+    	if( type(watchPath) == type.number ){
+    		shEntry.pidl = ..fsys.getSpecial(watchPath,false)
+    	}
+    	else{
+        	shEntry.pidl = watchPath ? ..fsys.idListFromPath(watchPath)
+        }
+		shEntry.fRecursive = recursive?1:0;
+		..table.push( this.notifyEntrys,shEntry);
+    };
+	register = function( message = 0x8F00/* _WM_USERDEF_FILECHANGED */,flags=0x1003/*_SHCNRF_InterruptLevel|_SHCNRF_ShellLevel|_SHCNRF_RecursiveInterrupt*/ ){
+		var events = 0;
+		for(e,name in _mapProcName){
+			if(this[name]) events = events | e ;
+		}
+		if( !events ) {
+			error("请先指定需要启用的监视回调函数(函数名前缀为on)",2)
+		}
+		
+		var size = #this.notifyEntrys;
+		if( ! size ){
+			error("请先调用watch() 函数指定要监视的目录",2)
+		}
+		this.hDevNotify = SHChangeNotifyRegister(winform.hwnd, flags 
+        	,events,0x8F00/* _WM_USERDEF_FILECHANGED */,size, {struct entrys[] = this.notifyEntrys } )  
+		
+		if(!this.hDevNotify){
+			return; 
+		}
+		
+		//在回调消息表里插入新的消息处理,比直接新增回调函数有更好的效率
+		winform.wndproc = {
+			[message] = function(hwnd,message,wParam,lParam){
+				if(!wParam)return 1;
+				var procName = _mapProcName[lParam];
+				if(procName && this[procName] ){
+					var item1,item2;
+					var shNotify = ..raw.convert( topointer(wParam),SHNOTIFYSTRUCT() ) 
+         			if( shNotify.dwItem1 ){
+         				item1 = ..fsys.pathFromIdList(shNotify.dwItem1);
+         			}
+         			if( shNotify.dwItem2 ){
+         				item2 = ..fsys.pathFromIdList(shNotify.dwItem2);
+         			}
+					return this[procName]( item1,item2 ); 
+				}
+			} 
+			[0x2/*_WM_DESTROY*/] = function(hwnd,message,wParam,lParam){
+				this.deregister();
+			}
+		}
+	};
+    deregister = function(){
+    	if( this.hDevNotify ){
+    		SHChangeNotifyDeregister(this.hDevNotify);
+    		this.hDevNotify = null;
+    	}
+    };
+} 
+
+namespace changeNotification{ 
+	SHChangeNotifyRegister  = ::Shell32.api(2,"pointer(int hwnd, int fSources,int fEvents,INT wMsg,int cEntries, struct pshcne)" )
+	SHChangeNotifyDeregister  = ::Shell32.api(4,"bool(pointer ulID)" ) 
+	
+	class SHChangeNotifyEntry{
+    	pointer pidl;
+    	INT fRecursive;
+	}
+	class SHNOTIFYSTRUCT{
+    	pointer dwItem1;
+    	pointer dwItem2;
+	} 
+
+	_mapProcName = {
+		[1/*_SHCNE_RENAMEITEM*/] = "onRenameItem";
+		[2/*_SHCNE_CREATE*/] = "onCreate";
+		[4/*_SHCNE_DELETE*/] = "onDelete";
+		[8/*_SHCNE_MKDIR*/] = "onMakeDir";
+		[0x10/*_SHCNE_RMDIR*/] = "onRemoveDir";
+		[0x20/*_SHCNE_MEDIAINSERTED*/] = "onMediaInserted";
+		[0x40/*_SHCNE_MEDIAREMOVED*/] = "onMediaRemoved";
+		[0x80/*_SHCNE_DRIVEREMOVED*/] = "onDriveRemoved";
+		[0x100/*_SHCNE_DRIVEADD*/] = "onDriveAdd";
+		[0x200/*_SHCNE_NETSHARE*/] = "onNetShare";
+		[0x400/*_SHCNE_NETUNSHARE*/] = "onNetUnShare";
+		[0x800/*_SHCNE_ATTRIBUTES*/] = "onAttributes";
+		[0x1000/*_SHCNE_UPDATEDIR*/] = "onUpdateDir";
+		[0x2000/*_SHCNE_UPDATEITEM*/] = "onUpdateItem";
+		[0x4000/*_SHCNE_SERVERDISCONNECT*/] = "onSeverDisconnect";
+		[0x8000/*_SHCNE_UPDATEIMAGE*/] = "onUpdateImage";
+		[0x10000/*_SHCNE_DRIVEADDGUI*/] = "onDriveAddGui";
+		[0x20000/*_SHCNE_RENAMEFOLDER*/] = "onRenameFolder";
+		[0x40000/*_SHCNE_FREESPACE*/] = "onFreeSpace";
+		[0x8000000/*_SHCNE_ASSOCCHANGED*/] = "onAssocChanged"; 
+	} 
+} 
+
+
+ /**intellisense()
+win.util.changeNotification = 监控用户对资源管理器的操作
+win.util.changeNotification(.(窗口对象) = 注册文件监控窗口\监控用户对资源管理器的操作,\n省略参数则创建 message only window
+win.util.changeNotification() = !changeNotification.
+!changeNotification._form = !winform.
+!changeNotification.watch(.(监视路径,是否监视子目录) = 添加监视路径,路径可以使用_CSIDL_开头的常量表示\n参数2为可选参数
+!changeNotification.register(.(自定义消息,选项) = 注册并启用文件监视功能,\n所有参数都可以省略,默认使用  _WM_USERDEF_FILECHANGED 消息\n调用此函数以前,必须指定所有需要启用的事件回调函数
+!changeNotification.deregister() = 注销并关闭文件监控
+!changeNotification.onAttributes = @.onAttributes = function(srcPath,dstPath){\n	__/*文件属性被改变*/\n}
+!changeNotification.onRenameItem = @.onRenameItem = function(srcPath,dstPath){\n	__/*非文件外壳对象名称被改变*/\n}
+!changeNotification.onCreate = @.onCreate = function(srcPath,dstPath){\n	__/*文件夹的外壳成员创建了*/\n}
+!changeNotification.onDelete = @.onDelete = function(srcPath,dstPath){\n	__/*非文件夹的外壳成员删除了*/\n}
+!changeNotification.onMakeDir = @.onMakeDir = function(srcPath,dstPath){\n	__/*目录被创建*/\n}
+!changeNotification.onRemoveDir = @.onRemoveDir = function(srcPath,dstPath){\n	__/*文件夹中的内容被改变*/\n}
+!changeNotification.onMediaInserted = @.onMediaInserted = function(srcPath,dstPath){\n	__/*存储介质被插入*/\n}
+!changeNotification.onMediaRemoved = @.onMediaRemoved = function(srcPath,dstPath){\n	__/*存储介质被删除*/\n}
+!changeNotification.onDriveRemoved = @.onDriveRemoved = function(srcPath,dstPath){\n	__/*驱动器被删除了*/\n}
+!changeNotification.onDriveAdd = @.onDriveAdd = function(srcPath,dstPath){\n	__/*添加了驱动器*/\n}
+!changeNotification.onNetShare = @.onNetShare = function(srcPath,dstPath){\n	__/*本地的目录被共享*/\n}
+!changeNotification.onNetUnShare = @.onNetShare = function(srcPath,dstPath){\n	__/*本地的目录取消共享*/\n}
+!changeNotification.onUpdateDir = @.onUpdateDir = function(srcPath,dstPath){\n	__/*文件夹中的内容被改变\n此目录下的较多文件变更可能被合并为此事件*/\n}
+!changeNotification.onUpdateItem = @.onUpdateItem = function(srcPath,dstPath){\n	__/*非文件夹外壳对象的名称被改变*/\n}
+!changeNotification.onSeverDisconnect = @.onSeverDisconnect = function(srcPath,dstPath){\n	__/*计算机被服务器断开*/\n}
+!changeNotification.onUpdateImage = @.onUpdateImage = function(srcPath,dstPath){\n	__/*系统图像列表中的图像被改变*/\n}
+!changeNotification.onDriveAddGui = @.onDriveAddGui = function(srcPath,dstPath){\n	__/*通过外壳添加的驱动器*/\n}
+!changeNotification.onRenameFolder = @.onRenameFolder = function(srcPath,dstPath){\n	__/*文件夹名称被改变*/\n}
+!changeNotification.onFreeSpace = @.onFreeSpace = function(srcPath,dstPath){\n	__/*驱动器剩余空间数变化*/\n}
+!changeNotification.onAssocChanged = @.onAssocChanged = function(srcPath,dstPath){\n	_/*文件关联被改变了*/\n}
+
+ _WM_USERDEF_FILECHANGED = @0x8F00/* _WM_USERDEF_FILECHANGED */
+_SHCNRF_InterruptLevel=@1/*_SHCNRF_InterruptLevel*/
+_SHCNRF_ShellLevel=@2/*_SHCNRF_ShellLevel*/
+_SHCNRF_RecursiveInterrupt=@0x1000/*_SHCNRF_RecursiveInterrupt*/
+_SHCNRF_NewDelivery=@0x8000/*_SHCNRF_NewDelivery*/
+_SHCNE_RENAMEITEM=@1/*_SHCNE_RENAMEITEM*/
+_SHCNE_CREATE=@2/*_SHCNE_CREATE*/
+_SHCNE_DELETE=@4/*_SHCNE_DELETE*/
+_SHCNE_MKDIR=@8/*_SHCNE_MKDIR*/
+_SHCNE_RMDIR=@0x10/*_SHCNE_RMDIR*/
+_SHCNE_MEDIAINSERTED=@0x20/*_SHCNE_MEDIAINSERTED*/
+_SHCNE_MEDIAREMOVED=@0x40/*_SHCNE_MEDIAREMOVED*/
+_SHCNE_DRIVEREMOVED=@0x80/*_SHCNE_DRIVEREMOVED*/
+_SHCNE_DRIVEADD=@0x100/*_SHCNE_DRIVEADD*/
+_SHCNE_NETSHARE=@0x200/*_SHCNE_NETSHARE*/
+_SHCNE_NETUNSHARE=@0x400/*_SHCNE_NETUNSHARE*/
+_SHCNE_ATTRIBUTES=@0x800/*_SHCNE_ATTRIBUTES*/
+_SHCNE_UPDATEDIR=@0x1000/*_SHCNE_UPDATEDIR*/
+_SHCNE_UPDATEITEM=@0x2000/*_SHCNE_UPDATEITEM*/
+_SHCNE_SERVERDISCONNECT=@0x4000/*_SHCNE_SERVERDISCONNECT*/
+_SHCNE_UPDATEIMAGE=@0x8000/*_SHCNE_UPDATEIMAGE*/
+_SHCNE_DRIVEADDGUI=@0x10000/*_SHCNE_DRIVEADDGUI*/
+_SHCNE_RENAMEFOLDER=@0x20000/*_SHCNE_RENAMEFOLDER*/
+_SHCNE_FREESPACE=@0x40000/*_SHCNE_FREESPACE*/
+_SHCNE_ASSOCCHANGED=@0x8000000/*_SHCNE_ASSOCCHANGED*/
+_SHCNE_DISKEVENTS=@0x2381F/*_SHCNE_DISKEVENTS*/
+_SHCNE_GLOBALEVENTS=@0xC0581E0/*_SHCNE_GLOBALEVENTS*/
+_SHCNE_ALLEVENTS=@0x7FFFFFFF/*_SHCNE_ALLEVENTS*/
+_SHCNE_INTERRUPT=@0x80000000/*_SHCNE_INTERRUPT*/
+_SHCNEE_ORDERCHANGED=@2/*_SHCNEE_ORDERCHANGED*/
+_SHCNEE_MSI_CHANGE=@4/*_SHCNEE_MSI_CHANGE*/
+_SHCNEE_MSI_UNINSTALL=@5/*_SHCNEE_MSI_UNINSTALL*/
+_SHCNF_IDLIST=@0/*_SHCNF_IDLIST*/
+_SHCNF_srcPath=@1/*_SHCNF_srcPath*/
+_SHCNF_PRINTER=@2/*_SHCNF_PRINTER*/
+_SHCNF_DWORD=@3/*_SHCNF_DWORD*/
+_SHCNF_TYPE=@0xFF/*_SHCNF_TYPE*/
+_SHCNF_FLUSH=@0x1000/*_SHCNF_FLUSH*/
+_SHCNF_FLUSHNOWAIT=@0x3000/*_SHCNF_FLUSHNOWAIT*/
+_SHCNF_NOTIFYRECURSIVE=@0x10000/*_SHCNF_NOTIFYRECURSIVE*/
+end intellisense**/

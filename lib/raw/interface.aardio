@@ -1,0 +1,83 @@
+//interface 静态接口
+namespace raw;
+ 
+var convert = ..raw.convert;
+class interface{
+	ctor( inObject,itface,cal="stdcall" ){   
+		if(!inObject) error("无效的接口(参数@1)",2);
+		var inObjectType = type(inObject);
+		if( inObjectType == "number" ) inObject = topointer(inObject);
+		
+		var outStruct;
+		var itfaceType = type(itface);	
+		if( itfaceType == "string" ) {
+			var s = {}; 
+			outStruct = {}
+			for r,f,a in ..string.gmatch(itface ,"(\S+)\s+(\S+)(%())") { 
+				..table.push(s,"ptr " + f);
+				outStruct[f] = r ++ a;
+			}
+			outStruct._struct = ..string.join(s,';' );
+		}
+		elseif( itfaceType == "class" ) {
+			outStruct = itface();
+		}
+		else {
+			error("参数@2类型错误",2);
+		}
+		
+		var outObjectFuncProto = {};
+		for( k,proto in outStruct){  
+			if( type(proto) != "string" ) continue;
+			outObjectFuncProto[k] = proto;
+		}
+		
+		if( (inObjectType == "table") && (!inObjectType@) ){
+			var createCallback = ..raw["to"+cal];
+			if( !createCallback ) error("实现接口仅支持stdcall,cdecl,fastcall调用约定!",2);
+			 
+			for( k,proto in outObjectFuncProto){  
+				ptr = inObject[k];
+				if( (!proto) || ( type(ptr) != "function" )   ){ 
+					continue; 
+				} 
+				outStruct[k] = createCallback(function(p,...){ return inObject[k](...)} 
+					, ..string.replace(proto,"\(","(ptr,"),this);
+				this[k] = inObject[k];
+			} 
+			 
+			this.__vtbl = ..raw.buffer(outStruct);
+			this.__thisPointer = ..raw.buffer({ pointer __vtbl = this.__vtbl });
+		}
+		else {
+			outStruct = convert( convert( inObject,{ pointer __vtbl } ).__vtbl ,outStruct ) ;
+			
+			var app = ..raw.module(cal); 
+			var proto; 
+			for(k,ptr in outStruct){
+				if(( type(ptr) != "pointer" ) || ( type(k) != "string" ) ){
+					if(k!="_struct") this[k] = ptr;
+					continue;
+				}
+				proto = outObjectFuncProto[k];
+				if( !#proto ){ 
+					var safefunc = app[ptr];
+					this[k] = function(...){ 
+						var ret = safefunc(inObject,...)
+						return ret;
+					} 
+					continue; 
+				}
+				this[k] = app.api(ptr,proto,cal,inObject);//声明API时,可选使用第四个参数指定this指针
+			}
+			
+			this.__thisPointer = inObject;//gc
+		}
+	}
+	@{_topointer = this.__thisPointer}
+} 
+
+/**intellisense()
+raw.interface = 用于将接口指针绑定到静态类型接口\nC++类中的成员函数请使用virtual关键字声明为虚函数\n接口类中的自定义函数必须用owner代替this,\nowner才是实例对象,this指向的是接口定义结构体
+raw.interface() = @.interface( __/*接口指针或地址数值*/,"\n	void getName(string &buffer,int len);\n	bool getInfo(struct &pInfo); \n	","thiscall"\n)
+end intellisense**/

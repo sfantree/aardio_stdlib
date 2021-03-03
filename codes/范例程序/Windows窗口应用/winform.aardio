@@ -1,0 +1,52 @@
+﻿//创建窗口的隐藏参数
+
+import win.ui;
+
+/*
+在窗体设计器中自动生成的代码如下，
+一般我们不建议手动修改设计器生成的代码，
+但是aardio仍然预留了一些必须手动修改的隐藏参数，
+例如 className,style,styleEx等等。
+*/
+var winform = win.form(
+	/*
+	如果指定了cls，,
+	则在cls后面追加线程ID生成窗口类名。
+	如果同时指定了className，则className必须指向一个已存在的窗口类，
+	aardio自该窗口类复制一个副本。
+	
+	如果指定了className，但是并没有指定cls，则className指定真实类名，
+	如果此窗口类不存在会自动创建.
+	
+	如果cls,className都不指定,则生成默认类名
+	*/
+	className="aardio_form_class_name";
+	
+	/*
+	可以使用style指定样式,所有控件也都可以在创建参数中指定style参数
+	*/
+	style=0x2000000/*_WS_CLIPCHILDREN*/;
+	
+	/*
+	可以使用styleEx指定扩展样式,所有控件也都可以在创建参数中指定styleEx参数
+	*/
+	styleEx = 0x20/*_WS_EX_TRANSPARENT*/;
+	
+	text="创建窗口的隐藏参数";
+	right=759;
+	bottom=469
+)
+winform.add(
+	edit={
+		/*
+		可自行指定控件ID如果不指定，则自动分配大于ID值,
+		自动分配ID时自_IDCANCEL+1开始逐渐递增。
+		*/
+		id = 123;
+		cls="edit";text="edit";left=46;top=29;right=722;bottom=435;edge=1;multiline=1;z=1;
+		style=0x4000000/*_WS_CLIPSIBLINGS*/;
+	}
+) 
+
+winform.show() 
+win.loopMessage();

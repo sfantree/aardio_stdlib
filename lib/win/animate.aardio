@@ -1,0 +1,81 @@
+//animate 动画窗口 
+namespace win;
+
+class animate{
+	ctor( hwnd,pred,defalut ){
+		this.hwnd = hwnd[["hwnd"]] : hwnd;
+		if( !hwnd ) error("请指定窗口句柄",2) 
+		this.pred = pred || 0;
+		this.defalut = defalut || 0;
+	};
+	hide = function(tick,flags){
+		if( !tick ) tick = 500;
+		if( !flags ) flags = this.defalut;
+		flags = flags | 0x10000/*_AW_HIDE*/
+		animateWindow(this.hwnd,tick,flags | this.pred );
+	};
+	show = function(tick,flags){
+		if( !tick ) tick = 500;
+		if( !flags ) flags = this.defalut;
+		flags = flags & ~0x10000/*_AW_HIDE*/
+		 
+		animateWindow(this.hwnd,tick,flags | this.pred );
+	}; 
+	activate = function(tick,flags){
+		if( !tick ) tick = 500;
+		if( !flags ) flags = this.defalut;
+		flags = ( flags & ~0x10000/*_AW_HIDE*/ ) | 0x20000/*_AW_ACTIVATE*/;
+		animateWindow(this.hwnd,tick,flags | this.pred );
+	};
+}
+
+namespace animate{
+
+	animateWindow = ::User32.api("AnimateWindow", "bool(INT hwnd,INT tick,INT flags)");
+	
+	roll = function(hwnd,pred){
+		hwnd = hwnd[["hwnd"]] : hwnd;
+		if( !hwnd ) error("请指定窗口句柄",2) 
+		return ..win.animate( hwnd, ,0x4/*_AW_VER_POSITIVE*/ );
+	}
+	
+	slide = function(hwnd,pred){
+		hwnd = hwnd[["hwnd"]] : hwnd;
+		if( !hwnd ) error("请指定窗口句柄",2) 
+		return ..win.animate( hwnd,0x40000/*_AW_SLIDE*/,0x4/*_AW_VER_POSITIVE*/); //不支持AW_CENTER
+	} 
+	
+	fade = function(hwnd){
+		hwnd = hwnd[["hwnd"]] : hwnd;
+		if( !hwnd ) error("请指定窗口句柄",2) 
+		return ..win.animate( hwnd,0x80000/*_AW_BLEND*/ | 0x10/*_AW_CENTER*/ );//不支持指定方向
+	}
+}
+
+
+/*intellisense(win)
+animate(.(窗口对象或句柄) = 创建动画窗口
+animate.roll(.(窗口对象或句柄) = 创建滚动动画窗口
+animate.slide(.(窗口对象或句柄) = 创建滑动动画窗口\n该动画不支持_AW_CENTER选项
+animate.fade(.(窗口对象或句柄) = 创建淡入淡出动画窗口,该动画仅支持顶层窗口,\n不支持自定义动画方向,仅支持默认的_AW_CENTER选项
+animate() = !win_animate.
+animate.slide() = !win_animate.
+animate.fade() = !win_animate.
+end intellisense*/
+
+/**intellisense(!win_animate)
+show(.(持续时间,_AW__ ) = 动画显示窗口,\n可选用参数@1指定持续时间,省略则默认值为500毫秒\n参数@2可选指向动画方向,选项使用 _AW_ 前缀常量,\n注意fade效果不能指定方向
+hide(.(持续时间,_AW__ ) = 动画隐藏窗口,\n可选用参数@1指定持续时间,省略则默认值为500毫秒\n参数@2可选指向动画方向,选项使用 _AW_ 前缀常量,\n注意fade效果不能指定方向
+activate(.(持续时间,_AW__ ) = 动画显示窗口,\n可选用参数@1指定持续时间,省略则默认值为500毫秒\n参数@2可选指向动画方向,选项使用 _AW_ 前缀常量,\n注意fade效果不能指定方向
+end intellisense**/
+
+/**intellisense()
+_AW_ACTIVATE=@0x20000/*_AW_ACTIVATE*/
+_AW_BLEND=@0x80000/*_AW_BLEND*/
+_AW_SLIDE=@0x40000/*_AW_SLIDE*/
+_AW_VER_POSITIVE=@0x4/*垂直自上向下*/
+_AW_VER_NEGATIVE=@0x8/*垂直自下向上*/
+_AW_HOR_POSITIVE=@0x1/*水平自左向右*/
+_AW_HOR_NEGATIVE=@0x2/*水平自右向左*/
+_AW_CENTER=@0x10/*_AW_CENTER*/
+end intellisense**/

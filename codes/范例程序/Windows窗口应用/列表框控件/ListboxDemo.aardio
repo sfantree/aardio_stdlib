@@ -1,0 +1,72 @@
+//Listbox控件演示 
+//感谢 xYe 编写该范例
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="button/listbox/edit控件演示";right=397;bottom=171)
+winform.add(
+btnAdd={cls="button";text="添加";left=126;top=51;right=172;bottom=75;z=4};
+btnClear={cls="button";text="清除";left=184;top=52;right=230;bottom=76;z=3};
+btnDelete={cls="button";text="删除";left=241;top=52;right=287;bottom=76;z=2};
+btnFind={cls="button";text="模糊查找";left=297;top=52;right=360;bottom=76;z=10};
+btnFindEx={cls="button";text="精确查找";left=298;top=83;right=362;bottom=107;z=11};
+combobox={cls="combobox";left=128;top=81;right=236;bottom=101;edge=1;items={};mode="dropdown";z=8};
+edit={cls="edit";text="请输入...";left=129;top=20;right=360;bottom=44;acceptfiles=1;edge=1;multiline=1;tabstop=1;z=9};
+groupbox={cls="groupbox";text="添加删除";left=114;top=2;right=379;bottom=165;acceptfiles=1;edge=1;tabstop=1;z=1};
+listbox={cls="listbox";left=3;top=3;right=110;bottom=144;acceptfiles=1;bgcolor=16777215;edge=1;items={};tabstop=1;vscroll=1;z=6};
+static={cls="static";left=128;top=111;right=360;bottom=158;acceptfiles=1;edge=1;tabstop=1;transparent=1;z=5};
+static2={cls="static";text="static2";left=196;top=235;right=197;bottom=236;acceptfiles=1;bgcolor=14215660;tabstop=1;transparent=1;z=7}
+)
+/*}}*/
+
+winform.btnFindEx.oncommand = function(id,event){
+	var ind = winform.listbox.findEx(winform.edit.text);
+	winform.listbox.selIndex = ind; 
+	win.msgbox(ind,"aardio");
+}
+
+winform.btnFind.oncommand = function(id,event){ ;
+	var ind = winform.listbox.find(winform.edit.text)
+	winform.listbox.selIndex = ind
+	
+	var ind = winform.combobox.find(winform.edit.text)
+	winform.combobox.selIndex = ind
+	winform.msgbox(ind)
+}
+ 
+winform.combobox.oncommand = function(id,event){
+	if(event == 0x1/*_CBN_SELCHANGE*/){
+		winform.edit.text = winform.combobox.selText;
+	}
+}
+
+winform.btnClear.oncommand = function(id,event){
+	winform.listbox.clear();
+	winform.static.text = "";
+	winform.redraw();
+}
+
+winform.listbox.oncommand = function(id,event){ 
+	if( event == 0x1/*_LBN_SELCHANGE*/ ){
+		winform.static.text =  string.format( 
+			'您选中了第%d项\n总计%d项\n项文本：%s'
+			,winform.listbox.selIndex
+			,winform.listbox.count
+			,winform.listbox.selText
+			);
+	}
+}
+
+winform.btnDelete.oncommand = function(id,event){
+	winform.listbox.delete(); 
+}
+
+winform.btnAdd.oncommand = function(id,event){
+	str = winform.edit.text;
+	winform.listbox.add(str)
+	winform.combobox.add(str)
+	winform.combobox.selText =  str 
+	winform.listbox.selIndex = winform.listbox.count;
+}
+
+winform.show(true) 
+win.loopMessage( winform );

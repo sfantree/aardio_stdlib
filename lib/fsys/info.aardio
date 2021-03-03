@@ -1,0 +1,54 @@
+//info 文件信息
+namespace fsys.info;
+
+get = function(filename,flag,attr){
+	var sfi = {
+		pointer hIcon; 
+		int iIcon; 
+		INT dwAttributes;
+		WORD szDisplayName[0x104/*_MAX_PATH*/];
+		WORD szTypeName[80];
+	} 
+	filename = ..io.localpath(filename) : filename;
+	if( attr === null ) {
+		var a = ::Kernel32.GetFileAttributesW( filename ); 
+		attr = ( (a!=-1) && ( a & 0x10/*_FILE_ATTRIBUTE_DIRECTORY*/) ) ? 0x10/*_FILE_ATTRIBUTE_DIRECTORY*/ : 0;
+	}
+	sfi.returnValue = ::Shell32.SHGetFileInfoW( filename, attr, sfi, ..raw.sizeof(sfi)  , flag or 0 ); 
+	return sfi;
+}
+
+getExeType = function(filename){
+
+	var sfi = {
+		pointer hIcon; 
+		int iIcon; 
+		INT dwAttributes;
+		WORD szDisplayName[0x104/*_MAX_PATH*/];
+		WORD szTypeName[80];
+	}
+	
+	var exe = ::Shell32.SHGetFileInfoW( ..io.fullpath(filename), 0, sfi, ..raw.sizeof(sfi) 
+		, 0x2000/*_SHGFI_EXETYPE*/ );
+	if( !exe ) return;
+	return ..raw.convert({addr n = exe},{BYTE magic[2];WORD winVer  });
+}
+
+/**intellisense()
+fsys.info.get( = 返回文件信息
+fsys.info.get(.("路径",SHGFI_->->-> ) = 参数@2指定一个或多个选项,多个选项用|连接
+fsys.info.get() = !shfileinfo.
+fsys.info.getExeType(.(文件路径) = 检测是否EXE文件\n失败返回空
+fsys.info.getExeType() = !shfileexetypeinfo.
+!shfileexetypeinfo.magic = DOS程序为"MZ"\n非DOS程序为"PE"
+!shfileexetypeinfo.winVer = 控制台程序为0\nGUI程序为windows版本号
+end intellisense**/
+
+/**intellisense(!shfileinfo)
+hIcon = 图标句柄\n如果不为空要负责释放该句柄
+iIcon = 在图像列表中的索引
+dwAttributes = 文件属性
+szDisplayName = 文件名
+szTypeName = 类型名
+returnValue = SHGetFileInfo的返回值
+end intellisense**/

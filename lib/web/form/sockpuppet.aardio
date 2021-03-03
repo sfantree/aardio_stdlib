@@ -1,0 +1,75 @@
+//sockpuppet 多账号登录
+import web.form.util;
+import win.guid;
+import fsys;
+namespace web.form; 
+ 
+class sockpuppet{
+	ctor( winform,hostflag,dlControl,agent,securityTrusted ){ 
+		..thread.lock("创建马甲登录器")
+		
+		//记录旧的设置
+		var web_reg = ..win.reg("HKEY_CURRENT_USER\SOFTWARE\MICROSOFT\WINDOWS\CURRENTVERSION\EXPLORER\User Shell Folders") 
+		var web_cookeis = web_reg.queryValue("Cookies")
+		var web_cache = web_reg.queryValue("Cache") 
+ 	 
+		//改变cookies目录 
+		var cookiePath;
+		..fsys.createDir( cookieRootPath )
+		..fsys.enum( cookieRootPath, "*.*",
+			function(dir,filename,fullpath,findData){ 
+				if(!filename) {
+					if( ! ..io.exist( ..fsys.joinpath(fullpath,"__sockpuppet.lock") ) ){
+						cookiePath = fullpath; 
+						return false;
+					}
+				}
+			},false
+		); 
+		if( !cookiePath ){
+			cookiePath = ..fsys.joinpath( cookieRootPath , tostring(  ..win.guid.create() ) );
+		};
+		cookiePath = ..io.fullpath(cookiePath);
+		..fsys.createDir( cookiePath )
+		..string.save( ..fsys.joinpath(cookiePath,"__sockpuppet.lock") ,"locked") 
+
+		web_reg.setSzValue("Cookies",cookiePath )
+		web_reg.setSzValue("Cache",cookiePath )  
+
+		..web.form.util.refreshOption() 
+		this = ..web.form( winform,hostflag,dlControl,agent,securityTrusted  ) 
+		this.go("about:blank");
+		this.wait(); 
+		 
+		if( ! #web_cookeis ){
+			clear()
+		}
+		else{
+			web_reg.setSzValue("Cookies",web_cookeis) 
+			web_reg.setSzValue("Cache",web_cache) 
+		}
+		..thread.unlock("创建马甲登录器")
+	}; 
+	unlockCookiePath = function(){
+		..fsys.delete( ..fsys.joinpath(cookiePath,"__sockpuppet.lock")  )
+	} 
+}
+
+namespace sockpuppet{ 
+	cookieRootPath = "/sockpuppet/";
+	
+	clear = function(){
+		var web_reg = ..win.reg("HKEY_CURRENT_USER\SOFTWARE\MICROSOFT\WINDOWS\CURRENTVERSION\EXPLORER\User Shell Folders") 
+		var web_cookeis = web_reg.queryValue("Cookies")
+		web_reg.delValue("Cookies")  
+		web_reg.delValue("Cache")  
+		web_reg.delValue("Window Title")  
+	}
+}
+ 
+/*intellisense() 
+web.form.sockpuppet( winform ) = 替换web.form构造函数即可\n创建一个支持马甲登录器
+web.form.sockpuppet() = !wb.
+web.form.sockpuppet.clear() = 恢复注册表默认值
+web.form.sockpuppet.cookieRootPath = 修改COOKIE目录
+end intellisense*/

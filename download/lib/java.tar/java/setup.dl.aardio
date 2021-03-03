@@ -1,0 +1,15 @@
+import fsys;
+
+fsys.createDir("~\lib\java\") 
+fsys.copy( "\java\*","~\lib\java\" );
+
+fsys.createDir("~\java\",true)
+fsys.copy( "/java-jre/*","~\java\" ); 
+
+import ide;
+ide.refreshStdLib();
+ 
+import win;
+win.msgboxTimeout("JAVA库已安装成功,
+包含精简JRE v1.6(已删除applet,awt,swing) - 可根据需要替换","aardio - JAVA扩展库安装程序",2000)
+

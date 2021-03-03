@@ -1,0 +1,87 @@
+import console;
+import mysql.client;
+
+console.showLoading(" 正在连接测试数据库" )
+var dbMysql,err = mysql.client(
+    server = "db4free.net"; //数据库服务器,可省略默认为localhost
+    uid = "aardio_mysql";//用户名,可省略默认为root
+    pwd = "aardio.com";
+); 
+
+if(!dbMysql){ 
+    console.log("如果是有人无聊修改了密码,请自行到db4free.net申请免费数据库")
+    return console.logPause(err); 
+}
+
+//选择数据库
+dbMysql.selectDb("aardio_mysql")  
+
+//查询数据并返回记录集
+var result = dbMysql.stepQuery("select version()");
+console.dump(result)
+
+//执行SQL语句,注意mysql表名、字段名可包含于反引号内(用键盘左上角ESC下方的按键内)
+dbMysql.exec("CREATE TABLE IF NOT EXISTS `library` (
+    `name` VARCHAR(100) NOT NULL, 
+    `auditing` TINYINT(1) DEFAULT '0',
+    `bytes` BLOB,
+    `time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`name`),
+    UNIQUE KEY `name` (`name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;");
+
+var dbTable,err  = dbMysql.listTables() 
+for tbl in dbTable.each(){
+    console.log("发现数据表:",tbl);
+}
+ 
+//执行SQL语句,使用命名参数
+var ok,err = dbMysql.exec("INSERT `library` VALUES('测试',@num,@str,@time)",{
+    num = 123;
+    str = "测试:'这是字符串!'命名参数可以自动处理字符串转义";
+    time = time();
+} ) 
+
+var ok,err = dbMysql.exec("INSERT `library` VALUES('测试2',@num,@str,@time)",{
+    num = 123;
+    str = "测试2";
+    time = time().addday(-2);
+} ) 
+console.log(ok,err);
+
+//查询数据并返回记录集
+var result = dbMysql.query("SELECT * FROM `library` WHERE time >=@time",{
+    time = tostring(time().addday(-3),"%Y/%m/%d")
+});
+for name,auditing,bytes in result.each(){ 
+    console.log("输出", name,auditing,bytes ); //逐行输出所有记录
+}
+
+//查询数据并返回全部记录集到一个表
+var result = dbMysql.query("SELECT * FROM `library` WHERE time >= (
+	SELECT DATE(`time`) FROM `library` ORDER BY `time` DESC LIMIT 0,1
+)");
+console.dumpJson(result.getTable())
+
+//创建存储过程
+var ok,err = dbMysql.exec("
+CREATE PROCEDURE demo(IN n int)  
+BEGIN     
+SET n=123;   
+SELECT n;  
+END;   
+")
+
+//调用存储过程
+var ret,err = dbMysql.getTable("CALL demo(@n)",{
+	n=123 //传入命名参数
+});
+
+console.dump(ret);
+
+//移除存储过程
+console.log( dbMysql.exec("DROP PROCEDURE IF EXISTS `demo`") );
+
+//移除数据库
+dbMysql.exec("DROP TABLE IF EXISTS `library`");
+console.pause();

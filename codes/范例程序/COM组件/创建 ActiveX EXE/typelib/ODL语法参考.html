@@ -1,0 +1,177 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<style type="text/css">
+	body{
+		font-size:10.5pt;
+	}
+	div.codeblock {text-indent:0px; margin: 10px 5px 0 0; border : 1px solid #cccccc;padding : 8px;background : #fdfddf;font-size : 9pt; width:580px;
+font-family : "Courier New",monospace;font-style : normal;line-height : normal;font-weight : normal;} 
+ 
+</style>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Untitled Document</title>
+</head>
+
+<body>
+&nbsp;
+<p><br />
+  <br />
+  <strong>一、定义&nbsp;library(类型库)</strong><br />
+  <br />
+  <br />
+  下面的表达式描述一个类型库．这个描述包括一个MIDL输入文件(ODL)包含的所有信息．<br />
+<div class="codeblock">
+  [attributes]&nbsp;<br />
+  library&nbsp;类型库的名字&nbsp;{&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;输入库，数据类型，模块，接口，调度接口和COM类等相关的要暴露的信息的描述．<br />
+  };</div>
+  &nbsp;<br />
+  <br />
+  <strong>1.1、语法元素说明：</strong><br />
+  <br />
+  [&nbsp;attributes&nbsp;]&nbsp;<br />
+  在一个library表达式前面接受helpstring,helpcontext,lcid,restricted,hidden,control,uuid和version属性．<br />
+  其中uuid属性是必须的．想了解这些属性的详细信息，可参考下一章．<br />
+  属性放在中括号中.<br />
+  &nbsp;<br />
+  <strong>1.2、备注<br />
+  <br />
+  </strong>library表达式必须出现在任何类型定义之前<strong><br />
+  <br />
+  1.3、例子</strong><br />
+<div class="codeblock">
+  [&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;uuid(F37C8060-4AD5-101B-B826-00DD01103DE1),&nbsp;//&nbsp;LIBID_Hello.&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;helpstring(&quot;Hello&nbsp;2.0&nbsp;Type&nbsp;Library&quot;),&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;lcid(0x0409),&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;version(2.0)&nbsp;<br />
+  ]&nbsp;<br />
+  library&nbsp;Hello&nbsp;{&nbsp;<br />
+  <br />
+  &nbsp;&nbsp;&nbsp;&nbsp;importlib(&quot;stdole.tlb&quot;);&nbsp;&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;[&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;uuid(F37C8062-4AD5-101B-B826-00DD01103DE1),&nbsp;&nbsp;&nbsp;//&nbsp;IID_Ihello.&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;helpstring(&quot;Application&nbsp;object&nbsp;for&nbsp;the&nbsp;Hello&nbsp;application.&quot;),&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;oleautomation,&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;dual&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;]<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;interface&nbsp;IHello&nbsp;:&nbsp;IDispatch&nbsp;{&nbsp;&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[propget,&nbsp;helpstring(&quot;Returns&nbsp;the&nbsp;application&nbsp;of&nbsp;the&nbsp;object.&quot;)]&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;HRESULT&nbsp;Application([in,&nbsp;lcid]&nbsp;long&nbsp;localeID,&nbsp;[out,&nbsp;retval]&nbsp;IHello**&nbsp;retval)&nbsp;<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;}<br />
+  <br />
+  }&nbsp;</div>
+  </p>
+<p> <strong>二、定义接口(interface)</strong><br />
+  <br />
+这个表达式定义一个接口，接口就是一个函数定义的集合．一个接口可以继承于任何基接口．<br />
+<div class="codeblock">
+[attributes]&nbsp;&nbsp;<br />
+interface&nbsp;接口的名字[:父接口的名字]{&nbsp;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;functionlist&nbsp;<br />
+};</div>
+&nbsp;<br />
+<br />
+<strong>2.1、语法元素说明：&nbsp;<br />
+</strong>[attributes]<br />
+在一个interface表达式前面接受dual&nbsp;,&nbsp;helpstring&nbsp;,&nbsp;helpcontext&nbsp;,&nbsp;hidden&nbsp;,&nbsp;odl&nbsp;,&nbsp;oleautomation&nbsp;,&nbsp;uuid&nbsp;和&nbsp;version&nbsp;属性．<br />
+其中&nbsp;odl&nbsp;,&nbsp;uuid&nbsp;属性是必须的．如果这个接口是一个COM对象的接口，source&nbsp;,&nbsp;default&nbsp;和&nbsp;restricted&nbsp;也被接受．想了解这些属性的详细信息，可参考下一章．<br />
+<br />
+functionlist<br />
+接口中每个函数的函数原形的列表．在这个函数列表中可以出现任意数量的函数定义．<br />
+<br />
+在函数列表中的函数定义使用下面的形式：<br />
+[attributes]&nbsp;returntype&nbsp;[calling&nbsp;convention]&nbsp;funcname(params);&nbsp;&nbsp;&nbsp;<br />
+<br />
+接口里一个函数定义中可以接受下面的属性：helpstring&nbsp;,&nbsp;helpcontext&nbsp;,&nbsp;string&nbsp;,&nbsp;propget&nbsp;,&nbsp;propput&nbsp;,&nbsp;propputref&nbsp;,&nbsp;bindable&nbsp;,&nbsp;defaultbind&nbsp;,&nbsp;displaybind&nbsp;和&nbsp;vararg&nbsp;．如果&nbsp;vararg&nbsp;被指定，最后一个参数必须是VARIANT类型的安全数组．可选的调用惯例可以是&nbsp;_pascal&nbsp;/&nbsp;_pascal&nbsp;/&nbsp;pascal&nbsp;,&nbsp;_cdecl&nbsp;/&nbsp;_cdecl&nbsp;/&nbsp;cdecl&nbsp;或者&nbsp;__stdcall&nbsp;/&nbsp;_stdcall&nbsp;/&nbsp;stdcall．调用协定<br />
+<br />
+参数列表是一个用逗号分隔的列表，向下面这样：<br />
+[attributes]&nbsp;type&nbsp;paramname&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br />
+<br />
+类型可以是任何先前已经定义的类型，内置类型，指向任何类型的指针，指向内置类型的指针等．参数的属性有&nbsp;in&nbsp;,&nbsp;out&nbsp;,&nbsp;optional&nbsp;和&nbsp;string．<br />
+<br />
+如果使用了&nbsp;optional&nbsp;，它必须指定最右边的参数，而且参数的类型必须是VARIANT．<br />
+<br />
+<strong>2.2、备注</strong><br />
+<br />
+因为用interface描述的函数存在于VTBL，DispInvoke&nbsp;与&nbsp;CreateStdDispatch&nbsp;可以用于提供一个IDispatch::Invoke的实现．因为这个原因，在描述一个对象的属性或方法时interface&nbsp;的使用比&nbsp;dispinterface&nbsp;更普遍．<br />
+<br />
+在interface里描述一个函数，与在一个module表达式里描述是基本致的，除了entry属性不允许使用．<br />
+<br />
+接口里的成员可能会产生异常，所以应该返回HRESULT值，而且应该为真实返回值指定一个返回参数．返回参数总是列表中最后一个参数．<strong><br />
+<br />
+2.3、例子</strong><br />
+<br />
+下面的例子定义了一个名字为Hello的接口，有两个成员函数，HelloProc和Shutdown:<br />
+<div class="codeblock">
+[uuid(BFB73347-822A-1068-8849-00DD011087E8),&nbsp;version(1.0)]<br />
+interface&nbsp;hello&nbsp;:&nbsp;IUnknown&nbsp;{&nbsp;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;HelloProc([in,&nbsp;string]&nbsp;unsigned&nbsp;char&nbsp;*&nbsp;pszString);&nbsp;<br />
+&nbsp;&nbsp;&nbsp;&nbsp;void&nbsp;Shutdown(void);&nbsp;<br />
+};&nbsp;</div>
+<br />
+接下来的例子定义了一个名为IMyInt的双重接口，它有一对为MyMessage属性定义的访问函数，还有一个返回一个字符串的函数．<br />
+<div class="codeblock">
+[dual]&nbsp;<br />
+interface&nbsp;IMyInt&nbsp;:&nbsp;IDispatch&nbsp;{&nbsp;<br />
+&nbsp;&nbsp;&nbsp;//&nbsp;A&nbsp;property&nbsp;that&nbsp;is&nbsp;a&nbsp;string.&nbsp;<br />
+&nbsp;&nbsp;&nbsp;[propget]&nbsp;HRESULT&nbsp;MyMessage([in,&nbsp;lcid]&nbsp;LCID&nbsp;lcid,&nbsp;[out,&nbsp;retval]&nbsp;BSTR&nbsp;*pbstrRetVal);&nbsp;<br />
+&nbsp;&nbsp;&nbsp;[propput]&nbsp;HRESULT&nbsp;MyMessage([in]&nbsp;BSTR&nbsp;rhs,&nbsp;[in,&nbsp;lcid]&nbsp;DWORD&nbsp;lcid);<br />
+&nbsp;<br />
+&nbsp;&nbsp;&nbsp;//&nbsp;A&nbsp;method&nbsp;returning&nbsp;a&nbsp;string.&nbsp;<br />
+&nbsp;&nbsp;&nbsp;HRESULT&nbsp;SayMessage([in]&nbsp;long&nbsp;NumTimes,&nbsp;&nbsp;&nbsp;[in,&nbsp;lcid]&nbsp;DWORD&nbsp;lcid,&nbsp;[out,&nbsp;retval]&nbsp;BSTR&nbsp;*pbstrRetVal);&nbsp;<br />
+}&nbsp;<br />
+</div>
+这个接口的成员返回错误信息，而且函数通过HRESULT值与返回参数各自地返回值．<br />
+访问成员的工具可以返回HRESULT到他们的用户，可简单的暴露返回参数返回值，显式地处理HRESULT值．<br />
+<br />
+双重接口必须从IDispatch继承<br />
+<br />
+<strong>三、定义coclass</strong><br />
+&nbsp;<br />
+这个表达式描述一个组件对象模型(COM)的全球统一标识符和它支持的接口．&nbsp;<br />
+<div class="codeblock">
+[attributes]&nbsp;<br />
+coclass&nbsp;classname&nbsp;{&nbsp;<br />
+&nbsp;&nbsp;&nbsp;[attributes2]&nbsp;[interface&nbsp;|&nbsp;dispinterface]&nbsp;interfacename;&nbsp;<br />
+};</div>
+<p><br />
+  <strong>3.1、语法元素说明：<br />
+  </strong>[attributes]&nbsp;<br />
+  在coclass表达式中，uuid属性是必须的．这个uuid与在系统注册表中注册组件的CLSID是相同的．<br />
+  在本表达式的前面还接受&nbsp;helpstring&nbsp;,&nbsp;helpcontext&nbsp;,&nbsp;version&nbsp;,&nbsp;licensed&nbsp;,&nbsp;control&nbsp;,&nbsp;hidden&nbsp;与&nbsp;appobject&nbsp;属性，但不是必须的．想了解这些属性更多的细节，请看下一章．appobject&nbsp;属性使&nbsp;coclass&nbsp;的函数和属性在整个类型库内有效．<br />
+  <br />
+  classname<br />
+  在类型库中标识普通对象的名字．<br />
+  <br />
+  attributes2<br />
+  interface或dispinterface的可选属性．source&nbsp;,&nbsp;default&nbsp;与&nbsp;restricted&nbsp;属性可以被接受．<br />
+  <br />
+  interfacename<br />
+  用&nbsp;interface&nbsp;或&nbsp;dispinterface&nbsp;声明的接口．<br />
+  <strong><br />
+  3.2、备注</strong><br />
+组件对象模型定义一个类作为一个实现，允许QueryInterface在接口集之间查询．</p>
+<p><strong>3.3、示例</strong><br />
+</p>
+<div class="codeblock">
+  [&nbsp;uuid(BFB73347-822A-1068-8849-00DD011087E8),&nbsp;version(1.0),&nbsp;helpstring(&quot;A&nbsp;class&quot;),&nbsp;helpcontext(2481),&nbsp;appobject]<br />
+coclass&nbsp;myapp&nbsp;{<br />
+&nbsp;&nbsp;&nbsp;[source]&nbsp;interface&nbsp;IMydocfuncs;&nbsp;<br />
+&nbsp;&nbsp;&nbsp;dispinterface&nbsp;DMydocfuncs;&nbsp;<br />
+};<br />
+<br />
+[uuid&nbsp;00000000-0000-0000-0000-123456789019]&nbsp;<br />
+coclass&nbsp;foo{<br />
+&nbsp;&nbsp;&nbsp;[restricted]&nbsp;interface&nbsp;bar;<br />
+&nbsp;&nbsp;&nbsp;interface&nbsp;bar;<br />
+}</div>
+<br />
+<br />
+<br />
+  <br />
+  &nbsp;</p>
+</body>
+</html>

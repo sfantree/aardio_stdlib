@@ -1,0 +1,154 @@
+﻿//grid 简单数据视图
+import win.ui.ctrl.edit;
+import win.imageList;
+
+namespace win.ui;
+
+class grid{
+	ctor( listview ){
+		this = listview; 
+		this.fullRow = 1;
+		this.gridLines = 1;
+		this.readonlyColums = {};
+		this.setColumnImageList(columnImageList);
+  
+		this.addCtrl(
+            editBox = { 
+                cls="edit";font = LOGFONT( h = 12 );left = 0;top = 0;
+                right = 50;bottom = 50;autoResize = false ;hide = 1;edge = 1;
+                wndproc = function( hwnd, message, wParam, lParam ){
+                    var update;
+                    var event = owner.event;
+                    
+                    if( ( message = 0x8/*_WM_KILLFOCUS*/)  || (message == 0x101/*_WM_KEYUP*/ && wParam == 0xD/*_VK_RETURN*/ ) ) {
+                        update = true;
+                    }
+                    elseif(message == 0x201/*_WM_LBUTTONDOWN*/ ){
+                        var x,y = ..win.getMessagePos(lParam)
+                        var rc = this.editBox.getClientRect();
+                       
+                        if( ! ::PtInRect(rc,x,y) ) update = true;
+                        this.editBox.capture = !update;
+                    } 
+                    elseif(message == 0x101/*_WM_KEYUP*/){
+                    	if( wParam == 0xD/*_VK_RETURN*/ ) update = true;
+                    	elseif( wParam == 0x1B/*_VK_ESC*/){
+                    		owner.text = this.getItemText(event.iItem,event.iSubItem );
+                    		update = true;
+                    	}
+                    }
+                    
+                    if( update ){
+                    	owner.show(false);
+                        var t = this.getItemText(event.iItem,event.iSubItem );
+                        if( t!= owner.text ){
+                        	if( this.onEditChanged ) {
+	                        		if( false === this.onEditChanged(owner.text, event.iItem, event.iSubItem)) 
+	                        			return;
+                        	}
+                        		
+                        	this.setItemText( owner.text, event.iItem, event.iSubItem );
+                        }
+                        
+                        if(this.onEditEnd){
+                        	this.onEditEnd(event.iItem, event.iSubItem);
+                        }
+                    }
+                }  
+            }
+        ) 
+	};
+	beginEdit = function(iItem,iSubItem){
+		var edit = this.editBox;
+		if( ..win.isVisible(edit.hwnd) ) return; 
+		
+		var event = this.editBox.event;
+		if(iItem===null && iSubItem===null) {
+			iItem = event.iItem;
+			iSubItem = event.iSubItem;
+		}
+		else {
+			event = {
+				iItem = iItem;
+				iSubItem = iSubItem;
+			};
+			edit.event = event;
+		} 
+		
+       	if( this.readonlyColums[iSubItem] ) return; 
+        edit.text=this.getItemText(iItem,iSubItem);
+        var rc=this.getItemRect(iItem,iSubItem,,2/*_LVIR_LABEL*/ );
+        
+        rc.inflate(2,2);
+        edit.setRect(rc);
+        edit.show(); 
+        edit.setFocus();
+        edit.capture = true;
+        return true;	
+	};
+	_prenotify = function(id,code,ptr){ 
+		
+ 		if(code=0xFFFFFFFD/*_NM_DBLCLK*/){
+        	var event = this.getNotifyMessage(code,ptr);
+        	if( ! event.iItem && event.iSubItem ) return ;
+        	
+        	this.editBox.event = event; 
+        	this.beginEdit();  
+    	}
+    	elseif(code==0xFFFFFF65/*_LVN_KEYDOWN*/){
+    		var nmkey = ..raw.convert(ptr,{
+  				struct hdr = ::NMHDR();
+  				WORD vkey;
+  				INT flags;
+			});
+
+			var vk = nmkey.vkey;
+			var edit = this.editBox;
+			if(!edit.event) edit.event = {};
+			edit.event.iItem = this.getSelection();
+			
+			if( vk == 0x20/*_VK_SPACE*/ ){
+				if(!edit.event.iSubItem)edit.event.iSubItem=1;
+				this.beginEdit(); 
+			} 
+    	}
+    	elseif(code==0xFFFFFF94/*_LVN_COLUMNCLICK*/) {
+    		var nm = this.getNotifyMessage(code,ptr)
+    		var desc = this.getColumnImage(nm.iSubItem) == 0;
+    		if(this.onSortColumn){
+    			if( this.onSortColumn(nm.iSubItem,desc) ){
+    				this.clearColumnImage();
+    				this.setColumnImage(nm.iSubItem, desc ? 1 : 0);
+    			}
+    		} 
+    	}
+	}
+}
+
+namespace grid{
+    columnImageList = ..win.imageList(16, 15);
+	columnImageList.add('GIF\56\57a \0\15\0\x80\0\0\x80\x80\x80\xff\0\xff\33\xf9\4\0\0\0\0\0\44\0\0\0\0 \0\15\0\0\2\31\x8c\x8f\xa9\xcb\xed\15\xa3\x9c\xb4N\xf0\x80\xde\56k\xbfA\\\xd7\x84 \x97Y\xea\xca\xb6\xee\11\xc7F\1\0;', 0xff00ff);
+}
+
+
+/**intellisense()
+win.ui.grid(__) = 参数必须指定一个listview控件对象\n返回一个可编辑单元格的列表视图对象,\n\n鼠标左键单击单元格、或者按空格键开始编辑,\n回车完成编辑,ESC键撤消编辑,回车+上下方向键快速移动到其他项,\n用户完成编辑后会触发onEditChanged事件.\n!listview.
+win.ui.grid() = !win_ui_grid.
+!win_ui_grid.editBox = 实现编辑功能的edit控件\n此功能需要扩展listview并实现了编辑功能的的控件才能支持\n!edit.
+!win_ui_grid.onEditChanged(text,iItem,iSubItem) = @.onEditChanged = function(text,iItem,iSubItem){
+	__/*控件完成编辑,并且文本已变更,\ntext为改变后的文本,iItem为行号,iSubItem为列号\n此功能需要扩展listview并实现了编辑功能的的控件才能支持\n返回false可中止更新显示文本*/
+}
+!win_ui_grid.onEditEnd(iItem,iSubItem) = @.onEditChanged = function(iItem,iSubItem){
+	__/*控件完成编辑*/
+}
+!win_ui_grid.onSortColumn(cloumn,desc) = @.onSortColumn = function(cloumn,desc){
+	__/*点击列排序时回调此函数\n@column参数为列序号，1为首列，@desc参数指定是否倒序\n返回true排序，否则不排序*/
+	return true;
+} 
+!win_ui_grid.setTable(__) = 用listview控件显示数据表\n此函数会自动清空控件之前的所有项,\n如果没有创建任何列,则自动创建列\n\n数据表应当包含行组成的数组,\n每行的数据列必须是由列名和列值组成的键值对\n数据表应使用fields包含需要显示的列名称数组\n可以通过fields控制要显的列、以及要显示的顺序\n\n使用sqlite,access,sqlServer等数据库对象提供的getTable函数可获取符合此规格的数据表 
+!win_ui_grid.setColumns(__) = 用一个字符串数组指定要显示的列\n如果参数为空则清空所有列
+!win_ui_grid.clear() = 清空所有行
+!win_ui_grid.clear(true) = 清空所有行,并且清空所有列
+!win_ui_grid.beginEdit(.(行,列) = 切换到编辑状态
+!win_ui_grid.readonlyColums = @.readonlyColums = { [1] = true;__/*设置禁止编辑的列序号*/ }
+end intellisense**/

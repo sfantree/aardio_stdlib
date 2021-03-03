@@ -1,0 +1,211 @@
+//dlManager 下载线程管理器
+import fsys;
+import thread.works;
+import thread.event;
+import thread.command;
+import util.metaProperty;
+
+namespace thread;
+class dlManager {
+
+	ctor( limit,waitTime ){
+		
+		this.works = ..thread.works( limit : 3, 
+			function( args ) {
+				if( ! args.id) return; //取消任务
+				
+				var eventId = ..string.format("thread/download/%s",tostring(args.id ));
+				var event = thread.event(eventId,true);//参数2为真避免线程自动切换信号
+				
+				var id = args.id;
+				var hwndCommand = args.hwndCommand;
+				var savepath = args.savedir;
+				if( args.filename ) savepath =  ..fsys.joinpath( savepath,args.filename )  
+	 		
+	 			var send = ..thread.command.send;
+	 			var post = ..thread.command.post;
+				var remoteFile = inet.httpFile(args.url,savepath,args.resumePath,args.userAgent,args.proxy,args.proxyBypass,args.httpFlags);
+				if( !remoteFile ){
+					send( hwndCommand,"onError",id,"参数错误");
+					return;
+				}
+				
+				var totalSize = 0;
+				var filename = io.splitpath(remoteFile.path).file;
+				remoteFile.onReceiveBegin = function(statusCode,contentLength,fileSize){
+					if( statusCode == 206/*断点续传*/ ){
+						send( hwndCommand,"onReceiveBegin",id,threadId,args.url,filename,"断点续传",statusCode,contentLength+fileSize,fileSize)
+						totalSize = fileSize;
+					}
+					elseif(fileSize){ 
+						send( hwndCommand,"onReceiveBegin",id,threadId,args.url,filename,"重新下载",statusCode,contentLength,0)
+					}
+					else {
+						send( hwndCommand,"onReceiveBegin",id,threadId,args.url,filename,"开始下载",statusCode,contentLength,0)
+					}
+				}
+				
+	
+				var time_tick = ..time.tick;
+				var tkPrev = 0;
+				var sizePs = 0;
+				remoteFile.onReceive = function(str,size,contentLength){ 
+					totalSize = totalSize + size;
+					sizePs = sizePs + size; 
+					var tkCurrent = time_tick();
+					var ms = tkCurrent - tkPrev;
+					if( ms > 1000 ){
+						post( hwndCommand,"onReceive",id,sizePs/(ms/1000),totalSize);
+						sizePs = 0;
+						tkPrev = tkCurrent;
+					}
+					
+					return ! event.wait(1) /*检测主线程是否发出停止信号*/;
+				}
+		 		
+				var ok,err,fileSize = remoteFile.download(args.headers,args.referer,args.accept,args.flags,args.postData);
+				
+				if( ok ){
+					send( hwndCommand,"onEnd",id,remoteFile.path,remoteFile.resumePath,remoteFile.contentLength  ) 
+				}
+				else {
+					if( err )  send( hwndCommand,"onError",id,err );
+					else send( hwndCommand,"onEnd",id  );
+				} 
+				
+				remoteFile.close();
+				event.close();
+			},waitTime : 200,function(){
+				import fsys;
+				import inet.http
+				import inet.httpFile;
+				import thread.command;
+				import thread.event; 
+				
+				..threadId = ..thread.getId();
+			}
+		) 
+		
+		this.threadIds = {};
+		this.listener = ..thread.command();
+		this.listener.onReceiveBegin = function(id,threadId,url,filename,statusText,httpStatusCode,contentLength,fileSize){
+			this.threadIds[threadId] = id;//线程正在下载的任务ID
+			if( this.onReceiveBegin ){
+				this.onReceiveBegin(id,url,filename,statusText,httpStatusCode,contentLength,fileSize);
+			}
+		}
+		
+		..table.gc(this,"quit");
+	}; 
+	cancel = function(id){
+		if( !id ) error("请指定id参数",2);
+		
+		//取消待执行任务 
+		for( idx,args in this.works.each() ){
+			if( args.id == id ){
+				this.works.update(idx,{} );//取消下载
+				this.works.resume();
+				return;
+			}
+		} 
+		
+		//取消正在执行任务
+		var eventId = ..string.format("thread/download/%s",tostring(id));
+		var event = ..thread.event(eventId,true);
+		event.set();
+		event.close();
+	};
+	quit = function(){
+
+		for( idx,args in this.works.each() ){
+			this.works.update(idx,{} );
+		}
+		for(tid,id in this.threadIds ){
+			var eventId = ..string.format("thread/download/%s",tostring(id));
+			var event = ..thread.event(eventId,true);
+			event.set();
+			event.close();
+		}
+
+		var r = this.works.wait();
+		this.works.quit();
+		return r;
+	};
+	push = function(args){
+		if( !args[["id"]] ){
+			error("参数必须指定 id 属性",2)
+		}
+		if( !args[["url"]] ){
+			error("必须指定 url 属性",2)
+		}
+		if( !args[["savedir"]] ){
+			error("必须指定 savedir 属性",2)
+		}
+		
+		if( !args[["hwndCommand"]] ){
+			args[["hwndCommand"]] = this.listener._form.hwnd;
+		}
+		
+		for( idx,args2 in this.works.each() ){
+			if( args2.url == args.url ){ 
+				return;
+			}
+		} 
+		this.works.push( args );
+		return args;
+	}
+	@_metaProperty;
+	
+}
+namespace dlManager{
+	_metaProperty = ..util.metaProperty(
+		onReceive = {
+			_get = function(){ 
+				return owner.listener.onReceive;
+			}
+			_set = function( value ){
+				owner.listener.onReceive = value;
+			} 	
+		};
+		onEnd = {
+			_get = function(){ 
+				return owner.listener.onEnd;
+			}
+			_set = function( value ){
+				owner.listener.onEnd = value;
+			} 	
+		}; 
+		onError = {
+			_get = function(){ 
+				return owner.listener.onError;
+			}
+			_set = function( value ){
+				owner.listener.onError = value;
+			} 	
+		};
+	)
+}
+
+/**intellisense()
+thread.dlManager = 多线程下载管理器
+thread.dlManager(.(线程数,等待延时) = 创建下载管理器\n参数@省略则默认创建2个下载线程可选用\n参数@2指定线程每次任务完成后的等待延时,默认为200毫秒
+thread.dlManager() = !thread_dlManager.
+!thread_dlManager.push() = !thread_dlManager_task.
+!thread_dlManager_task.id = 任务id
+!thread_dlManager.push( 任务配置 ) = @.push( \n    id = __/*必须指定任务唯一标志\n参数表也是此函数的返回值*/;\n    url = "下载网址,重复的下载网址将被自动忽略";/;\n    referer = "引用网址";\n    savedir = "/download/";\n    filename = 可选参数;  \n)
+!thread_dlManager.cancel(.(任务ID) = 取消指定的下载任务
+!thread_dlManager.quit() = 关闭全部下载线程
+!thread_dlManager.works = !thread_wk.
+!thread_dlManager.onReceiveBegin = @.onReceiveBegin = function(id,url,filename,statusText,httpStatusCode,totalSize,downSize){
+    __/*开始下载触发此事件*/
+}
+!thread_dlManager.onReceive = @.onReceive = function(id,sizePs,downSize){
+    __/*下载触发此事件*/
+}
+!thread_dlManager.onEnd = @.onEnd = function(id,savepath,resumePath,contentLength){
+    __/*下载完成触发此事件\n下载成功则savepath为存储路径,否则该参数为空\nresumePath为续传配置文件路径*/
+}
+!thread_dlManager.onError = @.onError = function(id,err){
+    __/*下载错到错误触发此事件\n出错则err参数为错误信息,用户取消则err参数为空*/
+}
+end intellisense**/

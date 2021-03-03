@@ -1,0 +1,79 @@
+﻿//product 笛卡尔积
+namespace table;
+
+var p;
+p = function(a,b,...){
+	
+	if(...) {
+		if( type(a) == type.function || #a  ) return p( p(a,b),...);
+		else return p(b,...);
+	}
+	
+	var ak,av,bk,bv;
+	if( type(a) == type.function ){
+		if(!#b) return a;
+		elseif(type.isString(b)){
+			b = ..string.split(b);
+		}
+		
+		var c = a();
+		var i = #c + 1;
+		return function(){
+			bk,bv = next(b,bk); 
+			if(!bv){
+				c = a(); 
+				bk,bv = next(b,bk);
+			}
+			if(!c) return;
+			
+			c[i] = bv; 
+			return c ;	
+		}
+	}
+	else {
+	
+		if(!#a) {
+			return function(){
+				bk,bv = next(b,bk);
+				if(bv) return {bv};
+			} 
+		}
+		elseif(type.isString(a)){
+			a = ..string.split(a);
+		}
+		
+		
+		if(!#b) {
+			return function(){
+				ak,av = next(a,ak);
+				if(av) return {av};
+			} 
+		}
+		elseif(type.isString(b)){
+			b = ..string.split(b);
+		}
+		
+		ak,av = next(a,ak); 
+		return function(){ 
+			bk,bv = next(b,bk);
+			if(!bv) {
+				ak,av = next(a,ak); 
+				bk,bv = next(b,bk);
+			}
+			if(av) return {av;bv};
+		}  	
+	} 
+}
+
+class product{
+	ctor( a,unpack,... ){
+		if(unpack===true) return p( ..table.unpack(a) )
+		return p(a,unpack,...);
+	}; 
+}
+
+/**intellisense()
+table.product = 创建迭代器用于运算笛卡尔积
+table.product(.(__) = 创建迭代器用于计算笛卡尔积,\n参数支持任意个数的数组或字符串,\n迭代器返回数组值,参于运行的数组有几个,返回的数组就包含几个值\n参与运算的空数组或空值将被忽略
+table.product(.(__,true) = 创建迭代器用于计算笛卡尔积,\n每次迭代返回一个包含当前组合结果的数组值,\n参数@1为包含多个数组的数组,参数@2为true时先展开数组再计算笛卡尔积,\n迭代器返回数组值,参于运行的数组有几个,返回的数组就包含几个值\n参与运算的空数组或空值将被忽略
+end intellisense**/

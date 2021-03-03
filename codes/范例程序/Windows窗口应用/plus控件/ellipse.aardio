@@ -1,0 +1,23 @@
+//生成圆形图标
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="生成圆形图标";right=759;bottom=469)
+winform.add(
+plus={cls="plus";left=18;top=9;right=435;bottom=324;edge=1;foreRepeat="scale";z=1};
+plus2={cls="plus";left=201;top=220;right=369;bottom=388;border={radius=-1};clipBk=false;notify=1;z=2}
+)
+/*}}*/
+
+/*
+如果边框圆角半径属性 radiu 指定为-1，
+aardio将裁剪前景图像(或前景颜色)为圆形，并可支持前景图像设定的各种绘图模式（expand模式按stretch模式绘图）。
+radiu 指定为-1 时忽略边框其他属性
+*/
+winform.plus.border = {radius=-1}
+winform.plus.foreground = "~\extensions\wizard\project2\template\plus\1\res\images\excel.png";
+
+
+winform.plus2.foreground = 0x80ff00ff;
+
+winform.show() 
+win.loopMessage();

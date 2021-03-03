@@ -1,0 +1,63 @@
+//config 配置文件
+import fsys.table;
+namespace fsys;
+
+class config{
+	ctor( cfgDir = "/config/" ) {
+		if( _cache[cfgDir] ) return _cache[cfgDir];
+			
+		 this._cfgDir = cfgDir; 
+		 _cache[cfgDir] = this;
+		 
+		 ..subscribe("beforeSystemEndSesssion",function(){
+		 	this.saveAll();
+		 } )
+	}; 
+	@_meta;
+};
+
+namespace config{
+	_cache = { @{_weak="kv"}; }
+	
+	_meta = {
+		saveAll = function(){
+			for(k,cfg in owner) {
+				if( ( type(k) != "string" ) || ( k[1] == '_'# ) ) continue;
+				
+				if( ( type(cfg) =="table" ) ? cfg.save ){
+					cfg.save();
+				} 
+			} 
+		}; 
+		_get = function(k) {
+			if( type(k) != type.string ) return;
+			
+			if(k[1] == '_'#) // e.g. _safearray,_struct
+				return;
+			
+			if( k == "saveAll" ){
+				return self._meta.saveAll;
+			}
+			 
+			var cfg = ..fsys.table( ..fsys.joinpath( owner[["_cfgDir"]] , k + ".table" ) );
+			
+			owner[[k]] = cfg; 
+			return cfg; 
+		}
+		_set = function(k,v){ 
+			if( ( type(k) == "string" ) && ( k[1] == '_'# ) ){
+				owner[[k]] = v;
+				return;	
+			}
+			error('fsys.config对象的成员对应只读的配置文件名称,不可修改!',2);//可使用 [[]] 操作符修改
+		}  
+	}	
+};
+ 
+/**intellisense()
+fsys.config = 配置文件支持库.
+fsys.config("/config/") = 创建fsys.config对象,\n参数指定默认目录.\nfsys.config对象的成员都映射到该目录下的同名文件.
+fsys.config() = 在默认目录"/config/"下创建fsys.config对象;\n!fsys_config.
+!fsys_config.saveAll() = 写入所有配置到文件
+!fsys_config.? = 配置文件名,\n读写配置并序列化为一个表对象,\n表的成员值可以是支持序列化的普通变量,支持table对象\n配置文件在首次使用时自动加载,退出程序前自动保存\n!fsys_table.
+end intellisense**/

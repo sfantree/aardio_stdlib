@@ -1,0 +1,55 @@
+//queryEles基本用法
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=349;bottom=249)
+winform.add()
+/*}}*/
+
+import web.form;
+var wb = web.form( winform ) //创建web窗体
+wb.html = /**
+<!doctype html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta charset="utf-8">
+</head>
+<body>
+	<div id="idTest" class="style2">
+   	测试文本 
+   	测试文本
+	</div>
+	
+	</div>
+	
+	<div id="idTest2" class="style2">
+   	测试文本
+	</div>
+</body>
+</html>
+**/
+
+winform.show();
+
+var qEles = wb.queryEles(
+	parent = 可选指定父节点;
+	className = "style\d+"; //按CSS类名查找,\d+是模式匹配语法,匹配一个或多个数字
+	/*
+	可选指定任意个HTML属性,作为条件查询匹配的节点.
+	可选使用模式匹配语法.
+	*/ 
+) 
+
+//wb.queryEles返回一个节点的集合,
+//可以象使用单个节点一样访问其成员.集合对象自动循环处理所有子节点.
+qEles.style.color = "red" //改变集合内所有节点的属性就这样简单
+
+var ele = qEles(0); //模拟COM对象,返回第一个节点
+io.print( qEles.Length ); //模拟COM对象,返回长度
+
+var ele = qEles[1]; //作为aardio数组,返回 一个节点
+io.print( #qEles ); //返回长度
+
+//进入消息循环
+win.loopMessage();
+return winform,wb;

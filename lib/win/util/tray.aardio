@@ -1,0 +1,200 @@
+//tray 托盘图标
+import win;
+import win.ui;
+import win.image;
+
+namespace win.util;
+
+class tray {
+	ctor (hwnd, icon, tip = "") {
+		var nd = NOTIFYICONDATA(); 
+		nd.cbSize =  ..raw.sizeof(nd);
+		
+		if (hwnd[["hwnd"]]) {
+			var form = hwnd;
+			form.onTaskbarCreated = function() this.reset();
+			form.onDestroy = function() this.delete();
+			hwnd = form.hwnd;
+			
+			if(::User32.ChangeWindowMessageFilterEx){
+				::User32.ChangeWindowMessageFilterEx(hwnd,_WM_TASKBAR_CREATED,1/*_MSGFLT_ALLOW*/,null);
+			} 
+			
+			nd.uCallbackMessage = 0xACCF/*_WM_TRAYMESSAGE*/
+		} 
+		nd.hWnd = hwnd;
+		
+		if (type(icon) == type.number) {
+			if(icon >= 0x7F00/*_IDI_APPLICATION*/) { 
+				nd.hIcon =  ::LoadIcon(null, topointer(icon));
+			} else {
+				nd.hIcon =  ::LoadIcon(_HINSTANSE, topointer(icon)); 
+			}
+		} 
+		elseif (type(icon) == type.string) {
+			this.gcIcon = ..win.image.createIcon(icon,true,16,32);
+			nd.hIcon = this.gcIcon;
+		} 
+		else {
+			nd.hIcon = icon : _HAPPICON;
+		}
+		
+		nd.uFlags = 0x2/*_NIF_ICON*/ | 0x4/*_NIF_TIP*/ | 0x1/*_NIF_MESSAGE*/;
+		nd.szTip = ..string.left(tip, 128);
+			Shell_NotifyIcon(0x0/*_NIM_ADD*/, nd);
+		this.$notifyData = nd;
+	};
+	pop = function(info,title="",icon=1/*_NIIF_INFO*/,timeout=10){
+		assert( this.$notifyData ,"托盘图标对象已关闭");
+		this.$notifyData.DUMMYUNIONNAME.uTimeout = timeout * 1000;//该值在vista以后系统无效
+		this.$notifyData.szInfoTitle = title ;
+		this.$notifyData.szInfo = info  ;
+		this.$notifyData.uFlags = this.$notifyData.uFlags | 0x10/*_NIF_INFO*/
+		if( type(icon) == type.number ){
+			this.$notifyData.dwInfoFlags = icon; 
+		}
+		else {
+			error("参数@3类型错误!",2);
+		}
+		
+		Shell_NotifyIcon(0x1/*_NIM_MODIFY*/, this.$notifyData); 
+	};
+	reset = function(){
+		if(!this.$notifyData)
+			return;
+			
+		Shell_NotifyIcon(0x2/*_NIM_DELETE*/,this.$notifyData) 
+		Shell_NotifyIcon(0x0/*_NIM_ADD*/,this.$notifyData) 
+	};
+	delete = function(){ 
+		if(!this.$notifyData) return; 
+		Shell_NotifyIcon(0x2/*_NIM_DELETE*/, this.$notifyData);
+		if (this.gcIcon) {
+			::DestroyIcon(this.gcIcon);
+			this.gcIcon = null;
+		}
+		this.$notifyData = null; 
+	};
+	@_meta;
+}
+
+namespace tray{
+
+	Shell_NotifyIcon := ::Shell32.api("Shell_NotifyIconW","int(int dwMessage, struct lpData)");
+	
+	class NOTIFYICONDATA {
+		INT cbSize;
+		int hWnd;
+		INT uID;
+		int uFlags;
+		INT uCallbackMessage;
+		pointer hIcon;  
+		WORD szTip[128] ;
+		INT dwState=0;
+		INT dwStateMask=0;
+		WORD szInfo[256]  ;
+		union DUMMYUNIONNAME={
+			INT uTimeout;
+			INT uVersion;
+		};
+		WORD szInfoTitle[64]  ;
+		INT dwInfoFlags;  
+	}
+
+	pop = function(){} 
+	
+	_meta = {
+		_get = function(k,v) {
+			if(!owner[["$notifyData"]])
+				return;
+			
+			select(k) {
+				case "message" { 
+					return owner.$notifyData.uCallbackMessage;
+				}
+				case "tip" {
+					return owner.$notifyData.szTip;
+				}
+				case "icon" {
+					return owner.$notifyData.hIcon;
+				}
+			}
+		}
+		_set = function(k,v){
+			if(!owner[["$notifyData"]])
+				return;
+			
+			owner.$notifyData.uFlags = owner.$notifyData.uFlags & ~0x10/*_NIF_INFO*/;
+			select(k) {
+				case "message" { 
+					assert( tonumber(v) and ( v>0x400/*_WM_USER*/) ,"回调消息必须是一个大于0x400/*_WM_USER*/的数值")
+					owner.$notifyData.uCallbackMessage =  v;
+					if(v)
+						owner.$notifyData.uFlags = owner.$notifyData.uFlags | 0x1/*_NIF_MESSAGE*/;
+					else{
+						owner.$notifyData.uFlags = owner.$notifyData.uFlags & ~0x1/*_NIF_MESSAGE*/;
+					}
+					
+					Shell_NotifyIcon(0x1/*_NIM_MODIFY*/, owner.$notifyData);
+				}
+				case "tip" {
+					owner.$notifyData.szTip = v;
+					owner.$notifyData.uFlags = owner.$notifyData.uFlags | 0x4/*_NIF_TIP*/;
+					Shell_NotifyIcon(0x1/*_NIM_MODIFY*/, owner.$notifyData);
+				}
+				case "icon" {
+					
+					var gcIcon = owner.gcIcon;
+					owner.gcIcon = null;
+						
+					if (type(v) == type.number) { 
+						if (v >= 0x7F00/*_IDI_APPLICATION*/) { 
+							owner.$notifyData.hIcon =  ::LoadIcon(null, topointer(v));
+						} else {
+							owner.$notifyData.hIcon =  ::LoadIcon(::GetModuleHandle(null), topointer(v)); 
+						}
+					} elseif (type(v) == type.string) {
+						owner[["gcIcon"]] = ..win.image.createIcon(v,true,16,32);
+						owner.$notifyData.hIcon = owner[["gcIcon"]]; 
+						if( !owner[["gcIcon"]] ){
+							if (gcIcon) { ::DestroyIcon(gcIcon); }
+							error("图标未指定有效的ico文件路径或数据!",2);
+						}
+					} else {
+						owner.$notifyData.hIcon = v;
+					}
+					Shell_NotifyIcon(0x1/*_NIM_MODIFY*/, owner.$notifyData);
+					
+					if (gcIcon) {
+						::DestroyIcon(gcIcon);
+					}
+				}
+			}
+		}
+	}
+	
+	_WM_TASKBAR_CREATED =::RegisterWindowMessage("TaskbarCreated")
+	..win._form._defaultProc[_WM_TASKBAR_CREATED]  = function(this,hwnd, message, wParam, lParam){
+		if(this.onTaskbarCreated){
+			this.onTaskbarCreated(wParam, lParam);
+		}
+	}
+}
+
+/***intellisense()
+!tray.delete() = 删除托盘图标\n如果指定了图标数据或路径则必须在不需要托盘图标时调用delete函数释放
+!tray.reset() = 重置并恢复托盘图标
+!tray.tip = 设置鼠标提示信息
+!tray.message = 指定回调消息\n当用户点击托盘图标时、向主窗体发送此消息
+!tray.icon = 设置托盘的图标,\n值可以是图标ID,也可以是图标数据或图标路径,\n32位图标,最好同时提供16x16、32x32的图标
+!tray.pop("__","") = 弹出汽泡提示\n参数(提示信息,标题)
+!tray.pop("__","",2) = 弹出汽泡提示\n参数(提示信息,标题,警告图标)
+!tray.pop("__","",3) = 弹出汽泡提示\n参数(提示信息,标题,错误图标) 
+win.util.tray(.(主窗体,图标,提示信息) = 创建托盘图标,必须指定窗体对象,\n图标：可以是图标ID,也可以是图标数据或图标路径,默认为窗体图标\n提示信息：鼠标移到托盘图标上提示的信息,省略则没有提示信息
+win.util.tray() = !tray.
+_NIIF_INFO=@1/*_NIIF_INFO*/
+_NIIF_WARNING=@2/*_NIIF_WARNING*/
+_NIIF_ERROR=@3/*_NIIF_ERROR*/
+_NIIF_ICON_MASK=@0xF/*_NIIF_ICON_MASK*/
+_NIIF_NOSOUND=@0x10/*_NIIF_NOSOUND*/
+end intellisense***/

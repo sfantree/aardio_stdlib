@@ -1,0 +1,37 @@
+//模拟按键演示
+//模拟键盘按键
+
+import key;
+import win;
+
+//切换到大写状态
+key.capsLk()  
+
+//输入 /*
+key.press( "/" );
+key.pressEx("SHIFT","8")
+
+// 依次按下A,B,C,D四个键//ABCD
+key.press( "A","B","C","D");  
+sleep(1000);
+
+//切换到小写状态
+key.capsLk(false)  //ABCD
+
+ //按下A键,也可以仅指定一个键名
+key.press("A");               
+sleep(1000);
+
+//同时按下组合键Ctrl  + Alt + A
+key.pressEx("CTRL","ALT","A");  
+sleep(2000);
+
+//按下ESC键,退出截屏状态,参数也可以是_VK_前缀的虚拟键码
+key.press(0x1B/*_VK_ESCAPE*/ );        
+
+//按下CTRL + Z
+key.pressEx(0x11/*_VK_CONTROL*/,"Z"); 
+
+//输入 */
+key.pressEx("SHIFT","8")
+key.press( "/" ); 

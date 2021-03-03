@@ -1,0 +1,126 @@
+//html 简单解析器
+import string.xml;
+namespace string;
+
+class html{
+	ctor( str ){
+		this = ..string.xml(str,xmlElementType,optionalTags)
+	}; 
+}
+
+namespace html;
+    
+optionalTags = {
+    body={head=1};
+	li={li=1};
+	dt={dt=1;dd=1};
+	dd={dt=1;dd=1};
+	rt={rt=1;rp=1};
+	rp={rt=1;rp=1};
+	optgroup={optgroup=1;option=1};
+	option={option=1};
+	tbody={thead=1;tbody=1;th=1;tr=1;td=1;caption=1;colgroup=1;col=1};
+	tfoot={thead=1;tbody=1;tr=1;th=1;td=1;caption=1;colgroup=1;col=1};
+	thead={caption=1;colgroup=1;caption=1;col=1};
+	colgroup={colgroup=1;col=1;caption=1;};
+	tr={tr=1;td=1;th=1;caption=1;colgroup=1;col=1};
+	td={td=1;th=1};
+	th={td=1;th=1};
+	address={p=1};
+	article={p=1}; 
+	aside={p=1}; 
+	blockquote={p=1}; 
+	details={p=1}; 
+	div={p=1}; 
+	dl={p=1}; 
+	fieldset={p=1}; 
+	figcaption={p=1}; 
+	figure={p=1}; 
+	footer={p=1}; 
+	form={p=1}; 
+	h1={p=1}; 
+	h2={p=1}; 
+	h3={p=1}; 
+	h4={p=1}; 
+	h5={p=1}; 
+	h6={p=1}; 
+	header={p=1}; 
+	hr={p=1}; 
+	main={p=1}; 
+	nav={p=1}; 
+	ol={p=1}; 
+	p={p=1}; 
+	pre={p=1}; 
+	section={p=1}; 
+	table={p=1}; 
+	ul={p=1};
+}
+
+xmlElementType = {
+	//1 Void elements
+	area=1;base=1;br=1;col=1;embed=1;hr=1;img=1;input=1;link=1;meta=1;param=1;source=1;track=1;wbr=1; 
+
+    //2 Raw text elements
+	script=2;style=2;textarea=2;title=2;
+}
+
+var rep = ..string.replace;
+
+removeTag = function(html,tag,...){
+	var html = rep(html,"\<\!--.*?--\>" , "");
+    html = rep(html, "\<\s*<@@"+tag+"@>[^\>]*?\s*\>.*?\<\s*/<@@"+tag+"@>\s*>",""); 
+    html = rep(html, "\<\s*<@@"+tag+"@>!\W[^\>]*?\s*\>.+?\<\s*/","</");
+     html = rep(html, "\<\s*<@@"+tag+"@>!\W[^\>]*?\s*\>.+","");
+    if(!...) return html;
+    return removeTag(html,...);
+} 
+
+toText = function(html){ 
+	if(!html) return;
+	
+	var html = rep(html,"\<\!--.*?--\>" , "");
+	html = ..string.match(html,"\<\s*<@@body@>[^\>]*?\s*\>.+") : html;
+	html = removeTag(html,"head","style","script");
+
+	html = rep(html, 
+    	"\<\s*pre[^\>]*?\s*\>(.*?)\<\s*/pre\s*>",
+    	function(c){
+     		c = rep(c," ","&nbsp;");
+     		c = rep(c,'\n',"<br>");
+     		return c;
+    	}
+	);  
+	html = rep(html,"\s+"," ");
+	html = rep(html,"\<[bB][rR]\s*/*\>",'\r\n');
+	html = rep(html,"\</*[pP]\>",'\r\n');
+	html = rep(html,"\</div\>",'\r\n');
+	html = rep(html,"\</DIV\>",'\r\n');
+	html = rep(html,"\<.+?\>","");
+	
+	return ncr(html);
+}
+
+fromText = function(v){
+	if(!v) return;
+	v = rep(v,"@&",'&amp;');
+	v = rep(v,'@<',"&lt;");
+	v = rep(v,'@>',"&gt;");
+	v = rep(v,'@"',"&quot;"); 
+	v = rep(v,"@'","&apos;");
+	v = rep(v," ","&nbsp;");
+	v = rep(v,'\r\n',"<br>");
+	v = rep(v,'\n',"<br>");
+	v = rep(v,'\r',"<br>");
+	return v;
+}
+
+ncr =  ..string.xml.ncr;
+/**intellisense()
+string.html = HTML简单解析器\n\n严格的校验HTML语法正确性不是本模块的义务和目标,\n所以,此解析器尽可能兼容错误,兼容了HTML,SGML的部份规则:\n1、不要求存在根标签 \n2、尝试自动修正不配对的标记 \n3、在有必要的时候尝试忽略大小写\n支持识别HTML空标签、省略闭合标签规则
+string.html(__) = 创建HTML解析器,参数请指定包含HTML代码的字符串,\n调用string.xml解析HTML代码,用法与string.xml相同\n但支持识别HTML空标签、省略闭合标签规则
+string.html() = !string_xml.
+string.html.ncr(__) = NCR字符编码、HTML实体字符还原为UTF8文本
+string.html.toText(__/*HTML代码*/) = 将HTML代码转换为文本
+string.html.fromText(__/*普通文本*/) = 将普通文本转换为HTML
+string.html.removeTag(html,"script__") = 移除指定的html标记,支持不定个数的标记参数
+end intellisense**/

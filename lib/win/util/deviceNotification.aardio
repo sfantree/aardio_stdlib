@@ -1,0 +1,178 @@
+//deviceNotification 设备监视
+import win.guid;
+import sys.volume;
+namespace win.util; 
+
+class deviceNotification {
+
+    ctor( winform,clsid ){
+       
+        if(!winform){
+			this = ..win.form( {} );
+			this.messageOnly();
+		}
+		else {
+			this = winform;
+		}
+		
+        var dbcc = DEV_BROADCAST_DEVICEINTERFACE();
+        dbcc.size =  ..raw.sizeof(dbcc) 
+        dbcc.devicetype =  5/*_DBT_DEVTYP_DEVICEINTERFACE*/
+        if( clsid ) {
+        	if(type(clsid)==type.string) clsid = guid.fromString(clsid);
+			dbcc.classguid = clsid
+			this._hDevNotify = ::User32.RegisterDeviceNotificationW(winform.hwnd, dbcc,0/*_DEVICE_NOTIFY_WINDOW_HANDLE*/ )
+		}
+		else {
+			 this._hDevNotify = ::User32.RegisterDeviceNotificationW(winform.hwnd, dbcc,4/*_DEVICE_NOTIFY_ALL_INTERFACE_CLASSES*/ )
+		}
+       
+        this.wndproc = function(hwnd,message,wParam,lParam){
+    		if(message == 0x0219/*_WM_DEVICECHANGE*/) {
+    			var eventType = wParam; 
+    			if( this[mapProcName[eventType]] && lParam ){
+    				var dbd = ..raw.convert( topointer(lParam),{ 
+						INT size;
+						INT devicetype;
+						INT reserved;
+					} ) 
+					
+					var deviceBroadcastData;
+    				if( dbd.devicetype == 2/*_DBT_DEVTYP_VOLUME*/){
+    					deviceBroadcastData = ..raw.convert( topointer(lParam),DEV_BROADCAST_VOLUME());
+    					deviceBroadcastData.drive = ..sys.volume.getLogicalDrives(deviceBroadcastData.unitmask)[[1]]
+    					deviceBroadcastData.driveType = ..sys.volume.getDriveType(deviceBroadcastData.drive); 
+    					deviceBroadcastData.deviceName = ..sys.volume.getDeviceName(deviceBroadcastData.drive); 
+    				}
+    				elseif( dbd.devicetype == 5/*_DBT_DEVTYP_DEVICEINTERFACE*/ ){
+    					deviceBroadcastData = ..raw.convert( topointer(lParam),DEV_BROADCAST_DEVICEINTERFACE()); 
+    					deviceBroadcastData.name = ..string.fromUnicode( topointer(lParam +..raw.sizeof(deviceBroadcastData)-2),,-1 );
+    				}
+    				elseif( dbd.devicetype == 3/*_DBT_DEVTYP_PORT*/ ){
+    					deviceBroadcastData = ..raw.convert( topointer(lParam),DEV_BROADCAST_PORT()); 
+    					deviceBroadcastData.name = ..string.fromUnicode( topointer(lParam +..raw.sizeof(deviceBroadcastData)-2),,-1 );
+    				}
+    				elseif( dbd.devicetype == 6/*_DBT_DEVTYP_HANDLE*/ ){
+    					if( eventType == 0x8006/*_DBT_CUSTOMEVENT*/)
+    						deviceBroadcastData = ..raw.convert( topointer(lParam),DEV_BROADCAST_HANDLE());
+    					else {
+    						deviceBroadcastData = ..raw.convert( topointer(lParam),{INT size;INT devicetype;INT reserved;PTR handle;PTR hdevnotify})
+    					}
+    					 
+    				}
+    				elseif( dbd.devicetype == 0/*_DBT_DEVTYP_OEM*/){
+    					deviceBroadcastData = ..raw.convert( topointer(lParam),DEV_BROADCAST_OEM()); 
+    				}
+    				
+    				invoke(this[mapProcName[wParam]],this,dbd.devicetype,deviceBroadcastData,topointer(lParam))
+           		} 
+    		}
+    	} 
+    	winform._onDestroy = function(){
+        	if( this._hDevNotify ) ::User32.UnregisterDeviceNotification(this._hDevNotify);
+		}
+    } 
+} 
+
+namespace deviceNotification{
+	mapProcName = {
+		[0x8000/*_DBT_DEVICEARRIVAL*/] = "onDeviceArrival";
+		[0x8001/*_DBT_DEVICEQUERYREMOVE*/] = "onDeviceQueryRemove";
+		[0x8002/*_DBT_DEVICEQUERYREMOVEFAILED*/] = "onDeviceQueryRemoveFailed";
+		[0x8003/*_DBT_DEVICEREMOVEPENDING*/] = "onDeviceRemovePending";
+		[0x8004/*_DBT_DEVICEREMOVECOMPLETE*/] = "onDeviceRemoveComplete";
+		[0x8005/*_DBT_DEVICETYPESPECIFIC*/] = "onDeviceTypeSpecific"; 
+		[0x8006/*_DBT_CUSTOMEVENT*/] = "onCustomEvent"; 
+	}
+	class DEV_BROADCAST_DEVICEINTERFACE {
+ 		INT size;
+ 		INT devicetype;
+ 		INT reserved;
+ 		struct classguid = ..win.guid();
+ 		WORD name[1];
+	};
+	
+	class DEV_BROADCAST_VOLUME { 
+ 		INT size;
+ 		INT devicetype;
+ 		INT reserved;
+ 		INT unitmask;
+ 		WORD flags;
+	};
+	
+	class DEV_BROADCAST_PORT {
+  		INT size;
+  		INT devicetype;
+  		INT reserved;
+  		WORD name[1];
+	};
+	
+	class DEV_BROADCAST_HANDLE {
+  		INT size;
+  		INT devicetype;
+  		INT reserved;
+  		PTR handle;
+  		PTR hdevnotify;
+  		struct eventguid = ..win.guid();
+  		int nameoffset;
+  		BYTE data[1];
+	};
+	
+	class DEV_BROADCAST_OEM {
+  		DWORD size;
+  		DWORD devicetype;
+  		DWORD reserved;
+  		DWORD identifier;
+  		DWORD suppfunc;
+	}; 
+} 
+
+/**intellisense()
+win.util.deviceNotification = 设备检测
+win.util.deviceNotification() = !win_deviceNotification.
+win.util.deviceNotification(__/*输入winform对象*/) = 创建一个设备通知窗口\n在添加或移除设备时可响应通知消息\n可选使用参数@2指定GUID
+!win_deviceNotification.onDeviceArrival = @.onDeviceArrival = function(devicetype,deviceBroadcastData,ptrData){
+	if( devicetype == 2/*_DBT_DEVTYP_VOLUME*/ ){
+		if( deviceBroadcastData.driveType == 0x2/*_DRIVE_REMOVABLE*/ ){
+			..io.print("插入移动磁盘",deviceBroadcastData.drive,deviceBroadcastData.driveType,deviceBroadcastData.deviceName,deviceBroadcastData.flags )
+		}
+		elseif( deviceBroadcastData.driveType == 0x5/*_DRIVE_CDROM*/ ){
+			..io.print("插入光盘",deviceBroadcastData.drive,deviceBroadcastData.driveType,deviceBroadcastData.deviceName,deviceBroadcastData.flags )
+		}
+	}
+}
+!win_deviceNotification.onDeviceRemoveComplete = @.onDeviceRemoveComplete = function(devicetype,deviceBroadcastData,ptrData){
+ 
+}
+!win_deviceNotification.onDeviceQueryRemove = @.onDeviceQueryRemove = function(devicetype,deviceBroadcastData,ptrData){
+ 
+}
+!win_deviceNotification.onDeviceQueryRemoveFailed = @.onDeviceQueryRemoveFailed = function(devicetype,deviceBroadcastData,ptrData){
+ 
+}
+!win_deviceNotification.onDeviceRemovePending = @.onDeviceRemovePending = function(devicetype,deviceBroadcastData,ptrData){
+ 
+}
+!win_deviceNotification.onDeviceTypeSpecific = @.onDeviceTypeSpecific = function(devicetype,deviceBroadcastData,ptrData){
+ 
+}
+end intellisense**/
+
+ /**intellisense()
+_DBT_DEVTYP_OEM=@0/*_DBT_DEVTYP_OEM*/
+_DBT_DEVTYP_DEVNODE=@1/*_DBT_DEVTYP_DEVNODE*/
+_DBT_DEVTYP_VOLUME=@2/*_DBT_DEVTYP_VOLUME*/
+_DBT_DEVTYP_PORT=@3/*_DBT_DEVTYP_PORT*/
+_DBT_DEVTYP_NET=@4/*_DBT_DEVTYP_NET*/
+_DBT_DEVTYP_DEVICEINTERFACE=@5/*_DBT_DEVTYP_DEVICEINTERFACE*/
+_DBT_DEVTYP_HANDLE=@6/*_DBT_DEVTYP_HANDLE*/
+_DBT_DEVTYP_DEVINST=@7/*_DBT_DEVTYP_DEVINST*/
+_WM_DEVICECHANGE=@0x0219/*_WM_DEVICECHANGE*/ 
+_DBT_DEVICEARRIVAL=@0x8000/*_DBT_DEVICEARRIVAL*/
+_DBT_DEVICEQUERYREMOVE=@0x8001/*_DBT_DEVICEQUERYREMOVE*/
+_DBT_DEVICEQUERYREMOVEFAILED=@0x8002/*_DBT_DEVICEQUERYREMOVEFAILED*/
+_DBT_DEVICEREMOVEPENDING=@0x8003/*_DBT_DEVICEREMOVEPENDING*/
+_DBT_DEVICEREMOVECOMPLETE=@0x8004/*_DBT_DEVICEREMOVECOMPLETE*/
+_DBT_DEVICETYPESPECIFIC=@0x8005/*_DBT_DEVICETYPESPECIFIC*/
+_BROADCAST_QUERY_DENY=@0x424D5144/*BROADCAST_QUERY_DENY*/
+end intellisense**/

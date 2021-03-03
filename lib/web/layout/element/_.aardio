@@ -1,0 +1,1388 @@
+assert(web.layout);
+import util.registry;
+namespace web.layout;
+
+var dll = ::HTMLayout;
+
+class element{
+	ctor (he,addref = true,workThread  ) {
+		if(!he)return null; 
+		if( _cache_elements[he] ) {
+			var this = _cache_elements[he];
+			this[["(referenceCount)"]] = this[["(referenceCount)"]] + 1;
+			if(!addref) UnuseElement(he);
+			return _cache_elements[he];
+		}
+		
+		this.handle = he;
+		this.state = state(this);
+		this.style = style(this);
+		this.workThread = workThread ? true : false;
+		
+		if( he && addref ){
+			UseElement(he);
+		}
+		this[["(referenceCount)"]] = 1;
+		_cache_elements[he] = this;
+		..table.gc(this,"__gcReleaseAll");
+	}
+	@_metaProperty;
+}
+
+import web.layout.element.state;
+import web.layout.element.style;
+
+var element_t =  element;
+var valueObject_t = valueObject;
+var push = ..table.push;
+  	
+namespace element{
+	_cache_elements = { @{_weak="kv"} }
+	var _cache_elements = _cache_elements;
+	..subscribe("beforeUnload",function(){
+		for(k,ele in _cache_elements){
+			ele.__gcReleaseAll();
+			_cache_elements[k] = null;
+		} 
+	} );
+	
+	
+  	var fromUnicode = ..string.fromUnicode;
+  	var toUnicode = ..string.toUnicode
+ 
+	_metaProperty = ..util.metaProperty(
+		_topointer = function(){
+			return owner[["handle"]];
+		};
+		_eq = function(ele){
+			return owner[["handle"]] == ele[["handle"]];
+		}; 
+		_serialize = function(kernelCall){ 
+			if( kernelCall ){
+				return ..string.format("global.import('web.layout') : web.layout.element( topointer(0x%x),true,true )",tonumber( owner[["handle"]] ) );  
+			}
+		};
+		clone = function(ins){
+			var re,he = CloneElement(owner[["handle"]]);
+			if( re == 0/*_HLDOM_OK*/ ){
+				var ele = element_t(he,false);
+				if( ins !== null ){
+					var ret,phe = GetParentElement(owner[["handle"]] );
+					if(ret==0){
+						InsertElement(he,phe,( ins < 0 ) ?0x7FFFFFFF:( ins && ins-1 ) );
+					};
+				}
+				return ele; 
+			}
+		};
+		detach = function(ele){
+			return ::HTMLayout.HTMLayoutDetachElement(owner[["handle"]]) = 0/*_HLDOM_OK*/;
+		};
+		set = function (n, v) {
+			if( !owner[["handle"]] ) error("无效的节点对象",2);
+			
+			var t = type(v); 
+			if( ( t == "string" ) ||  ( v === null ) ){
+				SetAttributeByName(owner[["handle"]], n,toUnicode(v) );
+			}
+			else{
+				owner[[n]] = v;
+			}
+		};
+		get = function (n) {
+			if( !owner[["handle"]]  ) return null;
+			var re,v = GetAttributeByName(owner[["handle"]], n );
+			if ( re==0 && v) return fromUnicode(v,,true) : "";  
+		}
+		getCustomAttribute = function(n){
+			var v = owner.getAttribute(n)
+			if(!v) v = owner.style["-" + n];
+			return v;
+		};
+		eachAttribute = function(){ 
+			var re,count = GetAttributeCount(owner[["handle"]],0);
+			if( re != 0/*_HLDOM_OK*/)return function(){};
+			return function(i){
+				if( i < count ){
+					var re,n,v = GetNthAttribute(owner,i)
+					if( re == 0/*_HLDOM_OK*/)  
+						return i+1, ..raw.str( n ),fromUnicode(v,,true);
+				}
+			},owner[["handle"]],0
+		};
+		clearAttributes = function(){
+			if( owner[["handle"]] ) return 0 == ::HTMLayout.HTMLayoutClearAttributes(owner[["handle"]]);	
+		};
+		getDataTable = function(){
+			var dt = owner["data-table"]; 
+			return dt ? eval(dt);
+		}
+		setDataTable = function(dt){
+			if( type(dt) != "table" )
+				error("参数必须是table对象",2);
+				
+			owner["data-table"] = ..table.tostring(dt);  
+		};
+		tagName = { 
+			_get = function () {
+				var re, p = GetElementType(owner[["handle"]]);
+				if ( re==0/*_HLDOM_OK*/ ) 
+					return ..raw.str(p);
+			}
+		};
+		innerText = {
+			_set = function (v) {
+				SetElementInnerText(owner[["handle"]], v, #v);
+			}
+			_get = function () {
+				var re, p = GetElementInnerText(owner[["handle"]]); 
+				return ..raw.str(p);
+			}
+		}; 
+		innerHTML = {
+			_set = function (html) {
+				if( html == "" ) html = " ";
+				SetElementHtml(owner[["handle"]], html, #html, 0/*_SIH_REPLACE_CONTENT*/);
+			}
+			_get = function () {
+				var re, p = GetElementHtml(owner[["handle"]], , false); 
+				return ..raw.str(p);
+			}
+		};
+		write = function(html,...){
+			html = ..string.concat(html,...);
+			if(!#html) html = " ";
+			SetElementHtml(owner[["handle"]], html, #html, 0/*_SIH_REPLACE_CONTENT*/);
+		};
+		printf = function(s,...){
+			var html = ..string.format(s,... );
+			if(html) return SetElementHtml(owner[["handle"]], html, #html,2/*_SIH_APPEND_AFTER_LAST*/) == 0/*_HLDOM_OK*/;
+		}
+		insertAdjacentHTML = function(opt,html,...){
+			opt = _insertAdjacentOption[opt];
+			if(!opt)error("指定了无效的位置参数",2);
+			SetElementHtml(owner[["handle"]], html, #html, opt);
+			if(!...)return;
+			var args = {...};
+			for(i=1;#args;1){
+				html = args[i];
+				SetElementHtml(owner[["handle"]], html, #html, opt);
+			}
+			owner.updateHTML();
+		};
+		updateHTML = function(){
+			var re, p = GetElementHtml(owner[["handle"]], , true);
+			var html = ..raw.str(p);
+			SetElementHtml(owner[["handle"]], html, #html, 3/*_SOH_REPLACE*/);
+		};
+		outerHTML = {
+			_set = function (html) {
+				SetElementHtml(owner[["handle"]], html, #html, 3/*_SOH_REPLACE*/);
+			}
+			_get = function () {
+				var re, p = GetElementHtml(owner[["handle"]], , true);
+				return ..raw.str(p);
+			}
+		};
+		index = function(){ 
+        	var ret,index = GetElementIndex(owner[["handle"]],0);
+        	return index + 1;
+      	};
+      	uid = {
+      		_get = function(){
+      			var ret,uid = GetElementUID(owner[["handle"]],0);
+        		return uid;
+      		} 
+      	};
+      	getElementByUid = function (uid=0) {
+      		var re,hwnd = GetElementHwnd(owner[["handle"]],0,true);
+      		if( re == 0 && hwnd ){
+				var re,he = GetElementByUID(hwnd,uid) ;//declare at: web.layout
+				if( re == 0/*_HLDOM_OK*/ && he )
+					return element_t(he)
+			}
+		}; 
+		getForm = function(top=true){
+			var re,hwnd = GetElementHwnd(owner[["handle"]],0,top)
+			var form =  ..win._form.getForm( hwnd );
+			if(!form) {
+				if(owner[["workThread"]]) return  {hwnd = hwnd; @..thread.callWndMeta;};  
+				return;
+			}
+			
+			if( !top && ..win.isChild(form.hwnd,hwnd) ){
+				return form.getCtrl( hwnd );
+			}
+			return form;
+		};
+		getLayout = function(){
+			if(owner[["workThread"]]){
+				error("工作线程中禁止调用此函数!",2) 
+			};
+			return owner.getForm(false)._layout;
+		};
+		getCtrl = function(){
+			//获取嵌入网页的自定义控件
+			var re,hwnd = GetElementHwnd(owner[["handle"]],0,false)
+			var form =  ..win._form.getForm( hwnd );
+			if( form[["_parentForm"]] ) form = form._parentForm;
+			
+			if(!form) {
+				if(owner[["workThread"]]){
+					if( ..win.getParent(hwnd) ) return  {hwnd = hwnd; @..thread.callWndMeta;};  
+				};
+				
+				return;
+			}
+			
+			if( ..win.isChild(form.hwnd,hwnd) ){
+				return form.getCtrl( hwnd );
+			}
+		};
+		adjustCtrl = function(cx,cy,wParam){
+			var ctrl = owner.getCtrl();
+			if(ctrl) ctrl.adjust(cx,cy,wParam); 
+		};
+      	getHwnd = function(root){
+      		var re,hwnd = GetElementHwnd(owner[["handle"]],0,root)
+      		return hwnd;
+      	};
+      	updateWindow = function(root){
+      		var re,hwnd = GetElementHwnd(owner[["handle"]],0,root)
+      		if( re == 0 && hwnd ){
+      			if(owner[["workThread"]]){
+					error("工作线程中禁止调用此函数!",2);
+				};
+      			return ::HTMLayout.HTMLayoutUpdateWindow(hwnd);
+      		}
+      	};
+      	isVisible = function(){
+      		var re,v = IsElementVisible( owner[["handle"]] );
+      		return v;
+      	}  
+      	isEnabled = function(){ 
+      		var re,v = IsElementEnabled ( owner[["handle"]] );
+      		return v; 
+      	};
+      	getValueObject = function(){ 
+      		var re, val = ControlGetValue( owner[["handle"]],valueObject_t() ); 
+      		if( re = 0/*_HL_HV_OK*/ ){ 
+      			return val;
+      		}
+      	};
+      	setValueObject = function(v,units,dataType){ 
+      		var val = owner.getValueObject();
+      		if( !val ){
+      			val = valueObject_t(v,units,dataType)
+      		}
+      		else {
+      			val.setValue(v,units,dataType);
+      		} 
+      		ControlSetValue(owner[["handle"]], val); 
+      		val.clear();
+      	};
+		value = {
+			_set = function (v) { 
+				owner.setValueObject(v);
+			}
+			_get = function () { 
+				var val = owner.getValueObject() 
+				if( val ){
+					var ret = val.value;
+					val.clear();
+					return ret;
+				};
+			}
+		};
+		insert = function (he, ins = 1 ) { 
+			if(!he) error("插入节点参数不能为空",2)
+			return InsertElement(he[["handle"]] : he,owner[["handle"]], ( ins < 0 ) ?0x7FFFFFFF:( ins && ins-1 )) == 0/*_HLDOM_OK*/;
+		};
+		createElement = function(tag,text,ins = -1){ 
+			var re, he = CreateElement(tag, text);
+			if( re == 0/*_HLDOM_OK*/) {
+				re = InsertElement(  he,owner[["handle"]], ( ins < 0 ) ?0x7FFFFFFF:( ins && ins-1 ) );
+				if( re == 0/*_HLDOM_OK*/ ){
+					return element_t(he,false); 
+				}
+				else {
+					UnuseElement(he) 
+				} 
+			}
+			return null,re;
+		};
+		append = function (he){ 
+			if(!he) error("追加节点参数不能为空",2)
+			return InsertElement(he[["handle"]] : he,owner[["handle"]], 0x7FFFFFFF) == 0/*_HLDOM_OK*/; 
+		}; 
+		modifyState = function (state = 0, clear = 0, update = true) { 
+			return SetElementState(owner[["handle"]], state, clear, update);
+		};
+		getState = function (state=~0) { 
+			var re, st = GetElementState(owner[["handle"]], 0);
+			return st & state;
+		}; 
+		queryParent = function(cssSel,depth=0){ 
+			var ret,heFound =  SelectParent(owner[["handle"]],cssSel,depth) 
+			if(ret==0 && heFound ) return element_t(heFound);  
+		};
+		queryParents = function(cssSel){  
+			var ele;
+			var tParent={}; 
+			var ret,heFound = SelectParent(owner[["handle"]],cssSel,0) 
+			while(ret==0 && heFound){
+				ele = element_t(heFound);
+				push(  tParent,ele);
+				
+				ret,heFound =  GetParentElement( heFound );
+				if(ret==0 && heFound)
+					ret,heFound =  SelectParent(heFound,cssSel,0) ;  
+			}
+			
+			if(#tParent)return tParent;
+		};
+		testParent = function(cssSel,depth=0){
+			var ret,heFound =  SelectParent(owner[["handle"]],cssSel,depth)  
+			return (ret==0 && heFound);
+		}
+		test = function(cssSelector,p){ 
+			return owner.testParent(cssSelector,1) || ( p ? owner.testParent(cssSelector,0) )
+		}; 
+		getElementById = function (id) { 
+			return owner.visitElement(, "id", id) : owner.visitElement(, "name", id) ;
+		}
+		getElementsByName = function (name) { 
+			return owner.visitElements(, "name", name);
+		}; 
+		getElementsByTagName = function (tag) {
+			return owner.visitElements(tag);
+		}; 
+		update = function( remeasure ){
+          	UpdateElement(owner[["handle"]], remeasure ); 
+      	};
+      	updateEx = function( mode ){
+          	UpdateElementEx(owner[["handle"]], mode); 
+       	};
+       	documentElement = {
+       		_get = function(){
+       			 return owner.queryParent("html")
+       		} 
+       	};
+      	root = function(){
+			var p = owner.parent();
+			if(p)return p.root();
+			return owner;
+		};
+		parent = function(){
+			var ret,parent =  GetParentElement(owner[["handle"]] );
+			if(ret==0) return element_t(parent);
+		}; 
+		nextSibling = function(offset=1){
+			var ret,parent =  GetParentElement(owner[["handle"]] );
+			if( ret==0 && parent ){
+				var ret,index = GetElementIndex(owner[["handle"]],0);
+				if( ret==0 ){
+					var ret,child = GetNthChild(parent, index + offset );
+					if( ret==0 ) return element_t(child);
+				} 
+			}
+		}; 
+		previousSibling = function(offset=1){
+			return owner.nextSibling(-offset); 
+		};
+		firstSibling  = function(offset=1){
+			var ret,parent =  GetParentElement(owner[["handle"]] );
+			if( ret==0 && parent ){
+				var ret,child = GetNthChild(parent,0 );
+				if( ret==0 ) return element_t(child);
+			}
+		}; 
+		lastSibling = function(){
+			var ret,parent =  GetParentElement(owner[["handle"]] );
+			if( ret==0 && parent ){
+				var ret,count = GetChildrenCount(parent,0 );
+				if( ret==0 ){
+					var ret,child = GetNthChild(parent,count-1 );
+					if( ret==0 ) return element_t(child);
+				} 
+			}
+		}; 
+		isChild = function(c){
+			if( !c ) return;
+			if( owner == c ) return true;
+			return owner.isChild( c.parent() )
+		};
+		isParent = function(p){
+			if(!p)return;
+			return p.isChild(owner);
+		};
+		child = function( index = 1 ){
+        	var ret,child = GetNthChild(owner[["handle"]], index-1 );
+        	if(!ret) return element_t(child);
+      	};
+      	childCount = function( ){
+        	var ret,count = GetChildrenCount(owner[["handle"]],0 );
+        	return count;
+      	};
+      	eachChild = function(first=1,last,step=1){
+      		if(!last)
+      			_,last = GetChildrenCount(owner[["handle"]],0 ); 
+      			
+      		if( first <= last && step > 0 ){
+      			return function(idx){ 
+      				idx += step;
+      				var ret,child = GetNthChild(owner[["handle"]], idx-1 );
+      				if( idx <= last ) { 
+      					if( !ret ) return idx,element_t(child);
+      				}
+      			},owner,first-step;
+      		}
+      		else {
+      			if(step>0) step = -step;
+      			
+      			return function(idx){ 
+      				idx += step;
+      				if( idx >= last ) {
+      					var ret,child = GetNthChild(owner[["handle"]], idx-1 );
+      					if( !ret ) return idx,element_t(child);
+      				}
+      			},owner,first-step;
+      		}
+      	};
+      	swap = function(ele){
+      		if( !ele[["handle"]] ) error("参数无效",2)
+      		SwapElements( owner[["handle"]],ele[["handle"]]);
+      	};
+		postEvent = function( event_code, reason = 0, he){
+			if( type(event_code) == "string" )
+				event_code = __event.findEventCodeByName(event_code);
+				
+			return 0 == PostEvent(owner[["handle"]], event_code, he? ( he[["handle"]]: he) : owner[["handle"]], reason);
+		};
+		sendEvent = function(event_code, reason=0, he){
+			if( type(event_code) == "string" )
+				event_code = __event.findEventCodeByName(event_code);
+				
+        	var ret,handled = SendEvent(owner[["handle"]], event_code,  he? ( he[["handle"]]: he) : owner[["handle"]], reason, false); 
+        	return ret && handled;
+		};
+		createMouseEvent = function(x=1,y=1,ltTarget){
+			if( !ltTarget ) ltTarget = owner;
+			var dx,dy = ltTarget.getPos();
+			
+			var ltEle = owner;
+			return {
+				INT cmd = 0xFF/*MOUSE_CLICK*/;
+				pointer target = ltTarget.handle;
+				struct pos = ::POINT(x,y);
+				struct pos_document = ::POINT(dx+x,dy+y);
+				int button_state = 1/*_HL_MAIN_MOUSE_BUTTON*/;
+				INT alt_state;
+				INT cursor_type;
+				bool is_on_icon;
+				pointer dragging;
+				INT dragging_mode; 
+				process = function(){
+					 ProcessUIEvent( ltEle[["handle"]] ,1,owner )
+				}
+			}
+		}
+		createKeyEvent = function(vk,ltTarget){
+			var ltEle = owner;
+			return {
+				INT cmd = 0/*KEY_DOWN*/;
+				pointer target = ltTarget or owner;
+				INT key_code = vk;
+				INT alt_state;
+				process = function(){
+					 ProcessUIEvent( ltEle[["handle"]] ,2,owner )
+				}
+			}
+		};
+		scrollToView = function(toTopOfView,smooth){
+			 var flags = 0;
+        	if(toTopOfView) flags |= 0x01 /* _HTMLAYOUT_SCROLL_FLAGS_SCROLL_TO_TOP */;
+        	if(smooth) flags |= 0x10 /* _HTMLAYOUT_SCROLL_FLAGS_SCROLL_SMOOTH */;
+        	ScrollToView(owner[["handle"]],flags);
+		}; 
+		getScrollInfo = function(){
+			var ret,pos,rect,size = GetScrollInfo(owner[["handle"]],::POINT(),::RECT(),::SIZE() )
+			if(ret==0/*_HLDOM_OK*/){
+				return { 
+					pos = pos; 
+					rect = rect; 
+					size = size; 
+					page = {
+						int cy =  ..math.ceil( size.cy / rect.height() ); 
+						int cx = ..math.ceil( size.cx / rect.width() );
+					};
+				}
+			}
+		};
+		setScrollPos = function(x=0,y=0,smooth){ 
+			var pt = ::POINT(x,y);
+			SetScrollPos(owner[["handle"]],x,y,smooth );
+		};
+		getRect = function( areas = 1/*_HL_ROOT_RELATIVE*/ ){
+			var rc = ::RECT();
+			var re = GetElementLocation(owner[["handle"]],rc,areas);
+			if( re == 0/*_HLDOM_OK*/ )
+				return rc;
+		};
+		getIntrinsicWidth = function(){
+			var re,min,max = GetElementIntrinsicWidths(owner[["handle"]],0,0);
+			if( re == 0/*_HLDOM_OK*/ ) return min,max;
+		};
+		getIntrinsicHeight = function(w){
+			var re,min = GetElementIntrinsicHeight(owner[["handle"]],w : owner.getIntrinsicWidth() ,0);
+			if( re == 0/*_HLDOM_OK*/ ) return min;
+		};
+		getPos = function(areas= 4/*_HL_VIEW_RELATIVE*/){
+			var rc = owner.getRect(areas)
+			return rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top; 
+		};
+		setPos = function(x,y,cx,cy){
+			if( ! ( x && y ) ){
+				var rc = owner.getRect(4)
+				if(!x)x=rc.left;
+				if(!y)y=rc.top; 
+			}
+			if( ! ( cx && cy ) ){
+				MoveElement(owner[["handle"]],x,y);
+			}
+			else {
+				MoveElementEx(owner[["handle"]],x,y,cx,cy)
+			};
+		}
+		popupAnchor = function(anchor,place=2){
+			return 0/*_HLDOM_OK*/ == ShowPopup(owner[["handle"]],anchor[["handle"]] : anchor, place)
+		}
+		popupHide = function(){
+			return 0/*_HLDOM_OK*/ == HidePopup(owner[["handle"]])
+		}
+		popup = function(x=0,y=0,ani=0,point=1){
+			return 0/*_HLDOM_OK*/ == ShowPopupAt(owner[["handle"]],x,y, ( point << 16 ) | ( ani?1:0 ) ) 
+		}
+		popupTrack = function(x=0,y=0,ani=0,point=1){
+			var re,he = TrackPopupAt(owner[["handle"]],x,y, ( point << 16 ) | ( ani?1:0 ) );
+			if( re == 0/*_HLDOM_OK*/ )
+				return element_t(he);
+		} 
+		combineUrl = function(url){
+			var buffer = ..raw.buffer(0x800, ( toUnicode(url) ) );
+			var re = ::HTMLayout.HTMLayoutCombineURL(owner[["handle"]],buffer,0x800);
+			if( re == 0/*_HLDOM_OK*/)
+				..string.fromUnicode(buffer,,true); 
+		}
+		capture = { 
+			_set = function( v ){ 
+				if(v)
+					::HTMLayout.HTMLayoutSetCapture(owner[["handle"]])
+				else 
+					..win.releaseCapture(); 
+			} 	
+		}; 	
+		setEventRoot = function(){
+			var re,hpre = SetEventRoot(owner[["handle"]]);
+			if( re == 0/*_HLDOM_OK*/ )
+				return element_t(hpre); 
+		};
+		setTimer = function(ms=100,id=0){
+			return  0/*_HLDOM_OK*/ == SetTimerEx(owner[["handle"]],ms,id);
+		}
+		_callMethod = function(params){
+			if( !( params._struct && ( params.methodID !== null) ) )
+				error("参数错误",2)
+			return 0/*_HLDOM_OK*/ == CallBehaviorMethod(owner[["handle"]],params);
+		}
+		xcall = function(methodName,...){
+			var args,args_s;
+			args = {...};
+			var _,len = ..table.range(args);
+			if( len ) {
+				for( i=1;len;1 ){
+					args[i] = valueObject_t(args[i]); 
+				}
+				args_s = ..raw.buffer( {struct args[]=args} ) ;
+			}
+			
+			var callParams = __event.XCALL_PARAMS();
+			with callParams{
+				argv = args_s;
+				method_name = methodName;
+				argc = #args;
+				retval = valueObject_t();
+			}
+			
+			if( owner._callMethod(callParams) ){
+				return callParams.retval.getValue();
+			}
+		}; 
+		click = function(){
+			return owner._callMethod({INT methodID=0/*_HL_DO_CLICK*/});
+		};  
+		getCaretPos  = function(){
+			var caretParam =  { INT methodID = 8/*_HL_TEXT_EDIT_GET_CARET_POSITION*/;
+				 int left;int top; int width;int height };
+			if( owner._callMethod(caretParam) ){
+				return caretParam.left,caretParam.top,caretParam.width,caretParam.height;
+			}
+		}; 
+		getsel = function(){
+			var param =  { INT methodID = 3/*_HL_TEXT_EDIT_GET_SELECTION*/;
+				 INT selStart;INT selEnd;};
+			if( owner._callMethod(param) ){
+				return param.selStart,param.selEnd;
+			}
+		}; 
+		setsel = function(a=0,b=-1){ 
+			return owner._callMethod({ INT methodID = 4/*_HL_TEXT_EDIT_SET_SELECTION*/;
+				 INT selStart=a;INT selEnd=b;} ) 
+		}; 
+		isEmpty = function(){
+			var emptyParams = {INT methodID=0xFC/*_HL_IS_EMPTY*/;bool empty;}
+			owner._callMethod(emptyParams);
+			return emptyParams.empty;
+		};
+		getCharFromPos  = function(x,y){ 
+			var charParam =  { INT methodID = 0xB/*_HL_TEXT_EDIT_CHAR_POS_AT_XY*/;
+				 int x=x;int y=y; int char_pos;pointer he;int he_pos };
+				 
+			if( owner._callMethod(charParam) ){
+				if( charParam.he ) return  charParam.char_pos,element_t(charParam.he),charParam.he_pos;
+				return charParam.char_pos;
+			}
+		};
+		delayMeasure = function(){
+			return 0 == EnqueueMeasure(owner[["handle"]]); 
+		};
+		animate = function(proc,ms=400){
+			var proc_c = ..raw.tostdcall( function(he,step){
+				var ret = proc(element_t(he),step ) 
+				return ret === null ? ms : ret;
+			},"INT(pointer he,INT step,param" )
+			AnimateElement(owner[["handle"]],proc_c );
+		};
+		request = function(uri,param,rt,dt){
+			var param_c,len;
+			dt = dt : 0/*_HLRT_DATA_HTML*/;
+			if( param ) {
+				var postData = {};
+				if( type(param) == type.table ){
+					for(k,v in param){
+						push( postData,{ pointer name = toUnicode(k); pointer value = toUnicode(v); } )
+					} 
+				}
+				else {
+					for k,v in ..string.gmatch( param,"([^&]+)=([^&=]*)") { 
+						push( postData,{ pointer name = toUnicode(k); pointer value = toUnicode(v); } )
+					}
+				}
+				param_c = {struct array[] = postData }
+				len = #postData;
+				if(!len) { param_c = {} };
+			}
+			else {
+				param_c = {};
+				if(rt===null) rt = "GET";
+				len = 0;
+			};
+			return 0 == HttpRequest( owner[["handle"]],toUnicode(uri),dt,rt!="GET"?1:0,param_c,len);
+		};
+		attachEventHandler = function( handler,subscription ){
+			var hOwner;
+			if(!handler){
+				if( owner[["attachEventHandlerId"]] )
+					return null,"节点对象禁止重复绑定事件";
+					
+				handler = owner;
+				hOwner = true; 
+			} 
+			
+			if(!subscription){
+				if( handler._event_subsriptions ){
+					subscription = handler._event_subsriptions;
+				}
+				else{
+					subscription= __event.getSubscriptions(handler);
+				}
+			}
+			
+			var tagId = __event._handlerByTagRegistry.reg(handler);
+			var ret = AttachEventHandlerEx(owner[["handle"]], __event._handlerByTagId_c,tagId,subscription ); 
+			 
+			if( ret == 0/*_HLDOM_OK*/){
+				if( hOwner ){
+					owner[["attachEventHandlerId"]] = tagId;
+				}
+				return tagId;
+			}
+			else {
+				__event._handlerByTagRegistry.unReg(tagId);
+			}
+		};
+		detachEventHandler = function(tagId){
+			if(!tagId){
+				tagId = owner[["attachEventHandlerId"]]; 
+			}
+			if(tagId){
+				if( tagId == owner[["attachEventHandlerId"]] )
+					owner[["attachEventHandlerId"]] = null;
+					
+				var ret = ( 0/*_HLDOM_OK*/ == DetachEventHandler(owner[["handle"]], __event._handlerByTagId_c,tagId ) )
+				return ret;
+			}
+		};
+		traverseMouse = function(cmd,x,y,btnState,altSate){ 
+			if( type(cmd) == "string" ){
+				cmd = __event.findMouseCodeByName(cmd);
+				if( cmd===null ) error("参数@1指定了无效的事件",2);
+			}
+			var vx,vy = owner.getPos();
+			if( x ) vx = vx + x;
+			if( y ) vy = vy + y;
+			var evtParam = {
+				INT cmd = cmd;
+				ptr target = owner[["handle"]];
+				struct pos = ::POINT();
+				struct pos_document = ::POINT( vx,vy);
+				int button_state = btnState : 1/*_HL_MAIN_MOUSE_BUTTON*/;
+				INT alt_state = altSate;
+				INT cursor_type; bool is_on_icon; ptr dragging; INT dragging_mode;
+			}
+			var r,p = TraverseUIEvent(1/*_HL_HANDLE_MOUSE*/,evtParam); 
+			if(  0 == r ) return p;
+		}; 
+		traverseKey = function(cmd,vk,altSate){
+			if( type(cmd) == "string" ){
+				cmd = __event.findKeyCodeByName(cmd);
+				if( cmd===null ) error("参数@1指定了无效的事件",2);
+			}
+			var evtParam = {
+				INT cmd = cmd;
+				ptr target = owner[["handle"]]; 
+				int key_code = vk;
+				INT alt_state = altSate; 
+			}
+			var r,p = TraverseUIEvent(2/*_HL_HANDLE_KEY*/,evtParam);
+			if(  0 == r ) return p;
+		}; 
+		__gcReleaseAll = function(){
+		
+			var he = owner[["handle"]];
+			if( he && owner[["(referenceCount)"]] > 0 ){
+			
+				owner[["(referenceCount)"]] = 0;
+				_cache_elements[ he ] = null;
+				if(owner[["attachEventHandlerId"]]) owner.detachEventHandler();
+				UnuseElement(owner[["handle"]]);
+				//owner[["handle"]] = null;
+			}
+		};
+		release = function(){
+			var he = owner[["handle"]];
+			if( he && owner[["(referenceCount)"]] > 0 ){
+				owner[["(referenceCount)"]] = owner[["(referenceCount)"]] - 1; 
+				if( owner[["(referenceCount)"]] == 0 ){
+				
+					_cache_elements[ he ] = null;
+					if(owner[["attachEventHandlerId"]]) owner.detachEventHandler();
+					UnuseElement(owner[["handle"]]) 
+					owner[["handle"]] = null; //detachEventHandler需要用到
+					
+					return owner[["(referenceCount)"]]; 
+				}
+				return owner[["(referenceCount)"]]; 
+			}
+		};
+		delete = function(){
+			var he = owner[["handle"]];
+			if( he ){
+			
+				owner[["(referenceCount)"]] = 0;
+				_cache_elements[ he ] = null;
+				if(owner[["attachEventHandlerId"]]) owner.detachEventHandler();
+				var ret = DeleteElement(he); 
+				owner[["handle"]] = null; //detachEventHandler需要用到
+				
+				return  ret == 0/*_HLDOM_OK*/; 
+			}
+		};
+	); 
+	 
+	namespace _metaProperty {
+		getAttribute = get;
+		setAttribute = set; 
+		children = childCount; 
+		previous = previousSibling;
+		
+      	next = nextSibling;
+		var _visitElement_callback_result; 
+		var _visitElement_callback_c = ..raw.tostdcall( 
+			function(he, param){
+				_visitElement_callback_result = he;
+			} , "int(pointer he, pointer)"
+		);
+		visitElement = function (tagName, attrName, attrValue, depth ) {
+			if( 0/*_HLDOM_OK*/ = VisitElements(owner[["handle"]], tagName, attrName,toUnicode(attrValue), _visitElement_callback_c,  , depth : 0 ) ){
+				var ret = element_t( _visitElement_callback_result );
+				_visitElement_callback_result = null;
+				return ret;
+			}
+		};
+		
+		var _visitElements_callback_result;
+		var _visitElements_callback_c = ..raw.tostdcall( 
+			function(he, param){
+				push( _visitElements_callback_result,element_t(he) );
+			} , "int(pointer he, pointer)"
+		);
+		visitElements = function (tagName, attrName, attrValue, depth ) { 
+			_visitElements_callback_result = {};  
+			if( 0/*_HLDOM_OK*/ = VisitElements(owner[["handle"]], tagName, attrName,toUnicode(attrValue), _visitElements_callback_c,  , depth : 0) ){ 
+				var ret = _visitElements_callback_result;
+				_visitElements_callback_result = null;
+				return ret;
+			}
+		};
+		 
+		var _querySelectorAll_callback_result; 
+		var _querySelectorAll_callback_c = ..raw.tostdcall( 
+			function(he, param){
+				push( _querySelectorAll_callback_result,element_t(he) );
+			} , "bool(pointer he, INT)"
+		); 
+		querySelectorAll = function(cssSelectors,...){ 
+			if( ... !== null )  cssSelectors = ..string.format(cssSelectors,... );
+			_querySelectorAll_callback_result = {};
+			if( 0/*_HLDOM_OK*/ = SelectElements(owner[["handle"]],cssSelectors,_querySelectorAll_callback_c,0) ){
+				var ret = _querySelectorAll_callback_result;
+				_querySelectorAll_callback_result = null;//gc;
+				return ret;
+			} 
+		};
+		
+		var _querySelector_callback_result; 
+		var _querySelector_callback_c = ..raw.tostdcall( 
+			function(he, param){ 
+				_querySelector_callback_result = element_t(he); return true; 
+			}, "bool(pointer he, INT)"
+		); 
+		querySelector = function(cssSelectors,...){
+			if( ... !== null )  cssSelectors = ..string.format(cssSelectors,... ); 
+			_querySelector_callback_result = null;
+			SelectElements(owner[["handle"]],cssSelectors,_querySelector_callback_c,0)
+			var ret = _querySelector_callback_result;
+			_querySelector_callback_result = null;//gc;
+			return ret;
+		}
+		
+		queryElements = querySelectorAll; 
+		queryElement = querySelector;
+		$ = querySelectorAll;
+		$1 = querySelector;
+		$1p = queryParent; 
+		$p = queryParents;
+		
+		_callBackRegistry = ..util.registry();
+		var _enumQuery_callback_c = ..raw.tostdcall( 
+			function(he,tagParam){
+				return  _callBackRegistry[tagParam]( element_t(he) ); //true stop;
+			} , "bool(pointer he, INT tagParam)"
+		);
+		enumQuery = function(proc,cssSelectors,...){ 
+			if( type(proc) != "function" ) 
+				error("参数@1 必须是函数对象!",2);
+				
+			if( ... !== null ) cssSelectors = ..string.format(cssSelectors,... );  
+			var tag = _callBackRegistry.reg(proc); 
+			var ret = ( 0 == SelectElements(owner[["handle"]],cssSelectors,_enumQuery_callback_c,tag ) );
+			_callBackRegistry.unReg(tag);
+			return ret;
+		};
+		
+		var _sort_callback_c = ..raw.tostdcall(  
+			function(he1,he2,tagParam){
+				return _callBackRegistry[tagParam]( element_t(he1),element_t(he2) ) 
+			},"int(pointer he1,pointer he2,INT tagParam)" 
+		);  
+		sort = function(cmpFunc,first=1,last=-1){
+			if( type(cmpFunc) != "function" ) 
+				error("参数@1 必须是函数对象!",2);
+			
+			var tag = _callBackRegistry.reg(cmpFunc); 
+			var ret = ( 0 == SortElements( owner[["handle"]],first-1,last,_sort_callback_c,tag ) );  
+			_callBackRegistry.unReg(tag);
+			return ret;
+		};
+		 
+		var _enumStyle_ruleType = {"css";"inline";"script"};
+		var _enumStyle_callback_c  = ..raw.tostdcall( 
+				function(pdef,tagParam){
+					var s = ..raw.convert(pdef,HTMLayoutCSSRuleDef() );
+					_callBackRegistry[tagParam]( fromUnicode(s.selector,,true),_enumStyle_ruleType[s.rule_type],s.file_url,s.file_line_no )
+				},"void( pointer pdef,INT tagParam)"
+		);
+		enumStyle = function(proc){ 
+			if( type(proc) != "function" ) 
+				error("参数@1 必须是函数对象!",2);
+				
+			var tag = _callBackRegistry.reg(proc);
+			var ret = ( 0 == EnumElementStyles(owner[["handle"]],_enumStyle_callback_c,tag ) );
+			_callBackRegistry.unReg(tag);
+			return ret;
+		};
+		
+		var selBuffer;
+		var _selHtml_callback_c  = ..raw.tostdcall( 
+				function(prms,data){
+					push(selBuffer,data)
+					return true;
+				},"bool( pointer prms, INT data)"
+		); 
+		selHTML = {
+			_get = function(){
+				selBuffer = {};
+				owner._callMethod( { INT methodID = 0xA/*_HL_TEXT_EDIT_GET_SELECTION_HTML*/; 
+					pointer outProc = _selHtml_callback_c } );
+				return ( ..string.pack(selBuffer)  ); 
+			}; 
+		}
+		var _selText_callback_c  = ..raw.tostdcall( 
+				function(prms,data){
+					push( selBuffer,data & 0xFF ,(data >> 8) & 0xFF)
+					return true;
+				},"bool( pointer prms, INT data)"
+		); 
+		replaceSel = function(s){
+			s =  toUnicode(s,,false);  
+			if(s) return owner._callMethod( { INT methodID = 5/*_HL_TEXT_EDIT_REPLACE_SELECTION*/; 
+				pointer text = s; INT text_length = #s / 2; } );
+		};  
+		selText = {
+			_get = function(){
+				selBuffer = {};
+				owner._callMethod( { INT methodID = 9/*_HL_TEXT_EDIT_GET_SELECTION_TEXT*/; 
+					pointer outProc = _selText_callback_c } );
+				return  fromUnicode(  ..string.pack(selBuffer) ) ; 
+			};
+			_set  = replaceSel;
+		} 
+		
+		VisitElements = dll.api("HTMLayoutVisitElements","int(POINTER he,pointer tagName,pointer attributeName,pointer attributeValue,pointer callback,pointer param,INT depth)");
+		SelectElements = dll.api("HTMLayoutSelectElementsW","int(POINTER he,ustring CSS_selectors,pointer callback,INT tagParam)");
+		SortElements = dll.api("HTMLayoutSortElements","int(POINTER he,INT first,INT last,POINTER func,INT tagParam)"); 
+		EnumElementStyles = dll.api("HTMLayoutEnumElementStyles", "int(pointer he, pointer callback,INT tagParam)");
+		class HTMLayoutCSSRuleDef{
+  			int rule_type; 
+  			string file_url;   
+  			int file_line_no;  
+  			pointer selector;  
+		} 
+	}; 
+	 
+  	_insertAdjacentOption = {
+		beforeBegin = 4/*_SOH_INSERT_BEFORE*/;
+		afterBegin = 1/*_SIH_INSERT_AT_START*/;
+		beforeEnd = 2/*_SIH_APPEND_AFTER_LAST*/;
+		afterEnd = 5/*_SOH_INSERT_AFTER*/
+	} 
+  	
+	GetAttributeByName = dll.api("HTMLayoutGetAttributeByName","int(POINTER he,STRING name,pointer& p_value)");
+	SetAttributeByName = dll.api("HTMLayoutSetAttributeByName","int(POINTER he,STRING name,pointer value)");
+	GetAttributeCount = dll.api("HTMLayoutGetAttributeCount","int(POINTER he,INT& p_count)");
+	GetNthAttribute = dll.api("HTMLayoutGetNthAttribute","int(POINTER he,INT n,pointer& p_name,pointer& p_value)");
+	InsertElement = dll.api("HTMLayoutInsertElement","int(POINTER he,POINTER hparent,INT index)"); 
+	GetParentElement = dll.api("HTMLayoutGetParentElement","int(POINTER he,pointer& p_parent_he)");
+	GetChildrenCount = dll.api("HTMLayoutGetChildrenCount","int(POINTER he,INT& count)");
+	GetNthChild = dll.api("HTMLayoutGetNthChild","int(POINTER he,INT n,pointer& he)"); 
+	GetElementText = dll.api("HTMLayoutGetElementText","int(POINTER he,pointer& characters,INT& length)");
+	GetElementHtml = dll.api("HTMLayoutGetElementHtml","int(POINTER he,pointer& utf8bytes,bool outer)");
+	GetElementInnerText = dll.api("HTMLayoutGetElementInnerText","int(POINTER he,pointer& utf8bytes)");
+	SetElementInnerText = dll.api("HTMLayoutSetElementInnerText","int(POINTER he,pointer utf8bytes,INT length)");  
+	GetElementIndex = dll.api("HTMLayoutGetElementIndex","int(POINTER he,INT& p_index)");
+	GetElementType = dll.api("HTMLayoutGetElementType","int(POINTER he,pointer &p_type)"); 
+	GetElementLocation = dll.api("HTMLayoutGetElementLocation","int(POINTER he,struct& p_location,INT areas)");
+	ScrollToView = dll.api("HTMLayoutScrollToView","int(POINTER he,INT flags)");
+	UpdateElement = dll.api("HTMLayoutUpdateElement","int(POINTER he,bool remeasure)");
+	UpdateElementEx = dll.api("HTMLayoutUpdateElementEx","int(POINTER he,INT flags)"); 
+	SetEventRoot = dll.api("HTMLayoutSetEventRoot","int(POINTER he,pointer& phePrevRoot)");
+	GetElementHwnd = dll.api("HTMLayoutGetElementHwnd","int(POINTER he,int& p_hwnd,bool rootWindow)"); 
+	SelectParent = dll.api("HTMLayoutSelectParentW","int(POINTER he,ustring selector,INT depth,pointer& heFound)"); 
+	SetElementHtml = dll.api("HTMLayoutSetElementHtml","int(POINTER he,pointer html,INT htmlLength,INT where)");
+	DeleteElement = dll.api("HTMLayoutDeleteElement","int(POINTER he)");
+	GetElementUID = dll.api("HTMLayoutGetElementUID","int(POINTER he,INT& puid)");
+	GetElementByUID = dll.api("HTMLayoutGetElementByUID","int(int hwnd,INT uid,pointer& phe)"); 
+	GetElementState = dll.api("HTMLayoutGetElementState","int(POINTER he,INT& pstateBits)");
+	SetElementState = dll.api("HTMLayoutSetElementState","int(POINTER he,INT stateBitsToSet,INT stateBitsToClear,bool updateView)");
+	CloneElement = dll.api("HTMLayoutCloneElement","int(POINTER he,pointer& phe)");  
+	SetTimerEx = dll.api("HTMLayoutSetTimerEx","int(POINTER he,INT millisecond,INT timerId)");
+	AttachEventHandlerEx = dll.api("HTMLayoutAttachEventHandlerEx","int(POINTER he,pointer pep,INT tag,INT subscription)");
+	DetachEventHandler = dll.api("HTMLayoutDetachEventHandler","int(POINTER he,pointer pep,INT tag)");
+	SendEvent = dll.api("HTMLayoutSendEvent","int(POINTER he,INT appEventCode,pointer heSource,INT reason,bool& handled)");
+	PostEvent = dll.api("HTMLayoutPostEvent","int(POINTER he,INT appEventCode,pointer heSource,INT reason)");
+	CallBehaviorMethod = dll.api("HTMLayoutCallBehaviorMethod","int(POINTER he,struct &params)");
+	HttpRequest = dll.api("HTMLayoutHttpRequest","int(POINTER he,string url,INT dataType,INT requestType,struct requestParams,INT nParams)");
+	GetScrollInfo = dll.api("HTMLayoutGetScrollInfo","int(POINTER he,struct& scrollPos,struct& viewRect,struct& contentSize)");
+	SetScrollPos = dll.api("HTMLayoutSetScrollPos","int(POINTER he,int x,int y,bool smooth)");
+	GetElementIntrinsicWidths = dll.api("HTMLayoutGetElementIntrinsicWidths","int(POINTER he,INT& min,INT& max)");
+	GetElementIntrinsicHeight = dll.api("HTMLayoutGetElementIntrinsicHeight","int(POINTER he,INT forWidth,INT& min)");
+	IsElementVisible = dll.api("HTMLayoutIsElementVisible","int(POINTER he,bool& pVisible)");
+	IsElementEnabled = dll.api("HTMLayoutIsElementEnabled","int(POINTER he,bool& pEnabled)");
+	SwapElements = dll.api("HTMLayoutSwapElements","int(POINTER he1,POINTER he2)");
+	ProcessUIEvent = dll.api("HTMLayoutProcessUIEvent","int(POINTER he,INT evt,struct evtParam,bool& processed)");
+	ControlGetValue = dll.api("HTMLayoutControlGetValue","int(POINTER he,struct& pVal)");
+	ControlSetValue = dll.api("HTMLayoutControlSetValue","int(POINTER he,struct pVal)"); 
+	MoveElement = dll.api("HTMLayoutMoveElement","int(POINTER he,INT xView,INT yView)");
+	MoveElementEx = dll.api("HTMLayoutMoveElementEx","int(POINTER he,INT xView,INT yView,INT width,INT height)");
+	AnimateElement = dll.api("HTMLayoutAnimateElement","int(POINTER he,POINTER pAnimator,pointer animatorParam)");
+	EnqueueMeasure = dll.api("HTMLayoutEnqueueMeasure","int(POINTER he)"); 
+	ShowPopup = dll.api("HTMLayoutShowPopup", "int(POINTER hePopup, POINTER heAnchor, INT placement)");
+	ShowPopupAt = dll.api("HTMLayoutShowPopupAt", "int(POINTER hePopup,int x,int y, INT mode)");
+	TrackPopupAt = dll.api("HTMLayoutTrackPopupAt", "int(POINTER hePopup,int x,int y, INT mode, pointer& pheItem)");
+	HidePopup = dll.api("HTMLayoutHidePopup", "int(POINTER he)");  
+	CreateElement = dll.api("HTMLayoutCreateElement","int(pointer tagname,ustring textOrNull,pointer& phe)");
+	UseElement = dll.api("HTMLayout_UseElement","int(POINTER he)");
+	UnuseElement = dll.api("HTMLayout_UnuseElement","int(POINTER he)");  
+	TraverseUIEvent = dll.api("HTMLayoutTraverseUIEvent","int(INT evt,struct param,bool& processed)");
+}
+ 
+/**intellisense()
+web.layout.element(.(句柄,是否添加引用) = 将节点句柄转换为节点对象
+layoutEle = HTMLayout节点对象保留变量名,\n请勿用于表示其他类型对象\n!layoutEle.
+ltTarget = HTMLayout节点对象,\n在事件函数中,ltTarget一般表示触发事件的目标节点,\nlt前缀变量为HTMLayout保留,请勿用于表示其他类型对象\n!layoutEle.
+ltEle = HTMLayout节点对象,\nlt前缀变量为HTMLayout保留,请勿用于表示其他类型对象\n!layoutEle. 
+ltOwner = HTMLayout节点对象,\n在事件函数中,ltOwner一般表示捕获事件的节点,\nlt前缀变量为HTMLayout保留,请勿用于表示其他类型对象\n!layoutEle.
+ltPopupOwner = HTMLayout节点对象,\nlt前缀变量为HTMLayout保留,请勿用于表示其他类型对象\n!layoutEle.
+ltOption = HTMLayout节点对象,\nlt前缀变量为HTMLayout保留,请勿用于表示其他类型对象\n!layoutEle.
+layoutEle2 = !layoutEle. 
+ltEle2 = !layoutEle.
+!layoutEle.workThread = 该值为 true 表示节点对象已被转换为适用于工作线程\n该值为 false 表示节点对象是用于界面线程
+!layoutEle.selHTML = HTML剪帖格式返回选区内容,\n该属性只读
+!layoutEle.selText = 获取或设置选区文本
+!layoutEle.createElement() = !layoutEle.
+!layoutEle.visitElement() = !layoutEle.
+!layoutEle.getElementById() = !layoutEle.
+!layoutEle.getElementByUid() = !layoutEle.
+!layoutEle.queryParent() = !layoutEle.
+!layoutEle.$1() = !layoutEle.
+!layoutEle.$() = !layoutEle.
+!layoutEle.$p() = !layoutEle.
+!layoutEle.$1p() = !layoutEle.
+!layoutEle.querySelectorAll() = !layoutEle.
+!layoutEle.querySelector() = !layoutEle.
+!layoutEle.queryElements() = !layoutEle.
+!layoutEle.queryElement() = !layoutEle.
+!layoutEle.getElementsByName() = !layoutEle.
+!layoutEle.getElementsByTagName() = !layoutEle.
+web.layout.element() = !layoutEle.
+!layoutEle.getDataTable() = 返回节点data-table属性中的值,并序列化为table对象
+!layoutEle.setDataTable(.(tab对象) = 序列化table对象并设置为节点data-table属性
+!layoutEle.getCaretPos() = 返回光标相对于当前节点的客户区位置,\n返回值分别为:左坐标,顶坐标,宽度,高度
+!layoutEle.getsel() = 返回文本框控件文本选区,返回值:起始位置,结束位置
+!layoutEle.setsel(.(起始位置,结束位置) = 设置文本框控件文本选区 
+!layoutEle.outerHTML = 节点HTML源码
+!layoutEle.innerHTML = 节点内部HTML源码
+!layoutEle.write(.(html,->->->) = 写入HTML并替换节点内部HTML,\n参数可以是数值,字符串
+!layoutEle.printf(.("格式化串",其他参数) = 格式化并写入HTML代码到节点尾部
+!layoutEle.insertAdjacentHTML("beforeBegin",__/*HTML代码*/) = 在节点之前插入HTML\n可添加多个HTML参数,
+!layoutEle.insertAdjacentHTML("afterBegin",__/*HTML代码*/) = 在节点内部最前面插入HTML\n可添加多个HTML参数
+!layoutEle.insertAdjacentHTML("beforeEnd",__/*HTML代码*/) = 在节点内部最后面插入HTML\n可添加多个HTML参数
+!layoutEle.insertAdjacentHTML("afterEnd",__/*HTML代码*/) = 在节点之后插入HTML\n可添加多个HTML参数
+!layoutEle.tagName = 返回表示节点类型的字符串\n例如层节点返回"div"
+!layoutEle.getIntrinsicWidth() = 返回宽度的 min-intrinsic,max-intrinsic 值
+!layoutEle.getIntrinsicHeight() = 返回高度的 min-intrinsic 值
+!layoutEle.type = 返回控件类型(type属性) 
+!layoutEle.cls = 自定义控件类名
+!layoutEle.capture = 设为true开始捕获鼠标消息,设为false取消捕获
+!layoutEle.innerText = 设置或者获取文本
+!layoutEle.modifyState(.(要增加的状态,要取消的状态,是否更新) = 设置状态,以 _HL_STATE_ 开头的常量表示指定状态\n所有参数可省略,参数三默认为true
+!layoutEle.getState(htmlayout.ELEMENT_STATE_BITS.__) = 是否有某个状态,以 _HL_STATE_ 开头的常量表示指定状态 
+!layoutEle.visitElement(.(节点类型,属性名,属性值,深度) = 查找第一个符合的节点,所有参数都可空
+!layoutEle.visitElements(.(节点类型,属性名,属性值,深度) = 查找所有符合的节点,所有参数都可空
+!layoutEle.querySelectorAll( = 使用CSS选择器语法查找节点,返回数组
+!layoutEle.querySelector( = 使用CSS选择器语法查找节点,返回节点对象
+!layoutEle.querySelectorAll(.("标签名[属性名='属性值']") = 使用CSS选择器语法,\n在当前节点的子节点中查找所有符合条件节点,\n如果有多个参数则首先调用string.format格式化为CSS文本,\n该函数名可使用'$'代替,等价于CSS!中的$函数
+!layoutEle.querySelector(.("标签名[属性名='属性值']") = 使用CSS选择器语法,\n在当前节点的子节点中查找第一个符合条件节点,\n如果有多个参数则首先调用string.format格式化为CSS文本,\n该函数名可使用'$1'代替,等价于CSS!中的$1函数
+!layoutEle.queryParent(.("标签名[属性名='属性值']") = 该函数类似于CSSS!脚本中的$1p函数,不同的是会测试自身是否匹配,\n使用CSS选择器语法,在父节点中查找匹配最近的一个父节点,\n可选使用参数二指定向上搜索深度,\n如果搜索级别省略或设为0,则不限制搜索深度,\n如果该值为1,仅匹配自身
+!layoutEle.queryParents(.("标签名[属性名='属性值']")  = 该函数类似于CSSS!脚本中的$p函数,不同的是会测试自身是否匹配,\n使用CSS选择器语法,在父节点中查找所有匹配的节点,\n成功返回非空数组 
+!layoutEle.testParent(.("标签名[属性名='属性值']") = 测试父节点中是否存在符合匹配的节点,\n可使用参数2指定向上搜索深度,默认为0表示不作限制,
+!layoutEle.test(.("标签名[属性名='属性值']",是否测试所有父节点) = 测试节点自身是否符合匹配,\n该函数等价于 testParent(CSS选择器,1)
+!layoutEle.$1(.("标签名[属性名='属性值']") = 使用CSS选择器语法,查找符合条件的第一个子节点
+!layoutEle.$(.("标签名[属性名='属性值']") = 使用CSS选择器语法,查找符合条件的所有子节点
+!layoutEle.$p(.("标签名[属性名='属性值']") = 使用CSS选择器语法,查找符合条件的所有父节点,\n注意与CSS脚本不同,该函数测试自身
+!layoutEle.$1p(.("标签名[属性名='属性值']") =  使用CSS选择器语法,查找符合条件最近的父节点,\n注意与CSS脚本不同,该函数测试自身
+!layoutEle.getElementsByName ("__") = 根据 name 查找节点集合
+!layoutEle.getElementById("__") = 根据ID查找节点\n如果未找到,尝试使用name查找 
+!layoutEle.getElementsByTagName("__") = 根据HTML标签名查找节点集合
+!layoutEle.getElementByUid(.(UID) = 根据唯一ID在该节点所属窗口范围内查找节点
+!layoutEle.clearAttributes() = 清空所有属性
+!layoutEle.setAttribute("hide","true")  = 修改属性,属性值只能是字符串或null\n也可以直接写 ele.属性名字 = "值"
+!layoutEle.getAttribute("hide")  = 获取属性,返回值为字符串或null\n也可以直接写 var 返回值=ele.属性名字
+!layoutEle.getCustomAttribute("__") = 获取HTML属性,\n如果失败,则在名字前添加横线查找style自定义属性
+!layoutEle.eachAttribute() = @for( i,name,value in ??.eachAttribute() ){
+			 
+}
+!layoutEle.enumQuery(枚举函数,CSS选择器,格式化参数) = @.enumQuery(\n	function(ltEle){\n		 __/*返回true停止枚举*/\n	},"div"\n)
+!layoutEle.sort(cmpFunc,firstInddex,lastIndex) = @.sort(\n	function(ltEle,ltEle2){\n		\n		return __/*比较条件,可返回-1,0,1等值表示比较结果*/ ? -1 : 1;\n	}\n)
+!layoutEle.swap(.(节点对象) = 交换节点对象位置
+!layoutEle.enumStyle(枚举函数) =  @.enumStyle( \n	function(selector,ruleType,file,lineNo){\n		__	\n	}\n)
+!layoutEle.id = 节点ID
+!layoutEle.uid = 节点唯一标志符(数值)
+!layoutEle.value = 读写控件值,\n可选值类型:字符串值,数值,时间值等,\n可选使用web.layout.value 对象赋值
+!layoutEle.getValueObject() = 返回控件值对象( web.layout.valueObject 对象 )\n!web_layout_value.
+!layoutEle.setValueObject(.(值,单位,类型) = 值可选使用字符串,数值,时间值,或 web.layout.valueObject 对象,\n单位为可选参数,值类型(使用 _HL_T_ 前缀常量表示)为可选参数
+!layoutEle.name = 节点name属性
+!layoutEle.createElement(.(标签名,节点内容,插入位置) = 创建节点,\n节点内容可省略,\n插入位置可省回,默认为-1表示追到子节点尾部
+!layoutEle.insert(.(节点,插入位置) = 插入子节点,参数2可省略,默认插入子节点队列最前面\n插入位置为-1表示插入到子节点队列尾部 
+!layoutEle.append(__/*节点*/) = 追加到最后一个子节点  
+!layoutEle.isEnabled() = 节点是否可用
+!layoutEle.isVisible() = 节点是否可见
+!layoutEle.index() = 节点在父节点child子节点集合中的索引位置
+!layoutEle.updateHTML() = 重新解析节点HTML代码
+!layoutEle.update() = 更新;
+!layoutEle.update(true) = 更新,\n重新计算元素的尺寸
+!layoutEle.updateEx( _HL_UPDATE_ELEMENT_FLAGS__ ) = 更新;\n并调用::UpdateWindow 刷新窗口
+!layoutEle.root() = 根文档的根节点\n获取框架内部当前文档根节点应请使用documentElement属性\n!layoutEle.
+!layoutEle.documentElement = 当前当前文档HTML根节点\n!layoutEle.
+!layoutEle.parent() = 获取父节点\n!layoutEle.
+!layoutEle.nextSibling() = 获取下一个兄弟节点,可选在参数中指定偏移值\n!layoutEle.
+!layoutEle.previousSibling() = 获取上一个兄弟节点,可选在参数中指定偏移值\n!layoutEle.
+!layoutEle.firstSibling() = 获取第一个兄弟节点\n!layoutEle.
+!layoutEle.lastSibling() = 获取最后一个兄弟节点\n!layoutEle.
+!layoutEle.previous() = 上一个兄弟节点\n!layoutEle.	
+!layoutEle.next() = 下一个兄弟节点\n!layoutEle.
+!layoutEle.child(1__/*索引*/) = 获取子节点\n第一个子节点的索引为1
+!layoutEle.child() = !layoutEle.
+!layoutEle.isParent(.(父节点) = 判断参数中的节点是否父节点或自身\n参数为空值返回空
+!layoutEle.isChild(.(子节点) = 判断参数中的节点是否子节点或自身\n参数为空值返回空
+!layoutEle.childCount() = 获取子节点数目\n!layoutEle.
+!layoutEle.eachChild(开始索引,结束索引,步进) = @for(i,eleChild in ??.eachChild(__/*可选指定开始与结束索引*/) ){
+	io.print( i,eleChild.innerHTML );
+} 
+!layoutEle.traverseKey(.("onKeyDown",_VK_->->->,altSate) = 参数@1指定事件,可直接使用  _HL_KEY_ 前缀常量作为参数\n参数@2指定虚拟键码,参数altState可省略,可选值:\n_HL_CONTROL_KEY_PRESSED:0x1,\n_HL_SHIFT_KEY_PRESSED:0x2,\n_HL_ALT_KEY_PRESSED:0x4
+!layoutEle.traverseMouse(.("onMouseClick",x,y,btnState,altSate) = 除参数@1以外,其他都是可选参数\n参数@1指定事件,可直接使用  _HL_MOUSE_ 前缀常量作为参数\nx,y用于指定节点内部相对坐标\nbtnState默认为 _HL_MAIN_MOUSE_BUTTON,即鼠标左键
+!layoutEle.click() = 触发 onButtonClick 事件,\n支持按钮节点、或者样式中指定behavior:~clickable的节点\n触发非clickable的onMouseClick事件请使用traverseMouse函数
+!layoutEle.eachChild() = !layoutEle.
+!layoutEle.clone(.(索引) = 复制节点,必须添加为其他节点的子节点才能使用.\n可选指定一个位置参数以添加到复制源节点的父节点,\n-1表示追加到兄弟节点尾部\n!layoutEle.
+!layoutEle.clone() = !layoutEle.
+!layoutEle.detach() = 自DOM树中分离该节点\n当引用计数清零时自动删除
+!layoutEle.postEvent(.(事件ID,选项,ltTarget) = 触发事件,不等待返回,参数二,参数三为可选参数\n参数一也可以是事件函数名,例如"onButtonClick",\n支持web.layout.event.BEHAVIOR 名字空间的事件,或其他on前缀的自定义事件\n不应使用此函数触发其他例如onMuse,onKey前缀的事件
+!layoutEle.sendEvent(.(事件ID,选项,ltTarget) = 触发事件,并等待返回,参数二,参数三为可选参数\n参数一也可以是事件函数名,例如"onButtonClick",\n支持web.layout.event.BEHAVIOR 名字空间的事件,或其他on前缀的自定义事件\n不应使用此函数触发其他例如onMuse,onKey前缀的事件
+!layoutEle.scrollToView(.(滚动到顶部,平滑效果) = 滚动上层视图节点滚动条
+!layoutEle.release() = 确认节点对象不再使用可使用此函数释放引用,\n调用此函数后不可再使用该对象,\n节点会自动释放,不建议手动调用此函数
+!layoutEle.delete() = 删除节点对象\n成功返回true
+!layoutEle.state = 节点状态,\n类似于CSSS! 脚本中使用一个冒号表示状态,\n例如 ele:hover = false,\n!htmlayout_state.
+!layoutEle.style = 节点样式,\n类似于CSSS! 脚本中使用一对冒号表示状态,\n例如 ele::width = 56px,\nCSS样式属性的值必须是符合CSS样式语法的字符串，例如:\n\nltEle.style["color"] = "#F00";\nltEle.style["background"] = "#FFF";\nltEle.style["background-image"] = "url(/images/bg.png)";\n!htmlayout_style.
+!layoutEle.getScrollInfo() = 获取滚动条信息,\n即使CSS样式中使用overflow:hidden;隐藏滚动条,仍然可以正常取到滚动分页等参数,\n!ltEleScrollInfo.
+!layoutEle.getRect(_HL__) = 返回节点区块坐标\n参数可省略,默认值为 _HL_ROOT_RELATIVE | _HL_CONTENT_BOX 
+!layoutEle.getRect() = !rect.
+!layoutEle.getPos() = 返回文档相对x坐标,y坐标,cx宽度,cy高度
+!layoutEle.setPos(.(x坐标,y坐标,宽,高) = 移动节点,所有参数可选
+!layoutEle.popup( = 在指定坐标弹出菜单
+!layoutEle.popup(.(x坐标,y坐标,是否显示动画,相应坐标) = 参数三,四可省略,\n参数四可选值为1到9,表示相对指定坐标的偏移位置如下:\n3 2 1\n6 5 4\n9 8 7
+!layoutEle.popupTrack( = 显示菜单、并等待点击返回用户点选的菜单项
+!layoutEle.popupTrack(.(x坐标,y坐标,是否显示动画,相应坐标) = 参数三,四可省略,\n参数四可选值为1到9,表示相对指定坐标的偏移位置如下:\n3 2 1\n6 5 4\n9 8 7
+!layoutEle.popupAnchor(.(锚节点,选项) = 弹出菜单节点\n参数2指定弹出方向,可省略,默认为2\n可选值(2:下,4:左;6:右 8:上)\n\n  8  \n4 5 6\n  2 
+!layoutEle.popupHide() = 隐藏菜单节点
+!layoutEle.setEventRoot() = 设为事件触发根节点\n节点之外的节点事节被禁用,\n成功返回上一个事件根节点
+!layoutEle.combineUrl(.(URL) = 将相对路径转换为绝对路径
+!layoutEle.setTimer(.(延时毫秒值,ID) = 如果延时值为0,取消定时器,ID可省略\n在CSSS!脚本中可触发 timer! 事件
+!layoutEle.getHwnd(.(是否返回顶层窗口) = 返回窗口句柄,参数可省略,默认为false
+!layoutEle.updateWindow(.(是否顶层窗口) = 更新窗口\n参数可省略,默认为false
+!layoutEle.getForm() = 返回该节点所在窗体对象\n!winform.
+!layoutEle.getForm(false) = 返回节点所在窗口或控件对象\n!static.
+!layoutEle.getLayout() = 返回HTMLayout窗体对象\n非界面线程不可调用此函数\n!weblayout.
+!layoutEle.getCtrl() = 返回自定义控件对象\n!static.
+!layoutEle.adjustCtrl(.(cx,cy,wParam) = 调整控件使适合指定大小,参数可以省略
+!layoutEle.animate(动画回调函数,延时毫秒) = @.animate( \n	function(ltEle,step){\n		if( step == 0xffffffff )return 0; \n		\n		return __/*新的延时值,返回0停止*/;\n	}\n)
+!layoutEle.delayMeasure() = 延迟更新布局,用于拖动时优化性能
+!layoutEle.createMouseEvent() = !hl_mouse_params.
+!layoutEle.createKeyEvent() = !hl_key_params.
+!layoutEle.createMouseEvent(.(x,y,ltTarget) = 创建鼠标事件,所有参数可选
+!layoutEle.createKeyEvent(.(虚拟键码,ltTarget) = 创建键盘事件,参数2可选
+!layoutEle.attachEventHandler(.(eventHandler,subscription) = 添加事件监听对象,\n参数一指定响应事件的对象,如果不指定则为当前节点对象,\nsubscription 可选使用 _HL_HANDLE_ 前缀常量指定捕获的事件,\n 如果不指定该参数,则根据预听义的监听函数自动设定该值,\n也可以使用对象的 _event_subsriptions 成员指定该值,\n该函数返回事件ID,用于注销监听.
+!layoutEle.detachEventHandler(.(事件ID) = 注销事件监听对象,省略参数则停止节点自身事件监听
+!layoutEle.request(.(网址,参数,提交方法) =  参数可以是字符串或键值对组成的表对象\n提交方法可省略,默认为"POST"\n该函数可触发onDataArrived事件
+!layoutEle.request(.(网址) = 用于框架节点打开网页\n该函数会触发onDataArrived事件
+!layoutEle.onMouseEnter = @.onMouseEnter = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onMouseLeave = @.onMouseLeave = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onMouseMove = @.onMouseMove = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onMouseUp = @.onMouseUp = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onMouseDown = @.onMouseDown = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onMouseDblClick = @.onMouseDblClick = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onMouseWheel = @.onMouseWheel = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onMouseTick = @.onMouseTick = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onMouseIdle = @.onMouseIdle = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onDrop = @.onDrop = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onDragEnter = @.onDragEnter = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onDragLeave = @.onDragLeave = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onDragRequest = @.onDragRequest = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onMouseClick = @.onMouseClick = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+!layoutEle.onKeyDown = @.onKeyDown = function( ltTarget,ltOwner,keyCode, altState, ltKeyParams ) {\n	__\n}
+!layoutEle.onKeyUp = @.onKeyUp = function( ltTarget,ltOwner,keyCode, altState, ltKeyParams ) {\n	__\n}
+!layoutEle.onKeyChar = @.onKeyChar = function( ltTarget,ltOwner,keyCode, altState, ltKeyParams ) {\n	__\n}
+!layoutEle.onFocusLost = @.onFocusLost = function( ltTarget,ltOwner,focusParams ) {\n	__\n}
+!layoutEle.onFocusGot = @.onFocusGot = function( ltTarget,ltOwner,focusParams ) {\n	__\n}
+!layoutEle.xcall(.("自定义函数名",其他参数->->->) = 调用节点自定义的函数,并获取返回值
+!layoutEle.getCharFromPos(.(x,y) = 返回文本控件指定坐标文本索引\n如果存在子节点,返回文本索引,子节点对象,子节点文本索引
+!layoutEle.setScrollPos(.(x,y,平滑效果) = x,y皆可省略,默认值为0
+
+!layoutEle.onGestureRequest = @.onGestureRequest = function (ltTarget,ltOwner,ltGestureParams) {\n	ltGestureParams.flags = 0xFFFF/*_HL_GESTURE_FLAGS_ALL*/\n	return true;__\n}
+!layoutEle.onGestureZoom = @.onGestureZoom = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*缩放*/\n}
+!layoutEle.onGesturePan = @.onGesturePan = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*平移*/\n}
+!layoutEle.onGestureRotate = @.onGestureRotate = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*旋转*/\n}
+!layoutEle.onGestureTap1 = @.onGestureTap1 = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*单击*/\n}
+!layoutEle.onGestureTap2 = @.onGestureTap2 = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*双击*/\n}
+!layoutEle.onFrameDocumentComplete = @.onFrameDocumentComplete = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onApplicationEvent = @.onApplicationEvent = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*postEvent或sendEvent发出一大于0x100的消息*/\n}
+!layoutEle.onButtonClick = @.onButtonClick = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onButtonPress = @.onButtonPress = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onButtonStateChanged = @.onButtonStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onEditValueChanging = @.onEditValueChanging = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onEditValueChanged = @.onEditValueChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onSelectSelectionChanged = @.onSelectSelectionChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltOption = ..web.layout.element( behaviorParams.he )\n	__\n}
+!layoutEle.onSelectStateChanged = @.onSelectStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onPopupRequest = @.onPopupRequest = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!layoutEle.onPopupReady = @.onPopupReady = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!layoutEle.onPopupDismissed = @.onPopupDismissed = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!layoutEle.onMenuItemActive = @.onMenuItemActive = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!layoutEle.onMenuItemClick = @.onMenuItemClick = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!layoutEle.onContextMenuSetup = @.onContextMenuSetup = function (ltTarget,ltOwner,reason,behaviorParams){\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!layoutEle.onContextMenuRequest = @.onContextMenuRequest = function (ltTarget,ltOwner,reason,behaviorParams){\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+!layoutEle.onVisualStateChanged = @.onVisualStateChanged = function (ltTarget,ltOwner,shown,behaviorParams) {\n	__\n}
+!layoutEle.onDisabledStateChanged = @.onDisabledStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onPopupDismissing = @.onPopupDismissing = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onHyperlinkClick = @.onHyperlinkClick = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onTableHeaderClick = @.onTableHeaderClick = function (ltTarget,ltOwner,cellIndex,behaviorParams) {\n	__\n}
+!layoutEle.onTableRowClick = @.onTableRowClick = function (ltTarget,ltOwner,rowIndex,behaviorParams) {\n	__\n}
+!layoutEle.onTableRowDblClick = @.onTableRowDblClick = function (ltTarget,ltOwner,rowIndex,behaviorParams) {\n	__\n}
+!layoutEle.onElementCollapsed = @.onElementCollapsed = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onElementExpanded = @.onElementExpanded = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onActiveChild = @.onActiveChild = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onInitDataView = @.onInitDataView = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onRowsDataRequest = @.onRowsDataRequest = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onUiStateChanged = @.onUiStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onFormSubmit = @.onFormSubmit = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var formData = behaviorParams.data.getValue();__\n}
+!layoutEle.onFormReset = @.onFormReset = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n} 
+!layoutEle.onClosePopup = @.onClosePopup = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onRequestTooltip = @.onRequestTooltip = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onAnimation = @.onAnimation = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+!layoutEle.onElementControlCreated = @.onElementControlCreated = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltCtrl = ltOwner.getCtrl();__/*自定义控件已创建*/\n}
+!layoutEle.onSize = @.onSize = function (ltOwner) {\n	__\n}
+!layoutEle.onTimer = @.onTimer = function (ltOwner,timerId) {\n	__\n}
+!layoutEle.onClick = @.onClick = function( ltOwner ){\n	__/*click函数触发此事件*/\n	return true;\n} 
+!layoutEle.onIsEmpty = @.onIsEmpty = function( ltOwner ){\n	__\n	return true,false__/*分别为:是否中止事件传递,是否为空值*/;\n}
+!layoutEle.onGetValue = @.onGetValue = function( ltOwner ){\n	\n	return true,__/*返回控件值*/;\n}
+!layoutEle.onSetValue = @.onSetValue = function(  ltOwner,value ){\n	__\n	return true\n}
+!layoutEle.onReplaceSel = @.onSetValue = function(  ltOwner,value ){\n	__\n	return true\n}
+!layoutEle.onGetCaretPos = @.onSetValue = function(  ltOwner,value ){\n	__\n	return true,__/*光标位置:left,top,width,height*/\n}
+!layoutEle.onIsEmpty = @.onSetValue = function(  ltOwner,value ){\n	__\n	return true\n}
+!layoutEle.onExchangeDrag = @.onExchangeDrag = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) {  \n	return true;__/*这里返回true才会显示可拖放鼠标指针*/\n}
+!layoutEle.onExchangeDragEnter = @.onExchangeDragEnter = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) {  \n	return true;\n}
+!layoutEle.onExchangeDragLeave = @.onExchangeDragLeave = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) {  \n	return true;\n}
+!layoutEle.onExchangeDrop = @.onExchangeDrop = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) { \n    var data,dataType = fetchData( _HL_EXF__/*可选指定支持的拖放数据类型*/ );\n    if( data ) {\n        return true;\n    }\n}
+!layoutEle.onDataArrived = @.onDataArrived = function(ltTarget,ltOwner,data,dataType,status,url){\n    return true;__/*返回true撤消数据不显示内容*/\n}
+!layoutEle.onDrawForeground = @.onDrawForeground  = function(ltOwner,hdc,rc){ \n	__/*自绘前景*/\n	return true;\n}
+!layoutEle.onDrawContent = @.onDrawContent = function(ltOwner,hdc,rc){ \n	__/*自绘内容*/\n	return true;\n}
+!layoutEle.onDrawBackground = @.onDrawBackground = function(ltOwner,hdc,rc){ \n	__/*自绘背景*/\n	return true;\n}
+!ltEleScrollInfo.pos = 滚动条位置\n!point.
+!ltEleScrollInfo.rect = 视图区块\n!rect.
+!ltEleScrollInfo.size = 内容大小\n!size.
+!ltEleScrollInfo.page = 分页大小\n!size.
+end intellisense**/
+
+/**intellisense()
+_HLDOM_OK=@0/*_HLDOM_OK*/
+_HLDOM_INVALID_HWND=@1/*_HLDOM_INVALID_HWND*/
+_HLDOM_INVALID_HANDLE=@2/*_HLDOM_INVALID_HANDLE*/
+_HLDOM_PASSIVE_HANDLE=@3/*_HLDOM_PASSIVE_HANDLE*/
+_HLDOM_INVALID_PARAMETER=@4/*_HLDOM_INVALID_PARAMETER*/
+_HLDOM_OPERATION_FAILED=@5/*_HLDOM_OPERATION_FAILED*/
+_HLDOM_OK_NOT_HANDLED=@-1/*_HLDOM_OK_NOT_HANDLED*/
+_HL_T_UNDEFINED=@0/*_HL_T_UNDEFINED*/
+_HL_T_NULL=@1/*_HL_T_NULL*/
+_HL_T_BOOL=@2/*_HL_T_BOOL*/
+_HL_T_INT=@3/*_HL_T_INT*/
+_HL_T_FLOAT=@4/*_HL_T_FLOAT*/
+_HL_T_STRING=@5/*_HL_T_STRING*/
+_HL_T_DATE=@6/*_HL_T_DATE*/
+_HL_T_CURRENCY=@7/*_HL_T_CURRENCY*/
+_HL_T_LENGTH=@8/*_HL_T_LENGTH*/
+_HL_T_ARRAY=@9/*_HL_T_ARRAY*/
+_HL_T_MAP=@0xA/*_HL_T_MAP*/
+_HL_T_FUNCTION=@0xB/*_HL_T_FUNCTION*/
+_HL_T_BYTES=@0xC/*_HL_T_BYTES*/
+_HL_T_OBJECT=@0xD/*_HL_T_OBJECT*/
+_HL_T_DOM_OBJECT=@0xE/*_HL_T_DOM_OBJECT*/
+_HL_HV_OK_TRUE=@-1/*_HL_HV_OK_TRUE*/
+_HL_HV_OK=@0/*_HL_HV_OK*/
+_HL_HV_BAD_PARAMETER=@1/*_HL_HV_BAD_PARAMETER*/
+_HL_HV_INCOMPATIBLE_TYPE=@2/*_HL_HV_INCOMPATIBLE_TYPE*/
+_HL_UT_EM=@1/*_HL_UT_EM*/
+_HL_UT_EX=@2/*_HL_UT_EX*/
+_HL_UT_PR=@3/*_HL_UT_PR*/
+_HL_UT_SP=@4/*_HL_UT_SP*/
+_HL_UT_PX=@7/*_HL_UT_PX*/
+_HL_UT_IN=@8/*_HL_UT_IN*/
+_HL_UT_CM=@9/*_HL_UT_CM*/
+_HL_UT_MM=@0xA/*_HL_UT_MM*/
+_HL_UT_PT=@0xB/*_HL_UT_PT*/
+_HL_UT_PC=@0xC/*_HL_UT_PC*/
+_HL_UT_DIP=@0xD/*_HL_UT_DIP*/
+_HL_UT_COLOR=@0xF/*_HL_UT_COLOR*/
+_HL_UT_URL=@0x10/*_HL_UT_URL*/
+_HL_UT_SYMBOL=@0xFFFF/*_HL_UT_SYMBOL*/
+_HL_UPDATE_ELEMENT_FLAGS_RESET_STYLE_THIS=@0x20/*_HL_UPDATE_ELEMENT_FLAGS_RESET_STYLE_THIS*/
+_HL_UPDATE_ELEMENT_FLAGS_RESET_STYLE_DEEP=@0x10/*_HL_UPDATE_ELEMENT_FLAGS_RESET_STYLE_DEEP*/
+_HL_UPDATE_ELEMENT_FLAGS_MEASURE_INPLACE=@1/*_HL_UPDATE_ELEMENT_FLAGS_MEASURE_INPLACE*/
+_HL_UPDATE_ELEMENT_FLAGS_MEASURE_DEEP=@2/*_HL_UPDATE_ELEMENT_FLAGS_MEASURE_DEEP*/
+_HL_UPDATE_ELEMENT_FLAGS_REDRAW_NOW=@0x8000/*_HL_UPDATE_ELEMENT_FLAGS_REDRAW_NOW*/
+_HL_ROOT_RELATIVE=@1/*_HL_ROOT_RELATIVE*/
+_HL_SELF_RELATIVE=@2/*_HL_SELF_RELATIVE*/
+_HL_CONTAINER_RELATIVE=@3/*_HL_CONTAINER_RELATIVE*/
+_HL_VIEW_RELATIVE=@4/*_HL_VIEW_RELATIVE*/
+_HL_CONTENT_BOX=@0/*_HL_CONTENT_BOX*/
+_HL_PADDING_BOX=@0x10/*_HL_PADDING_BOX*/
+_HL_BORDER_BOX=@0x20/*_HL_BORDER_BOX*/
+_HL_MARGIN_BOX=@0x30/*_HL_MARGIN_BOX*/
+_HL_BACK_IMAGE_AREA=@0x40/*_HL_BACK_IMAGE_AREA*/
+_HL_FORE_IMAGE_AREA=@0x50/*_HL_FORE_IMAGE_AREA*/
+_HL_SCROLLABLE_AREA=@0x60/*_HL_SCROLLABLE_AREA*/
+_HL_CTL_NO=@0/*_HL_CTL_NO*/
+_HL_CTL_UNKNOWN=@1/*_HL_CTL_UNKNOWN*/
+_HL_CTL_EDIT=@2/*_HL_CTL_EDIT*/
+_HL_CTL_NUMERIC=@3/*_HL_CTL_NUMERIC*/
+_HL_CTL_BUTTON=@4/*_HL_CTL_BUTTON*/
+_HL_CTL_CHECKBOX=@5/*_HL_CTL_CHECKBOX*/
+_HL_CTL_RADIO=@6/*_HL_CTL_RADIO*/
+_HL_CTL_SELECT_SINGLE=@7/*_HL_CTL_SELECT_SINGLE*/
+_HL_CTL_SELECT_MULTIPLE=@8/*_HL_CTL_SELECT_MULTIPLE*/
+_HL_CTL_DD_SELECT=@9/*_HL_CTL_DD_SELECT*/
+_HL_CTL_TEXTAREA=@0xA/*_HL_CTL_TEXTAREA*/
+_HL_CTL_HTMLAREA=@0xB/*_HL_CTL_HTMLAREA*/
+_HL_CTL_PASSWORD=@0xC/*_HL_CTL_PASSWORD*/
+_HL_CTL_PROGRESS=@0xD/*_HL_CTL_PROGRESS*/
+_HL_CTL_SLIDER=@0xE/*_HL_CTL_SLIDER*/
+_HL_CTL_DECIMAL=@0xF/*_HL_CTL_DECIMAL*/
+_HL_CTL_CURRENCY=@0x10/*_HL_CTL_CURRENCY*/
+_HL_CTL_SCROLLBAR=@0x11/*_HL_CTL_SCROLLBAR*/
+_HL_CTL_HYPERLINK=@0x12/*_HL_CTL_HYPERLINK*/
+_HL_CTL_MENUBAR=@0x13/*_HL_CTL_MENUBAR*/
+_HL_CTL_MENU=@0x14/*_HL_CTL_MENU*/
+_HL_CTL_MENUBUTTON=@0x15/*_HL_CTL_MENUBUTTON*/
+_HL_CTL_CALENDAR=@0x16/*_HL_CTL_CALENDAR*/
+_HL_CTL_DATE=@0x17/*_HL_CTL_DATE*/
+_HL_CTL_TIME=@0x18/*_HL_CTL_TIME*/
+_HL_CTL_FRAME=@0x19/*_HL_CTL_FRAME*/
+_HL_CTL_FRAMESET=@0x1A/*_HL_CTL_FRAMESET*/
+_HL_CTL_GRAPHICS=@0x1B/*_HL_CTL_GRAPHICS*/
+_HL_CTL_SPRITE=@0x1C/*_HL_CTL_SPRITE*/
+_HL_CTL_LIST=@0x1D/*_HL_CTL_LIST*/
+_HL_CTL_RICHTEXT=@0x1E/*_HL_CTL_RICHTEXT*/
+_HL_CTL_TOOLTIP=@0x1F/*_HL_CTL_TOOLTIP*/
+_HL_CTL_HIDDEN=@0x20/*_HL_CTL_HIDDEN*/
+_HL_CTL_URL=@0x21/*_HL_CTL_URL*/
+_HL_CTL_TOOLBAR=@0x22/*_HL_CTL_TOOLBAR*/
+_HL_CTL_FORM=@0x23/*_HL_CTL_FORM*/
+end intellisense**/

@@ -1,0 +1,26 @@
+//FTP文件流读写
+import console;
+import inet.ftp;
+
+console.log("正在连接")
+ftp = inet.ftp("服务器IP","用户名","密码");
+if(!ftp){
+	console.log("请输入正确的服务器参数");
+	console.pause();
+	return;
+}
+ 
+//显示当前目录
+console.log( ftp.getCurDir() )
+
+//关闭服务器UTF8编码
+ftp.command("OPTS UTF8 off")
+
+file = ftp.open("/目录/文件名.txt","wb") 
+
+//支持文件流方式上传数据,使用循环即可控制上传进度
+file.write("写数据","写更多数据",'\r\n') 
+file.write("写数据","写更多数据",'\r\n') 
+ 
+ftp.close();
+console.pause();

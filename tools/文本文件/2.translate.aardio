@@ -1,0 +1,124 @@
+//混合翻译
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="混合翻译工具（ 切换选项卡时自动同步查询 ）";right=1204;bottom=822;bgcolor=16777215)
+winform.add(
+custom={cls="custom";text="custom";left=8;top=32;right=1196;bottom=820;bgcolor=16382457;clip=1;db=1;dl=1;dr=1;dt=1;z=5};
+edit={cls="edit";left=936;top=3;right=1174;bottom=29;dr=1;dt=1;edge=1;font=LOGFONT(h=-13);z=3};
+plusBaidu={cls="plus";text="DeepL翻译";left=20;top=8;right=105;bottom=33;dl=1;dt=1;font=LOGFONT(h=-13);z=1};
+plusGoogle={cls="plus";text="Google翻译";left=105;top=8;right=190;bottom=33;dl=1;dt=1;font=LOGFONT(h=-13);z=2};
+wmplayer={cls="static";text="wmplayer";left=518;top=831;right=894;bottom=921;db=1;dr=1;transparent=1;z=4}
+)
+/*}}*/
+
+import web.form.util;
+if( web.form.util.getMajorVersion() < 11 ){
+	win.msgboxErr("当前系统IE版本低于IE11,按确定退出程序!")
+	return; 
+}
+
+import win.ui.tabs;
+var tbs = win.ui.tabs(winform.plusBaidu,winform.plusGoogle,winform.plusOcr);
+tbs.skin(
+	background = {
+		default = 0xFFFFFFFF;
+	}
+	color = {
+		hover = 0xF00000FF; 
+	} 
+	border = {
+		default = { bottom = 1;color= 0xFF1E9FFF;  }
+		hover = { bottom = 1;color= 0xFF1E9FFF; }
+	}
+	checked = {
+		background = { 
+			hover = 0xFF99CCFF;
+			focus = 0xFF1E9FFF;
+			active = 0xFF333366;
+			default = 0xFF1E9FFF;
+		}
+		color = {
+			hover = 0xFF000000; 
+			default = 0xFFFFFFFF; 
+		} 
+		border = {
+			hover = { right = 2;color=0xFF1E9FFF}
+			default = { right = 2;color=0xFF1E9FFF}
+		}
+	}
+)
+
+tbs.add({
+	text="有道翻译"; 
+})
+
+tbs.add({
+	text="百度翻译"; 
+})
+
+tbs.add({
+	text="图片转文本";
+})
+
+tbs.loadForm(1,"\.res\deepl.aardio");
+tbs.loadForm(2,"\.res\google.aardio");
+tbs.loadForm(3,"\.res\youdao.aardio");
+tbs.loadForm(4,"\.res\baidu.aardio");
+tbs.loadForm(5,"\.res\ocr.aardio");
+tbs.selIndex = 1;
+var prevSelForm;
+
+tbs.onSelchange = function(idx,strip,form){
+    if(prevSelForm) {
+    	var v = prevSelForm.getValue();
+    	form.setValue(v); 
+    }
+    
+    prevSelForm = form;
+}
+
+import web.rest.jsonLiteClient;
+var http = web.rest.jsonLiteClient();
+var suggestion = http.api("http://fanyi.baidu.com/sug?kw={0}")
+
+import win.ui.listPopup;
+var listPopup = win.ui.listPopup(winform.edit);
+listPopup.onGetItems = function(text){
+	var result = suggestion[ text ].post(); 
+	if(!result){ return; }
+	
+	var items = table.map(result.data,lambda(v) v.k + '\t ' + v.v );
+	if(!#items) return;
+		
+	return items,1;
+} 
+
+listPopup.onSetText = function(text){
+	return string.split(text,'\t')[1]; 
+}
+
+import inet.url;
+var wmplayer  = winform.wmplayer.tryCreateEmbed("WMPlayer.OCX");
+listPopup.onComplete = function(word){ 
+	word = inet.url.encode(word); 
+	if(wmplayer) wmplayer._object.url = "http://fanyi.baidu.com/gettts?lan=en&text="+word+"&spd=3&source=web"
+	
+	if(tbs.selForm){
+		tbs.selForm.setValue(word);
+	} 
+}
+	
+winform.edit.setCueBannerText("请输入英文，回车翻译：");
+winform.show(true);
+
+::Imm32 := ..raw.loadDll("Imm32.dll")
+::Imm32.ImmAssociateContext(winform.edit.hwnd,null);
+
+winform.setTimeout(function(){
+	tbs.preloadForm(2);
+	tbs.preloadForm(3);
+	tbs.preloadForm(4);
+	tbs.selIndex = 1; 
+},100)
+
+win.loopMessage();

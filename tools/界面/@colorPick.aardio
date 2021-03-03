@@ -1,0 +1,220 @@
+//控件调色器
+import win.ui;
+import win.ui.ctrl.pick;
+/*DSG{{*/
+var winform = win.form(text="aardio 控件调色器";right=617;bottom=483;bgcolor=16777215;border="dialog frame";max=false;min=false;topmost=1)
+winform.add(
+colorPick={cls="pick";text="custom";left=2;top=4;right=614;bottom=426;z=1};
+lbControlInfo={cls="static";text=" 请在aardio窗体设计器中选定控件";left=41;top=459;right=573;bottom=481;color=3947580;transparent=1;z=2};
+radioBgColor={cls="radiobutton";text="背景颜色";left=27;top=435;right=110;bottom=452;bgcolor=16777215;checked=1;z=3};
+radioBorderColor={cls="radiobutton";text="边框颜色";left=202;top=435;right=285;bottom=452;bgcolor=16777215;z=7};
+radioForeColor={cls="radiobutton";text="前景颜色";left=115;top=435;right=198;bottom=452;bgcolor=16777215;z=4};
+radioIconColor={cls="radiobutton";text="文字图标颜色";left=377;top=435;right=482;bottom=452;bgcolor=16777215;z=6};
+radioTextColor={cls="radiobutton";text="文本颜色";left=290;top=435;right=373;bottom=452;bgcolor=16777215;z=5}
+)
+/*}}*/
+
+//用后台线程与IDE交互，保持颜色滑块快速拖动的流畅度
+thread.invoke( 
+	function(){
+		import ide;
+		import thread.command;
+		import gdi;
+		import win;
+		
+		var ctrlName,ctrlParam;
+		var lastUpdateTick = 0;
+		var cmd = thread.command();
+		cmd.onColorChange = function(argb,paramName,tick){ 
+			if(ctrlName && ctrlParam && (tick>lastUpdateTick)){ 
+				tick = lastUpdateTick;
+				
+				if(paramName=="borderColor"){
+					if(ctrlParam.border){
+						ctrlParam.border.color = argb : null;
+					} 
+				}
+				else {
+					ctrlParam[paramName] = argb===0 ? -1 : gdi.rgbReverse(argb);
+				}
+				
+				
+				/*
+				请注意：通过窗体设计器只能统一修改RGB颜色值（忽略透明度），
+				例如plus控件等也需要在aardio代码中才能设置支持透明度的ARGB值
+				*/
+				ide.setControlParam(ctrlName,ctrlParam);
+			}			
+		}
+		cmd.onQuit = function(){
+			win.quitMessage()
+		} 
+		cmd.onIdeCtrlActivated = function(name,param){ 
+			ctrlParam = param;
+			ctrlName = name;
+		} 
+			
+		win.loopMessage()
+	}
+)
+
+import thread.command;
+winform.colorPick.onColorChange = function(argb){ 
+    var paramName = "bgcolor";
+    if(winform.radioForeColor.checked){
+    	paramName = "forecolor"
+    }
+    elseif(winform.radioTextColor.checked){
+    	paramName = "color"
+    }
+    elseif(winform.radioIconColor.checked){
+    	paramName = "iconColor"
+    }
+    elseif(winform.radioBorderColor.checked){
+    	paramName = "borderColor"
+    }
+	thread.command.postIdle(100,"onColorChange",argb,paramName,time.tick());
+}
+
+winform.onDestroy = function(){
+	thread.command.post("onQuit");
+}
+
+import ide;
+winform.onActivateApp = function(activated,threadId){
+	var ctrlParam;
+	var ctrlName;
+			
+	if(activated){
+		if(!ide.getActiveViewHwnd()){
+			return;
+		}
+		
+		ctrlName = ide.getSelectedControl();
+		if(ctrlName){
+			ctrlParam = ide.getControlParam(ctrlName);
+			if(ctrlParam.cls==="plus"){
+				winform.radioForeColor.disabled = false;
+				winform.radioIconColor.disabled = false;
+				winform.radioBorderColor.disabled = false;
+			}
+			else {
+				
+				winform.setTimeout( 
+					function(){
+						if(winform.radioForeColor.checked
+							|| winform.radioIconColor.checked){
+							winform.radioBgColor.checked = true; 
+						}
+						
+						winform.radioForeColor.checked = false;
+						winform.radioIconColor.checked = false;
+						winform.radioForeColor.disabled = true;
+						winform.radioIconColor.disabled = true;
+						winform.radioBorderColor.disabled = true;
+					}
+				)	
+			}
+			
+			winform.lbControlInfo.text = string.format(" 当前选定控件名:%s 控件类名：%s ( ARGB值为0是设为默认色 )",ctrlName,ctrlParam.cls) 
+			
+			var paramColor;
+    		if(winform.radioForeColor.checked){
+    			paramColor = ctrlParam["forecolor"];
+    		}
+    		elseif(winform.radioTextColor.checked){
+    			paramColor = ctrlParam["color"];
+    		}
+    		elseif(winform.radioIconColor.checked){
+    			paramColor = ctrlParam["iconColor"];
+    		}
+    		elseif(winform.radioBorderColor.checked){
+    			paramColor = ctrlParam.border[["color"]]; 
+    			if(paramColor){
+    				paramColor = gdi.rgbReverse(paramColor)
+    			}
+    		}
+    		 
+    		if(paramColor===null || paramColor===-1){
+    			winform.colorPick.setColor(0); 
+    		}
+    		else {
+    			winform.colorPick.setColor(paramColor,true); 
+    		}
+		}
+		else {
+			winform.lbControlInfo.text = " 请在aardio窗体设计器中选定控件"
+		} 
+	}
+	else {
+		winform.lbControlInfo.text = " 请在aardio窗体设计器中选定控件"
+	}
+	
+	thread.command.onIdeCtrlActivated(ctrlName,ctrlParam)
+	winform.ideActivatedCtrlParam = ctrlParam;
+}
+
+var x,y,cx,cy = winform.colorPick.btnColorPick.getPos(true);
+::User32.SetCursorPos(x+cx/2,y+cy/2);
+
+winform.radioTextColor.oncommand = function(id,event){
+	if(winform.ideActivatedCtrlParam){  
+		if(winform.ideActivatedCtrlParam.color===null){
+			winform.colorPick.setColor(0); 
+		}
+		else {
+			winform.colorPick.setColor(winform.ideActivatedCtrlParam.color,true);  
+		}  
+	}
+}
+
+winform.radioIconColor.oncommand = function(id,event){
+	if(winform.ideActivatedCtrlParam){ 
+		if(winform.ideActivatedCtrlParam.iconColor===null){
+			winform.colorPick.setColor(0); 
+		}
+		else {
+			winform.colorPick.setColor(winform.ideActivatedCtrlParam.iconColor,true);  
+		}  
+	}	
+}
+
+winform.radioForeColor.oncommand = function(id,event){
+	if(winform.ideActivatedCtrlParam){ 
+		if(winform.ideActivatedCtrlParam.forecolor===null){
+			winform.colorPick.setColor(0); 
+		}
+		else {
+			winform.colorPick.setColor(winform.ideActivatedCtrlParam.forecolor,true);  
+		}  
+	}	
+}
+
+winform.radioBgColor.oncommand = function(id,event){
+	if(winform.ideActivatedCtrlParam){
+		if(winform.ideActivatedCtrlParam.bgcolor===null){
+			winform.colorPick.setColor(0); 
+		}
+		else {
+			winform.colorPick.setColor(winform.ideActivatedCtrlParam.bgcolor,true);  
+		}    
+	}	
+}
+
+winform.radioBorderColor.oncommand = function(id,event){
+	if(winform.ideActivatedCtrlParam){
+		if(winform.ideActivatedCtrlParam.border[["color"]]===null){
+			winform.colorPick.setColor(0); 
+		}
+		else {
+			winform.colorPick.setColor(winform.ideActivatedCtrlParam.border[["color"]]);  
+		}    
+	}	
+}
+
+win.lowerRight(winform.hwnd,1,1);
+winform.setIcon(win.ui.ctrl.pick.hIconColorPick);
+winform.show(); 
+winform.onActivateApp(true);
+
+win.loopMessage();

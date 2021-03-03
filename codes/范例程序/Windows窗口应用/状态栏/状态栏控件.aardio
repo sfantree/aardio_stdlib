@@ -1,0 +1,36 @@
+import win.ui;
+import win.ui.statusbar;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=287;bottom=135;parent=...)
+winform.add(
+btnAddItem={cls="button";text="添加分块";left=24;top=48;right=128;bottom=72;font=LOGFONT(name='宋体');z=2};
+btnReset={cls="button";text="调节器";left=24;top=80;right=264;bottom=104;font=LOGFONT(name='宋体');z=4};
+btnSetText={cls="button";text="设置分块文本";left=136;top=48;right=264;bottom=72;font=LOGFONT(name='宋体');z=3};
+button={cls="button";text="设置状态栏文本(无分块)";left=24;top=16;right=264;bottom=40;font=LOGFONT(name='宋体');z=1}
+)
+/*}}*/
+
+win.ui.statusbar( winform ).addItem("测试", 100/*宽度*/)
+
+winform.button.oncommand = function(id,event){
+	var t = time(, "%H:%M:%S");
+	winform.statusbar.setText("现在的时间是：" + tostring(t));
+}
+
+winform.btnAddItem.oncommand = function(id,event){
+	winform.statusbar.addItem("中国", 200);
+}
+
+winform.btnSetText.oncommand = function(id,event){
+	for (i = 1; winform.statusbar.count(); 1) {
+		winform.statusbar.setText( tostring(i),i) 
+	}
+}
+
+winform.btnReset.oncommand = function(id,event){  
+	winform.statusbar.close();
+	win.ui.statusbar( winform );
+}
+
+winform.show(true);
+win.loopMessage();

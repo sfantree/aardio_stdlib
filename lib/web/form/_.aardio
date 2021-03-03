@@ -1,0 +1,1529 @@
+import web;
+import win.ui;
+import com.interface.IPersistStreamInit;
+
+namespace web;  
+
+class form {
+
+	ctor(winform,hostFlags,dlControl,agent,securityTrusted)begin
+		this.dlControl = dlControl;
+		this.userAgent = agent;
+		
+		this.securityTrusted = securityTrusted === null ? true : securityTrusted;
+		if( hostFlags === null ) hostFlags = 0x4/*_UIFLAG_NO3DBORDER*/
+ 		this._hostflag = hostFlags;
+ 		
+ 		//响应默认DISPID的Invoke调用
+ 		this[-5512/*DISPID_AMBIENT_DLCONTROL*/] = function(){
+ 			return owner.dlControl;
+ 		}
+ 		this[-5513/*DISPID_AMBIENT_USERAGENT*/] = function(){ 
+ 			return owner.userAgent;
+ 		}
+ 		
+ 		if(this.userAgent){
+ 			::Urlmon.UrlMkSetSessionOption(0x10000001,this.userAgent,#this.userAgent,null);
+ 		}
+ 		  
+		winform.createEmbed(,this)
+		winform.web = winform._embedObject;//兼容勿用
+		this._browser = this._object  
+		this.hwndEmbedding = ..win.findEx( winform.hwnd,0,"shell embedding" );
+		
+		if( winform.isForm ? winform.onEraseBkgnd === null ){
+			winform.onEraseBkgnd  = function(hwnd,message,wParam,lParam){
+    			return 0;
+			}
+		}
+		else {
+			winform.modifyStyle(0x20/*_WS_EX_TRANSPARENT*/,0x2000000/*_WS_CLIPCHILDREN*/);
+		} 
+		
+		if(html5Supported){
+			this.CommandStateChange = function(cmd,enable) { 
+ 				select(cmd) { 
+ 					case 0x2/*_CSC_NAVIGATEBACK*/ {
+ 						this.navigateback = enable;
+ 						
+ 					}
+ 					case 0x1/*_CSC_NAVIGATEFORWARD*/ {
+ 						this.navigateforward = enable;
+ 					}  
+ 				}
+ 			}
+ 			this.canGoBack = function(){ return this.navigateback; } 
+			this.canGoForward = function(){ return this.navigateforward; } 
+		}
+	end;  
+	
+	@_metaProperty;
+}
+ 
+import web.form.query;
+namespace form {
+
+	var delay = ..win.delay;
+	var isWnd = ..win.isWindow; 
+	_metaProperty = ..util.metaProperty( 
+	 
+		["type"] = {
+			_get = function(){ 
+				return  owner._browser.getType()
+			} 	
+		};
+		hwndControl = {
+			_get = function(){ 
+				owner.wait()
+				var hView = ..win.findEx(owner.hwndEmbedding,0,"Shell DocObject View")
+					|| ..win.findEx(owner.hwndEmbedding,0,"SHELLDLL_DefView");
+				if( hView ) return ..win.getChild(hView); 
+			} 	
+		};
+		waitClose = function(){
+			//等待直到web窗口被关闭
+			var hwnd = owner._form.hwnd; 
+			while( delay(200) && isWnd(hwnd)  ) {
+			} 	  
+		};
+		isbrowser = function(pdisp){
+			return ..com.GetPointer(owner._browser) == ..com.GetPointer(pdisp)
+		};
+		wait = function(url,timeout){ 
+			//等待页面下载完成(如果不指定url参数,则等待当前页面打开)
+			var hwnd = owner._form.hwnd;  
+			var browser = owner._browser;
+			var curl;
+			var tk = 0;
+			
+			while( delay(200) && isWnd(hwnd)  ){ 
+		  		
+					do { 
+	   					if(!delay(200)) return false;	
+						if( timeout ) {
+							tk+=201;
+							if( tk>timeout )
+								return null,"Timeout!"  
+						};
+							
+					}while( isWnd(hwnd) && ( (browser.getReadyState() != 4/*READYSTATE_COMPLETE*/) || browser.getBusy() ) )
+			 		 
+					if(!url) return true;   
+						
+					curl = browser.getLocationURL();
+					if( !curl ) return false;
+						
+					if( ..string.find( curl,url) ) return true; 
+					if( ..string.startWith( curl, "res://ieframe.dll/",true) ){  
+	   					return false; 
+					}			
+					  	
+					if( timeout ) {
+						tk+=201;
+						if( tk>timeout )
+							return null,"Timeout!"  
+					};
+	  		
+			} 
+			return false;
+		};
+		waitEle = function(name,frame,timeout,waitState,test){  
+			var ele;
+			var wb = owner;
+			var browser = test ? owner._browser;
+			if( waitState === null ) waitState = 'loaded';
+			
+			return ..win.wait(
+				function(){
+					ele = ele || wb.getEle(name,frame) 
+					if( ele ){
+						if (!waitState) return ele;
+						var readState = ele.getReadyState(); 
+						if( waitState == readState ) return ele;
+						
+						if( readState == 'complete' ) return ele; 
+						if( waitState == 'complete' ) return;
+						
+						if( readState == 'interactive' ) return ele; 
+						if( waitState == 'interactive' ) return;
+						
+						if( readState == 'loaded' ) return ele;
+					} 
+					elseif( test && browser.getReadyState() == 4/*READYSTATE_COMPLETE*/ && (!browser.getBusy()) ){
+						return null,"failed"; 
+					}
+				},
+				wb._form.hwnd,timeout,200
+			); 
+		};
+		waitDoc = function( frame,timeout,waitState){ 
+			var doc;
+			var wb = owner; 
+			if( waitState === null ) waitState = 'interactive';
+			return ..win.wait(
+				function(){
+					doc = wb.getDoc(frame) 
+					if( doc ){
+						if (!waitState) return doc;
+						var readState = doc.getReadyState();
+						if( waitState == readState ) return doc;
+						
+						if( readState == 'complete' ) return doc; 
+						if( waitState == 'complete' ) return;
+						
+						if( readState == 'interactive' ) return doc; 
+						if( waitState == 'interactive' ) return;
+						
+						if( readState == 'loaded' ) return doc; 
+					}
+				},
+				wb._form.hwnd,timeout,200
+			); 
+		}; 
+ 		detach = function( event,fn,... ){
+ 			if(!event) error("请指定事件参数@2",2);
+			event = ..string.replace(event,"^on","");  
+ 			if(!..com.IsObject(fn) ) error("参数@2必须是attach函数的返回值",2);
+ 			
+ 			var ele,frame = ...
+ 			if( !ele )
+ 				ele = owner.getDoc();
+ 			elseif( type(ele) == type.string ){
+ 				ele = owner.getEle(...); 
+ 			}
+ 			if(!ele) return false;
+ 			
+ 			if(ele.detachEvent) ele.detachEvent("on" + event,fn);
+ 			else ele.removeEventListener(event,fn,false)/*IE11*/; 
+ 		};
+		attach = function( func,event, ...){  
+			if(!event) error("请指定事件参数@2",2);
+			event = ..string.replace(event,"^on","");
+			
+ 			var ele,frame = ...
+ 			if( !ele )
+ 				ele = owner.getDoc();
+ 			elseif( type(ele) == type.string ){
+ 				ele = owner.getEle(...); 
+ 			}
+ 			if(!ele)
+ 				return false;
+ 			 
+ 			func = ..com.ImplInterface(func);
+ 			if( ele.attachEvent ) ele.attachEvent("on" + event,func);
+ 			else ele.addEventListener(event,func,false)/*IE11*/; 
+ 			return func;
+		}; 
+		attachAll = function( tEle,frame ){
+			for( ele,tEvent in tEle ){ 
+				for(event,func in tEvent ){
+					owner.attach( func,event,ele,frame);
+				} 
+			} 
+		};
+		eval = function(code,frame){ 
+			if(!owner.getScript(frame,,false).aardioEvalJs)owner.doScript("aardioEvalJs =function(s){ return eval(s) }",frame);  
+			return owner.getScript(frame,,false).aardioEvalJs( "(0 ? 0 : (" + code +") )");
+		};
+		doScript = function(code,frame,lang="javascript"){//执行网页脚本或框架内脚本 
+			var doc = owner.getDoc(frame)
+			if( doc  ){
+				doc = owner.waitDoc(frame,,false)
+				var window =  doc.getParentWindow();
+				if (window.execScript ){
+  					window.execScript(code,lang);
+ 				} 
+ 				else { //IE11
+  					var ele = doc.createElement('script');
+  					ele.setAttribute('type', 'text/' + lang);
+  					ele.text = code;
+  					doc.getElementsByTagName('head')(0).appendChild(ele) ;
+ 				}
+			}  
+		};
+		eventScript = function(s,id,event="onclick",frame,n="javascript"){
+			var doc = owner.waitDoc(frame,,false)
+			var ele = doc.createElement("script"); 
+			ele.setAttribute('type', 'text/' + n); 
+    		ele.text = s; 
+    		ele.htmlFor = id;
+    		ele.event = ..string.match(event,"[^(]+") + "()";
+    		doc.getElementsByTagName('head')(0).appendChild(ele)  
+		};
+		jsArray = function(arr){
+			if(!owner.script.vbArrayToJsArray)owner.doScript("vbArrayToJsArray =function(a){ return new VBArray(a).toArray(); }");  
+			return owner.script.vbArrayToJsArray( ..com.SafeArrayV(arr) );
+		};
+		jsConstructor = function(cls){
+			if(!owner.script.jsConstructor){
+				var js = /*  
+ 				jsConstructor = function(jsObject) {
+					if(typeof(jsObject) == "string") jsObject = eval(jsObject);
+    				function ctor(args) { return jsObject.apply(this, args); }
+    				ctor.prototype = jsObject.prototype;
+    				return function() { return new ctor(arguments); }
+				};
+				*/
+				owner.doScript(js);  
+			}
+			return owner.script.jsConstructor( cls );
+		};
+		ready = function( proc,... ){
+			var wb = owner;
+			var id,frame = ...;
+			var form = owner._form;
+			form = form._parentForm : form;
+			
+			var tmId;
+			tmId = form.setInterval( 1,
+				function(){ 
+					var ele = id;
+ 					if( !ele )
+ 						ele = wb.getDoc(frame);
+ 					elseif( type(ele) == type.string ){
+ 						ele = wb.getEle(id,frame); 
+ 					}
+ 					if(!ele)return 200;
+ 					if(!proc)return;
+ 					
+					if( ele.getReadyState() == 'loaded' || ele.getReadyState() == 'complete'){ 
+						form.clearInterval(tmId);
+						proc(ele); 
+						proc = null;
+    				}
+    				else{
+    					var onChange;
+    					onChange = wb.attach(   
+    						function(){
+    							if( ele.getReadyState() == 'loaded' || ele.getReadyState() == 'complete'){
+    								form.clearInterval(tmId);
+    								wb.detach("onreadystatechange",onChange); 
+									proc(ele);
+									proc = null; 
+    							};
+    						},"onreadystatechange",ele
+    					)
+    				}
+    				return false;
+    			} 
+    		)
+		};
+		loadScript  = function(path,frame,charset,prop ){   
+			var doc = owner.waitDoc(frame,,false)  
+			if(!doc) return; 
+		  
+		  	if( type(path) == "table" ){
+		  		var r = {}
+		  		for(n,p in path){
+		  			for(i=1;#p ){ 
+		  				if( doc.getScript()[n] )
+		  					break; 
+		  				 	
+		  				owner.loadScript( p[i],frame,charset,prop );
+		  			}
+		  			r[n] = doc.getScript()[n];
+		  		} 
+		  		return r ;
+		  	} 
+		  	
+			var mtype = ..string.endWith(path,".vbs",true) 
+    			? "vbs"
+    			: "javascript"
+    				
+			if( (!charset) && (doc.charSet == "utf-8") ){
+				charset = "utf-8"
+			}
+			
+			var s = ..string.load( path ); 
+			if( #s ){ 
+				if( s[1] == 0xEF  && s[2] == 0xBB && s[3] == 0xBF) {
+					s = ..string.fromto( ..string.slice(s,4 ) );
+				}
+				else if ( charset ?  ..string.cmp(charset,"utf-8") != 0 ){
+					s = ..string.fromto( s,0,65001 );
+				};
+				
+				return owner.doScript( s, frame,mtype); 
+			}
+			else {
+				if( ..io.localpath(path) )
+					return;
+			}
+			 
+			
+			var ele = doc.createElement("script");
+			ele.type = "text/" + mtype; 
+			ele.charset = charset;
+			
+			if( prop ) ..table.assign( ele,prop ) 
+    		ele.src = path;
+    	 
+    	 	doc.getElementsByTagName('head')(0).appendChild(ele) ;
+    	 	if( ! prop[["async"]] ){
+    			while( ele.getReadyState() != 'loaded'  && ele.getReadyState() != 'complete'  ){
+    				if(!delay(10)) return false;
+    			}
+    			owner.waitDoc(frame); 
+    		}
+    		
+    		return ele;
+		};
+		fromPoint = function(x = 0,y=0,frame){
+			var ele = owner.getDoc(frame);
+   			if( ele  ){
+   				try {
+					ele = ele.elementFromPoint(x,y);
+				}
+				return ele;
+   			}
+		};
+		getPoint = function(ele){
+			var x,y = 0,0;
+			while(ele && (ele.offsetLeft!==null) ){
+				x+=ele.offsetLeft
+				y+=ele.offsetTop
+				ele= ele.offsetparent
+			} 
+			return x,y;
+		}; 
+		scrollPos = function(frame,x,y){
+			var doc = ..com.IsObject(frame) ? frame :  owner.getDoc(frame);
+			var root = ( doc.getCompatMode() != 'BackCompat') ? doc.getdocumentElement() : doc.getbody(); 
+			var cx,cy = root.getscrollWidth(),root.getscrollHeight();
+			if( x !== null || y !== null ){
+				if(!x) x = root.getscrollLeft();
+				if(!y) y = root.getscrollTop();
+				if(x<0) x = cx + x + 1;
+				if(y<0) y = cy + y + 1;
+				root.scrollTop = y; 
+				root.scrollLeft = x;
+			}
+			return root.getscrollLeft(),root.getscrollTop(),cx,cy;
+		};
+		getPos = function(ele,screen){  
+			var x,y = owner.getPoint(ele); 
+			var doc = ele.getownerDocument();
+			if(!doc)
+				return 0,0,0,0;
+			
+			var scrollLeft,scrollTop = owner.scrollPos(doc);
+			x,y = x - scrollLeft,y - scrollTop;
+		
+			if(screen){
+				var wd = doc.getParentWindow();
+				x,y = x + wd.getscreenLeft(),y + wd.getscreenTop();
+			}
+			return x,y,ele.getoffsetWidth(),ele.getoffsetHeight() 
+		};
+		querySelector = function(selector,frame){  
+			var doc = owner.getDoc(frame);
+			if(doc){ return doc.querySelector(selector); } 
+		};
+		querySelectorAll = function(selector,frame){  
+			var doc = owner.getDoc(frame);
+			if(doc){ return doc.querySelectorAll(selector); } 
+		};
+		getEle = function(id,frame){
+			if( type(id) == "table" ) return id;
+			
+			var doc = owner.getDoc(frame);
+			if(doc){   
+				var ele = doc.getElementById(id);
+				if(ele) return ele; 
+				var eles = doc.getElementsByName(id);
+				return eles(0); 
+			} 
+		};
+		getEles = function(name,frame){
+   			var doc = owner.getDoc(frame);
+   			return doc && doc.getElementsByName(name);
+		}; 
+		getElesByTag = function(name,frame){
+   			var doc = owner.getDoc(frame); 
+   			return doc && doc.getElementsByTagName(name);
+		}; 
+		queryEles = function(opt,waitDocTimeout){
+		 	var tab = {}
+		 	var cmp = ..string.cmpMatch
+		 	var parent = opt.parent;
+		 	opt.parent = null; 
+		 	
+		 	var tagName = opt.tagName;
+		 	if( tagName ?  ..string.match(tagName,"\p") ){
+		 		tagName = null; 
+		 	}
+		 	else {
+		 		opt.tagName = null; 
+		 	} 
+
+		 	var attr;
+			for i,ele in owner.eachAll( tagName,parent,waitDocTimeout ) {
+				try {
+					for(k,v in opt) { 
+						attr = ele.getAttribute(k);
+						if( type(attr) == "table" ){
+							if( type(v) == "table" ){
+								for(attr_k,attr_v in v){
+									if( ! cmp( attr[attr_k],attr_v )){  
+										return;
+									} 
+								} 
+							}
+							else {
+								return;
+							};
+						} 
+						if( ( (k == "id") || (k == "name") ) && ( !..string.match(v,"\p")) ){
+							if( ( attr!=v ) && ( 0 != ..string.cmp( attr,v ) ) ){  
+								return;
+							} 
+						}
+						elseif( ( attr!=v ) && ( ! cmp( attr,v ) ) ){  
+							return;
+						} 
+					} 
+					..table.push(tab,ele);
+				}
+			} 
+			return query( tab,owner );
+		};
+		waitQueryEles = function(arg,timeout,complete=true ){
+			var qEle;
+			var wb = owner;
+			return ..win.wait(
+				function(){
+					var qEle =  wb.queryEles(arg,timeout,true) 
+					if( #qEle > 0  && ( (!complete) || qEle.getReadyState() == 'loaded' || qEle.getReadyState() == 'complete')  )
+						return qEle;
+				},
+				wb._form.hwnd,timeout,200
+			); 	
+		};
+		read = function(frame){
+			var doc = owner.getDoc(frame);
+			if(doc){
+				var s = ..com.interface.IPersistStreamInit.Query(doc)
+				return s.toString();
+			}
+		};
+		write = function(strhtml,frame ){
+			var doc = owner.getDoc(frame)
+			if(!doc){ 
+				if(!frame){
+					owner._browser.Navigate("about:blank");
+					doc = owner.document;
+				}
+			}
+			if(!doc)
+				return false;
+			
+			var stm = ..com.interface.IPersistStreamInit.Query(doc);
+			if( stm ){
+				stm.fromString(strhtml); 
+				owner.waitDoc();
+				return true;
+			}
+		};
+		loadcode = function(data,...){
+			var data,err  = ..string.loadcode(data,...);
+			if( err ) error( 'HTML不是开始于正确的HTML标记,或者aardio模板语法错误:\n' + err,2);
+			return owner.write(data);
+		};
+		goNoHistory = function(url,headers,target){
+			owner._browser.Navigate(mapurl(url),( flags: 0 ) | 2/*_navNoHistory*/,target : "_self" ,null,..web.joinHeaders( headers,owner.addHeaders ) )
+		}; 
+		go = function(url,headers,target,flags){
+			owner._browser.Navigate(mapurl(url),flags: 0,target : "_self" ,null,..web.joinHeaders( headers,owner.addHeaders ) )
+		}; 
+		goDirectory = function(url){
+			if( ..io.exist(url) && ( ::Kernel32.GetFileAttributes(url) & 0x10/*_FILE_ATTRIBUTE_DIRECTORY*/) ){
+				var this = owner;  
+				this.DocumentComplete = function( pDisp, url) {
+					this.shellFolderView = owner.document;
+					..com.Connect(this.shellFolderView ,{
+						SelectionChanged = function(){ 
+							if( this[["shellFolderSelectionChanged"]] ) this.shellFolderSelectionChanged( this.shellFolderView.FocusedItem.Path );
+						}  
+					} ); 
+				}
+				this.go( url ); 
+			}	
+		};
+		post = function(url,postdata,headers,target,flags){ 
+			if(!postdata)return owner.go(url); 
+			owner._browser.Navigate( mapurl(url) ,( flags: 0 ) | 2/*_navNoHistory*/,target: "_self"
+				,{ _safearray = postdata/* 转换为字节数组*/ } 
+				,..web.joinHeaders( ( headers : '\r\nContent-Type: application/x-www-form-urlencoded' ),owner.addHeaders ) 
+				)
+		};
+		goBack = function(){ 
+			owner._browser.GoBack()
+		}; 
+		goForward = function(){ 
+			owner._browser.GoForward()
+		}; 
+		goHome = function(){ 
+			owner._browser.GoHome()
+		}; 
+		goSearch = function(){ 
+			owner._browser.GoSearch()
+		}; 
+		refresh = function(){ 
+			owner._browser.Refresh()
+		};
+		refresh2 = function(lev=0){ 
+			owner._browser.Refresh2(lev)
+		};
+		refresh3 = function(lev=3){ 
+			owner._browser.Refresh2(lev)
+		};
+		reload = function(){ 
+			owner._browser.Refresh2(3)
+		};
+		stop = function(){
+			owner._browser.Stop()
+		}; 
+		eachFrames = function(frame){
+			var doc = owner.getDoc(frame); 
+			if(doc)
+				return ..com.each( doc.frames  );
+		};
+		eachAll = function(tag = "*",parent,timeout){
+			var doc;
+			if( type(parent) == type.table ){
+				doc = parent;
+			}
+			else {	
+				doc = owner.waitDoc(parent,timeout,false );
+			}
+				
+			if(doc ){
+				return ..com.each( doc.getElementsByTagName(tag)  );
+			}
+			return function(){};
+		}; 
+		eachLinks = function(parent,timeout){
+			return owner.eachAll('A',parent,timeout)  ); 
+		};
+		getFrame = function(frame){
+			
+			if(type(frame)==type.table)
+				return frame[["contentWindow"]] : frame;
+	 
+			var ele;
+			if(type(frame)==type.number) {
+				var ind = frame;
+				var f = owner.waitDoc().frames;
+				if( ind >=0 && ind < f.length ) {
+					ele = f.item(ind);
+				}
+			} 
+   			else if(#frame){
+   				ele =  owner.getEle(frame);
+   				if(ele) ele = ele.getcontentWindow();
+   			}  
+   			return ele;
+		};
+		getDoc = function(frame){
+			if(frame===null)
+				return owner._browser.getDocument(); 
+			
+			var ele = owner.getFrame(frame);  
+   			if(ele){
+   				var doc;
+   				try{
+   					doc = ele.getDocument() : ele ; //ele.contentDocument
+   				}
+   				return doc;
+   			}
+		}; 
+		documentMode = {
+			_get = function(){ 
+				var doc = owner.getDoc(frame);
+				return doc.documentMode ?  
+					doc.getdocumentMode() : ( doc.compatMode == "CSS1Compat"  ? ( doc.getScript().XMLHttpRequest ? 7 : 6 ) : 5);
+			};
+		};
+		getWebForm  = function(){
+			error("请调用web.form.util.crossDomain(true)",2)
+		};
+		getForm = function(){
+			return owner._form;
+		};
+		jQuery = {
+			_get = function(){ 
+				return owner.waitDoc().getScript().jQuery || owner.loadScript( {
+					jQuery = {
+						"/res/js/jQuery/jQuery.min.js";
+						"/view/js/jQuery/jQuery.min.js";
+						"http://libs.baidu.com/jquery/1.10.2/jquery.min.js";
+						"http://lib.sinaapp.com/js/jquery/1.10.2/jquery-1.10.2.min.js";
+						"http://code.jquery.com/jquery-1.10.2.min.js" 
+					}
+				}, ,"utf-8" ).jQuery; 
+			} 
+		}; 
+		document = {
+			_get = function(){ 
+				return  owner.getDoc()
+			} 
+		};
+		window = {
+			_get = function(){
+				var doc = owner.waitDoc(null,,false);
+				if( doc ) return doc.getScript(); 
+			}
+		};
+		script = {
+			_get = function(){
+				var doc = owner.waitDoc(null,,false);
+				if( doc ) return doc.getScript(); 
+			}
+		};
+		getScript = function(...){
+			var doc = owner.waitDoc(...);
+			if( doc ) return doc.getScript(); 
+		}
+		host = {
+			_get = function(){  
+ 				return  owner.getDoc().getParentWindow().getLocation().getHost();
+			} 	
+		}; 
+		body = {
+			_get = function(){ 
+				return  owner.getDoc().getBody()
+			} 	
+		}; 
+		head = {
+			_get = function(){ 
+				return  owner.getDoc().getElementsByTagName('head').item(0)
+			} 	
+		};   
+		location = {
+			_get = function(){ 
+			 	return owner._browser.getLocationURL() ;  
+			}
+			_set = function( value ){
+				owner._browser.Navigate(value) ;  
+			} 	
+		};
+		silent = {
+			_get = function(){   
+				return owner._browser.getSilent() ;  
+			}
+			_set = function( value ){
+				owner._browser.setSilent(value);  
+			} 	
+		}; 
+		application = {
+			_get = function(){ 
+				return owner._browser.getApplication() ;  
+			}
+		}
+		execEle = function(ele,cmd,val,ui){ 
+			if( type(ele)==type.string)
+				ele = owner.waitEle(ele);
+				
+			var controlRange = ele.getOwnerDocument().getBody().createControlRange(); 
+			if(!controlRange)
+				return;
+				
+			controlRange.addElement(ele); 
+			controlRange.execCommand( cmd,ui,val);
+		}
+		exec = function(cmd,val,ui){
+			owner.getDoc().execCommand(cmd,ui,val,0); 
+		} 
+		execWb =  function(id,val,opt){ 
+			owner.waitDoc();
+			return owner._browser.ExecWB(id,opt : 0/*_OLECMDEXECOPT_DODEFAULT*/,val) 
+		}  
+		openproxy = {
+			_get = function(){  
+				if(! owner[["_proxyOpen"]] ){
+					owner.proxyForm = ..win.form(parent=owner._form;right=1;bottom=1 ) 
+					owner._proxyOpen = ..web.form( owner.proxyForm );
+					var wb = owner;
+					owner._proxyOpen.BeforeNavigate2 = function( pDisp, url, flags, target, postData, headers, cancel ) begin 
+						wb.post(url,postData,headers ) 
+						return url, flags, target, postData, headers,true;
+					end; 
+				} 
+				return owner._proxyOpen.application; 
+			} 	
+		};  
+
+		click = function(eleName,min=1,max=500,frame){
+			var ele = owner.getEle(eleName,frame); 
+			ele.fireEvent("onmousemove"); 
+			ele.fireEvent("onmouseenter"); 
+			ele.fireEvent("onmouseover");  
+			
+    		..win.delay( ..math.random(min,max) );
+    		ele.fireEvent("onkeydown");
+    		ele.fireEvent("onkeyup");
+    		ele.fireEvent("onmousedown");
+    		ele.fireEvent("onmouseup") 
+    		
+    		ele.click(); 
+    		ele.fireEvent("onclick");
+    		if(ele.tagName=="INPUT"){ ele.focus();}
+    		ele.fireEvent("onfocus");
+    		
+    		ele.fireEvent("onmousemove"); 
+    		ele.fireEvent("onmouseleave");
+    		owner.wait(); 
+		};  
+		
+		["setEle"] = function(eleName,val,name,frame){ 
+			var ele = owner.getEle(eleName,frame);  
+			if(!ele) return null,"未找到节点";
+			
+			if( type(val) == type.table ){
+				for(k,v in val) 
+					owner.setEle(eleName,v,k,frame); 
+			}
+			elseif(name){ 
+				ele[name] = val; 
+			}
+			elseif( ..string.cmp(ele.tagName,"textArea") == 0  ){
+				ele.innerText = val;
+			}
+			elseif( !  ..string.cmp(ele.tagName,"input") ){
+				select(ele.type) { 
+					case "radio","checkbox" {
+						ele.checked = val;
+					};
+					else {
+						ele.value = val;
+					};
+				};
+			}; 
+			elseif(  ..string.cmp(ele.tagName,"select") == 0 ){
+				owner.select( ele,val );
+			}
+			return ele;
+		}; 
+		
+		["select"] = function(eleName,v,sel=true,frame){ 
+			var ele = owner.getEle(eleName,frame);   
+			var opt;
+			if(ele){
+   				if(type(v)==type.number and v < ele.length){
+   	   				opt = ele.options(v);
+   				}
+   				else{
+   	   				for i,child in ..com.each(ele.options) {
+						if(child.value=v or child.innerText==v){
+							opt=child;
+						}
+					} 
+   				}
+			} 
+			if( opt ){
+				opt.selected = sel;
+				if( ele.onchange )
+					ele.fireEvent("onchange")
+					
+				return opt;
+			}
+		};
+		dispatchEvent = function(ele,event){ 
+			ele = owner.getEle(ele); 
+        	var evt = owner.document.createEventObject();  
+    		evt.type = 'on'+event;
+            return ele.fireEvent('on'+event,evt); 
+    	};
+		onTitleChanged = {
+			_set = function( value ){
+				owner.TitleChange = value;  
+			} 	
+		}; 
+		onURLChanged = {
+			_set = function( value ){
+				owner.NavigateComplete2 = function(pDisp, url) {
+					value(url);
+				} 
+			} 	
+		}; 
+		onNavigation = {
+			_set = function( value ){
+				owner.BeforeNavigate2 = function( pDisp, url, flags, targetFrame, postData, headers, cancel ) {  
+					var c = value(url);
+					return url, flags, targetFrame, postData, headers, !c;
+				} 
+			} 	
+		}; 
+		onDocumentReady = {
+			_set = function( value ){
+				owner.DocumentComplete = function(pDisp,url) {
+					value(url,owner.application,pDisp);
+				}
+			}
+		};
+	) 
+	
+	with _metaProperty{ 
+		html = { 
+			_set = write;
+			_get = read;
+		};
+	}
+	
+	mapurl = function(url){
+ 		var local = ..io.localpath(url)
+		if( local ){  
+			if(not ..io.exist(local) ){  
+				url = ..string.upper(
+				..string.replace(url,"@\","/")
+				)
+				return ..string.concat( "res://", ..io._exepath , "/RES/" ,url); 
+			} 
+			return local
+		} 
+		return url;
+	};
+	
+	::Advapi32 :=  ..raw.loadDll("Advapi32.dll");
+	::Urlmon := ..raw.loadDll("Urlmon.dll");
+	
+	disableNavigationSounds = function(v=1){
+		return 0 == ::Urlmon.CoInternetSetFeatureEnabled(21,2,!!v);	
+	}
+	
+	enableTab = function(v=1){ 
+		return 0 == ::Urlmon.CoInternetSetFeatureEnabled(19,2,!!v);
+	}
+		
+	refreshOption = function(){
+		::Urlmon.UrlMkSetSessionOption(  39/*_INTERNET_OPTION_SETTINGS_CHANGED*/, ,0,null );
+		::Urlmon.UrlMkSetSessionOption(  37/*_INTERNET_OPTION_REFRESH*/, ,0,null);  
+	}
+
+	featureControl = function(name,value,ref=true){  
+		var rkey = {ptr handle}
+		var err = ::Advapi32.RegCreateKeyExW(0x80000001/*HKEY_CURRENT_USER*/
+			,"SOFTWARE\Microsoft\Internet Explorer\Main\FeatureControl\" + name
+			,0,/*lpClass*/, 0/*_REG_OPTION_NON_VOLATILE*/,0xF003F/*_KEY_ALL_ACCESS*/,null,rkey,null);
+				 
+		if(!err){
+			::Advapi32.RegSetValueEx( rkey.handle,..io._exefile,0,0x4/*_REG_DWORD*/,{INT dw = value },4);
+			::Advapi32.RegCloseKey(rkey.handle); 
+		}
+		
+		if(ref)refreshOption();	
+	};
+	  
+	emulation = function(ver=11001 ,ref=true){ 
+		featureControl( "FEATURE_BROWSER_EMULATION",ver,ref );
+	};  
+	
+	gpuRendering = function(gpu,ver=11001,ref=true){
+		if(ver) featureControl( "FEATURE_BROWSER_EMULATION",ver,false )
+		featureControl( "FEATURE_GPU_RENDERING",gpu?1:0,ref );	
+	};
+	
+	emulation(11001,true);
+}
+ 
+/******intellisense( ) 
+web.form = web窗体,\n基于系统自带IE内核WebBrowser浏览器控件.\n\n导入此库时已默认设为启用IE最高兼容版本,\n可调用web.form.emulation函数修改,或在网页HTML中设置,例如:\n<meta http-equiv="X-UA-Compatible" content="IE=edge" />\n可自动启用IE最高版本
+web.form( = 创建web窗体,基于系统自带IE内核WebBrowser浏览器控件
+web.form(.(winform,hostFlags,dlControl,userAgent,securityTrusted) = 创建Web窗体,可调用IE内核浏览器控件加载网页,\n\n参数说明：\n@winform 可使用窗体或窗体上的控件对象\n@hostFlags 可使用一个或多个_UIFLAG_ 前缀的常量自定义外观,多个常量用位或操作符( | ) 连接\n@dlControl 可使用_DLCTL_前缀的常量以控制下载行为,多个常量用位或操作符( | ) 连接\n@userAgent 设置浏览器User Agent,\n@securityTrusted 是否信任打开的网页（服务器上避免弹出警告），默认值为true\n\n关于创建参数的更多说明,请参考《aardio使用手册->Web程序设计->创建Web窗体》
+web.form.emulation(11001) = 允许启用IE11渲染模式,\n11001为IE11,9999为IE9,8888为IE8,7000为IE7\n应在进程创建第一个web窗体创建以前设置\n也可以在网页HTML中设置IE兼容版本,例如启用IE最高版本:\n<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+web.form.featureControl(.("FEATURE_BROWSER_EMULATION",11001 ,false) = 改变注册表设置,\n参数(注册表键名,值,是否刷新)
+web.form.gpuRendering(true) = 设置是否启用GPU硬件加速\n第二个参数可指定IE渲染模式版本,默认为11001 - IE11
+web.form.disableNavigationSounds() = 禁止打开链接的声音\n可在创建网页控件后动态设置
+web.form.enableTab(true) = 是否启用WebBrowser浏览器控件tab选项卡支持
+web.form.refreshOption() = 刷新WebBrowser浏览器控件设置
+!wb.dlControl = 修改下载控制台参数\n
+!wb.hwndEmbedding = 嵌入窗口
+!wb.hwndControl = 控件窗口
+!wb._browser = 浏览器控件,com对象 
+!wb._crossDomain = 该对象是否使用跨域框架创建
+!wb.addHeaders = 设置默认的请求头\n支持字符串值、或包含键值对的表,\n指定的HTTP头将会使用 web.joinHeaders 函数转换为字符串\n在调用go()或post()等打开网页的函数时,将自动附加addHeaders
+!wb.write("__") =  通过字符串参数载入HTML文件源码
+!wb.loadcode(__/*HTML模板代码*/) = 使用aardio模板语法加载HTML文件\n可选在第二个参数中传入模板参数,\n模板代码中使用owner参数获取首个模板参数
+!wb.write("__","框架名") = 将字符串值写入框架网页、不允许追加
+!wb.html = @.html = /**\n<!doctype html>\n<html>\n<head>\n    <meta charset="utf-8">\n    <meta http-equiv="X-UA-Compatible" content="IE=edge" />\n    <style type="text/css">\n    html,body{ height:100%; margin:0; } __\n    </style>\n    <script type="text/javascript"></script>\n</head>\n<body>\n    <div id="header"></div>\n    <div id="container"> \n        <div class="lside"> </div> \n        <div class="rside"> </div>  \n    </div>\n</body>\n</html>\n**/
+!wb.type = 返回当前加载的文件类型\n例如doc文件返回Microsoft Word Document 
+!wb.wait( = 该函数等待网页完全加载完成,\n因为部份网页遇到问题可能部份内容无法完全加载,\n建议大家尽可能使用等待部份加载的waitEle或waitDoc等函数替代
+!wb.wait(.("网址",超时值) = 等待指定的网页加载完成,所有参数可选,\n等待的网址支持模式语法,参数@2指定最大超时值,单位毫秒
+!wb.write("__") = 将字符串值写入网页
+!wb.waitClose() = 等待网页被关闭
+!wb.showhelp = 是否允许显示帮助对话框
+!wb.silent = 组件对话框、脚本错误对话框静默模式\n如果仅需禁用脚本错误对话框,建议设置noScriptErr属性
+!wb.noScriptErr = @.noScriptErr=true;\n//禁止弹出脚本错误对话框,并允许脚本继续执行
+!wb.goNoHistory( = 打开网址,不加入URL历史列表
+!wb.goNoHistory(.("网址","HTTP头","目标框架") = 打开网址,不加入URL历史列表,\n除网址以外的参数可省略,参数用法与go函数相同\n指定的HTTP头将会使用 web.joinHeaders 函数转换为字符串
+!wb.goDirectory(.("__/*本地目录*/") = 打开本地目录\n支持shellFolderSelectionChanged事件
+!wb.go( = 打开网址
+!wb.go(.("网址","HTTP头","目标框架") = 打开网址或本地路径\n注意驱动器根目录要以反斜杠结束,\n支持回车换行连接的字符串值、或包含键值对的表,\n指定的HTTP头将会使用 web.joinHeaders 函数转换为字符串\n目标框架一般可省略
+!wb.post(.("网址","POST数据","HTTP头","目标框架") = 自动提交表单数据,\nPOST数据使用&&连接键值对,例如:"k=v&&k2=v2",\nHTTP头支持回车换行连接的字符串值、或包含键值对的表,\n指定的HTTP头将会使用 web.joinHeaders 函数转换为字符串\n目标框架一般可省略
+!wb.location = 当前网址
+!wb.host = 当前网址所在主机名 
+!wb.getFrame() = !jsGlobal.
+!jsGlobal.frameElement = 获取在父文档中生成 window 的 frame 或 iframe 对象
+!jsGlobal.parent = 获取对象层次中的父窗口
+!jsGlobal.document = document.
+!jsGlobal.eval( = 运行js代码
+!jsGlobal.eval(.("JS代码") = 返回表达式的值
+!jsGlobal.location = 当前URL
+!jsGlobal.location.hash = 网址“#”号后面的分段
+!jsGlobal.location.host = URL的主机以及端口号部份
+!jsGlobal.location.hostname = URL中的域名主机部份
+!jsGlobal.location.href = URL网址
+!jsGlobal.location.pathname = URL中的文件路径
+!jsGlobal.location.port = 端口号
+!jsGlobal.location.protocol = URL使用的协议
+!jsGlobal.location.search = 问号后面的部份 
+!jsGlobal.navigate(__/*url*/) = 在当前窗口中装入指定 URL
+!jsGlobal.prompt(.(消息,默认值) = 显示输入对话框
+!jsGlobal.screenTop = 网页正文部分上
+!jsGlobal.screenLeft = 网页正文部分左
+!jsGlobal.height = 屏幕分辨率的高
+!jsGlobal.width = 屏幕分辨率的宽
+!jsGlobal.focus() = 获得焦点
+!jsGlobal.脚本函数名__() =  调用JS函数必须有实参\n无参数调用则返回函数类对象
+!jsGlobal.window = !jsGlobal.
+!jsGlobal.navigator = !navigator.
+!navigator.userAgent = 浏览器User Agent\n修改此值必须在打开网页前调用web.form.util.setUserAgent函数
+!navigator.platform = 操作系统名称
+!navigator.systemLanguage = 系统默认语言
+!navigator.browserLanguage = 浏览器当前语言 
+!navigator.appVersion = 浏览器运行平台和版本\n网页实际使用的兼容模式版本可能与此不同,\n兼容模式可使用webform的documentMode属性获取
+!navigator.cpuClass = CPU 等级 x86 
+!navigator.cookieEnabled  = 是否允许cookie
+!wb.eachFrames("框架名") = @//创建迭代器,迭代页面所有框架窗口,例：\nfor i,ele in ??.eachFrames() {\n	__\n}\n
+!wb.eachAll() = @//创建迭代器,迭代页面所有节点,例：\nfor i,ele in ??.eachAll() {\n	__\n}\n
+!wb.eachLinks(父节点) = @//创建迭代器,迭代页面所有超链接,例：\nfor i,ele in ??.eachLinks(__/*父节点或框架名*/) {\n	\n}\n
+!wb.eachAll("input") = @//创建迭代器,迭代页面所有输入控件,例：\nfor i,ele in ??.eachAll("input") {\n	__\n}\n
+!wb.eachAll("input","框架名") = @//创建迭代器,迭代页面所有输入控件,例：\nfor i,ele in ??.eachAll("input","框架名") {\n	__\n}\n
+!wb.eachAll("DIV",父节点) = @//创建迭代器,迭代页面所有输入控件,例：\nfor i,ele in ??.eachAll("DIV" ,??.getEle("id") ) {\n	__\n}\n
+!wb.goBack()=导航到历史列表中的上一个页面
+!wb.goForward()=导航到历史历表中的下一个项目
+!wb.goHome()=导航到缺省页面
+!wb.goSearch()=导航到缺省页面
+!wb.refresh()=刷新页面\n如果服务器未更新则不会重新下载,类似在浏览器中按F5的效果
+!wb.refresh2(__)=重新下载页面\n可在参数中指定级别
+!wb.refresh3()=重新下载最新页面\n添加Pragma:no-cache请求头,强制服务端刷新\n类似在浏览器中按下Ctrl+F5的效果
+!wb.reload()=重新下载最新页面
+!wb.stop()=停止当前导航
+!wb.dispatchEvent("__/*节点ID*/","click") = 触发事件
+!wb.application = 创建浏览器控件的应用对象
+!wb.BeforeNavigate2 = @.BeforeNavigate2 = function( pDisp, url, flags, targetFrame, postData, headers, cancel ) { 
+	__/*导航发生前触发(打开网页前),刷新时不触发*/
+	return url, flags, targetFrame, postData, headers, cancel;
+} 
+
+!wb.showMenu = @.showMenu = function(x,y,id,ele){
+	/*定义此事件函数则禁用默认的右键弹出菜单*/
+	select(id) { 
+		case 0/*_CONTEXT_MENU_DEFAULT */ {
+		
+			}
+		case 1/*_CONTEXT_MENU_IMAGE*/ {
+		
+			}
+		case 2/*_CONTEXT_MENU_CONTROL*/ {
+		
+			}
+		case 4/*_CONTEXT_MENU_TEXTSELECT */ {
+		
+			}
+		case 5/*_CONTEXT_MENU_ANCHOR*/ {
+		
+			}
+	}
+	return false;//返回false禁止默认菜单
+
+}
+!wb.showMsg = @.showMsg = function(text/*信息*/,caption/*标题*/){
+	/*弹出对话框触发此事件*/
+	
+	return true; /*返回false则不显示对话框*/
+}
+
+!wb.CommandStateChange = @.CommandStateChange = function(cmd,enable) {
+ 	/*当命令的激活状态改变时触发。它表明何时激活或关闭Back和Forward菜单项或按钮 */
+ 	select(cmd) {
+ 		case 0xFFFFFFFF/*_CSC_UPDATECOMMANDS*/ {  
+ 			/*更新控制按钮*/
+ 		}
+ 		case 0x2/*_CSC_NAVIGATEBACK*/ {
+ 			/*启用或禁用后退按钮*/
+ 			__/*请输入代码*/
+ 		}
+ 		case 0x1/*_CSC_NAVIGATEFORWARD*/ {
+ 			/*启用或禁用前进按钮*/
+ 		}  
+ 	}
+ } 
+
+!wb.DocumentComplete = @.DocumentComplete = function(pDisp,url) {
+	if( pDisp == ??.application ){
+		__/*当整个文档完成时触发,刷新页面不触发*/
+	}
+} 
+
+!wb.shellFolderSelectionChanged = @.shellFolderSelectionChanged = function(filePath) { 
+	__/*使用goDirectory函数打开目录支持此事件*/
+}
+ 
+!wb.DownloadBegin = @.DownloadBegin = function() {
+	__/*当某项下载操作已经开始后触发,刷新也可触发此事件*/
+} 
+
+!wb.DownloadComplete = @.DownloadComplete = function() {
+	__/*当某项下载操作已经完成后触发,刷新也可触发此事件*/
+} 
+
+!wb.StatusTextChange = @.StatusTextChange = function(text) { 
+	__/*状态文本改变*/
+}
+
+!wb.ProgressChange = @.ProgressChange = function( progress, progressMax ) {
+	if( ( progress < 0 ) || ( progress >= progressMax ) ){
+		__/*页面已加载完成*/
+	} 
+}
+
+!wb.FileDownload = @.FileDownload = function( activeDocument, cancel) {
+	if(!activeDocument) return true;__/*阻止文件下载,可在translate,NavigateError等事件中获取下载地址*/
+}   
+
+!wb.NavigateComplete2 = @.NavigateComplete2 = function(pDisp, url) {
+	var js = /*
+		function showModalDialog(url,arguments,features){return;}
+        function showModelessDialog(url,arguments,features){return;}
+	*/
+	wb.document.getScript().execScript(js);__/*导航完成后触发,刷新时不触发*/
+} 
+
+!wb.OnVisible = @.OnVisible = function( Visible ) { 
+	__/*显示触发此事件*/
+} ;
+
+!wb.NavigateError = @.NavigateError = function(pDisp,url,target,statusCode,cancel)  { 
+    if( pDisp == owner._object ) {
+    	if( statusCode === 200 ){
+        	owner.downloadFileUrl = url; 
+    	}
+    	else{
+        	var wb,form = owner,owner._form;
+        	form.setTimeout( function(){ wb.goNoHistory("/__/*自定义错误页面*/.html"); },0 ); 
+        }
+    }  
+    
+    return url,target,statusCode,true;
+};
+
+!wb.NewWindow3 = @.NewWindow3 = function(ppDisp,cancel,dwFlags,bstrUrlContext,bstrUrl ) { 
+    ..thread.invoke( 
+        function(url){
+            __/*建议创建线程调用默认浏览器打开新窗口*/
+        },bstrUrl
+    )
+    return ppDisp,true;
+};
+
+!wb.TitleChange = @.TitleChange = function( text ) {
+	__/*网页标题改变时触发*/
+};
+
+!wb.NewWindow2 = @.NewWindow2 = function( ppDisp, Cancel) { 
+	owner.go( owner.translateUrl )
+	return ppDisp, true;
+	__/*return wb.openproxy; */ 
+};
+
+!wb.WindowClosing = @.WindowClosing = function (IsChildWindow, Cancel) {
+    return true __/*返回true取消关闭操作*/; 
+};
+
+!wb.translate = @.translate = function( url ){
+	/*解析URL时触发 */
+	owner.translateUrl = url; 
+	__/* if( string.startWith(url,"http:",true) )
+	return 新的URL;*/
+}
+!wb.translateAccelerator = @._form.translateAccelerator = function(msg){
+	var message,vk = msg.message,msg.wParam;
+    if (   (message == 0x100/*_WM_KEYDOWN*/) || (message== 0x101/*_WM_KEYUP*/) ) { 
+        if( ( vk == 0x74/*_VK_F5*/ )
+            || ( ( vk == 'N'# ) && ( ( ::GetKeyState(0x11/*_VK_CTRL*/) & 0x8000 ) == 0x8000 ) ) ) 
+        {
+            return true;   
+        } 
+    }  
+    return ??._host.tranacc(msg)
+}
+!ele.document = document.
+!wb._form = !winform.
+!wb.getForm() = 返回该控件所在窗体对象\n!winform.
+!ele.type = 类型
+!ele.src = 源文件地址
+!ele.fireEvent("onclick") = 自动触发element元素节点的事件脚本\n该事件仅IE内核控件可以使用
+!ele.click() = 触发onclick 事件来模拟单击
+!ele.focus() = 使得元素得到焦点并执行由 onfocus 事件指定的代码 
+!ele.hasFocus() = 是否拥有焦点
+!ele.blur() = 使元素失去焦点并触发onblur事件  
+!ele.setAttribute("属性名__","属性值")  = 修改属性\n也可以直接写 ele.属性名字 = 值
+!ele.getAttribute("属性名__/*属性名*/")  = 获取属性\n也可以直接写 var 返回值=ele.属性名字
+!ele.getAttributeNode("__/*属性名*/") = 获取attribute对象
+!ele.hasChildNodes = 对象是否有子对象的值。 
+!ele.appendChild(__) = 给对象添加一个子节点\n可使用wb.getDoc().createElement("TAG") 创建节点
+!ele.innerHTML = 返回节点内的HTML代码
+!ele.outerHTML = 返回该节点的HTML代码
+!ele.innerText = 设置或获取对象的文本 
+!ele.outerText = 设置或获取对象的文本 
+!ele.innerHTMLUnicode = 返回节点内的HTML代码
+!ele.innerTextUnicode = 设置或获取对象的文本
+!ele.insertAdjacentHTML("beforeBegin",__/*HTML代码*/) = 在节点之前插入HTML
+!ele.insertAdjacentHTML("afterBegin",__/*HTML代码*/) = 在节点内部最前面插入HTML
+!ele.insertAdjacentHTML("beforeEnd",__/*HTML代码*/) = 在节点内部最后面插入HTML 
+!ele.insertAdjacentHTML("afterEnd",__/*HTML代码*/) = 在节点之后插入HTML
+!ele.insertAdjacentText("beforeBegin",__/*文本*/) = 在节点之前插入文本
+!ele.insertAdjacentText("afterBegin",__/*文本*/) = 在节点内部最前面插入文本
+!ele.insertAdjacentText("beforeEnd",__/*文本*/) = 在节点内部最后面插入文本
+!ele.insertAdjacentText("afterEnd",__/*文本*/) =  在节点之后插入文本
+!ele.insertBefore(__/*新节点对象*/) = 第二个参数可选指定一个子节点对象\n在该节点前插入新节点,忽略则插入到最后面.
+!ele.checked = 复选框、单选框等选中状态
+!ele.form.submit() = 自动提交表单
+!ele.elements(.(索引,子索引) = 表单控件集合,非表单节点该属性无性.\n索引可以为数值或字符串,\n如果有同名控件,可使用第二个参数指定在该集合中的索引.
+!ele.elements() = !ele.
+!ele.getElementsByTagName("__") = 获取基于指定元素名称的对象集合
+!ele.getElementsByTagName() = !ele.
+!ele.contains(ele2__) = 判断一个节点是否包含另外一个节点
+!ele.selected = 设置为下拉选框选中项
+!ele.href = 超链接网址
+!ele.value = input控件值
+!ele.tagName = 获取对象的标签名称
+!ele.scrollHeight =  获取对象的滚动高度。 
+!ele.scrollLeft =  设置或获取位于对象左边界和窗口中目前可见内容的最左端之间的距离。 
+!ele.scrollTop = 设置或获取位于对象最顶端和窗口中可见内容的最顶端之间的距离。 
+!ele.scrollWidth = 获取对象的滚动宽度。 
+!ele.className = 设置或获取对象的CSS样式类
+!ele.hasChildNodes() = 对象是否有子对象的值。
+!ele.offsetParent = 获取定义对象 offsetTop 和 offsetLeft 属性的容器对象的引用
+!ele.offsetLeft = 相对于offsetParent对象的左侧位置.
+!ele.offsetTop =  相对于offsetParent对象的顶端位置.
+!ele.offsetWidth = 包括边线的宽度
+!ele.offsetHeight  = 包括边线的高度 
+!ele.ownerDocument = document.
+!ele.id = 获取标识对象的字符串 
+!ele.uniqueID = 对象自动生成的唯一标识符
+!ele.name = 设置或获取对象的名称 
+!ele.nodeName = 获取特定结点类型的名称。 
+!ele.nodeType = 获取所需结点的类型。 
+!ele.nodeValue = 设置或获取结点的值。 
+!ele.parentElement = 获取对象层次中的父对象\n!ele.
+!ele.parentNode = 获取文档层次中的父对象\n!ele. 
+!ele.childNodes() = !ele. 
+!ele.children() = !ele. 
+!ele.getReadyState() = 获取对象的当前状态。 \n'uninitialized','loading','interactive','loaded' 'complete'
+!ele.sourceIndex = 获取对象在源序中的依次位置 
+!ele.title = 提示信息 
+!ele.titleUnicode = 提示信息 
+!ele.attributes("name__/*属性名称*/") = 对象标签属性的集合指定位置的对象  
+!ele.childNodes(0__) =  对象直接后代的 HTML元素和TextNode对象的集合指定位置的对象
+!ele.children(0__) =  获取作为对象直接后代的DHTML对象的集合指定位置的对象 
+!ele.style.background = 背景
+!ele.style.display = 显示
+!ele.style.cursor = 鼠标指针
+!ele.style.height = 高度
+!ele.style.width = 宽度
+!ele.style.top = 顶部位置
+!ele.style.left = 左侧位置
+!ele.style.margin = 外边距
+!ele.style.padding = 内边距
+!ele.contentWindow = 获得子窗口的window对象
+!ele.contentDocument = 返回框架容纳的文档对象,\nIE8以下浏览器不支持,可使用contentWindow.document替代
+!ele.contentEditable = @.contentEditable = "true__"
+!ele.firstChild =  childNodes集合的第一个子对象的引用\n!ele.
+!ele.lastChild = childNodes集合中最后一个子对象的引用\n!ele.
+!ele.nextSibling = 返回当前节点的兄弟下一个节点(下一个兄弟节点)\n!ele.
+!ele.previousSibling = 返回紧挨当前节点、位于它之前的兄弟节点(上一个兄弟节点)\n!ele.
+!ele.hidefocus = 是否隐藏焦点选框 
+!ele.getAttributeNode() = !ele_attribute_node.
+!ele.attributes() = !ele_attribute_node.
+!ele_attribute_node.nodeName = 获取特定结点类型的名称
+!ele_attribute_node.nodeType = 获取所需结点的类型
+!ele_attribute_node.nodeValue = 设置或获取结点的值 
+!ele_attribute_node.specified =  获取是否指定了该属性 
+!ele_attribute_node.value =  设置或获取对象的值
+document.open() = 打开一个新的空白文档
+!wb.querySelectorAll(.("CSS选择器") = 查询并返回节点集合\n仅IE8以上、以及webkit内核支持该函数\nIE内核需要在网页首行声明<!doctype html>
+!wb.querySelector(.("CSS选择器") = 查询并返回节点\n仅IE8以上、以及webkit内核支持该函数\n仅IE8以上、以及webkit内核支持该函数\nIE内核需要在网页首行声明<!doctype html>
+document.querySelectorAll(.("CSS选择器") = 查询并返回节点集合\n仅IE8以上、以及webkit内核支持该函数
+document.querySelector(.("CSS选择器") = 查询并返回节点\n仅IE8以上、以及webkit内核支持该函数
+!ele.querySelectorAll(.("CSS选择器") = 查询并返回子节点集合\n仅IE8以上、以及webkit内核支持该函数
+!ele.querySelector(.("CSS选择器") = 查询并返回子节点\n仅IE8以上、以及webkit内核支持该函数
+document.querySelectorAll() = !ele.
+document.querySelector() = !ele.
+!wb.querySelectorAll() = !ele.
+!wb.querySelector() = !ele.
+document.write(__/*输入HTML*/) = 将HTML写入网页,允许追加输出
+document.writeln(__/*输入HTML*/) = 将HTML写入网页,并添加换行符,允许追加输出
+document.close() = 关闭输出流并强制将数据发送到显示 
+document.getElementById("__") = 获取对 ID 标签属性为指定值的第一个对象的引用。 
+document.getElementsByName("__") =  根据 NAME 标签属性的值获取对象的集合。 
+document.getElementsByTagName("__") =  获取基于指定元素名称的对象集合。 
+document.title = 网页标题
+document.titleUnicode = 网页标题 
+document.body = !ele.
+document.focus() = 设置焦点
+document.hasFocus() = 是否拥有焦点
+document.URL = 设置或获取当前文档的 URL。 
+document.URLUnencoded = 获取文档的 URL,去除所有字符编码 
+document.domain = 设置或获取文档的安全域名。 
+document.designMode = 文档是否可被编辑\n"on"或"off"
+document.elementFromPoint(x,y__) = 获取该位置的对象
+document.parentWindow = !jsGlobal.
+document.documentElement = !ele.
+document.frames.length = 框架数目
+document.frames(1__) = 在框架窗口集合(windows对象)中指定索引的对象
+document.anchors(1__) = 在所有带有name或id属性的a对象中指定索引的对象
+document.applets(1__) = 所有applet对象中指定索引的对象
+document.childNodes(1__) = 在所有指定对象直接后代的HTML元素和TextNode对象中指定索引的对象 
+document.embeds(1__) = 在所有embed对象中指定索引的对象
+document.forms(1__) = 在以源顺序排列的文档中所有form对象中指定索引的对象 
+document.images(1__) = 在以源顺序排列的文档中所有img对象中指定索引的对象
+document.links(1__) = 在所有指定了HREF 性的a对象和所area对象中指定索引的对象
+document.namespaces(1__) =  在所有namespace对象中指定索引的对象
+document.scripts(1__) = 在所有script对象中指定索引的对象
+document.styleSheets(1__) = 在styleSheet对象中指定索引的对象
+document.activeElement = 焦点对象 
+document.script = 可使用此对象直接调用页面脚本中的函数\n注意调用页面脚本函数时必须最少添加一个参数\n!jsGlobal. 
+document.createElement("script__") = 创建HTML节点\n可使有ele.appendChild() ele.insertBefore()等函数插入新节点
+document.charSet = 设置页面编码\n使用wb.refresh2(7)刷新生效.
+document.location.href = 当前页面路径
+document.location.reload() =  缓存刷新
+document.location.reload(true) = 等价于按F5刷新
+document.currentViewMode = 本地文件夹查看模式\n1 图标\n3 列表\n4 详细资料\n5 缩略图\n6 平铺\n7 幻灯片
+document.compatMode = "BackCompat" 对应 quirks mode(无DTD声明)\n"CSS1Compat" 对应 strict mode
+!styleSheet.addImport(.(URL) = 添加样式
+!styleSheet.addRule(.("CSS选择器","样式") = 添加样式
+!styleSheet.cssText = /**\n	__/*修改CSS样式*/\n**/
+!wb.documentMode = 返回网页当前兼容模模式版本号,默认值为7,\n可能的值为6,7,8,9,11等等,5为网页上没有写DOCTYPE导致的怪异模式,\n可在页面中通过X-UA-Compatible设置兼容模式,\n也可用web.form.emulation 函数改变当前进程的默认兼容模式,
+!wb.document=document.
+!wb.getScript(__/*框架名*/) = 网页脚本对象
+!wb.getScript()  = !jsGlobal.
+!wb.script = 网页脚本对象\n!jsGlobal.
+!wb.getFrame(__/*框架名*/) = 返回框架窗口对象\n参数可以是框架名,ID,基于0的索引,或者frame节点
+!wb.getDoc(__/*框架名*/) = 获取文档对象\n参数可以是框架名,ID,基于0的索引,或者frame节点
+!wb.waitDoc( = 等待并获取文档对象 
+!wb.waitDoc(.("框架名",超时时间,等待状态) = 所有参数可选\n等待状态可以为false即不判断状态,或为"interactive","complete"之一
+!wb.detach(.("click",事件回调函数) = 移除事件回调函数\n参数@2必须是attach函数的返回值
+!wb.attach = @.attach(\n	function(event){\n		io.print("点击坐标", event.screenX,event.screenY )\n		io.print("触发节点", event.srcElement.innerText )\n	}\n	,"onclick__",ele/*也可输入getEle()所需参数,省略表示doc*/ \n)
+!wb.attachAll = @.attachAll(  \n	/* html节点ID = 事件触发函数表 */\n	caption_button_min = {\n		onclick = function(event){\n			wb._form.hitMin();	\n		} \n	}\n)  
+!wb.ready(回调函数,节点对象) = @.ready( \n	function( obj ){ \n		io.print( "节点已载入",obj )\n	}__/*也可输入getEle()所需参数,省略表示doc*/  \n)	
+!wb.click(.(控件名字,随机延时最小值,延时最大值,框架名) = 模拟点击控件,\n第一个参数也可以是ele对象,\n随机延时值为可选参数,默认为1,500.\n框架名为可选参数
+!wb.setEle(.(控件名字,属性值,属性名,框架名) = 更新控件值,成节返回节点,失败返回null空值\n第一个参数也可以是ele对象,\n属性名,框架名为可选参数.\n属性值可以是一个指定多个属性键值对的table对象.
+!wb.select("控件名字",__/*输入选项索引,或选项值、选项文本*/) = 查找下拉选框的指定选项,选中并返回选项节点\n第一个参数也可以是ele对象
+!wb.select("控件名字",__/*输入选项索引,或选项值、选项文本*/,false) = 查找下拉选框的指定选项,取消选定并返回选项节点\n第一个参数也可以是ele对象
+!wb.exec("__") = 执行命令\n参数@2为传入参数,可省略\n参数@3指定是否显示交互界面,布尔值,可省略
+!wb.execEle(ele,"__") = 执行命令\n参数@2为传入参数,可省略\n参数@3指定是否显示交互界面,布尔值,可省略
+!wb.execWb( _OLECMDID__ , ,2 ) = 执行命令,\n参数@2为传入参数,可省略,\n参数@3指定UI交互选项:\n    1/*_OLECMDEXECOPT_PROMPTUSER*/为显示界面,\n    2/*_OLECMDEXECOPT_DONTPROMPTUSER*/为不显示界面
+!wb.external = @.external={
+	__/*输入要公开的成员*/
+}
+!wb.eventScript = @//可选指定事件名,默认为onclick\nvar js = /**\n	alert( event.srcElement.id );\n**/\n??.eventScript(js,"__/*输入节点ID*/","onclick")
+!wb.jsArray(__/*aardio数组*/) = 创建JS数组对象
+!wb.jsConstructor("Array__") = 获取JS对象构造函数,\n参数可以是JS对象，或字符串类型的对象名
+!wb.eval( = 运行js代码
+!wb.eval(.("JS代码") = 返回表达式的值
+!wb.doScript = @var js = /**\n	alert("Javascript!");\n**/\n??.doScript(js,__ )
+!wb.doScript(.(js脚本) = 执行js脚本
+!wb.doScript(.(js脚本,框架名称) = 执行js脚本
+!wb.doScript(.(js脚本,框架名称,"javascript__") = 执行js脚本
+!wb.body = !ele.
+!wb.head = !ele.
+!wb.loadScript("js地址","框架名字") = 动态加载js文件
+!wb.loadScript("js地址","框架名字","utf-8") = 动态加载js文件\N可选用第三个参数指定文件编码
+!wb.jQuery("__") = jQuery选择器,并可自动载入jQuery库\nn首次调用按需加载jQuery v1.10:\n "/res/js/jQuery/jQuery.min.js"\n失败则通过网络CDN服务器下载jquery-1.9.0.min.js
+!wb.jQuery() = 无参数时返回jQuery类对象\n首次调用按需加载 jQuery v1.9:\n "/res/js/jQuery/jQuery.min.js"\n失败则通过网络CDN服务器下载jquery-1.9.0.min.js\n!jQuery.
+!jQuery.val() = 取值
+!jQuery.val("__") = 赋值
+!jQuery.hide() = 隐藏
+!jQuery.show() = 显示
+!jQuery.text() = 取innerHTML属性
+!jQuery.text("__") = 修改innerHTML属性
+!jQuery.css("属性__","值") = 添加CSS样式
+!jQuery.load("html文件路径__") = 载入一个文件
+!wb.getEle() = !ele.
+!wb.waitQueryEles(__) = 函数等待wb.queryEles()返回有效节点,\nweb窗体关闭或超时返回null空值\n该函数返回的是一个数组,但可以通过调用数组的成员函数\n批量调用节点的同名成员函数,支持click函数\n----------------------------------\n调用参数：(参数表,超时,时间间隔,完全加载)\n\n参数@1指定一个表对象，\n该参数表可包含一个或多个键值，用于匹配节点的属性值,\n可使用parent属性指定开始查询节点的父节点，parent可以是ID或者节点对象。\n属性值使用 string.cmpMatch函数进行比对，\n等价于调用string.cmp函数进行忽略大小写的比较。\n并且在失败后调用 string.match函数使用模式匹配语法进行比较。\n\n注意在匹配节点属性时有几个例外：\nparent属性不使用模式匹配进行比对，\ntagName,id,name属性如果匹配值不含标点则使用忽略大小写的完全比对（禁用模式匹配和部分匹配）\n\n\n可选使用参数@2指定超时值，单位毫秒，,其他参数可选
+!wb.queryEles( = 搜索节点对象,该函数返回的是一个数组,\n但可以通过调用数组的成员函数批量调用节点的同名成员函数,支持click函数,\n即使找不到节点,此函数也会返回一个空数组,
+!wb.queryEles(.(查询参数表,超时值) = 搜索节点对象,该函数返回的是一个数组,\n但可以通过调用数组的成员函数批量调用节点的同名成员函数,支持click函数\n\n参数@1指定一个表对象，\n该参数表可包含一个或多个键值，用于匹配节点的属性值,\n可使用parent属性指定开始查询节点的父节点，parent可以是ID或者节点对象。\n属性值使用 string.cmpMatch函数进行比对，\n等价于调用string.cmp函数进行忽略大小写的比较,\n并且在失败后调用 string.match函数使用模式匹配语法进行比较。\n\n注意在匹配节点属性时有几个例外：\nparent属性不使用模式匹配进行比对，\ntagName,id,name属性如果匹配值不含标点则使用忽略大小写的完全比对（禁用模式匹配和部分匹配）\n\n\n可选使用参数@2指定获取网页文档对象的超时值，单位毫秒，此参数一般不需要指定
+!wb.getEle("__") = 返回一个节点对象或框架内子节点对象 
+!wb.getEle("__","框架名字") = 返回一个节点对象或框架内子节点对象
+!wb.waitEle(.("ID或名称","框架名",超时值,等待状态,允许返回空值) = 返回一个节点对象,除参数一以外,其他能数可选\n第三个参数指定超时值(单位为毫秒)\n参数@4为false则不检测状态,否则可指定为"interactive","complete"\n如果用于检测节点是否存在指定参数@5为true
+!wb.getElesByTag("head") = 返回指定标记的所有节点
+!wb.getElesByTag("head","框架名字") = 返回指定标记的所有节点
+!wb.getEles("__") = 返回同名的所有节点,例如\nele = wb.getEles("节点名字");\nele(1).setAttribute("属性名字", "修改第一个节点属性值");
+!wb.getEles("__","框架名字") = 返回同名的所有节点,例如\nele = wb.getEles("节点名字");\nele(1).setAttribute("属性名字", "修改第一个节点属性值");
+!wb.fromPoint(.(x坐标,y坐标) = 自指定的坐标获取节点
+!wb.fromPoint(.(x坐标,y坐标,框架名) = 自指定的坐标获取节点
+!wb.getPoint(ele__) = x,y=wb.getPoint(ele)\n返回对象的页面坐标
+!wb.scrollPos(.("框架名",scrollLeft,scrollRight) = 参数@1也可以是文档对象,省略表示根文档,\n所有参数可省略,返回页面滚动条位置scrollLeft,scrollRight\n指定scrollLeft,scrollRight参数时使用新值改变滚动条位置
+!wb.scrollPos(.( ,-1,-1) = 滚动到页面最右、以及最下面\n负数表示以右下角为起点的滚动条坐标
+!wb.getPos(ele__) = x,y,cx,cy = wb.getPos(ele)\n返回对象的窗口客户区坐标
+!wb.getPos(ele__,true) = x,y,cx,cy = wb.getPos(ele)\n返回对象的屏幕坐标
+?web.form = !wb.
+?.getWebForm = !wb.
+!wb.getWebForm(__/*框架名字或索引*/) = 将框架转换为web.form对象\n必须调用web.form.util.crossDomain()启用此函数\n
+!wb.getWebForm() = !wb.
+!wb.queryEles() = !ele. 
+!wb.waitQueryEles() = !ele.
+!wb.waitEle()= !ele.
+!wb.getElesByTag()= !ele.
+!wb.getEles() = !ele.
+!wb.getEle() = !ele. 
+!wb.queryEles() = !ele. 
+!wb.waitQueryEles() = !ele.
+!wb.waitEle()= !ele.
+!wb.getDoc() = document.
+!wb.waitDoc() = document.
+!wb.select() = !ele.
+!wb.jQuery() = !jQuery.
+!wb.fromPoint() = !ele.
+!wb.eachFrames() = !jsGlobal.
+!wb.eachAll() = !ele.
+!wb.eachLinks() = !ele.
+!wb.setEle() = !ele.
+!ele[] = !ele.
+!ele() = !ele.
+document.createElement() = !ele.
+document.getElementById() = !ele.
+document.getElementsByName() = !ele.
+document.getElementsByTagName() = !ele.
+!wb.select() = !ele.
+!wb.getDoc() = document.
+!wb.waitDoc() = document.
+!wb._host._adjust() = 自动调整控件窗口大小
+!wb._host.tranacc(.(MSG消息对象) = 解析快捷键,\n如果是快捷键返回真值
+!wb._host.doObjectVerb( _OLEIVERB__ ) = 执行指定的动词命令
+end intellisense******/
+
+ /**intellisense()
+_DLCTL_DLIMAGES=@0x10/*_DLCTL_DLIMAGES*/
+_DLCTL_VIDEOS=@0x20/*_DLCTL_VIDEOS*/
+_DLCTL_BGSOUNDS=@0x40/*_DLCTL_BGSOUNDS*/
+_DLCTL_NO_SCRIPTS=@0x80/*_DLCTL_NO_SCRIPTS*/
+_DLCTL_NO_JAVA=@0x100/*_DLCTL_NO_JAVA*/
+_DLCTL_NO_RUNACTIVEXCTLS=@0x200/*_DLCTL_NO_RUNACTIVEXCTLS*/
+_DLCTL_NO_DLACTIVEXCTLS=@0x400/*_DLCTL_NO_DLACTIVEXCTLS*/
+_DLCTL_DOWNLOADONLY=@0x800/*_DLCTL_DOWNLOADONLY*/
+_DLCTL_NO_FRAMEDOWNLOAD=@0x1000/*_DLCTL_NO_FRAMEDOWNLOAD*/
+_DLCTL_RESYNCHRONIZE=@0x2000/*_DLCTL_RESYNCHRONIZE*/
+_DLCTL_PRAGMA_NO_CACHE=@0x4000/*_DLCTL_PRAGMA_NO_CACHE*/
+_DLCTL_NO_BEHAVIORS=@0x8000/*_DLCTL_NO_BEHAVIORS*/
+_DLCTL_NO_METACHARSET=@0x10000/*_DLCTL_NO_METACHARSET*/
+_DLCTL_URL_ENCODING_DISABLE_UTF8=@0x20000/*_DLCTL_URL_ENCODING_DISABLE_UTF8*/
+_DLCTL_URL_ENCODING_ENABLE_UTF8=@0x40000/*_DLCTL_URL_ENCODING_ENABLE_UTF8*/
+_DLCTL_NOFRAMES=@0x80000/*_DLCTL_NOFRAMES*/
+_DLCTL_FORCEOFFLINE=@0x10000000/*_DLCTL_FORCEOFFLINE*/
+_DLCTL_NO_CLIENTPULL=@0x20000000/*_DLCTL_NO_CLIENTPULL*/
+_DLCTL_SILENT=@0x40000000/*_DLCTL_SILENT*/
+_DLCTL_OFFLINEIFNOTCONNECTED=@0x80000000/*_DLCTL_OFFLINEIFNOTCONNECTED*/
+_DLCTL_OFFLINE=@0x80000000/*_DLCTL_OFFLINE*/
+_UIFLAG_DIALOG=@0x1/*_UIFLAG_DIALOG*/
+_UIFLAG_DISABLE_HELP_MENU=@0x2/*_UIFLAG_DISABLE_HELP_MENU*/
+_UIFLAG_NO3DBORDER=@0x4/*_UIFLAG_NO3DBORDER*/
+_UIFLAG_SCROLL_NO=@0x8/*_UIFLAG_SCROLL_NO*/
+_UIFLAG_DISABLE_SCRIPT_INACTIVE=@0x10/*_UIFLAG_DISABLE_SCRIPT_INACTIVE*/
+_UIFLAG_OPENNEWWIN=@0x20/*_UIFLAG_OPENNEWWIN*/
+_UIFLAG_DISABLE_OFFSCREEN=@0x40/*_UIFLAG_DISABLE_OFFSCREEN*/
+_UIFLAG_FLAT_SCROLLBAR=@0x80/*_UIFLAG_FLAT_SCROLLBAR*/
+_UIFLAG_DIV_BLOCKDEFAULT=@0x100/*_UIFLAG_DIV_BLOCKDEFAULT*/
+_UIFLAG_ACTIVATE_CLIENTHIT_ONLY=@0x200/*_UIFLAG_ACTIVATE_CLIENTHIT_ONLY*/
+_UIFLAG_OVERRIDEBEHAVIORFACTORY=@0x400/*_UIFLAG_OVERRIDEBEHAVIORFACTORY*/
+_UIFLAG_CODEPAGELINKEDFONTS=@0x800/*_UIFLAG_CODEPAGELINKEDFONTS*/
+_UIFLAG_URL_ENCODING_DISABLE_UTF8=@0x1000/*_UIFLAG_URL_ENCODING_DISABLE_UTF8*/
+_UIFLAG_URL_ENCODING_ENABLE_UTF8=@0x2000/*_UIFLAG_URL_ENCODING_ENABLE_UTF8*/
+_UIFLAG_ENABLE_FORMS_AUTOCOMPLETE=@0x4000/*_UIFLAG_ENABLE_FORMS_AUTOCOMPLETE*/
+_UIFLAG_ENABLE_INPLACE_NAVIGATION=@0x10000/*_UIFLAG_ENABLE_INPLACE_NAVIGATION*/
+_UIFLAG_IME_ENABLE_RECONVERSION=@0x20000/*_UIFLAG_IME_ENABLE_RECONVERSION*/
+_UIFLAG_THEME=@0x40000/*_UIFLAG_THEME*/
+_UIFLAG_NOTHEME=@0x80000/*_UIFLAG_NOTHEME*/
+_UIFLAG_NOPICS=@0x100000/*_UIFLAG_NOPICS*/
+_UIFLAG_NO3DOUTERBORDER=@0x200000/*_UIFLAG_NO3DOUTERBORDER*/
+_UIFLAG_DISABLE_EDIT_NS_FIXUP=@0x400000/*_UIFLAG_DISABLE_EDIT_NS_FIXUP*/
+_UIFLAG_LOCAL_MACHINE_ACCESS_CHECK=@0x800000/*_UIFLAG_LOCAL_MACHINE_ACCESS_CHECK*/
+_UIFLAG_DISABLE_UNTRUSTEDPROTOCOL=@0x1000000/*_UIFLAG_DISABLE_UNTRUSTEDPROTOCOL*/
+_UIFLAG_HOST_NAVIGATES=@0x2000000/*_UIFLAG_HOST_NAVIGATES*/
+_UIFLAG_ENABLE_REDIRECT_NOTIFICATION=@0x4000000/*_UIFLAG_ENABLE_REDIRECT_NOTIFICATION*/
+_UIFLAG_USE_WINDOWLESS_SELECTCONTROL=@0x8000000/*_UIFLAG_USE_WINDOWLESS_SELECTCONTROL*/
+_UIFLAG_USE_WINDOWED_SELECTCONTROL=@0x10000000/*_UIFLAG_USE_WINDOWED_SELECTCONTROL*/
+_UIFLAG_ENABLE_ACTIVEX_INACTIVATE_MODE=@0x20000000/*_UIFLAG_ENABLE_ACTIVEX_INACTIVATE_MODE*/
+_UIFLAG_DPI_AWARE=@0x40000000/*_UIFLAG_DPI_AWARE*/
+_NWMF_UNLOADING=@0x1/*_NWMF_UNLOADING*/
+_NWMF_FIRST=@0x4/*_NWMF_FIRST*/
+_NWMF_OVERRIDEKEY=@0x8/*_NWMF_OVERRIDEKEY*/
+_NWMF_SHOWHELP=@0x10/*_NWMF_SHOWHELP*/
+_NWMF_HTMLDIALOG=@0x20/*_NWMF_HTMLDIALOG*/
+_NWMF_FROMDIALOGCHILD=@0x40/*_NWMF_FROMDIALOGCHILD*/
+_NWMF_USERREQUESTED=@0x80/*_NWMF_USERREQUESTED*/
+_NWMF_USERALLOWED=@0x100/*_NWMF_USERALLOWED*/
+_NWMF_FORCEWINDOW=@0x10000/*_NWMF_FORCEWINDOW*/
+_NWMF_FORCETAB=@0x20000/*_NWMF_FORCETAB*/
+_NWMF_SUGGESTWINDOW=@0x40000/*_NWMF_SUGGESTWINDOW*/
+_NWMF_SUGGESTTAB=@0x80000/*_NWMF_SUGGESTTAB*/
+_NWMF_INACTIVETAB=@0x100000/*_NWMF_INACTIVETAB*/
+_CSC_UPDATECOMMANDS=@0xFFFFFFFF/*_CSC_UPDATECOMMANDS*/
+_CSC_NAVIGATEFORWARD=@0x1/*_CSC_NAVIGATEFORWARD*/
+_CSC_NAVIGATEBACK=@0x2/*_CSC_NAVIGATEBACK*/
+_OLECMDID_OPEN=@0x1/*_OLECMDID_OPEN*/
+_OLECMDID_NEW=@0x2/*_OLECMDID_NEW*/
+_OLECMDID_SAVE=@0x3/*_OLECMDID_SAVE*/
+_OLECMDID_SAVEAS=@0x4/*_OLECMDID_SAVEAS*/
+_OLECMDID_SAVECOPYAS=@0x5/*_OLECMDID_SAVECOPYAS*/
+_OLECMDID_PRINT=@0x6/*_OLECMDID_PRINT*/
+_OLECMDID_PRINTPREVIEW=@0x7/*_OLECMDID_PRINTPREVIEW*/
+_OLECMDID_PAGESETUP=@0x8/*_OLECMDID_PAGESETUP*/
+_OLECMDID_SPELL=@0x9/*_OLECMDID_SPELL*/
+_OLECMDID_PROPERTIES=@0xA/*_OLECMDID_PROPERTIES*/
+_OLECMDID_CUT=@0xB/*_OLECMDID_CUT*/
+_OLECMDID_COPY=@0xC/*_OLECMDID_COPY*/
+_OLECMDID_PASTE=@0xD/*_OLECMDID_PASTE*/
+_OLECMDID_PASTESPECIAL=@0xE/*_OLECMDID_PASTESPECIAL*/
+_OLECMDID_UNDO=@0xF/*_OLECMDID_UNDO*/
+_OLECMDID_REDO=@0x10/*_OLECMDID_REDO*/
+_OLECMDID_SELECTALL=@0x11/*_OLECMDID_SELECTALL*/
+_OLECMDID_CLEARSELECTION=@0x12/*_OLECMDID_CLEARSELECTION*/
+_OLECMDID_ZOOM=@0x13/*_OLECMDID_ZOOM*/
+_OLECMDID_GETZOOMRANGE=@0x14/*_OLECMDID_GETZOOMRANGE*/
+_OLECMDID_UPDATECOMMANDS=@0x15/*_OLECMDID_UPDATECOMMANDS*/
+_OLECMDID_REFRESH=@0x16/*_OLECMDID_REFRESH*/
+_OLECMDID_STOP=@0x17/*_OLECMDID_STOP*/
+_OLECMDID_HIDETOOLBARS=@0x18/*_OLECMDID_HIDETOOLBARS*/
+_OLECMDID_SETPROGRESSMAX=@0x19/*_OLECMDID_SETPROGRESSMAX*/
+_OLECMDID_SETPROGRESSPOS=@0x1A/*_OLECMDID_SETPROGRESSPOS*/
+_OLECMDID_SETPROGRESSTEXT=@0x1B/*_OLECMDID_SETPROGRESSTEXT*/
+_OLECMDID_SETTITLE=@0x1C/*_OLECMDID_SETTITLE*/
+_OLECMDID_SETDOWNLOADSTATE=@0x1D/*_OLECMDID_SETDOWNLOADSTATE*/
+_OLECMDID_STOPDOWNLOAD=@0x1E/*_OLECMDID_STOPDOWNLOAD*/
+_OLECMDEXECOPT_DODEFAULT=@0/*_OLECMDEXECOPT_DODEFAULT*/
+_OLECMDEXECOPT_PROMPTUSER=@1/*_OLECMDEXECOPT_PROMPTUSER*/
+_OLECMDEXECOPT_DONTPROMPTUSER=@2/*_OLECMDEXECOPT_DONTPROMPTUSER*/
+_OLECMDEXECOPT_SHOWHELP=@3/*_OLECMDEXECOPT_SHOWHELP*/
+_navOpenInNewWindow=@1/*_navOpenInNewWindow*/
+_navNoHistory=@2/*_navNoHistory*/
+_navAllowAutosearch=@0x10/*_navAllowAutosearch*/
+_navBrowserBar=@0x20/*_navBrowserBar*/
+_navHyperlink=@0x40/*_navHyperlink*/
+_navEnforceRestricted=@0x80/*_navEnforceRestricted*/
+_navNewWindowsManaged=@0x100/*_navNewWindowsManaged*/
+_navUntrustedForDownload=@0x200/*_navUntrustedForDownload*/
+_navTrustedForActiveX=@0x400/*_navTrustedForActiveX*/
+_FVM_AUTO=@-1/*_FVM_AUTO*/
+_FVM_FIRST=@1/*_FVM_FIRST*/
+_FVM_ICON=@1/*_FVM_ICON*/
+_FVM_SMALLICON=@2/*_FVM_SMALLICON*/
+_FVM_LIST=@3/*_FVM_LIST*/
+_FVM_DETAILS=@4/*_FVM_DETAILS*/
+_FVM_THUMBNAIL=@5/*_FVM_THUMBNAIL*/
+_FVM_TILE=@6/*_FVM_TILE*/
+_FVM_THUMBSTRIP=@7/*_FVM_THUMBSTRIP*/
+_FVM_CONTENT=@8/*_FVM_CONTENT*/
+end intellisense**/

@@ -1,0 +1,21 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="请拖放一个或多个文件到窗口上";right=759;bottom=469)
+winform.add(
+edit={cls="edit";left=69;top=34;right=693;bottom=377;autohscroll=false;edge=1;multiline=1;vscroll=1;z=1}
+)
+/*}}*/
+
+/*
+可以在窗口属性中设置接受拖放，
+也可以用DragAcceptFiles动态控制是否接受拖放
+*/
+::Shell32.DragAcceptFiles(winform.hwnd,true);
+
+//拖放会触发onDropFiles事件
+winform.onDropFiles = function(files){
+	winform.edit.print(files) 
+}
+
+winform.show() 
+win.loopMessage();

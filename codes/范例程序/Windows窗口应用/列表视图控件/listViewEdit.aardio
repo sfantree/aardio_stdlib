@@ -1,0 +1,33 @@
+//编辑listview
+
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=343;bottom=244;parent=...)
+winform.add(
+btnEdit={cls="button";text="编辑当前选中项";left=175;top=191;right=283;bottom=223;z=2};
+listview={cls="listview";left=25;top=23;right=310;bottom=182;bgcolor=16777215;edge=1;editable=true;z=1}
+)
+/*}}*/
+
+//注意在上面的listview属性中,一定要指定 editable=true
+winform.listview.insertColumn("测试项",200) 
+winform.listview.items = {"鼠标点这里,稍候再点击一次";"鼠标单击选中项则进入编辑模式"}
+
+winform.btnEdit.oncommand = function(id,event){
+	winform.listview.editLabel()
+}
+
+winform.listview.onnotify = function(id,code,ptr){
+	 if(code = 0xFFFFFF97/*_LVN_BEGINLABELEDIT*/ ){ 
+	 	return false; //允许编辑项
+	 }
+	 if( code == 0xFFFFFF50/*_LVN_ENDLABELEDITW*/ ){
+	 	var dispInfo = winform.listview.getNotifyDispInfo(code,ptr); 
+	 	if( dispInfo ? dispInfo.item.text ) {
+	 		winform.listview.setItemText( dispInfo.item.text, dispInfo.item.iItem,dispInfo.item.iSubItem );
+	 	}
+	 }
+}
+
+winform.show()  
+win.loopMessage();

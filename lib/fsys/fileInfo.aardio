@@ -1,0 +1,68 @@
+﻿//fileInfo 文件唯一ID
+import fsys.file;
+namespace fsys;
+
+class fileInfo{
+	ctor( path ){ {
+	
+		if(!#path) return this;
+		path = ..io.localpath(path) : path;
+		var info = {
+  			INT attributes;
+  			struct creationTime = ..fsys.time();
+  			struct accessTime = ..fsys.time();
+  			struct writeTime = ..fsys.time();
+  			INT volumeSerial;
+  			INT sizeHigh;
+  			INT sizeLow;
+  			INT numberOfLinks;
+  			INT indexHigh;
+  			INT indexLow;
+		} 
+		
+		var file = ..fsys.file(path,0, ,3/*_OPEN_EXISTING*/
+			,( ::Kernel32.GetFileAttributes(path) & 0x10/*_FILE_ATTRIBUTE_DIRECTORY*/ )
+				? 0x2000000/*_FILE_FLAG_BACKUP_SEMANTICS*/ : 0x80/*_FILE_ATTRIBUTE_NORMAL*/);
+
+		if(file ? ::Kernel32.GetFileInformationByHandle(file,info) ){
+			info.size = ..math.size64(info.sizeLow,info.sizeHigh);
+			info.index = ..math.size64(info.indexLow,info.indexHigh); 
+			..table.assign(this,info);
+			
+			this.id = this.volumeSerial + "@" + tostring(this.index);
+		}	
+
+	} }; 
+	
+	@_meta;
+}
+
+fileInfo._meta = {
+
+	_eq = function(file){
+		return owner.id == file.id
+	}
+} 
+
+fileInfo.same  = function(p,p2){
+	return fileInfo(p) == fileInfo(p2);
+}
+
+/**intellisense()
+fsys.fileInfo = 获取文件信息(包含唯一ID)
+fsys.fileInfo.same(.(文件路径,文件路径2) = 检测两个文件路径是否指向同一真实文件
+fsys.fileInfo(.(文件或目录路径) = 获取文件信息,唯一ID，\n即使传入空路径，或不存在的路径,都会返回对象(但id属性为空),\n可用于判断文件路径是否指向同一真实文件
+fsys.fileInfo() = !fsysfileinfo.
+end intellisense**/
+
+/**intellisense(!fsysfileinfo)
+attributes = 文件属性，数值
+creationTime = 文件创建时间\n!filefiletimes.
+accessTime = 文件最后访问时间\n!filefiletimes.;
+writeTime = 文件最后修改时间\n!filefiletimes.
+volumeSerial = 所在分区序列号
+numberOfLinks = 链接数
+size = 文件大小,math.size64对象\n!math_size64.
+index = 文件索引,math.size64对象\n!math_size64.
+id = 文件唯一ID，字符串值\n可用于唯一标识一个硬盘文件
+end intellisense**/

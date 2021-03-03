@@ -1,0 +1,72 @@
+//RSA加密解密
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="RSA加密、解密";right=786;bottom=542)
+winform.add(
+btnDecrypt={cls="button";text="解密(使用私钥)";left=585;top=496;right=719;bottom=532;db=1;dr=1;z=9};
+btnEncrypt={cls="button";text="加密(使用公钥)";left=434;top=496;right=568;bottom=532;db=1;dr=1;z=8};
+btnExportPrivatePkcs1Raw={cls="button";text="导出PKCS#1私钥";left=32;top=184;right=169;bottom=220;dl=1;dt=1;z=5};
+btnExportPrivatePkcs8={cls="button";text="导出PKCS#8私钥";left=32;top=127;right=169;bottom=163;dl=1;dt=1;z=4};
+btnExportPublicPkcs1Raw={cls="button";text="导出PKCS#1公钥";left=32;top=71;right=169;bottom=107;dl=1;dt=1;z=3};
+btnExportPublicX509={cls="button";text="导出x509公钥";left=32;top=14;right=169;bottom=50;dl=1;dt=1;z=2};
+btnImportKey={cls="button";text="导入公钥或私钥(自动识别)";left=417;top=250;right=767;bottom=286;db=1;dr=1;z=6};
+editKey={cls="richedit";left=189;top=14;right=769;bottom=244;db=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(name='NSimSun');hscroll=1;multiline=1;vscroll=1;z=1};
+editText={cls="richedit";text="测试数据";left=44;top=294;right=771;bottom=493;db=1;dl=1;dr=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=7}
+)
+/*}}*/
+
+import crypt.rsa;
+var rsa = crypt.rsa();
+rsa.genKey();
+
+winform.btnExportPublicX509.oncommand = function(id,event){
+	winform.editKey.text = rsa.exportPublicKeyX509ToPem();
+}
+
+winform.btnExportPublicPkcs1Raw.oncommand = function(id,event){
+	winform.editKey.text = rsa.exportPublicKeyPkcs1RawToPem();
+}
+
+winform.btnExportPrivatePkcs8.oncommand = function(id,event){
+	winform.editKey.text = rsa.exportPrivateKeyPkcs8ToPem();
+}
+
+winform.btnExportPrivatePkcs1Raw.oncommand = function(id,event){
+	winform.editKey.text = rsa.exportPrivateKeyPkcs1RawToPem();	
+}
+
+winform.btnImportKey.oncommand = function(id,event){
+	var header = rsa.importPemKey(winform.editKey.text);
+	if(header) winform.msgbox("已导入：" + header);
+	else winform.msgboxErr("错误的密钥格式")
+}
+
+winform.btnEncrypt.oncommand = function(id,event){
+    var plaintext = winform.editText.text;
+	var ciphertext = rsa.encryptReverse(plaintext);
+	if(ciphertext){
+		winform.editText.text = crypt.encodeBin(ciphertext);	
+	}
+	else {
+		winform.msgboxErr("加密失败,请检查是否导入了正确的公钥")
+	}
+}
+
+winform.btnDecrypt.oncommand = function(id,event){
+    var ciphertext = crypt.decodeBin(winform.editText.text);
+    if(!ciphertext){
+    	winform.msgboxErr("解密失败,请检查是否输入了base64编码的密文");
+    	return;
+    }
+    
+	var plaintext = rsa.decryptReverse(ciphertext);
+	if(plaintext){
+		winform.editText.text = plaintext;
+	}
+	else {
+		winform.msgboxErr("解密失败,请检查是否导入了正确的私钥")
+	}	
+}
+
+winform.show() 
+win.loopMessage();

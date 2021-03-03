@@ -1,0 +1,24 @@
+//6)HTTP服务器
+import console;
+console.open();
+console.setTitle("http.server")
+
+import py; 
+pyCode = /** 
+import http.server
+import socketserver
+ 
+Handler = http.server.SimpleHTTPRequestHandler
+
+httpd = socketserver.TCPServer(("", 8082), Handler)
+
+print("serving at port", 8082)
+httpd.serve_forever()
+**/
+
+import process;
+process.execute("http://localhost:8082")
+import fsys;
+fsys.setCurDir("/");//设置HTTP服务器根目录  
+py.exec( pyCode )
+ console.open()

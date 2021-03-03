@@ -1,0 +1,39 @@
+//5)Python元组
+
+import console;
+console.setTitle("Python元组");
+
+import py;
+
+var pyCode = /***
+
+def func():
+	print("python可以用tuple(元组) 返回多个值,元组可以理解为只读的数组");
+	return (1,2,3);#这里的括号实际上可以省略
+
+print( func() );
+
+#连续赋值 
+(a,b,c) = 1,2,3 #这里a,b,c外面的括号也是可以省略的，省略就与aardio的语法一样了
+print( a ) #上面序列的成员也可以作为普通变量使用
+
+#一个序列可以给另一个序列
+(d,e,f) = (a,b,c)
+print (d,e,f) #这里是一个序列,括号不是表示函数调用
+
+#一个数组也可以赋值给一个序列
+(x,y,z) = [7,8,9]
+print( x );
+***/
+
+py.exec(pyCode);
+console.pause();
+
+/*
+Python中的列表在aardio扩展库中即py.tuple对象，
+一般在函数调用中会自动转换为aardio中的表（通过JSON序列化）
+但是也可以自己使用py.tuple访问原来的python列表。
+
+这个tuple起的作用类似于aardio中的多返回值，
+区别是aardio中表现为多个变量，而python表现得象一个数组。
+*/

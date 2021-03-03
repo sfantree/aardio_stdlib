@@ -1,0 +1,35 @@
+//倒计时动画按钮
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="到计时动画";right=759;bottom=469)
+winform.add(
+plus={cls="plus";text="发送短信验证码";left=177;top=212;right=334;bottom=251;notify=1;z=1}
+)
+/*}}*/
+
+winform.plus.skin({
+	background={
+		default=0xFF4874D3;
+		hover=0xFFD4A748;
+		disabled=0xFFD4D4D4;
+	};
+	color = {
+		default=0xFFFFFFFF
+	}
+})
+
+winform.plus.onAnimation = function(state){
+    state = state - 1;
+    winform.plus.text = state + "秒后重新获取"
+    
+    if(!state) winform.plus.disabledText = null;
+	return state;
+}
+	
+winform.plus.oncommand = function(id,event){
+	winform.plus.disabledText = "10秒后重新获取" 
+	winform.plus.startAnimation(1000,10)
+}
+
+winform.show() 
+win.loopMessage();

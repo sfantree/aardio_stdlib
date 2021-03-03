@@ -1,0 +1,13 @@
+﻿import com.interface;
+namespace  com.interface;
+
+class IModalWindow {
+    ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	ptr Show = "int(addr hwndOwner)"; 
+}
+
+namespace IModalWindow{
+    IID = "{b4db1657-70d7-485e-8e3e-6fcb5a5c1802}" 
+}

@@ -1,0 +1,53 @@
+//web.script库(JS、VBS解释器)
+import console;
+import web.script;
+
+//创建一个支脚本虚拟机
+var vm = web.script();
+
+//添加一个接口非常简单,直接给vm添加table成员即可。
+vm.external = {
+	aardio_function = function(x,sum){
+		console.log("我是aardio脚本,我被Javascript调用了,x =",x,"sum = ",sum)
+	}
+
+}
+
+var javascript = /*  
+    var sum  = 0; 
+	function test(x,y) { 
+		external.aardio_function(x,sum);//调用aardio接口
+		
+		sum+=x;
+        for(i=0;i<10001;i++) 
+                sum = sum+x;
+	
+        return sum; 
+	
+	}
+
+*/
+vm.doScript(javascript); //加载脚本
+
+sum = vm.xcall("test",16,23); //运行函数
+sum = vm.eval('test(16,23)') //用脚本表达式求值
+vm.executeStatement('test(16,23)') //执行脚本,不返回任何值
+console.log( sum );
+
+//重置虚拟机,丢弃所有对象和代码
+vm.reset();
+
+//加载脚本
+vm.script = /*   
+	function add(a,b) {   
+		return a+b
+	}
+*/ 
+
+//直接调用函数,支持多参数,并直接获取返回值
+ret = vm.script.add(12,23);
+console.log( ret );
+
+//显示第一个函数的名称
+console.log( vm.procedures(1).Name );
+console.pause();

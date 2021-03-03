@@ -1,0 +1,41 @@
+import com.interface; 
+namespace  com.interface;
+
+class IOleControl{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer GetControlInfo = "int(struct &info)";
+	pointer OnMnemonic = "int(struct msg)";
+	pointer OnAmbientPropertyChange = "int(int dispID)";
+	pointer FreezeEvents = "int(bool bFreeze)"; 
+}
+IOleControl.IID = "{B196B288-BAB4-101A-B69C-00AA00341D07}";
+
+ 
+IOleControl.Query = function(obj){
+		return ..com.interface(obj,IOleControl)
+}  
+
+/*intellisense(com.interface)*/
+IOleControl.CONTROLINFO = class{
+	INT cb=16;
+    pointer hAccel;
+    WORD cAccel;
+    INT dwFlags;
+}
+/*end intellisense*/
+ 
+
+/**intellisense()
+com.interface.IOleControl.Query(__/*com对象或指针*/) = 查询并创建IOleControl接口
+!IOleControl.AddRef() = 引用计数加一,返回引用计数
+!IOleControl.Release() = 引用计数减一,返回引用计数
+!IOleControl.QueryInterface(__/*接口数*/) = 参数是接口类,参考com.interface.IUnknown源码
+!IOleControl.OnAmbientPropertyChange(__) = 
+!IOleControl.FreezeEvents(__) =  
+!IOleControl.GetControlInfo(__) =  
+?com.interface.IOleControl.Query = !IOleControl.
+com.interface.IOleControl.OnAmbientPropertyChange(__/*com对象*/) = 查询IOleControl接口\n并调用OnAmbientPropertyChange方法
+com.interface.IOleControl.OnAmbientPropertyChange(__/*com对象*/,dispid) = 查询IOleControl接口\n并调用OnAmbientPropertyChange方法
+end intellisense**/

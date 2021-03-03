@@ -1,0 +1,165 @@
+//lite 未注册组件调用
+import com.interface.IClassFactory;
+import com.interface.IClassFactory2;
+namespace com
+
+class lite{
+	ctor( dllFile,... ){
+		if( (#dllFile < 0x410/*_MAX_PATH_U8*/) && ..io.exist(dllFile) ){
+			this.$filePath = dllFile;
+		}
+		
+		this.dll = ..raw.loadDll(dllFile,... )
+		..table.push( _dll_cache__,this.dll );
+		
+		this.DllGetClassObject = this.dll.api("DllGetClassObject","int(struct clsId, struct iid, pointer& ppv)" )
+		if( !this.DllGetClassObject ){
+			return;
+		}
+	};
+	registerServer = function(){
+		return this.dll.DllRegisterServer &&  (this.dll.DllRegisterServer())>=0/*_SUCCEEDED*/
+	};
+	unregisterServer = function(){
+		return this.dll.DllUnregisterServer &&  (this.dll.DllUnregisterServer())>=0/*_SUCCEEDED*/
+	};
+	requestLicKey = function(clsId){
+		clsId = guid.valid(clsId)
+		if(!clsId) error("参数@1 指定了错误的CLSID",2);
+		
+		var hr,pFactory = this.DllGetClassObject(clsId,IClassFactory2.IID  ); 
+		if( (hr)<0/*_FAILED*/ ) return;
+
+		var classFactory =  ..com.interface(pFactory,IClassFactory2 );
+		..com.Release(pFactory);
+		
+		var hr,strKey = classFactory.RequestLicKey();
+		if( (hr)>=0/*_SUCCEEDED*/ ) return strKey;
+	};
+	createUnknown = function(clsId,iid){
+	
+		clsId = guid.valid(clsId)
+		if(!clsId) error("参数@1 指定了错误的CLSID",2);
+		
+		var IFactory = this.licenseKey ? IClassFactory2 : IClassFactory; 
+		var hr,pFactory = this.DllGetClassObject(clsId,IFactory.IID  ); 
+		if( (hr)<0/*_FAILED*/ ) return hr;
+
+		var classFactory =  ..com.interface(pFactory,IFactory );
+		..com.Release(pFactory);
+		var hr,unknown;
+		
+		if(! this.licenseKey)
+			return classFactory.CreateInstance(null,iid); 
+		else
+			return classFactory.CreateInstanceLic(null,null,iid, this.licenseKey);
+	};
+	createInstance = function(clsId,itface){
+		clsId = guid.valid(clsId)
+		if(!clsId) error("参数@1 指定了错误的CLSID",2);
+			
+		if(!itface) itface = ..com.interface.IUnknown; 
+		checkInterface(itface,2);  
+		
+		var hr,unknown =  owner.createUnknown(clsId,itface.IID);
+		checkError(hr,2); 
+		
+		var interface =  ..com.interface(unknown,itface);
+		..com.Release(unknown)
+		return interface;
+	};
+	createObject = function(clsId,iid){
+		if(!iid) iid = IID_IDispatch; 
+		else{
+			iid = guid.valid(iid);
+			if(!iid) error("参数@2 指定了错误的IID",2)
+		} 
+		
+		if(!clsId){
+			clsId = this.firstCoClassId();
+			if(!clsId) error("请指定CLSID参数",2)
+		}
+		
+		clsId = guid.valid(clsId)
+		if(!clsId) error("参数@1 指定了错误的CLSID",2)
+		
+		var hr,unknown =  owner.createUnknown(clsId,iid);
+		checkError(hr,2);  
+		
+		var object = ..com.QueryObject(unknown); 
+		..com.Release(unknown) 
+		return object; 
+	};
+	createEmbed = function(winform,clsId,iid,embedObject){
+		if(!clsId){
+			clsId = this.firstCoClassId();
+			if(!clsId) error("请指定CLSID参数",2)
+		}
+		
+		var obj = this.createObject(clsId,iid);
+		return winform.createEmbed(obj,embedObject);
+	};
+	firstCoClassId = function(){
+		if(this.$filePath){
+			if(!this.coClassAttrs){ this.coClassAttrs = loadTypeAttrs(this.$filePath,"coclass") }
+			return this.coClassAttrs[[1]][["GUID"]] 
+		} 
+	};
+}
+	
+namespace lite{ 
+	guid = ..win.guid;
+	IID_IDispatch = guid.fromString("{00020400-0000-0000-C000-000000000046}");  
+	
+	checkError = ..com.interface.checkError;
+	checkInterface = ..com.interface.checkInterface;
+	IClassFactory2 = checkInterface(..com.interface.IClassFactory2);
+	IClassFactory = checkInterface(..com.interface.IClassFactory);
+	_dll_cache__ = {};
+	
+	appData = function(p,d){
+		var p = ..io.appData(p,d);
+		if(p) return ..com.lite(p);
+	}
+	
+	loadTypeAttrs = function(path,typekind){
+		var tlb;
+		try{tlb = ..com.LoadTypeLibrary(path);}
+		if(!tlb) return;
+		
+		var r = {}
+		for(i=1;tlb.GetTypeInfoCount()){
+			var info = tlb.GetTypeInfo(i)
+			var attr = info && info.GetTypeAttr();
+				if(attr){
+					if( typekind && typekind != attr.typekind) continue;
+					
+				attr.name = info.GetDocumentation()[["name"]];
+				..table.push(r,attr);
+			}	
+		}
+		
+		return r;
+	}
+}
+
+/**intellisense()
+com.lite = 免注册COM组件调用接口
+com.lite(.("x->dll") = 参数用法与 raw.loadDll() 函数相同,支持内存OCX\n如果该组件不是合法的COM组件,返回null空值
+com.lite() = !com_lite_dll.
+!com_lite_dll.createEmbed(.(winform,CLSID,IID) = 创建嵌入控件\n参数3可省略,默认值为 IID_IDispatch\n可选在参数4中指定绑定对象表
+!com_lite_dll.createEmbed() = !embedObject.
+!com_lite_dll.createObject(.(CLSID,IID) = 创建COM对象\n参数2可省略,默认值为 IID_IDispatch
+!com_lite_dll.createInstance(.(CLSID,静态接口) = 创建COM接口\n参数2可省略,默认值为 com.interface.IUnknown
+!com_lite_dll.createInstance() = !interface.
+!com_lite_dll.registerServer() = 注册组件
+!com_lite_dll.unregisterServer() = 卸载组件
+!com_lite_dll.licenseKey = 设置创建控件使用的许可证密钥
+!com_lite_dll.requestLicKey(.(CLSID) = 开发时调用此函数返回许可证密钥
+com.lite.appData(.(path,data) = 将@path指定的相对路径转换为系统AppData目录下的绝对路径,\n可选使用@data指定需要存入的数据,\n只有在存入字节与目标文件内容长度不同时才会更新文件,\n最后使用该路径加载并返回组件对象
+com.lite.appData() = !com_lite_dll.
+com.lite.loadTypeAttrs( = 返回一个数组包含类型库中所有类型的属性表,
+com.lite.loadTypeAttrs(.(path,typekind) = 参数@1可指定包含类型库资源的组件,\n也可以是类型库路径、或ProgID,\n可选使用参数@2指定要查找的typekind
+com.lite.loadTypeAttrs() = !comLiteTypeAttrs.
+!comLiteTypeAttrs.? = !comtypeattr.
+end intellisense**/

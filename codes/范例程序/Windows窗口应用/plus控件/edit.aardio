@@ -1,0 +1,35 @@
+//文本编辑
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="plus控件 - 透明背景文本编辑框";right=759;bottom=469;bgcolor=16777215)
+winform.add(
+bk={cls="bk";left=1;top=1;right=760;bottom=38;background="~\extensions\wizard\project2\res\images\bg.gif";dl=1;dr=1;dt=1;z=4};
+button={cls="button";text="启用编辑";left=71;top=258;right=241;bottom=301;db=1;dl=1;z=3};
+plus={cls="plus";text="这是一个单行的文本框";left=54;top=216;right=247;bottom=242;align="right";border={bottom=1;color=-8355712};db=1;dl=1;notify=1;paddingTop=5;textPadding={bottom=1};z=2};
+plusMultiline={cls="plus";left=424;top=54;right=732;bottom=340;align="left";autohscroll=false;bgcolor=32768;border={radius=2};db=1;dr=1;dt=1;editable=1;font=LOGFONT(h=-16);multiline=1;notify=1;paddingBottom=20;paddingLeft=20;paddingRight=20;paddingTop=20;wrap=1;z=1}
+)
+/*}}*/
+
+winform.button.oncommand = function(id,event) {
+    
+    //运行时启用编辑框，这个属性可以指定布尔值，也可以指定编辑框的类名
+	winform.plus.editable = "edit";
+
+	//调用编辑框函数设置焦点，并全选文本
+	winform.plus.editBox.setFocus(0,-1);
+	
+	winform.plus.editBox.showInfoTip("plus控件","已切换到编辑模式");
+}
+
+//启用渐变
+winform.plusMultiline.background = 0xFF008000;//渐变背景色
+winform.plusMultiline.foreground = 0x33FF00F0;//渐变前景色  
+winform.plusMultiline.linearGradient = 270 //渐变的方向角度
+
+winform.plusMultiline.text = "在plus控件的设计属性“编辑”分类中，启用“编辑/允许编辑”属性，并可设置其他文本框初始化参数。可以在plus控件中设置内边距以控制文本编辑框的显示区域。
+
+另外也可以在代码中使用editable属性启用或禁用文本编辑框，可以使用 createEditBox()函数创建文本编辑框。文本编辑框为一个richedit控件，并且已设置为使用透明背景，可以使用plus控件的贴图功能美化文本框。"
+
+
+winform.show() 
+win.loopMessage();

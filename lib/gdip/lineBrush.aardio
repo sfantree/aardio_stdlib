@@ -1,0 +1,114 @@
+//lineBrush 线性渐变笔刷
+import gdip.core;
+namespace gdip;
+
+class lineBrush {
+
+	ctor( ... ){ {
+		var err,handle;
+		var rectf,color1,color2,mode,wrapMd = ...
+		if( type( color1 ) == type.number ){ 
+			wrapMd = wrapMd : 0/*_GdipWrapModeTile*/ 
+			if( rectf.angle !== null ){
+				err,handle = gdip.CreateLineBrushFromRectWithAngle(rectf,color1,color2,rectf.angle,rectf.isAngleScalable,wrapMd);
+				
+			}
+			else {
+				err,handle = gdip.CreateLineBrushFromRect(rectf,color1,color2,mode : 0/*_GdipLinearGradientModeHorizontal*/ ,wrapMd ); 
+			}
+		}
+		else{
+			var pt,pt2,color1,color2,wrapMd  = ...
+			err,handle = gdip.CreateLineBrush(pt,pt2,color1,color2,wrapMd : 0/*_GdipWrapModeTile*/ );
+		}
+		 
+		if(err) return null,gdip.errMsg[err];
+		
+		this.pBrush = handle;
+		..table.gc(this,"delete");
+	} }
+
+	@_metaProperty//元表指向属性表
+}
+
+namespace lineBrush {
+
+	self.gdip = ..gdip;
+	var gdip = gdip; 
+	
+	_metaProperty = ..util.metaProperty(  
+		
+		wrapMode = {
+			_get = function(){ 
+				if( owner[["pBrush"]] ){
+					var mode = { int value }
+					var e = ::Gdiplus.GdipGetLineWrapMode(owner[["pBrush"]],mode)
+					if(!e) return mode.value
+				}
+			} 
+			_set = function(v){ 
+				gdip.assert2( ::Gdiplus.GdipSetLineWrapMode(owner[["pBrush"]], v) );
+			}  	
+		}; 
+		gammaCorrection = {
+			_get = function(){ 
+				if( owner[["pBrush"]] ){
+					var g = { int value }
+					var e = ::Gdiplus.GdipGetLineGammaCorrection(owner[["pBrush"]],g)
+					if(!e) return g.value
+				}
+			} 
+			_set = function(v){ 
+				gdip.assert2( ::Gdiplus.GdipSetLineGammaCorrection(owner[["pBrush"]], v) );
+			}  	
+		}; 
+		getLineColors = function(){
+			if( owner[["pBrush"]] ){
+				var out = { INT clr[2] }
+				var e = ::Gdiplus.GdipGetLineColors(owner[["pBrush"]],out)
+				if(!e) return out.clr[1],out.clr[2]
+			}
+		};
+		setLineColors = function(clr,clr2){
+			var e = ::Gdiplus.GdipSetLineColors(owner[["pBrush"]],clr,clr2)
+			if(e) return null,gdip.errMsg[e];
+			return true;
+		};
+		getRect = function(){
+			if( owner[["pBrush"]] ){
+				var rc = ::RECTF();
+				var e = ::Gdiplus.GdipGetLineRect(owner[["pBrush"]],rc)
+				if(!e) return rc
+			}
+		};
+		delete = function(){
+			if( owner[["pBrush"]] ){
+				::Gdiplus.GdipDeleteBrush(owner[["pBrush"]])
+				owner[["pBrush"]] = null;
+			}
+		};
+		_topointer = function(){
+			return owner[["pBrush"]];
+		}
+	)  
+}
+
+var $ = _dll;  
+/*intellisense(gdip)*/
+CreateLineBrush = $.api("GdipCreateLineBrush","int(struct pt,struct pt2,int c,int c2,int wrap,ptr& lineGd)")
+CreateLineBrushFromRect = $.api("GdipCreateLineBrushFromRect","int(struct rect,int c,int c2,int Mode,int wrap,ptr& lineGd)")
+CreateLineBrushFromRectWithAngle = $.api("GdipCreateLineBrushFromRectWithAngle","int(struct  rect,int c,int c2,float angle,bool scalable,int wrap,ptr& lineGd)")
+/*end intellisense*/
+
+/**intellisense()
+gdip.lineBrush = 线性渐变笔刷
+gdip.lineBrush(.(起始坐标,结束坐标,起始颜色,结束颜色) = 创建线性渐变笔刷\n坐标为::POINTF结构体,\n使用数值表示颜色分量:0xAARRGGBB\n注意与RGB的分量顺序是反过来的
+gdip.lineBrush(.(渐变区块,起始颜色,结束颜色,渐变模式) = 创建线性渐变笔刷\n区块为::RECTF结构体,可增加angle成员指定斜角方向,正值为顺时针\n使用数值表示颜色分量:0xAARRGGBB\n注意与RGB的分量顺序是反过来的\n渐变模式可省略,默认为_GdipLinearGradientModeHorizontal
+!gdiplineBrush.wrapMode = _GdipWrapMode__/*填充的包围模式*/
+!gdiplineBrush.gammaCorrection = 是否启用灰度校正
+!gdiplineBrush.getLineColors() = 返回起始颜色,结束颜色
+!gdiplineBrush.setLineColors(.(起始颜色,结束颜色) = 使用数值表示颜色分量:0xAARRGGBB
+!gdiplineBrush.getRect() = 返回::RECTF结构体\n!rectf.
+!gdiplineBrush.delete() = 释放笔刷对象
+gdip.lineBrush()= !gdiplineBrush.
+end intellisense**/

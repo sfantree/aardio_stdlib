@@ -1,0 +1,24 @@
+//倒读文件
+import console;
+
+//打开文件
+file = io.open("~\Config\intellisense\kernel.txt","r+");
+
+//移动文件指针到尾部
+file.seek("end") 
+
+//读取最后一行
+console.log( file.readback() )
+
+//读取倒数第二行
+console.log( file.readback() )
+
+//读取倒数第三行
+console.log( file.readback() )
+
+//再向前读取12个字节
+console.log( file.readback(12) )
+
+//向前读取到文件头部第二个字节
+//console.log( file.readback(-2) ) 
+console.pause();

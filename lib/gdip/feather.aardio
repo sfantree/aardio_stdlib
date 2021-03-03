@@ -1,0 +1,74 @@
+﻿//feather 图像羽化
+import gdip.path;
+import gdip.pathGradientBrush;
+import gdip.bitmap;
+
+namespace gdip;
+
+class feather{
+	ctor(bmp,radius,focusScales,blend,positions){ 
+		if( type(bmp) == type.string ) bmp = ..gdip.bitmap(bmp);
+		if( !bmp ) return;
+		
+		var width = bmp.width;
+		var height = bmp.height; 		
+		
+		var path = ..gdip.path();
+		if( radius === null || radius < 0 ){
+			path.addEllipse(0,0,width,height);	
+		}
+		else {
+			path.addRoundRect(::RECT(0,0,width,height) ,radius);
+		}
+		
+		var brush = ..gdip.pathGradientBrush(path);
+		brush.setCenterColor(0xFFFFFFFF);
+		brush.setSurroundColors(0);
+		brush.gammaCorrection = true;
+		
+		if(blend && positions){
+			brush.setBlend(blend,positions);
+		}
+		
+		if( focusScales){ 
+			brush.setFocusScales(focusScales,focusScales);
+		}
+		
+		var mask = ..gdip.bitmap(width,height);
+		mask.getGraphics().fillPath(brush,path); 
+		copyAlpha(bmp,mask);
+		
+		brush.delete();	
+		path.delete();
+		mask.dispose();
+		
+		return bmp;	
+	};
+}
+
+namespace feather{
+    
+    _dll = ..raw.loadDll($"~\lib\gdip\.res\feather.dll",,"cdecl");
+    copyAlpha = function(bmpDst,bmpSrc){
+		var r;
+		var s = bmpSrc.lockMemory(,0x26200A/*_PixelFormat32bppARGB*/);
+		var d = bmpDst.lockMemory(,0x26200A/*_PixelFormat32bppARGB*/);
+		if( #s.Scan0 == #d.Scan0 ){
+			_dll.copyAlpha(d.Scan0,s.Scan0,#s.Scan0);
+			r = true;
+		}
+		bmpDst.unlockMemory(d);
+		bmpSrc.unlockMemory(s);
+		
+		if(!r){
+			error("源图与目标图像大小必须一样",2)
+		}
+	};
+}
+
+/**intellisense()
+gdip.feather = 用于实现图像羽化边缘效果
+gdip.feather( = 羽化图像边缘,返回gdip.bitmap对象
+gdip.feather(.(bmp,radius,focusScales,blend,positions) = 参数@1可指定gdip.bitmap对象,\n如果参数@1是字符串,则调用gdip.bitmap创建位图,\n其他所有参数都是可选参数,\n\nradius: 指定羽化边框圆角半径,为-1时表示羽化边框为圆形\nfocusScales 参数使用0到1的小数指定中心焦点区域缩放百分比,类似探照灯效果,\nblend,positions指定渐变颜色因子数组,渐变位置因子数组,\n关于最后2个参数请参考gdip.pathGradientBrush中setBlend函数的用法说明
+gdip.feather() = !gdipbitmap.
+end intellisense**/

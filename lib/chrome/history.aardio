@@ -1,0 +1,56 @@
+﻿import fsys;
+import sqlite;
+import chrome.time;
+
+namespace chrome.history;
+
+open = function(profile="Default"){
+	var historyPath = ..io.appData("\Google\Chrome\User Data\" + profile + "\History");
+	if(!..io.exist(historyPath)){ historyPath = ..io.appData("\Google\Chrome\User Data\" + profile + "\Archived History"); }
+	
+	if(..io.exist(historyPath)){
+		..fsys.copy( historyPath,historyPath + ".aardio.db" );
+		return ..sqlite(historyPath + ".aardio.db") 	
+	} 
+}
+
+get = function(profile="Default"){
+	var db = open(profile);
+	if(!db) return;
+
+	var history = db.getTable("SELECT visits.id,
+		visits.visit_time AS time,
+		visits.visit_duration AS duration,
+		urls.url,
+		urls.title,
+		urls.last_visit_time AS lastTime
+		from [visits] JOIN [urls] ON urls.id == visits.url;
+		")  
+		
+	for(i=1;#history;1){
+		history[i].time = ..chrome.time(history[i].time );
+		history[i].lastTime = ..chrome.time(history[i].lastTime );  
+	}
+		
+	return history;
+}
+
+clear = function(profile="Default"){
+	var historyPath = ..io.appData("\Google\Chrome\User Data\" + profile + "\History");
+	if(..io.exist(historyPath)){
+		var db = ..sqlite(historyPath);
+		if(db){
+			db.exec("DELETE FROM [visits]")
+			db.exec("DELETE FROM [urls]")
+			db.exec("DELETE FROM [keyword_search_terms]") 
+			db.close(); 
+			return true;
+		} 	
+	}
+}
+	
+/**intellisense()
+chrome.history.open() = 打开数据库,可选在参数中指定配置名\n!sqliteConn.
+chrome.history.get() = 返回数据表,可选在参数中指定配置名
+chrome.history.clear() = 清空数据,可选在参数中指定配置名,\n需要事先关闭chrome
+end intellisense**/

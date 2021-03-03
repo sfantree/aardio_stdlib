@@ -1,0 +1,68 @@
+//6、运行jar程序
+import java;
+import console;
+import java.yuiCompressor;//下载一个jar用于测试
+
+/*
+这个函数是调用自带JRE里的java.exe创建独立子进程.
+参数与java.exe的命令行参数相同,如果指定多个命令行参数则会自动合并以空格分隔,
+如果参数本身包含空格则自动在首尾添加双引号(文件路径也就不需要转换为shortpath了)
+
+这个函数的特点
+1.使用自带JRE,不需要系统安装Java
+2.创建管道,也就是不需要打开控制台,并且可以使用管道读写Java的输入输出了.
+
+实际上调用Java虚拟机,并且调用 main函数也可以有运行jar程序,例如
+
+import java;
+var jvm = java();
+jvm.addClassLoaderUrl("~\lib\java\yuiCompressor\.res\yuicompressor.jar");
+YUICompressor = jvm.loadClass( "com.yahoo.platform.yui.compressor.YUICompressor");
+YUICompressor.main = YUICompressor.getMethod("main","void(string[])");
+YUICompressor.main(
+	"d:\------->.js",
+	"-o","d:\------->min.js"
+)
+
+但是这样运行有一个问题, jar中的main函数通常会假设自己是一个独立进程,
+这样例如上面的yuicompressor,他在出错时就会直接调用 System.exit() 也就是关闭当前进程了.
+对于这类程序就可以考虑用下面的方法创建子进程,关闭子进程不会影响到父进程
+*/
+var prcs = java.popenProcess( 
+	"-verbose:class",//记录类载入信息
+	"-jar",//运行jar
+	io.fullpath( "~\lib\java\yuiCompressor\.res\yuicompressor.jar" ),
+	"d:\------->.js"
+);
+
+var tOutBuffer = {}; 
+while( 
+    var out,err;//定义循环变量
+    out,err = prcs.peek(0);//努力读输出
+    !prcs.waitOne(1) //Java程序如果没关闭
+) {
+
+	//在控制台显示java错误输出
+	if(err) console.log( err );
+	
+	//标准输出记录到数组
+	if(out) table.push(tOutBuffer,out);
+	
+}
+
+//在输出结果中搜索类加载信息
+var outBuffer = string.join( tOutBuffer );
+var logClass = {}
+for classPath,filePath in string.gmatch(outBuffer 
+	,"\[Loaded\s+(.+?)\s+from\s+([^\]]+)" ) { 
+	logClass[classPath] = filePath;
+}
+
+//这个就是得到的结果了
+for(classPath,filePath in logClass){
+	console.log(classPath) 
+	console.log( " =>",fsys.shortpath(filePath),'\n' ) 
+}
+
+console.log("至于上面得到的这个东西,也就是一些精简jar工具的关键部份了");
+console.pause();

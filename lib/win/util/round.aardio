@@ -1,0 +1,8 @@
+//round 圆角无边框窗口
+import win.region.round;
+namespace win.util; 
+round = ..win.region.round
+
+/**intellisense()
+win.util.round =  请直接使用win.region.round
+end intellisense**/

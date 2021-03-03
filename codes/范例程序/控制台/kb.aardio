@@ -1,0 +1,22 @@
+//响应按键
+
+import key;
+import console;
+
+console.log("按ESC退出")
+while(true){ 
+	if( console.kbHit() ){
+		var kb = console.kbRead();
+		if(!kb) continue;
+		if(kb.bKeyDown) continue;
+		
+		if( kb.wVirtualKeyCode == 0x1B/*_VK_ESC*/ ){
+			break;
+		}
+		else {
+			io.print( key.getName( kb.wVirtualKeyCode), kb.bKeyDown? "按下" : "弹起")
+		}
+	}
+}
+  
+console.close();

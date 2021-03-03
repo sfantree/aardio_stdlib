@@ -1,0 +1,35 @@
+//5、多线程管理器
+//这个东西主要是用在界面线程里,但为了简化代码,这里用一个控制台来演示
+
+import console;
+import thread.manage
+
+//创建线程管理器
+manage = thread.manage(3)
+
+var thrdFunc = function(name){
+	import win;
+	import console;
+	
+	for(i=1;10;1){ 
+		console.log( thread.getId(),name )
+		if( !win.delay(1000) ){ //主线程可以用 manage.quitMessage()中断这个循环
+			console.log("收到退出指令")
+			return;
+		}
+	} 
+	return 67;
+}
+
+manage.create(thrdFunc,"线程1").onEnd = function(...){
+	console.log("线程1的回调",...)
+} 
+ 
+manage.createLite(thrdFunc,"线程2").onEnd = function(){
+	console.log("线程2的回调")
+}
+
+manage.create(thrdFunc,"线程3")
+
+manage.waitClose() 
+console.pause();

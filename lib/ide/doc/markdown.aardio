@@ -1,0 +1,159 @@
+﻿import ide.doc;
+namespace ide.doc;
+
+class markdown{
+	ctor( fullpath ){ {
+	
+			var kernelLibName;
+			var kernel = {table=1;string=1;raw=1;io=1;com=1;math=1;time=1;thread=1;fiber=1;global=1;kernel=1 };
+			if( kernel[fullpath] ){
+				kernelLibName = fullpath;
+				fullpath = "kernel";
+			}
+			else{
+				if( fullpath == "win.form" ) fullpath = "win.ui";
+				
+				if( !..io.exist(fullpath) && ..string.match(fullpath,"^[a-zA-Z][\w\.]+$") ){
+					var p = fullpath;
+					fullpath = ..io.libpath(p);
+					if(!fullpath){
+						fullpath = ..io.libpath("win.ui.ctrl." + p);
+					}
+				}
+				if( !..io.exist(fullpath) ) return;
+			}
+			
+           	this = ..ide.doc( fullpath ); 
+           	if(!this) return;
+           	
+           	if( kernelLibName ){
+           		var sections = { 
+           			[kernelLibName] = this.sections[kernelLibName]; 
+           			[kernelLibName+"Object"] = this.sections[kernelLibName+"Object"]; 
+           		}; 
+           		
+           		if(kernelLibName=="global"){
+           			sections["logfontObject"] = this.sections["logfontObject"]; 
+           		};
+           		if(kernelLibName=="raw"){
+           			sections["dllModuleObject"] = this.sections["dllModuleObject"]; 
+           		};
+           		if(kernelLibName=="com"){
+           			sections["comVariantObject"] = this.sections["comVariantObject"]; 
+           			sections["comtypelibObject"] = this.sections["comtypelibObject"]; 
+           			sections["comtypeinfoObject"] = this.sections["comtypeinfoObject"]; 
+           			sections["embedObject"] = this.sections["embedObject"]; 
+           		};
+           		if(kernelLibName=="math"){
+           			sections["mathSize64Object"] = this.sections["mathSize64Object"];
+           		};
+           		
+           		this.sections = sections;
+           		
+           		if(kernelLibName!="global") {
+           			this.define = null;this.const = null;
+           		}
+           		
+           		this.libPath = kernelLibName;
+           		this.fileName = kernelLibName;
+           		this.filePath = kernelLibName;
+           	}
+           	
+           	
+           	var tOutput = {};
+			..table.push(tOutput,this.libPath,"帮助文档",'\r\n'
+				,"===========================================");
+
+			var sortNames;
+			if( this.libPath ) {
+				sortNames = { this.libPath;this.libPath + "Object"};
+				var h = ..string.match(this.libPath,"^[^.]+");
+				if( h != this.libPath ) ..table.unshift(sortNames,h);
+				if( this.libPath == "win.ui" ) sortNames = { "win.ui";"win.form";"winform"};
+				elseif( this.libPath == "web.form" ) sortNames = { "web";"web.form";"wb"};
+				elseif( this.libPath == "web.layout" ) sortNames = { "web.layout";"wbLayout"}; 
+				elseif(  ..string.startWith(this.libPath,"win.ui.ctrl.",true) ){
+					sortNames = { "win.ui.ctrl";..string.match(this.libPath,"[^.]+$") + "Object"}; 
+				}
+			};
+			
+			for(path,section in ..table.eachName(this.sections,,sortNames)){
+					if(!..table.next(section) ) continue;
+					
+					..table.push(tOutput, '\r\n<a id="',(#path? path : "global"),'"></a>\r\n',#path? path : "全局对象",' 成员列表\r\n'
+						,"-------------------------------------------------------------------------------------------------"
+						,'\r\n');
+					 
+					if( section[path] ){ 
+						var v = section[path];
+						if( ..string.startWith(v,path) ){
+							v = ..string.right(v,-(#path+1));
+						}
+						..table.push(tOutput,v,'\r\n');
+						section[path] = null;
+					}
+					 
+					if( path == "global" ){
+           				for(k,v in ..table.eachName(section)){  
+           					if( globalkw[[k]] ) continue;
+           					if( ..io.libpath(k) ) continue;
+           					
+							..table.push(tOutput,'\r\n<h6 id="', (..string.match(k,"(.+\.[^.]+)\(")  or k ) ,'">',k,' </h6>\r\n ');
+							..table.push(tOutput, v,'\r\n' ); 
+			  			} 
+           			}
+           			else {
+           				for(k,v in ..table.eachName(section)){  
+							..table.push(tOutput,'\r\n<h6 id="', (..string.match(k,"(.+\.[^.]+)\(")  or k ) ,'">',k,' </h6>\r\n ');
+							..table.push(tOutput, v,'\r\n' ); 
+			  			} 
+           			}
+			}  
+ 
+			if( this.const ){
+				..table.push(tOutput,  '\r\n\r\n',"全局常量",'\r\n'
+					,"-------------------------------------------------------------------------------------------------"
+					,'\r\n');
+					
+				for(k,v in ..table.eachName(this.const)){ 
+           			if( ..io.libpath(k) ) continue;
+           			
+					..table.push(tOutput,'\r\n<h6 id="', (..string.match(k,"(.+\.[^.]+)\(")  or k ) ,'">',k,' </h6>\r\n ');
+					..table.push(tOutput, v,'\r\n' ); 
+			  	}
+			}
+			
+			if( this.define ){
+				..table.push(tOutput,  '\r\n\r\n',"自动完成常量",'\r\n'
+					,"-------------------------------------------------------------------------------------------------"
+					,'\r\n');
+				for(k,v in ..table.eachName(this.define)){ 
+					if( ..string.indexOf(v,'\n') ) continue ;
+					..table.push(tOutput,k,"=",v,'  \r\n');
+				}
+			}
+			
+			this.outputString = ..string.join(tOutput);
+	} };
+	@_meta;
+}
+
+namespace markdown{
+	_meta = {
+		_tostring = function(){
+			return owner.outputString;
+		} 
+	}
+	
+	globalkw = {
+		["and"] = 1;["or"] = 1;["not"] = 1;["class"] = 1;["function"] = 1;["if"] = 1;["for"] = 1;["while"] = 1;["do"] = 1;["do_while_false"] = 1;["do_标记"] = 1;
+		["break"] = 1;["continue"] = 1;["else"] = 1;["elseif"] = 1;["begin"] = 1;["end"] = 1;["true"] = 1;["false"] = 1;["if"] = 1;["import"] = 1;["intellisense代码模式"] = 1;
+		["intellisense注释模式"] = 1;["this"] = 1;["owner"] = 1;["global"] = 1;["self"] = 1;["null"] = 1;["select"] = 1;["forin"] = 1;["trycatch"] = 1;["try"] = 1;["return"] = 1;
+		["var"] = 1;["def"] = 1;["protobuf"] = 1;["zeromq "] = 1;["while_var"] = 1;["while_标记"] = 1;
+	}
+}
+
+/*intellisense(ide.doc)
+markdown(.("库路径") = 返回对象可使用tostring函数转换为Markdown格式文档\n参数可以是库完整路径或名字空间
+markdown() = !libDocument.
+end intellisense*/

@@ -1,0 +1,41 @@
+//1、入门示例
+
+/*
+默认自带绿色精简版的JRE(版本1.6),压缩后6.8MB,可根据需要继续精简,或替换JRE版本
+默认在EXE目录或工程目录下的JAVA/jre 子目录查找jre,删除自带jre将会使用系统安装的jre或jdk(向下兼容jre 1.7,1.7,1.8.....)
+*/
+import java;  
+import console;
+
+console.open();
+var jvm = java(); //创建Java虚拟机
+
+/*
+注意java会到 "默认类搜寻路径" + "类名(替换'.'为'\')" 去查找类,"默认类搜寻路径"为"/java/"以及"/java/*.jar"
+用下面的函数可以动态添加类搜索位置(目录或jar文件)
+*/
+jvm.addClassLoaderUrl("~\codes\范例程序\Java语言\java"); 
+
+//加载Java类对象
+HelloworldApp = jvm.loadClass("aardio.sample.HelloworldApp")
+
+/*
+也可以如下自内存或文件直接加载类,
+注意下面的$操作符指示aardio在编译时将文件置入内存，
+而路径前面的波浪线~表示EXE根目录(开发时指开发环境根目录)
+*/
+HelloworldApp = jvm.loadClass("aardio.sample.HelloworldApp",$"~\codes\范例程序\Java语言\java\aardio\sample\HelloworldApp.class") 
+
+//创建java对象
+var helloworld = HelloworldApp();
+
+//直接调用Java对象的方法 
+console.log( helloworld.test(3)  );//调用Java对象的方法
+
+//加载Java类
+var String = jvm.loadClass( "java.lang.String"); 
+
+//创建Java对象
+console.log( String("测试一下")  )
+
+console.pause()

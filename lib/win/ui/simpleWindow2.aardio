@@ -1,0 +1,84 @@
+﻿//simpleWindow2 无最大化标题栏
+
+import win.ui.shadow; 
+import win.ui.ctrl.plus;
+
+namespace win.ui;
+
+class simpleWindow2{
+	ctor( winform,fontSize,width=33,height=27,marginRight=0,marginTop=0){{
+		
+		this.targetForm = winform._parentForm || winform;
+		var ws = ..win.getStyle(this.targetForm.hwnd);
+		var font = LOGFONT(name='Marlett';charset=2/*_SYMBOL_CHARSET*/;h=fontSize); 
+		winform.add(
+			titlebarClose={cls="plus";text="r";top=marginTop;height=height;width=width;marginRight=marginRight;dr=1;dt=1;font=font;z=3}; 
+			titlebar={cls="static";text="";left=0;top=marginTop;marginRight=width*3+marginRight;bottom=height*2;dl=1;dr=1;dt=1;notify=1;center=1;clip=1;transparent=1;z=4}
+		)
+		
+		winform.titlebarClose.skin(style);
+		winform.titlebarClose.oncommand = function(id,event){
+			this.targetForm.close()
+		};
+		
+		if( ws & 0x20000/*_WS_MINIMIZEBOX*/ ){
+			winform.add( 
+				titlebarMin={cls="plus";text="0";top=marginTop;height=height;width=width;marginRight=width+marginRight;dr=1;dt=1;font=font;z=2}; 
+			)
+			
+			winform.titlebarMin.skin(style); 
+			winform.titlebarMin.oncommand = function(id,event){
+				this.targetForm.hitMin()
+			}
+		}
+		
+		winform.titlebar.wndproc = {
+			[ 0x201/*_WM_LBUTTONDOWN*/ ] = function(hwnd,message,wParam,lParam){
+				this.targetForm.hitCaption();
+			} 
+		}
+		
+		if( ! ..win.getStyleEx(this.targetForm.hwnd,0x80000/*_WS_EX_LAYERED*/) ){
+			..win.ui.shadow( this.targetForm,70,3 );
+		} 
+		
+		..win.setPos(winform.titlebar.hwnd,,,,,0x1/*_HWND_BOTTOM*/);
+		this._form = winform;
+		
+		this.titlebarClose = winform.titlebarClose; 
+		this.titlebarMin = winform.titlebarMin;
+		this.titlebar = winform.titlebar;
+	}};
+	skin = function(style){
+		if(this.titlebarMin) this.titlebarMin.skin(style);
+		this.titlebarClose.skin(style);
+	};
+}
+
+namespace simpleWindow2{
+    
+    style = {  
+		background = { 
+			hover = 0xff99ffcc;
+			active = 0xffff6666; 
+			default = 0x00000000; 
+		}
+		color = { 
+			hover = 0xff666666;
+			active = 0xffffffff; 
+			default = 0xffffffff; 
+		}
+	}
+}
+
+/**intellisense()
+win.ui.simpleWindow2 = 简单初始化无边框窗口\n\n标题栏上添加最小化、关闭窗口等按钮,\n并自动添加窗口阴影,不创建最大化按钮,不添加拖动边框
+win.ui.simpleWindow2(.(窗体对象,字体大小,按钮宽度,按钮高度,右边距,上边距) = 参为参数@1指定的无边框窗口添加简单的标题栏,\n标题栏是透明的，建议在标题栏拖一个bk控件上去设置合适的背景色,\n标题栏是透明的，建议在标题栏拖一个bk控件上去设置合适的背景色,\n可选使用参数@2指定标题栏按钮字体大小,以像素为单位,\n可选用参数@3,@4指定关闭等按钮宽度,高度
+win.ui.simpleWindow2() = !win_ui_simpleWindow2.
+!win_ui_simpleWindow2.skin(style) = @.skin(\n	background = { \n		hover = 0xff99ffcc;\n		active = 0xffff6666; \n		default = 0x00000000; \n	}\n	color = { \n		hover = 0xff666666;\n		active = 0xffffffff; \n		default = 0xffffffff; __/*自定义标题栏关闭、最小化按钮样式\n用法与plus控件的skin函数相同*/\n	}\n)
+!win_ui_simpleWindow2.titlebarMin = 最小化按钮,plus控件,\n如果窗体设置了禁用最小化按钮则不创建此控件\n!ui_ctrl_plus.
+!win_ui_simpleWindow2.titlebarClose = 关闭按钮,plus控件,\n!ui_ctrl_plus.
+!win_ui_simpleWindow2.titlebar = 标题栏,static控件\n!static.
+!win_ui_simpleWindow2._form = 标题栏所在窗口\n!winform.
+!win_ui_simpleWindow2.targetForm = 要控制的目标窗口\n!winform.
+end intellisense**/

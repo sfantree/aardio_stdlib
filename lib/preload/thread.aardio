@@ -1,0 +1,256 @@
+namespace preload;
+self.thread = global.thread;
+
+namespace thread;
+
+var waitForSingleObject = ::Kernel32.api("WaitForSingleObject", "INT(ptr h,INT ms)");
+var waitForMultipleObjects = ::Kernel32.api("WaitForMultipleObjects", "INT(INT count,struct handles,INT bWaitAll,INT ms)");
+var msgWaitForMultipleObjects = ::User32.api("MsgWaitForMultipleObjects", "INT(INT count,struct handles,INT bWaitAll,INT ms,INT wakeMask)");
+
+var threadwait = function( bClose,bAll, ...){
+    var threads,timeout = ...;
+    if(type(threads)!="table") {
+    	timeout = 0xFFFFFFFF
+    	threads ={...}
+    	if( type(threads[#threads]) == "number" ){
+    		timeout = ..table.pop(threads,1)
+    	}
+    }
+    elseif(timeout === null ) timeout = 0xFFFFFFFF  /* Infinite timeout*/
+    	
+    var len = #threads
+    if(!len) error("参数未指定线程句柄",3);
+    var threads_c = ..raw.toarray( threads ,"pointer" ,"array");
+    var msg,peek,parse,hasMsg;  
+    
+    var ret; 
+    if( (!bAll) && ..win[["_form"]] ){
+    	msg = ::MSG();
+		parse = ..win._parseMessage;
+		delay = ..win.delay;
+		peek = ..__messagePeek;  
+    	do{
+			ret = msgWaitForMultipleObjects(len,threads_c,bAll,timeout, 0x4FF/*_QS_ALLINPUT*/); 
+			if( ret!=len ) break;
+			hasMsg =  peek(msg); 
+			if(hasMsg) {
+				parse(msg);
+				delay(100);
+			}
+			elseif(hasMsg===null){
+				..win.quitMessage(msg.wParam);
+			}
+		}while( hasMsg!==null ) 
+    }  
+    else {
+    	ret = waitForMultipleObjects(len,threads_c,bAll,timeout, 0x4FF/*_QS_ALLINPUT*/);  
+    }
+ 
+	if( ret == len) {
+		return null;
+	}
+	elseif( ( ret & 0x102/*_WAIT_TIMEOUT*/) == 0x102 ){ 
+		if( ret == 0xFFFFFFFF/*_WAIT_FAILED*/ ){
+			return null,"failed",ret;  
+		} 
+		return null,"timeout",ret; 
+	}
+	elseif( ( ret & 0x80/*_WAIT_ABANDONED_0*/ ) == 0x80 ){ 
+		if( bClose ){
+			for(i,h in threads){
+				..raw.closehandle(h);
+			};
+		}
+		return ( ret - 0x80) + 1,"abandoned";
+	} 
+	else{
+		if( bClose ){
+			for(i,h in threads){
+				..raw.closehandle(h);
+			};
+		}
+		return ret+1;
+	} 
+}; 
+
+waitAll = function(...){
+	return threadwait(false,1,...);
+};
+
+waitClose = function(...){ 
+	return threadwait(true,1,...);
+};  
+
+waitOne = function(...){ 
+	return threadwait(false,0,...);
+};
+
+wait = function(handle,ms=0xFFFFFFFF){
+	return waitForSingleObject(handle,ms)== 0/*_WAIT_OBJECT_0*/;
+}; 
+ 
+setAffinity = function( cpu = 1,h){
+	if(!h) h = getHandle();
+    return ::Kernel32.SetThreadAffinityMask( h,cpu );
+};
+
+stillActive = function(handle){
+    return getExitCode(handle) == 0x103/*_STILL_ACTIVE*/	
+};
+
+self.invoke = function(...){
+	var r,h = call( create,thread,... );
+	if(!r) error(h,2);
+	if(!h) error("创建线程时遇到错误",2)
+	..raw.closehandle( h ); 
+};
+
+callWndMeta =  {
+	_serialize = function(kernelCall){
+		if( kernelCall ){ 
+			if( owner[["_parentForm"]] && (!owner._defaultProc[[0xACCD/*_WM_THREAD_CALLWND*/]]) ) owner.threadCallable();
+			return ..string.format("{hwnd = %d; @thread.callWndMeta;}",owner.hwnd);  
+		}
+		else {
+			return ..string.format("{hwnd = %d;}",owner.hwnd);  
+		}
+		
+	};
+	_get = function(k,ownerCall){
+		var hwnd = owner.hwnd;
+		if(ownerCall){
+			if( ..string.startWith(k,"each") ){
+				owner[[k]] = getWnd(hwnd,k);
+				return owner[[k]];
+			}
+			
+			return function(...){
+				return callWnd(hwnd,k,...);
+			}; 
+		}
+
+		var v = getWnd(hwnd,k);
+		if( v[["hwnd"]] ) owner[[k]] = v;
+		return v;
+	};
+	_set = function(k,v){
+		if(k=="text") v = tostring(v);
+		setWnd(owner.hwnd,k,v);
+	}; 
+}
+
+init = function(k,v){
+	if(get(k)===null)set(k,v);
+}
+
+init("_$(_thread_call_add)",function(n,v){
+	global[n] = (global[n]:0) + v; return global[n];
+});
+
+add = function(n,v) {
+	return self.call("_$(_thread_call_add)",,n,v);
+}
+
+self.var = function(name,value){
+    var id1 = get("$(_thread_var_id1)"):0;
+    var id2 = add("$(_thread_var_id2)",1);
+    if(id2>0x1FFFFFFFFFFFFE){
+        id2 = 0;
+    	set("$(_thread_var_id2)",id2);
+    	id1 = add("$(_thread_var_id1)",1);
+    	if(id1>0x1FFFFFFFFFFFFE){
+    		error("Too many thread variables",2);
+    	}
+    }
+    
+    if(!name) name = "$(_thread_val:" + id1 + ":" + id2 + ")";
+    init(name,value);
+    
+	return {
+		@{
+			_serialize = function(kernelCall){
+				 return `thread.var("`++name++`")`;
+			};
+			_get = {
+				add = lambda(v) add(name,v);
+				get = lambda() get(name);
+				set = lambda(v) set(name,v);
+			};
+			_call = function(...){
+				return ..thread.call(name,,...);
+			}; 
+			_tostring = lambda() tostring(get(name));
+			_tonumber = lambda() tonumber(get(name));
+			_json = lambda() get(name);
+		}
+	}
+}
+
+
+_callableSerialize = function(kernelCall){
+	if( kernelCall ){ 
+		if(!owner[["_callWndProxy"]]){
+			if(!..win[["_form"]]) error("在界面线程内才能使用启用跨线程调用的对象",2);
+			
+			var realObject = owner;
+			owner[["_callWndProxy"]] = ..win._form().messageOnly();
+			owner[["_callWndProxy"]].wndproc = {  
+				[0xACCD/*_WM_THREAD_CALLWND*/] = function(hwnd,message,wParam,lParam ){
+       				return ..thread.applyCallWnd(realObject,wParam,lParam) : 0;
+       			}  
+			}	
+		} 
+		
+		return ..string.format("{hwnd = %d; @thread.callWndMeta;}",owner[["_callWndProxy"]].hwnd);   
+	}
+	else {
+		return "{/*此对象已禁用默认序列化*/}"
+	} 	
+};	
+
+callable = function(obj){
+	if(type(obj)==type.table){
+		if !(obj@) obj@ = {};
+		
+		if(!obj@._serialize){
+			obj@._serialize = _callableSerialize;
+		}
+		 
+		var s = obj@._serialize;
+		return (s == _callableSerialize) || (s == callWndMeta._serialize );
+	}
+}
+
+createSuspended = function(suspended,cb,...){
+    var pre = create_suspended;
+	create_suspended = suspended;
+	
+	if(cb){
+		var a,b = cb(...);
+		create_suspended = pre;
+		return a,b;
+	}
+}
+
+
+/**intellisense()
+thread.createSuspended(.(suspended,cb) = suspended参数指定thread.create函数创建的线程是否为暂停状态\n如果cb参数指定了回调函数,则执行回调函数后恢复原来的设置\n其他参数作为回调函数的参数,回调函数的返回值为此函数的返回值
+thread.setAffinity(1,__) = 指定线程在哪个CPU上运行,成功返回原CPU序号,失败返回0,\n参数@1指定CPU,参数@2指定线程句柄\n省略参数@2在设置当前线程
+thread.waitOne(__) = 等待一个或多个线程其中一个返回\n参数可以是多个线程句柄,或包含多个线程句柄的table,\n可选使用最后一个参数指定超时值(毫秒)\n如果在主线程中调用此函数,在等待过程中可处理窗口消息\n注意线程句柄不能大于64个\n成功返回值为完成的句柄在数组中的索引,失败返回空,\n返回值2为错误类型,该值为字符串"timeout"表示超
+thread.wait(__) =  等待一个线程句柄返回\n可选使用第二个参数指定超时值(毫秒)\n成功返回true,超时返回false;
+thread.waitAll(__) = 等待一个或多个线程返回\n参数可以是多个线程句柄,或包含多个线程句柄的table\n可选使用最后一个参数指定超时值(毫秒)\n成功返回值为真,失败返回空,\n返回值2为错误类型,该值为字符串"timeout"表示超时
+thread.waitClose(__) = 等待一个或多个线程返回,并释放所有线程句柄\n参数可以是多个线程句柄,或包含多个线程句柄的table
+thread.invoke(线程函数,其他参数) = @.invoke( \n	function(){\n		__/*创建线程但不返回句柄*/\n	}\n)
+thread.stillActive(__) = 线程是否未退出,参数为线程句柄
+thread.callWndMeta = 跨线程传输的窗口对象元表,用于支持跨线程调用
+thread._callableSerialize = 界面线程内对象
+thread.callable(__) = 在界面线程内启用对象跨线程调用支持,注意启用后无法撤消,\n启用此特性后,对象传入其他线程后所有成员调用都将回到界面线程执行,\n\n参数指定talbe类型对象\n如果成功、或者对象已支持跨线程调用返回true\n失败返回null或false
+thread.init(.(k,v) = 如果参数k指定名称的线程共享变量为空值,\n则初始化该变量值为参数v指定的值
+thread.add(.(k,v) = 对参数k指定线程共享变量名称的数值增加参数v指定的计数\n参数v可以使用负数执行减操作
+thread.var( = 创建线程共享变量,\n线程共享变量不会自动释放,\n不使用时一定要设置值为null以删除该变量\n\n无论线程变量是否删除,\n此函数创建变量的次数不能超过0x3FFFFFFFFFFFFC0000000000000
+thread.var(.(name,value) = 创建线程共享变量 - 可直接作为调用参数传入其他线程,\n可选用参数@1指定共享变量名称,\n可选在参数@2中指定初始化值,\n\n如果此变量值是函数,\n则返回的对象可以作为函数直接调用
+thread.var() = !threadvar.
+!threadvar.get() = 获取值
+!threadvar.set(__) = 在参数@1中指定新的值,\n不使用时一定要设置值为null以删除该变量
+!threadvar.add(__) = 增加数值,\n共享变量之前必须是数值或者null值,\n可以在参数中指定负数执行减操作
+end intellisense**/

@@ -1,0 +1,31 @@
+import com.interface; 
+namespace  dotNet.interface;
+
+class IAppDomainSetup{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	};  
+	pointer get_ApplicationBase = "int(pointer &bstrRet)";
+	pointer put_ApplicationBase = "int(pointer bstrRet)";
+	pointer get_ApplicationName = "int(pointer &bstrRet)";
+	pointer put_ApplicationName = "int(pointer bstrRet)";
+	pointer get_CachePath  = "int(pointer &bstrRet)";
+	pointer put_CachePath  = "int(pointer bstrRet)";
+	pointer get_ConfigurationFile = "int(pointer &bstrRet)";
+	pointer put_ConfigurationFile = "int(pointer bstrRet)";
+	pointer get_DynamicBase = "int(pointer &bstrRet)";
+	pointer put_DynamicBase  = "int(pointer bstrRet)";
+	pointer get_LicenseFile = "int(pointer &bstrRet)";
+	pointer put_LicenseFile = "int(pointer bstrRet)";
+	pointer get_PrivateBinPath = "int(pointer &bstrRet)";
+	pointer put_PrivateBinPath = "int(pointer bstrRet)";
+	pointer get_PrivateBinPathProbe = "int(pointer &bstrRet)";
+	pointer put_PrivateBinPathProbe = "int(pointer bstrRet)";
+	pointer get_ShadowCopyDirectories = "int(pointer &bstrRet)";
+	pointer put_ShadowCopyDirectories = "int(pointer bstrRet)";
+	pointer get_ShadowCopyFiles = "int(pointer &bstrRet)";
+	pointer put_ShadowCopyFiles = "int(pointer bstrRet)"; 
+}
+
+IAppDomainSetup.IID = "{27fff232-a7a8-40dd-8d4a-734ad59fcd41}";
+ 

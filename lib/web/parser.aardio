@@ -1,0 +1,122 @@
+//parser HTML分析
+namespace web;
+
+class parser{
+	ctor( html ){
+		this.head = html ? ..string.match(html,"<@@<head>@>(.*?)<@@</head>@>") 
+		if(!this.head ){
+			this.head = html ? ..string.match(html,"<@@<head>@>(.*?)<@@<body@>") 
+		}
+		this.html = html; 
+	}; 
+	eachMeta = function(){ 
+	
+		var f = function(){
+			for meta in ..string.gmatch( this.head:"","<@@<meta@>\s+.*?\>") {  
+				..fiber.yield (parseProperties(meta)) 
+			}
+		}  
+		return ..fiber.generator(f);
+	};
+	getMetaTable = function(){ 
+		if( this.metaTable ) return this.metaTable;
+		var meta = { name ={} ; equiv = {} };
+		for(m in this.eachMeta() ){
+			if( m.name  ){
+            	meta.name[ ..string.lower(m.name) ] = m.content;
+            }  
+            elseif( m.equiv ){
+            	meta.equiv[ ..string.lower(m.equiv) ] = m.content;
+            } 
+		}  
+		this.metaTable = meta;
+		return meta;
+	};
+	getMetaContent = function(name){ 
+		return this.getMetaTable().name[[name]];  
+	};
+	getKeywords = function(){
+		return this.getMetaContent("keywords");  
+	};
+	getDescription = function(){
+		return this.getMetaContent("description"); 
+	};
+	getCharset = function(){
+		for(m in this.eachMeta() ){
+			if( m.equiv ? ..string.cmp(m.equiv,"Content-Type") == 0 ){
+				var charset = ..string.match(m.content,"!\w<@@charset@>\s*\=\s*([^;]+)")
+				return ..string.lower(charset);
+			} 
+			elseif( !m.name && m.charset ) {
+				return ..string.lower(m.charset);
+			}  
+		}  	
+	};
+	isUtf8 = function(){
+		return this.getCharset() == "utf-8";
+	};
+	local = function(){
+		if( !this.isUtf8() ){
+			this.head = this.head ? ..string.fromto(this.head,0,65001);
+			this.html = this.html ? ..string.fromto(this.html,0,65001); 
+			this.metaTable = null;
+		}
+		return this;
+	};
+	getTitle = function(){ 
+		return  this.head  ? ..string.match( this.head , "<@@<title>@>(.*?)<@@</title>@>")
+	}
+}
+
+namespace parser{
+
+	parseProperties = function(tagHtml) {  
+		var ele = {};
+		if(!tagHtml) return ele;
+		
+		var tagName,tagBody= ..string.match(tagHtml,"\<([\w_:]+)(.+)");
+		if( tagName ){
+			ele.tagName = ..string.lower( tagName );
+			tagHtml = tagBody;
+		}
+		..string.replace(
+			tagHtml + " ", 
+			"([\w_:]+)\s*(<=\s*""[^""]+"">|<=\s*'[^']+'>|<=\s*\S+>|\s)", 
+			function (w, a, b){ 
+				a = ..string.trimleft(a,"=");
+				a = ..string.trimleft(a);
+				if( a[1] == '"'# ) a = ..string.trim(a,'"');
+				elseif( a[1] == '\''# ) a = ..string.trim(a,'\'');
+    			ele[..string.lower(w)] = a
+			} 
+		) 
+		return ele;
+	};
+	isUtf8 = function(html){
+		return ..web.parser(html).isUtf8();
+	};
+	getTitle = function(html){
+		return ..web.parser(html).getTitle(); 
+	}
+} 
+
+/**intellisense()
+web.parser = HTML简单解析\n如果要解析HTML全部节点请使用string.xml
+web.parser(.("HTML") = 创建HTML简单解析器\n如果要解析HTML全部节点请使用string.xml
+web.parser() = !stdweb_parser.
+!stdweb_parser.head = HEAD部分HTML
+!stdweb_parser.isUtf8() = 是否UTF-8编码
+!stdweb_parser.getCharset() = 获取页面编码,返回值一律小写
+!stdweb_parser.getTitle() = 获取页面标题
+!stdweb_parser.getKeywords() = 获取页面描述
+!stdweb_parser.getDescription() = 获取页面描述
+!stdweb_parser.getMetaContent(.(name) = 获取页面META节点指定name值对应的content值\nname忽略大小写
+!stdweb_parser.getMetaTable() = 返回META信息\n!stdweb_parser_meta.
+!stdweb_parser_meta.name = 所有指定NAME属性的content值\n键名一律小写
+!stdweb_parser_meta.equiv = 所有指定EQUIV属性的content值\n键名一律小写 
+!stdweb_parser.eachMeta() = @for(meta in ??.eachMeta() ){
+	__/*meta属性名一律小写*/
+}
+!stdweb_parser.local() = 如果不是UTF8编码转换为UTF8,返回对象自身\n!stdweb_parser.
+web.parser.parseProperties(__/*节点HTML*/) = 提取HTML开始标记中的属性对
+end intellisense**/

@@ -1,0 +1,26 @@
+//2)md5示例
+import console;
+console.log("必须在导入python库以前打开控制台,
+python中的print函数才能支持控制台.")
+
+import py; 
+
+//导入python模块
+var hashlib = py.import("hashlib"); 
+
+//创建python对象
+var md5 = hashlib.md5()
+
+//参数为python中的bytes,在aardio要使用buffer(字节数组)
+md5.update( raw.buffer("注意这个函数的参数不是字符串而是字节数组（相当于aardio中的buffer）") );
+
+/*
+Python返回的值都是py.object,
+tostring(pyObject)转为字符串,tonumber(pyObject)转为数值
+console.log()已经自动调用 tostring(pyObject)
+*/
+console.log( md5.hexdigest() );
+
+import crypt;
+console.log( crypt.md5("注意这个函数的参数不是字符串而是字节数组（相当于aardio中的buffer）") )
+console.pause()

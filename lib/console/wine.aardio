@@ -1,0 +1,363 @@
+﻿//wine 简单控制台
+
+import win.ui;
+import web.json;
+
+namespace console.wine{};
+
+namespace console;
+
+getWindow = function(){
+    if(!self.form){
+    	self.form = ..thread.get("console.wine.form");
+    };
+    
+	if( self.form ){
+		if( ..win.isWindow(self.form.hwnd) ){
+			return self.form.hwnd;
+		}
+		
+		self.form = null;
+		..thread.set("console.wine.form",null)
+	}
+}
+
+open = function(){
+	return ..thread.lock("std.console.wine.open",__open)
+}
+
+__open = function(){
+	
+	if( getWindow() ){
+		self.form.show();
+		return self.form;
+	}
+	self.form = null;
+	
+	
+	..thread.invoke( 
+		function(){
+			import win.ui;
+			import win.ui.ctrl.edit;
+			var winform = win.form(text=..io._exefile;right=934;bottom=821)
+			winform.add(
+			richedit={cls="edit";left=4;top=0;right=931;bottom=819;bgcolor=0;color=15793151;db=1;dl=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=1}
+			)
+			
+			
+			winform.getch = function(){ 
+				
+    			winform.richedit.lastInputChar = null;
+    			winform.richedit.wndproc = { 
+					[0x102/*_WM_CHAR*/] =function(hwnd,message,wParam,lParam){
+						
+						if( message == 0x102/*_WM_CHAR*/ ){
+							owner.lastInputChar = wParam;
+							return 0;
+						}
+					}
+				}
+				
+				win.wait( lambda() winform.richedit.lastInputChar, winform.hwnd); 
+				
+				winform.richedit.wndproc = { 
+					[0x102/*_WM_CHAR*/] =function(hwnd,message,wParam,lParam){}
+				}
+				return winform.richedit.lastInputChar;
+			}
+			
+			winform.getche = function(mask){
+				var c = ..string.pack( getch() );
+				winform.richedit.appendText( c == '\r'?'\n':(mask:c) );
+				return c;
+			}
+			
+			winform.richedit.defaultTranslateAccelerator = function(msg){ 
+				if( msg.message == 0x100/*_WM_KEYDOWN*/) {
+					var vk = msg.wParam;  
+					if( vk == 0xD/*_VK_RETURN*/ ){
+						if(!winform.lastInputStart) return;
+						
+						var b = winform.richedit.getsel();
+						var a = winform.lastInputStart;
+						if( a < b) {
+							winform.richedit.setsel(a+1,b);
+							winform.lastInputLine = winform.richedit.selText;
+							winform.richedit.setsel(b);
+						}
+					}
+					elseif( vk == 0x8/*_VK_BACK*/ ){
+						if(!winform.lastInputStart) return;
+						
+						var b = winform.richedit.getsel();
+						var a = winform.lastInputStart;
+						if( b <= a ) return true;
+					}
+						
+				}	
+			}
+			
+			winform.getInputText = function(){
+				winform.lastInputLine = null;
+				winform.richedit.setFocus();
+				winform.lastInputStart = winform.richedit.getsel();
+				..win.wait( function(){
+					return winform.lastInputLine;
+				},winform.hwnd);
+				
+				winform.lastInputStart = null;
+				return winform.lastInputLine;
+			}
+			
+			winform.onCancel = function(){}	
+			
+			winform.onOk = function(){}
+			
+			..thread.set("console.wine.form",winform)
+			win.loopMessage();
+			
+			import process;
+			process().terminate();
+		},listener
+	)
+	
+	..win.wait(lambda()..thread.get("console.wine.form"));
+	self.form = ..thread.get("console.wine.form");
+	
+	self.form.show();
+	return self.form;
+	
+}
+
+getch = function(){
+	return open().getch();
+}
+
+getche = function(){
+	return open().getche();
+}
+
+getPassword = function(mask="*"){
+    
+    var s = {};
+    var c = getche(mask)
+    while( c != '\r' ){
+        ..table.push( s,c);
+        c = getche( mask )
+    } 
+    return ..string.join(s)
+}
+
+var moreLines = 1;
+more = function(count){
+	count = count : 1;
+	moreLines = moreLines % count;
+	if(!moreLines){
+		pause(,"-- 请按任意键显示更多 ---","---------- More -----------");
+	}
+	moreLines++;
+};
+
+askYesNo  = function(title){
+    log( "[Y/N] " + (title : "按Y键继续,按N键取消") )
+ 	var vk = getch();
+
+	if( vk == 'Y'#){
+		return true;
+	}
+	elseif( vk ==  'N'#){
+		return false;
+	}
+}
+
+pause = function(close,msg,erase){ 
+	open(); 
+	if( msg ){
+		msg = ..string.toUnicode(msg);
+		if( erase ){
+			erase = ..string.toUnicode(erase);
+			if( #erase < #msg ) erase = erase + ..string.repeat((#msg-#erase)/2 ," ");
+		}
+		else erase = msg;
+	}
+	msg := "请按任意键继续 ... "; 
+	
+	var a = self.form.richedit.getsel();
+	writeText( msg );
+	var b = self.form.richedit.getsel();
+	
+	var vk = getch();
+	
+	if(#erase) {
+		if( b > a ){
+			self.form.richedit.setsel(a,b);
+			self.form.richedit.selText = "";
+		}
+	}
+	else {
+		writeText('\n'); 
+	}
+	
+	if(close) self.close();
+	return chr;
+}
+
+logPause = function(...){
+	log(...);
+	pause();
+}
+
+fullscreen = function(){
+	open().form.fullscreen(); 
+}
+
+writeText = function(s,...){
+    s = tostring(s);
+    if( (!..string.isUtf8(s)) && (!..string.isUnicode(s)) ){
+		..string.setUtf(s,1);
+	}
+	open().richedit.appendText(s,...)
+}
+
+print = function(s,...){ 
+    s = tostring(s);
+    if( (!..string.isUtf8(s)) && (!..string.isUnicode(s)) ){
+		..string.setUtf(s,1);
+	}	
+	
+	open().richedit.print(s,...)
+} 
+
+log = print;
+
+showLoading = function(msg,dots){
+    log(msg);
+    return;
+}
+
+printf = function(s,...){ 
+    s = tostring(s);
+    if( (!..string.isUtf8(s)) && (!..string.isUnicode(s)) ){
+		..string.setUtf(s,1);
+	}	
+	
+	open().richedit.printf(s,...)
+} 
+
+hex = function(s){
+	print( ..string.hex(s," ") )
+}
+
+hex = function(s){
+	print( ..string.hex(s," ") )
+}
+
+writeBack = function( s,... ){
+	if( ... !== null  ) s = ..string.toUnicode( ..string.format(s,... ) );
+	writeText( ..string.repeat(#s/2,'\b') );
+	writeText( s );
+}
+
+debug = function(...){
+	if( _STUDIO_INVOKED ) writeText(...);
+}
+
+dump = function(v,...){
+	open();
+	if( type(v) == type.table ) writeText( ..util.table.stringify(v,!...) )
+	else writeText( (tostring(v) ) )  
+	if(...===null ){
+		writeText('\n');
+		return;
+	}
+	writeText('\t')
+	return dump(...);
+} 
+
+setTitle = function(title){
+	open().text = title;
+}
+
+getTitle = function(){
+	return open().text; 
+}
+
+getText = function(s){
+	if( s ) writeText( s );
+	return  open().getInputText() ;	 
+}
+
+getNumber = function( s,len ){
+	var n;
+	while( 
+	    var _;
+	    n = tonumber( getText(s),10 );
+	    n === null
+	) { 
+		if( !getWindow()) break ;
+		s = "请重新输入有效的数值: "
+	}
+	return n;
+}
+
+dumpJson = function(v){ 
+	log( ..web.json.stringify(v,true,false) );
+}
+ 
+varDump = function(...){
+	open();
+    var args = {...};
+    var b,e = ..table.range(args);
+    for(i=b;e){
+    	var arg = args[i];
+    	var t = type(arg);
+    	print("参数位置:" ++ i);
+    	print("数据类型:" ++ t);
+    	if( t != type.table ){
+    		print("变量值:" ++ tostring(arg),'\n');
+    	}
+    	else { 
+    		print("变量值: {" ); 
+    		
+    		var logged = { _struct = 1 };
+    		for k,v in ..table.eachName(arg){
+    			logged[k] = true;
+    			writeText('    ', k,' = ',tostring(v) ,'\n');     
+    		}
+    		for(i=1;#arg;1){
+    			logged[i] = true; 
+    			writeText('    [', i,'] = ',tostring(arg[i]) ,'\n'); 
+    		}
+    		for(k,v in arg){
+    			if( !logged[k] ){
+    				writeText('    [', tostring(k),'] = ',tostring(v) ,'\n'); 
+    			} 
+    		}
+    		 
+            print('}');
+            
+            if(#arg){
+            	print("序列数组长度:",#arg);
+            }
+            if(arg[["_struct"]]){
+            	try{
+            		print("结构体大小:",..raw.sizeof(arg) );
+            	}
+            	catch(e){
+            		print("结构体大小:未知(包含动态数组)");
+            	}
+            }
+            print('\n');
+    	}  
+    } 
+}
+
+close = function(){
+	if( getWindow() ){ 
+		self.form.show(false);
+	}
+}
+
+/**intellisense()
+console.wine = console.wine模拟了部分console的函数\n用于在Wine环境下创建简单的控制台窗口\n不支持标准输入输出流
+end intellisense**/

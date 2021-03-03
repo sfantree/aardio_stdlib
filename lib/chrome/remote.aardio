@@ -1,0 +1,74 @@
+﻿import wsock;
+import process;
+import win;
+import winex;
+import chrome.path;
+import fsys.environment;
+
+namespace chrome;
+
+class remote{
+	ctor( args ){
+		if( !self.path ){ 
+			self.path  = ..chrome.path();
+			
+			if(!self.path){
+				return null,"系统未安装chrome";
+			}
+		}
+		
+		if(!args["--remote-debugging-port"]) args["--remote-debugging-port"] = ..wsock.getFreePort(); 
+		this.remoteDebuggingPort = args["--remote-debugging-port"];
+		
+		if( args["--user-data-dir"] != null ){ 
+			this.userDataDir = ..fsys.environment.expand( args["--user-data-dir"] );
+			this.userDataDir = ..io.createDir( this.userDataDir )
+			args["--user-data-dir"] =  this.userDataDir; 
+		}
+		
+		var cmdLine ={};
+		for(k,v in args){
+			if( type(v) != type.boolean ){
+				..table.push(cmdLine,k+"=" +tostring(v)); 
+			}
+			elseif(v) {
+				..table.push(cmdLine,k);	
+			}
+			
+		}
+		
+		var chromeWins = {}
+		for hwnd,title,threadId,processId in ..winex.each( "Chrome_WidgetWin_1") { 
+			chromeWins[hwnd] = processId;
+		}
+		
+		if( ! ..process.execute(self.path,cmdLine) ){
+			return false;
+		}
+		
+		while( ..win.peekPumpMessage()!==null ){
+			for hwnd,title,threadId,processId in ..winex.each( "Chrome_WidgetWin_1") { 
+				if(!chromeWins[hwnd]){
+					this.hwndChrome = hwnd;
+					this.chromeProcessId = processId;
+					break 2;
+				}
+			} 
+		}
+	};
+}
+
+/**intellisense()
+chrome.remote = 调用系统已安装的chrome创建应用程序,并启用远程调试端口
+chrome.remote(启动参数) = @.remote({
+	["--user-data-dir"] = "%LocalAppData%\aardio\chrome.remote.userdata";__/*调用系统已安装的chrome创建应用程序\n使用同一用户数据目录的chrome同时只能有一个进程实例运行*/
+});
+chrome.remote() = !processchromeremote.
+end intellisense**/
+
+/**intellisense(!processchromeremote)
+hwndChrome = 启动的chrome窗口句柄
+chromeProcessId = 启动的chrome进程ID\n注意chrome会使用一个进程启动多个独立的应用
+remoteDebuggingPort = 远程调试端口
+userDataDir = 用户数据目录,\n如果开启远程调试,使用同一用户数据目录的chrome同时只能有一个进程实例运行
+end intellisense**/

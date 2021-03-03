@@ -1,0 +1,170 @@
+//media 媒体文件播放
+import fsys.localfile;
+
+namespace fsys;
+
+class media{
+	ctor( path,flags,hwndCallback ){
+		this.hwndCallback = hwndCallback[["hwnd"]] : hwndCallback ;
+		this.localfile = ..fsys.localfile(path);
+		if(!this.localfile) return null; 
+		
+		var cmd = 'open "' + ( this.localfile.path() ) + '" ';
+		if( flags ) {
+			cmd = cmd ++ flags;
+		}
+		var r,msg = self.execute( cmd,this.hwndCallback );
+		if( !r ) return null,msg;
+		
+		..table.gc(this,"close");
+	};
+	path = function(){
+		return this.localfile ? this.localfile.path()
+	};
+	send = function(cmd,...){
+		if(!this.localfile) return null,"媒体文件已关闭"; 
+		cmd = ..string.replace(cmd,"@$PATH",'"' + ( this.localfile.path() ) + '"',1);
+		if( ... ) cmd = ..string.format(cmd,... )
+		return self.execute( cmd,this.hwndCallback   ); 
+	};
+	play = function(...){
+		return this.send( ..string.concat("play	$PATH ",...) ); 
+	};
+	stop = function(){
+		return this.send( "stop $PATH" );
+	};
+	resume = function(){
+		return this.send( "resume $PATH" );
+	};   
+	pause = function(){
+		return this.send( "pause $PATH" );
+	};
+	seek = function(pos){
+		return this.send( "seek $PATH to %d",pos ); 
+	};
+	step = function(step){ 
+		var cmd = 'step "' + ( this.localfile.path() ) + '"';
+		if( step ) cmd = cmd + ' by ' + step;
+		return this.send( cmd ); 
+	};
+	length = function(){
+		var r,len = this.send( "Status $PATH length"  ); 
+		if( r ) return (tonumber(len));
+		return r,len;
+	};
+	volume = function(v){
+		if( v ){ 
+			return this.send( "setaudio $PATH volume to %d",v  ); 
+		}
+		var r,volume = this.send( "Status $PATH volume"  ); 
+		if( r ) return (tonumber(volume));
+		return r,volume;
+	};
+	position = function(){
+		var r,position = this.send( "Status $PATH position"  ); 
+		if( r ) return (tonumber(position));
+		return r,position;
+	};
+	mode = function(){
+		var r,mode = this.send( "Status $PATH mode"  ); 
+		if( r ) return mode;
+		return r,mode;
+	}; 
+	close = function(){
+		var r,msg = this.send( "close $PATH"  ); 
+		this.localfile.free();
+		this.localfile = null;
+		return r,msg;
+	};
+}
+namespace media{
+
+	::Winmm  :=  ..raw.loadDll("Winmm.dll");
+	var sendStringA = Winmm.api("mciSendString","int(ustring lpstrCommand,ustring &lpstrReturnString,int uReturnLength,int hwndCallback)")
+	var getErrorStringA = Winmm.api("mciGetErrorString","bool(INT err,ustring& strErr,INT cchErr )")
+	
+	getErrorString = function(err){
+		if( !err ) return;
+		var ok,msg = getErrorStringA(err,128,128);
+		if( ok) return msg;
+	}
+	
+	self.execute = function(command,hwndCallback){
+		if( hwndCallback ) command = command + " notify";
+    	var err,msg = sendStringA( command,256, 256, hwndCallback : 0 )
+    	if( err == 0 ) 
+    		return true,msg;
+    	else 
+    		return false,getErrorString(err);
+	}
+	
+	closeAll = function(){
+		self.execute("close all");
+	}
+	
+	
+	playSound = function(filepath,flag){ 
+		if( flag === null ) flag = 1 /*_SND_ASYNC*/;
+		if( type(flag) != type.number ) error("参数@2未指定正确的选项",2);
+			
+    	if(!filepath) ::Winmm.PlaySound(null,0,flag)
+    	else{
+    		if( type(filepath) != type.string ) error("参数@1未指定正确的文件路径",2);
+    		
+    		if( #filepath > 0x410/*_MAX_PATH_U8*/ ){
+    			return  ::Winmm.PlaySound( filepath,0,flag | 0x4/*_SND_MEMORY*/ )
+    		}
+    		
+    		if( ( !..io.exist(filepath) ) && ..io.localpath(filepath) ){
+    			var wav = ..string.load(filepath)
+    			if( wav ) ::Winmm.PlaySound( wav,0,flag | 0x4/*_SND_MEMORY*/ )
+    		}
+    		else{
+				::Winmm.PlaySoundW( ..io.fullpath(filepath),0,flag)
+			}
+		}
+	} 
+	
+	playRepeat = function(path,count=1){
+		..thread.invoke( 
+        	function(path,count){
+            	import fsys.media;
+            	var media = fsys.media(path);
+            	for(i=1;count){
+                	media.play("wait"); 
+                	media.seek(1);
+            	}
+            	media.close()   
+        	},path,count
+    	)
+	}
+	
+}
+
+/**intellisense(fsys)
+media.closeAll() = 全部关闭
+media.playSound(.("WAVE文件路径",选项) = 播放WAVE文件,参数@2可选\nWAVE文件可指定内嵌资源或内存文件,如果为null空值则停止播放\n选项不指定时默认为_SND_ASYNC,也即启用异步播放,\n选项指定为0时同步播放并等待播放完成,同步播放建议放到工作线程里
+media.playRepeat(.("音频文件路径",播放次数) = 创建线程并重复播放指定的wav或mp3文件,\n参数@1指定文件路径或资源文件路径\n参数@2指定播放次数
+media.getErrorString(.(错误代码) = 返回错误信息
+media.execute(.("MCI媒体控制命令",通知窗口句柄) = 发送MCI媒体控制命令\n如果指定通知窗口句柄则在命令尾部添加"notify",\n成功返回true,可选的返回消息,\n失败返回false,错误信息
+media(.("媒体文件路径","其他选项",通知窗口) = 打开媒体文件,支持MP3\n参数@2,@3为可选参数\n如果指定了通知窗口，操作完成以后窗口会收到_MM_MCINOTIFY消息\n\n同一个线程内，同一个声音文件不能重复打开多个fsys.media对象,\nfsys.media创建的对象在超出变量作用域后会自动释放\n对象关闭后会自动关闭正在播放的媒体文件\n所以不要使用临时变量播放媒体文件
+media() = !fsys_media.
+end intellisense**/
+ 
+/**intellisense(!fsys_media)
+path() = 打开的文件路径
+send(.("MCI媒体控制命令") = 使用$PATH表示打开的媒体文件路径,不要加引号\n如果传入多个参数则使用string.format格式化\n[所有可用指令]( https://docs.microsoft.com/en-us/windows/desktop/Multimedia/multimedia-command-strings )
+play() = 播放声音\n可选添加多个文本指令参数\n无参数时不会阻塞当前线程，\nfsys.media 对像在析构时，会自动关闭声音，所以在声音播放时，要保持变量在生命周期内，\n重新播放声音应该调用要seek(1)回到开始位置
+play("wait") = 播放并等待，\n重新播放声音应该调用要seek(1)回到开始位置\n此操作会阻塞代码向后执行,最好是在工作线程里执行
+play("repeat") = 循环播放,\n仅适用于mp3，wav文件不支持
+stop() = 停止播放
+close() = 关闭
+pause() = 暂停
+resume() = 继续
+volume() = 无参数获取音量\n指定数值参数设置音量
+mode() = 返回当前模式，\n所有设备都存在 "not ready", "paused", "playing",  "stopped" 等模式,\n一些设备可能返回 "open", "parked", "recording",  "seeking" 等值
+length() = 音频长度
+seek(.(位置) = 移动到指定位置\n参数为1表示移动到开始位置，\n在播放声音以后重新播放声音时可调用此函数重新回到声音文件的开始位置
+step(.(-1) = 负数向前,正数向后,省略跳到下一步
+hwndCallback = 指定用于接收_MM_MCINOTIFY通知消息的窗口句柄\n_MM_MCINOTIFY可用于获取指令执行状态
+end intellisense**/

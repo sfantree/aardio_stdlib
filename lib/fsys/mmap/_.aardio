@@ -1,0 +1,232 @@
+import fsys.file;
+import util.metaProperty;
+import sys.info;
+namespace fsys;
+
+class mmap {
+
+	ctor( path,name,lowSize,hiSize,access,protect,secAttrib  ){
+		var targ1 = type(path);
+		if( targ1 == "pointer" )   {
+			this.hFileMapping	= path;
+			if(name===true)..table.gc( this,"close" );
+		}
+		else{
+			if(access===null) access = 0x2/*_FILE_MAP_ALL_ACCESS*/;
+			if(protect===null) protect = 0x4/*_PAGE_READWRITE*/;
+			
+			this.name = name;
+			this.hFileMapping = name ? topointer( ::Kernel32.OpenFileMapping(access,false,name) );
+			if(!this.hFileMapping) {
+			    if(hiSize===null){
+			    	if(lowSize!==null) lowSize,hiSize = ..math.size64(lowSize).split32();
+			    }
+			    
+				if( path ){
+					var file,err = path;
+					if( ! ..fsys.file.is(path) ){ 
+						file,err = ..fsys.file( path
+							,..io.exist(path) ? "r+b" : "w+b"
+							,3/*_FILE_SHARE_READ | _FILE_SHARE_WRITE*/,,,secAttrib);
+					};
+					if(!file) return null,err;
+					
+					if((lowSize===null) && (hiSize===null) ){
+						if( file.size64() == ..math.size64(0)){
+							lowSize=0x4000000;
+						};
+					};
+					
+					this.hFileMapping = topointer( ::Kernel32.CreateFileMappingW( file.handle,secAttrib,protect,hiSize:0,lowSize:0,name) );
+					file.close(); 
+				}
+				else {
+					if((lowSize===null) && (hiSize===null) ){
+						lowSize=0x4000000;
+					};
+					this.hFileMapping = topointer( ::Kernel32.CreateFileMappingW( _INVALID_HANDLE_VALUE,secAttrib,protect,hiSize:0,lowSize:0,name) ); 
+				}
+				
+				if(!this.hFileMapping) {
+					this.hFileMapping = name ? topointer( ::Kernel32.OpenFileMapping(access,false,name) );
+					if(!this.hFileMapping) return null,..lasterr(); 
+					else this.conflict = "该映射文件已存在";
+				}
+			}
+			else {
+				this.conflict = "该映射文件已存在" 
+			}
+			..table.gc(this,"close");
+		}
+		
+		this.offset = ..math.size64(0); 
+		this.ptr2map = {};
+	}
+	@_metaProperty;  
+}
+
+namespace mmap {
+	_metaProperty = ..util.metaProperty( 
+		close = function(){
+			for(ptr,hMap in owner.ptr2map){ 
+				UnmapViewOfFile(hMap);
+				owner.ptr2map[ptr] = null;
+			}
+			if( owner.hFileMapping ){
+				..raw.closehandle(owner.hFileMapping);
+				owner.hFileMapping = null;
+			};
+		};
+		seek = function(mode,off,hiOff){
+			if( mode === null ) {
+				mode = "cur";
+			}
+			if( mode == "set"){ 
+				owner.offset.reset(0);
+				if( off ?  off < 0 ) error("错误的指针地址",2);
+			}
+			if( hiOff === null ){
+				if( !off && mode == "cur") return owner.offset;  
+				owner.offset.add( off );  
+			}
+			else {
+				owner.offset.add( ..math.size64(off,hiOff) ); 	
+			} 
+		}
+		mapView = function(len){
+	    	offsetReal =  tonumber( owner.offset % __allocationGranularity ); 
+	    	offsetMap = owner.offset - offsetReal; 
+	
+	    	var lowOffsetMap,hiOffsetMap = offsetMap.split32();
+			var hMap = topointer( ::Kernel32.MapViewOfFile( owner.hFileMapping,0x2/*_FILE_MAP_ALL_ACCESS*/,hiOffsetMap,lowOffsetMap,len + offsetReal ) );
+			if( hMap ){
+				owner.offset.add(len);
+				var ptr =  topointer(hMap,offsetReal);
+				if( owner.ptr2map[ptr] ){
+					owner.unmapView(ptr);
+				}
+				owner.ptr2map[ptr] = hMap;
+				return ptr; 
+			} 
+		};
+		unmapView = function(ptr){
+			var hMap = owner.ptr2map[ptr];
+			if(!hMap) error("错误的内存地址参数",2);
+			var ret = ::Kernel32.UnmapViewOfFile(hMap);
+			owner.ptr2map[ptr] = null;
+			return ret;
+		};
+		read = function(len){ 
+			var tArg = type(len);
+			if( tArg !=type.number){  
+				if( tArg == type.table && len[["_struct"]] ){
+					var s = len;
+					var l =  ..raw.sizeof(s)
+					
+					var p = owner.mapView(l);
+					if( p ){  
+						..raw.convert(p,s);
+						owner.unmapView(p);
+						return s;
+					} 
+					return;
+				}
+				error("参数不正确",2)
+			} 
+			if(len<0) {
+				error("参数不正确",2);
+			} 
+			var p =  owner.mapView(len)
+			if( p ){  
+				var r = ..raw.tostring(p,1,len);
+				owner.unmapView(p);
+				return r;
+			};
+				
+			return null,..lasterr(); 
+		}
+		write = function(s,l){ 
+			var st = type(s);
+			
+			if( st == "table") {
+				if( s._struct ){ 
+					var l =  ..raw.sizeof(s);
+					var p = owner.mapView(l);
+					if( p ){
+						::CopyMemoryByStruct(p,s,l);
+						owner.unmapView(p);
+						return true,l;
+					} 
+					else {
+						return false;
+					} 	
+				}
+				else return false;
+			} 
+			elseif( st == "number")
+				s = tostring(s);
+			
+			if(l===null) l = #s;
+			var p = owner.mapView(l);
+			if( p ){ 
+				::CopyMemory(p,s,l);
+				owner.unmapView(p);
+				return true,l;
+			}
+			
+			return false,..lasterr();
+		};
+		writeTable = function(tab){
+			var s = ..table.tostring(tab,true);
+			owner.write( {INT len=#s} );
+			owner.write(s);
+		};
+		readTable = function(){
+			var st = owner.read({INT len});
+			if( st && st.len){
+				var s = owner.read(st.len);
+				if(s) {
+					var r,t = call(eval,,s);
+					if( r ) return t;
+					return null,s;
+				}
+			}
+		};
+		getOffset = function(){
+			return ..math.size64(owner.offset);
+		};
+		getOffset32 = function(){
+			return owner.offset.split32();
+		};
+		_topointer = function(){
+			return owner.hFileMapping;
+		};
+		_serialize = function(kernelCall){
+			if(kernelCall) return ..raw.serializeDupHandle("fsys.mmap",owner.hFileMapping);
+		};
+	)
+	__allocationGranularity = ..sys.info().dwAllocationGranularity; 
+}
+
+/**intellisense()
+fsys.mmap = 用于创建内存映射,主要用于进程间共享内存,\n例如process.command就使用了fsys.mmap在进程间共享数据
+fsys.mmap(.(内存映射文件句柄) = 使用句柄直接打开内存映射文件
+fsys.mmap(.(内存映射文件句柄,true) = 使用句柄直接打开内存映射文件\n添加析构函数负责释放句柄
+fsys.mmap(.(文件路径,共享名,文件大小,文件大小高32位,访问属性,内存保护属性) = 创建内存映射文件,所有参数可选,\n参数@1可为空，可指定文件路径,也可直指定fsys.file对象,\n\n省略共享名创建匿名对象,\n共享名可用于跨进程共享内存映射文件，\n共享名不能包含反斜杠,不能超过260个字符\nthread.event,process.mutex,fsys.mmap等共享名字不能相同,\n\n如果不指定文件，或打开空文件,则大小默认设为64MB，\n文件大小高32位如果省略，可选使用math.size64对象指定文件大小
+fsys.mmap() = !fsys_mmap.
+!fsys_mmap.getOffset32() = 返回当前位置\n返回两个值,分别为低32位,高32位
+!fsys_mmap.getOffset() = 返回当前位置,math.size64对象,\n!math_size64.
+!fsys_mmap.conflict = 如果打开已存在的内存映射,该属性为真
+!fsys_mmap.mapView(.(内存大小) = 映射内存并返回指针
+!fsys_mmap.unmapView(.(内存指针) = 取消映射,\n参数必须是mapView函数返回的指针地址
+!fsys_mmap.seek(.("cur",偏移量,偏移量高位) = 移动文件指针,\n参数一为"cur"表示相对当前位置\n参数三为可选参数
+!fsys_mmap.seek(.("set",偏移量,偏移量高位) = 移动文件指针,\n参数一为"set"表示相对开始位置\n参数三为可选参数,参数二默认为0
+!fsys_mmap.read(__) = 自当前位置读取数据,\n读取成功向后移动指针指向已读取数据尾部\n参数可以为读取长度,也可以是结构体
+!fsys_mmap.write( = 写入数据\n多进程读写应使用 process.mutex 创建互斥锁
+!fsys_mmap.write(.(写入数据) = 写入数据\参数可以是结构体或字符串、缓冲区、或数值\n该函数不支持多个参数,读取成功返回true,以及长度,\n失败返回false,以及错误信息
+!fsys_mmap.write(.(写入数据,写入长度) = 写入数据\参数可以是字符串、缓冲区、指针\n字符串、缓冲区可选指定写入长度\n指针必须指定长度
+!fsys_mmap.writeTable( = 写入table对象\n多进程读写应使用 process.mutex 创建互斥锁
+!fsys_mmap.writeTable(.(table对象) = 写入table对象,仅支持可序列化为字面量的对象\n多进程读写应使用 process.mutex 创建互斥锁
+!fsys_mmap.readTable() = 读入table对象\n成功返回table,失败返回null值以及读入的文本
+!fsys_mmap.close() = 关闭文件映射对象
+end intellisense**/

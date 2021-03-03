@@ -1,0 +1,86 @@
+//cmdline 命令行参数
+import process;
+namespace string;
+
+class cmdline{
+	ctor( s ){ 
+		var cur = {};
+		var push = ..table.push;  
+		if( ( type(s) != "string") || ( !#s ) ) return;
+
+		var a,b = ..string.match(s,s[1] == '"'# ? '"([^"]+)"(.*)' : '(\\S*)(.*)')
+		this[0] = #a ? { ..string.unpack(a) } : {} ;
+		s = b;
+		
+		var len = #s;
+		for (i=1;len) {
+			var c = s[i]; 
+			if (c === '"'#) { 
+			 	while(i<=len){ i++; 
+					var c = s[i]; 
+					if( c == '"'# ){
+						if( s[i+1] == '"'# ){  push(cur,c);  i++; }
+						break; //关闭引用
+					}
+					elseif( c == '\\'# ){
+						var b,q = ..string.match( s,"(\\+)(""?)",i);
+						i = i + ( #b - 1 );
+						if( !#q ){
+							push(cur,..string.unpack(b) ); 
+							continue;
+						} 
+						
+						for(k=1;#b/2 ){ push( cur,'\\'#)  };
+						if( #b % 2 ){
+							push( cur,'"'#)
+							i++;
+						} 
+					}
+					else { push(cur,c) }  
+				}  
+				continue ; //考虑"""
+			}
+			
+			if( c === ' '# || c = '\t'# ){ 
+				if(#cur){
+					push( this,cur )
+					cur = {};
+				}
+			}
+			elseif( c == '\\'#   ){
+				var b,q = ..string.match( s,"(\\+)(""?)",i);
+				i = i + ( #b - 1 );
+				if( !#q ){
+					push(cur,..string.unpack(b) ); 
+					continue;
+				} 
+				
+				for(k=1;#b/2 ){ push( cur,'\\'#) } 
+				if( #b % 2 ){
+					push( cur,'"'#)
+					i++;
+				} 
+				continue;
+			}
+			else { push(cur,c); } 
+		}
+		
+		if(#cur)push( this,cur );
+		for(k,v in this) this[k] = ..string.pack(v);  
+	}; 
+	@_meta;
+}
+
+cmdline._meta = {
+	_tostring = function(){
+		var s = ..process.joinArguments(owner);
+		if( !owner[0] ) s = " " + s;
+		return s;
+	}
+	
+}
+/**intellisense()
+string.cmdline = 命令行参数解析
+string.cmdline( = 解析命令行,返回数组\n该数组可修改后调用 tostring函数反解析为字符串文本\n参数不是字符串、或为空串返回null
+string.cmdline(.("命令行参数") = 所有【参数段】以空格或制表等分开\n在一对双引号中表示的【引用段】则可以包含空格\n两个连续的引号表示一个引号字符并且关闭【引用段】\n关闭【引用段】后的非空格字符或引用段仍然追加其后\n\n一个或多个连续的斜杠如果最后有一个引号则启用转义\n单个斜杠转义其后的引号或斜杠表示字面值\n\n首个索引为0的参数段要么是引号包含的引用段,或是任意非空白字符组成
+end intellisense**/

@@ -1,0 +1,61 @@
+﻿//使用索引属性
+
+import console; 
+import dotNet; 
+
+var clr = dotNet.clr(); 
+var appDomain = clr.createAppDomain();
+var compile = appDomain.createCompiler("C#");
+
+compile.Source = /****** 
+using System;
+namespace CSharpLibrary  
+{ 
+	public class TestClass
+    {
+    	public static String StaticName = "StaticTest";
+        public String Name = "Test";
+        private Object [] values = new Object [] {0, 1,2,3,4,5,6,7,8,9};
+        
+        public Object Value
+        {
+            get
+            {
+                return "the value";
+            }
+        }
+        
+        public Object this [int index]
+        {
+            get
+            {
+                return values[index];
+            }
+            set
+            {
+                values[index] = value;
+            }
+        }
+   }
+} 
+******/
+var assembly = compile.Compile()  //编译并返回程序集  
+var cSharpObject = assembly.new("CSharpLibrary.TestClass") //调用程序集创建类对象 
+
+//字段直接访问
+console.log( cSharpObject.Name )
+
+//静态成员直接访问，没有区别
+console.log( cSharpObject.StaticName )
+
+//属性直接访问，没有区别
+console.log( cSharpObject.Value )
+
+/*
+下标索引操作，你不能象在C#中那样写为cSharpObject[3]
+而是要写为 cSharpObject.Item[3]，C#中的下标其实就是访问Item
+在aardio中下标与属性是不区分的，所以必须通过Item来访问。
+*/
+console.log( cSharpObject.Item[3] )
+
+console.pause()

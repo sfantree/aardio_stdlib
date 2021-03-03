@@ -1,0 +1,21 @@
+//1)文本编码差别
+?>
+<title>Python2，3的文本编码差别</title>
+
+<pre style="font-size:16px;">
+在Python2里的bytes实际就是str，而unicode是一个单独的类型。
+在python3中的字符串实际上就里python2里的unicode，而bytes反而变成了一个单独的类型。
+
+Python3里的bytes在aardio中转换为buffer（即字节数组），
+而Python3里的字符串内部是UTF8，跟aardio一致不需要转换，
+包括python的代码文件都是UTF8编码，跟aardio完全一致。
+
+而Python2里bytes,str是一回事，
+但是比较坑的是在Windows上Python2默认把字符串处理为GBK（默认不支持Unicode），
+所以很多地方要用string.fromto(str)将字符串转换为ANSI编码（即GBK），
+
+Python2里虽然也可以在代码文件前加一个声明用UTF8编码，
+但这是没有多大用的，因为Python只是直接读直接处理，根本就不管你是什么编码，
+如果在代码中有文件路径，或者控制台输出，结果就会很糟糕，在编码上的混乱，
+可能是Python放弃2.x重搞3.x的主要原因之一。
+</pre>

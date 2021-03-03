@@ -1,0 +1,20 @@
+//读取文件时间
+import fsys.file;
+import console;
+
+file = fsys.file(io._exepath,"r")
+console.log( file.read(12) ) //显示前12个字节的内容
+
+//返回SystemTime格式时间( time 对象 )
+tm = file.getTime(); 
+console.log( tm.write ) //显示文件创建时间
+tm.write.addhour(48) //创建时间增加48小时
+file.setTime(tm)
+
+//返回FILETIME格式时间( fsys.time 对象 )
+ftm = file.getFileTime(); 
+console.log( ftm.write )  
+
+//如果忘记关闭文件,在程序退出时会自动关闭
+file.close() 
+console.pause();

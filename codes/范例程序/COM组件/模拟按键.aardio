@@ -1,0 +1,32 @@
+/*
+1、标准的按键放到大括号中,这个很象aardio中的使用的键名,例如entern键是 {ENTER} esc键是{ESC}
+2、普通字符直接写就行了,例如 abcd 表示按下连续输入abcd,用这个方法可以直接发送字符串了
+3、一些特殊字符
+	+ 表示 shift键
+	^ 表示 ctrl键
+	% 表示 alt键
+	^ ab 表示按下 ctrl + a 释放按键,然后再按b
+	^ (ab) 表示同时按下 ctrl + a + b 然后释放,使用括号可以设置组合键
+	
+	那么如何输出+^%等原始字符呢？放在大括号就行了
+	例如：wsh:sendkeys("{+}{^}{%}");
+
+4、如果需要发送多个重复的单字母按键,不必重复输入该字母,
+SendKeys允许使用简化格式进行描述,使用格式为“{按键 数字}”。例如要发送10个字母“x”,则输入“ wsh:SendKeys("{x 10}") ”即可。
+*/
+
+import com
+import win;
+import process;
+
+var wsh = com.CreateObject("wscript.shell") 
+process.execute("notepad.exe") //自动打开记事本
+
+sleep(1000)  
+
+wsh.AppActivate("无标题 - 记事本") //激活记事本窗口
+wsh.AppActivate("Untitled - Notepad")
+wsh.SendKeys("hello, welcome to aardio") //输出一句话
+
+wsh.sendkeys("{ENTER}");//按下回车
+wsh.sendkeys("^a");//按下ctrl + a

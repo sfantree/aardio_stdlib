@@ -1,0 +1,54 @@
+//命名管道
+import console;
+import fsys.namedPipe;
+console.open();
+
+thread.invoke( 
+	function(){
+		import console;
+		import fsys.namedPipe;
+		
+		for(i=1;10;1){
+			var pipeClient = fsys.namedPipe.wait("\\.\pipe\pipename")
+			if( pipeClient ){
+				console.log( pipeClient.read(),"线程ID" + thread.getId()  )
+				pipeClient.write("线程ID" + thread.getId() + ' 服务端你好啊\r\n');
+				pipeClient.close(); 
+			}
+			else {
+				//其他客户端已连接,或服务端已关闭
+			}
+		}  
+	}
+)
+
+thread.invoke( 
+	function(){
+		import console;
+		import fsys.namedPipe;
+		
+		for(i=1;10;1){
+			var pipeClient = fsys.namedPipe.wait("\\.\pipe\pipename")
+			if( pipeClient ){
+				console.log( pipeClient.read(),"线程ID" + thread.getId()  )
+				pipeClient.write("线程ID" + thread.getId() + ' 服务端你好啊\r\n');
+				pipeClient.close(); 
+			}
+			else {
+				//其他客户端已连接,或服务端已关闭
+			}
+		}  
+	}
+)
+
+var count = 0;
+var pipeServer = fsys.namedPipe("\\.\pipe\pipename")
+while( pipeServer.connect() ){  
+		pipeServer.write('客户端你好\r\n')
+		console.log( "服务端收到：",pipeServer.read() ) 
+		pipeServer.disconnect();
+		count++;
+		if(count >=10 ) break ; 
+}
+
+console.pause();

@@ -1,0 +1,151 @@
+//字符集/代码页
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="字符集/代码页 查询工具";right=685;bottom=594)
+winform.add(
+btnSearch={cls="button";text="查找";left=506;top=555;right=569;bottom=584;db=1;dr=1;z=5};
+edit={cls="edit";left=-377;top=339;right=43;bottom=629;autohscroll=false;db=1;dl=1;edge=1;multiline=1;vscroll=1;z=3};
+editKeyword={cls="edit";text="utf8";left=363;top=555;right=498;bottom=581;db=1;dr=1;edge=1;z=4};
+listview={cls="listview";left=20;top=36;right=654;bottom=544;acceptfiles=1;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;edge=1;fullRow=1;gridLines=1;msel=false;z=1};
+static={cls="static";text="请使用鼠标左键、鼠标右键点击列表项";left=37;top=10;right=647;bottom=28;dl=1;dt=1;transparent=1;z=2}
+)
+/*}}*/
+
+winform.listview.insertColumn("",1);  
+winform.listview.insertColumn("字符集(Charset)",200,,0x1/*_LVCFMT_RIGHT*/); 
+winform.listview.insertColumn("代码页(CodePage)",120,,0x0/*_LVCFMT_LEFT*/);
+winform.listview.insertColumn("说明",200,,0x0/*_LVCFMT_LEFT*/);
+
+import win.reg;
+import string.encoding;
+import com.interface.IMultiLanguage2;
+
+var multiLanguage = com.interface.IMultiLanguage2.Create();
+for( cpInfo in multiLanguage.eachCodepage() ){
+	winform.listview.addItem( { "";
+		cpInfo.webCharset;
+		cpInfo.uiCodePage;
+		cpInfo.description 
+		} );
+}
+
+
+winform.btnSearch.oncommand = function(id,event){
+	var keyword = winform.editKeyword.text;
+	var items = winform.listview.items;
+	
+	for(i,item in items){  
+		if( item[3] == keyword ){
+			winform.listview.selIndex = i;
+			winform.listview.ensureVisible();
+			winform.listview.setFocus();
+			return;
+		}	
+	}
+	
+	for(i,item in items){  
+		if( string.cmp(item[2] , keyword) == 0  ){
+			winform.listview.selIndex = i;
+			winform.listview.ensureVisible()
+			return;
+		}	
+	}
+	
+	import console
+	for(i,item in items){  
+		if( string.cmp( string.replace(item[2],"\p","") , string.replace(keyword,"\p",""), ) == 0  ){
+			winform.listview.selIndex = i;
+			winform.listview.ensureVisible();
+			winform.listview.setFocus();
+			return;
+		}	
+	}
+	
+	for(i,item in items){  
+		if( string.indexOf(item[2] , keyword)  ){
+			winform.listview.selIndex = i;
+			winform.listview.ensureVisible();
+			winform.listview.setFocus();
+			return;
+		}	
+	}
+	
+	for(i,item in items){  
+		if( string.find(item[4] , "<@@" +keyword + "@>")  ){
+			winform.listview.selIndex = i;
+			winform.listview.ensureVisible();
+			winform.listview.setFocus();
+			return;
+		}	
+	}
+}
+
+winform.isDialogMessage = function(hwnd,msg){
+
+    if(  msg.wParam == 0xD/*_VK_RETURN*/ ){
+        if( msg.message == 0x100/*_WM_KEYDOWN*/)  
+        	winform.btnSearch.oncommand();
+        	
+        return true;
+    }
+    return win.isDialogMessage(hwnd,msg);
+}
+
+
+winform.edit.text = /*
+aardio字符串的默认编码为UTF-8,对应的Codepage为65001，aardio中的Unicode字符串使用UTF-16编码，对应的Codepage为1200。
+
+当然UTF8、UTF16都是Unicode，但一般未加特别说明Unicode指UTF16，例如打开记事本点另存为，在编码列表里就可以看到Unicode,UTF-8....等等，aardio中也一样。
+
+非Uniocde编码一般称为ANSI编码，简体中文GBK编码的Codepage为936，而繁体中文Big5的编码为950，Codepage指定为0用于表示系统默认的ANSI编码（在简体中文系统上就相当于936）
+
+在aardio中转换编码使用 string.fromto函数，这个函数通过指定输入输出Codepage把字符串从一种编码转换为另一种编码，例如 str = string.fromto(str,65001,0) 就把UTF8编码的字符串转换为了系统ANSI编码。
+*/
+winform.edit.orphanWindow();
+
+var codeMlang = /*
+//自动检测文本编码示例：
+import com.interface.IMultiLanguage2;
+var multiLanguage = com.interface.IMultiLanguage2.Create();
+var codepage = multiLanguage.detectInputCodepageEx("测试字符串");
+*/
+
+import win.clip;
+import win.ui.menu;
+import web.json;
+winform.listview.onnotify = function(id,code,ptr){ 
+    
+    select(code) {
+    	case 0xFFFFFF9B/*_LVN_ITEMCHANGED*/{  
+    		var row  = winform.listview.selIndex;
+    		if(row){ 
+        		winform.static.text = "选中了:'" +  winform.listview.getItemText(row,2)  + "' 请使用右键菜单复制";
+        		var cp = winform.listview.getItemText(row,3);
+        		var charsetInfo = multiLanguage.getCodePageInfo(tonumber(cp));
+        		winform.edit.text = web.json.stringify(charsetInfo,true) + '\r\n\r\n' +codeMlang;
+        	}
+    	} 
+    	case 0xFFFFFFFE/*_NM_CLICK*/{  
+    		var row,col = winform.listview.hitTest();
+        	winform.static.text = "选中了:'" +  winform.listview.getItemText(row,col)  + "' 请使用右键菜单复制"
+    	} 
+    	case 0xFFFFFFFB/*_NM_RCLICK*/  {
+    		var row,col = winform.listview.hitTest();
+        	winform.popmenu = win.ui.popmenu(winform);//创建弹出菜单
+			winform.popmenu.add('复制:\'' +  winform.listview.getItemText(row,col)  + "'",function(id){ 
+				var row,col = winform.listview.hitTest();
+				win.clip.write( winform.listview.getItemText(row,col) )
+			});
+
+    		winform.popmenu.popup();//弹出菜单
+    	}
+    }
+} 
+
+//自适应列宽度 
+winform.listview.adjust = function(cx,cy){
+    winform.listview.fillParent(4);
+}
+ 
+winform.show() 
+win.loopMessage();

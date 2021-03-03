@@ -1,0 +1,2296 @@
+/*!
+ *  Font Awesome 4.7.0  http://fontawesome.io/license
+ *  已修改为HTMLayout专用,所有字体编码16进制开始的\F替换为\5，后三位编码与原版相同
+ */
+
+.fa {
+  display: inline-block;
+  font: normal normal normal 14px/1 FontAwesomeHL;
+  font-style: normal;
+  font-size: inherit;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+/* makes the font 33% larger relative to the icon container */
+.fa-lg {
+  font-size: 1.33333333em;
+  line-height: 0.75em;
+  vertical-align: -15%;
+}
+.fa-2x {
+  font-size: 2em;
+}
+.fa-3x {
+  font-size: 3em;
+}
+.fa-4x {
+  font-size: 4em;
+}
+.fa-5x {
+  font-size: 5em;
+}
+.fa-fw {
+  width: 1.28571429em;
+  text-align: center;
+}
+.fa-ul {
+  padding-left: 0;
+  margin-left: 2.14285714em;
+  list-style-type: none;
+}
+.fa-ul > li {
+  position: relative;
+}
+.fa-li {
+  position: absolute;
+  left: -2.14285714em;
+  width: 2.14285714em;
+  top: 0.14285714em;
+  text-align: center;
+}
+.fa-li.fa-lg {
+  left: -1.85714286em;
+}
+.fa-border {
+  padding: .2em .25em .15em;
+  border: solid 0.08em #eeeeee;
+  border-radius: .1em;
+}
+.fa-pull-left {
+  float: left;
+}
+.fa-pull-right {
+  float: right;
+}
+.fa.fa-pull-left {
+  margin-right: .3em;
+}
+.fa.fa-pull-right {
+  margin-left: .3em;
+}
+.fa-spin {
+  -webkit-animation: fa-spin 2s infinite linear;
+  animation: fa-spin 2s infinite linear;
+}
+.fa-pulse {
+  -webkit-animation: fa-spin 1s infinite steps(8);
+  animation: fa-spin 1s infinite steps(8);
+}
+@-webkit-keyframes fa-spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(359deg);
+    transform: rotate(359deg);
+  }
+}
+@keyframes fa-spin {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(359deg);
+    transform: rotate(359deg);
+  }
+}
+.fa-rotate-90 {
+  -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=1)";
+  -webkit-transform: rotate(90deg);
+  -ms-transform: rotate(90deg);
+  transform: rotate(90deg);
+}
+.fa-rotate-180 {
+  -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=2)";
+  -webkit-transform: rotate(180deg);
+  -ms-transform: rotate(180deg);
+  transform: rotate(180deg);
+}
+.fa-rotate-270 {
+  -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=3)";
+  -webkit-transform: rotate(270deg);
+  -ms-transform: rotate(270deg);
+  transform: rotate(270deg);
+}
+.fa-flip-horizontal {
+  -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=0, mirror=1)";
+  -webkit-transform: scale(-1, 1);
+  -ms-transform: scale(-1, 1);
+  transform: scale(-1, 1);
+}
+.fa-flip-vertical {
+  -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=2, mirror=1)";
+  -webkit-transform: scale(1, -1);
+  -ms-transform: scale(1, -1);
+  transform: scale(1, -1);
+}
+:root .fa-rotate-90,
+:root .fa-rotate-180,
+:root .fa-rotate-270,
+:root .fa-flip-horizontal,
+:root .fa-flip-vertical {
+  filter: none;
+}
+.fa-stack {
+  position: relative;
+  display: inline-block;
+  width: 2em;
+  height: 2em;
+  line-height: 2em;
+  vertical-align: middle;
+}
+.fa-stack-1x,
+.fa-stack-2x {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  text-align: center;
+}
+.fa-stack-1x {
+  line-height: inherit;
+}
+.fa-stack-2x {
+  font-size: 2em;
+}
+.fa-inverse {
+  color: #ffffff;
+}
+.fa-glass {
+  content: "倀";
+}
+.fa-music {
+  content: "倁";
+}
+.fa-search {
+  content: "倂";
+}
+.fa-envelope-o {
+  content: "倃";
+}
+.fa-heart {
+  content: "倄";
+}
+.fa-star {
+  content: "倅";
+}
+.fa-star-o {
+  content: "倆";
+}
+.fa-user {
+  content: "倇";
+}
+.fa-film {
+  content: "倈";
+}
+.fa-th-large {
+  content: "倉";
+}
+.fa-th {
+  content: "倊";
+}
+.fa-th-list {
+  content: "個";
+}
+.fa-check {
+  content: "倌";
+}
+.fa-remove,
+.fa-close,
+.fa-times {
+  content: "倍";
+}
+.fa-search-plus {
+  content: "倎";
+}
+.fa-search-minus {
+  content: "倐";
+}
+.fa-power-off {
+  content: "們";
+}
+.fa-signal {
+  content: "倒";
+}
+.fa-gear,
+.fa-cog {
+  content: "倓";
+}
+.fa-trash-o {
+  content: "倔";
+}
+.fa-home {
+  content: "倕";
+}
+.fa-file-o {
+  content: "倖";
+}
+.fa-clock-o {
+  content: "倗";
+}
+.fa-road {
+  content: "倘";
+}
+.fa-download {
+  content: "候";
+}
+.fa-arrow-circle-o-down {
+  content: "倚";
+}
+.fa-arrow-circle-o-up {
+  content: "倛";
+}
+.fa-inbox {
+  content: "倜";
+}
+.fa-play-circle-o {
+  content: "倝";
+}
+.fa-rotate-right,
+.fa-repeat {
+  content: "倞";
+}
+.fa-refresh {
+  content: "倡";
+}
+.fa-list-alt {
+  content: "倢";
+}
+.fa-lock {
+  content: "倣";
+}
+.fa-flag {
+  content: "値";
+}
+.fa-headphones {
+  content: "倥";
+}
+.fa-volume-off {
+  content: "倦";
+}
+.fa-volume-down {
+  content: "倧";
+}
+.fa-volume-up {
+  content: "倨";
+}
+.fa-qrcode {
+  content: "倩";
+}
+.fa-barcode {
+  content: "倪";
+}
+.fa-tag {
+  content: "倫";
+}
+.fa-tags {
+  content: "倬";
+}
+.fa-book {
+  content: "倭";
+}
+.fa-bookmark {
+  content: "倮";
+}
+.fa-print {
+  content: "倯";
+}
+.fa-camera {
+  content: "倰";
+}
+.fa-font {
+  content: "倱";
+}
+.fa-bold {
+  content: "倲";
+}
+.fa-italic {
+  content: "倳";
+}
+.fa-text-height {
+  content: "倴";
+}
+.fa-text-width {
+  content: "倵";
+}
+.fa-align-left {
+  content: "倶";
+}
+.fa-align-center {
+  content: "倷";
+}
+.fa-align-right {
+  content: "倸";
+}
+.fa-align-justify {
+  content: "倹";
+}
+.fa-list {
+  content: "债";
+}
+.fa-dedent,
+.fa-outdent {
+  content: "倻";
+}
+.fa-indent {
+  content: "值";
+}
+.fa-video-camera {
+  content: "倽";
+}
+.fa-photo,
+.fa-image,
+.fa-picture-o {
+  content: "倾";
+}
+.fa-pencil {
+  content: "偀";
+}
+.fa-map-marker {
+  content: "偁";
+}
+.fa-adjust {
+  content: "偂";
+}
+.fa-tint {
+  content: "偃";
+}
+.fa-edit,
+.fa-pencil-square-o {
+  content: "偄";
+}
+.fa-share-square-o {
+  content: "偅";
+}
+.fa-check-square-o {
+  content: "偆";
+}
+.fa-arrows {
+  content: "假";
+}
+.fa-step-backward {
+  content: "偈";
+}
+.fa-fast-backward {
+  content: "偉";
+}
+.fa-backward {
+  content: "偊";
+}
+.fa-play {
+  content: "偋";
+}
+.fa-pause {
+  content: "偌";
+}
+.fa-stop {
+  content: "偍";
+}
+.fa-forward {
+  content: "偎";
+}
+.fa-fast-forward {
+  content: "偐";
+}
+.fa-step-forward {
+  content: "偑";
+}
+.fa-eject {
+  content: "偒";
+}
+.fa-chevron-left {
+  content: "偓";
+}
+.fa-chevron-right {
+  content: "偔";
+}
+.fa-plus-circle {
+  content: "偕";
+}
+.fa-minus-circle {
+  content: "偖";
+}
+.fa-times-circle {
+  content: "偗";
+}
+.fa-check-circle {
+  content: "偘";
+}
+.fa-question-circle {
+  content: "偙";
+}
+.fa-info-circle {
+  content: "做";
+}
+.fa-crosshairs {
+  content: "偛";
+}
+.fa-times-circle-o {
+  content: "停";
+}
+.fa-check-circle-o {
+  content: "偝";
+}
+.fa-ban {
+  content: "偞";
+}
+.fa-arrow-left {
+  content: "偠";
+}
+.fa-arrow-right {
+  content: "偡";
+}
+.fa-arrow-up {
+  content: "偢";
+}
+.fa-arrow-down {
+  content: "偣";
+}
+.fa-mail-forward,
+.fa-share {
+  content: "偤";
+}
+.fa-expand {
+  content: "健";
+}
+.fa-compress {
+  content: "偦";
+}
+.fa-plus {
+  content: "偧";
+}
+.fa-minus {
+  content: "偨";
+}
+.fa-asterisk {
+  content: "偩";
+}
+.fa-exclamation-circle {
+  content: "偪";
+}
+.fa-gift {
+  content: "偫";
+}
+.fa-leaf {
+  content: "偬";
+}
+.fa-fire {
+  content: "偭";
+}
+.fa-eye {
+  content: "偮";
+}
+.fa-eye-slash {
+  content: "偰";
+}
+.fa-warning,
+.fa-exclamation-triangle {
+  content: "偱";
+}
+.fa-plane {
+  content: "偲";
+}
+.fa-calendar {
+  content: "偳";
+}
+.fa-random {
+  content: "側";
+}
+.fa-comment {
+  content: "偵";
+}
+.fa-magnet {
+  content: "偶";
+}
+.fa-chevron-up {
+  content: "偷";
+}
+.fa-chevron-down {
+  content: "偸";
+}
+.fa-retweet {
+  content: "偹";
+}
+.fa-shopping-cart {
+  content: "偺";
+}
+.fa-folder {
+  content: "偻";
+}
+.fa-folder-open {
+  content: "偼";
+}
+.fa-arrows-v {
+  content: "偽";
+}
+.fa-arrows-h {
+  content: "偾";
+}
+.fa-bar-chart-o,
+.fa-bar-chart {
+  content: "傀";
+}
+.fa-twitter-square {
+  content: "傁";
+}
+.fa-facebook-square {
+  content: "傂";
+}
+.fa-camera-retro {
+  content: "傃";
+}
+.fa-key {
+  content: "傄";
+}
+.fa-gears,
+.fa-cogs {
+  content: "傅";
+}
+.fa-comments {
+  content: "傆";
+}
+.fa-thumbs-o-up {
+  content: "傇";
+}
+.fa-thumbs-o-down {
+  content: "傈";
+}
+.fa-star-half {
+  content: "傉";
+}
+.fa-heart-o {
+  content: "傊";
+}
+.fa-sign-out {
+  content: "傋";
+}
+.fa-linkedin-square {
+  content: "傌";
+}
+.fa-thumb-tack {
+  content: "傍";
+}
+.fa-external-link {
+  content: "傎";
+}
+.fa-sign-in {
+  content: "傐";
+}
+.fa-trophy {
+  content: "傑";
+}
+.fa-github-square {
+  content: "傒";
+}
+.fa-upload {
+  content: "傓";
+}
+.fa-lemon-o {
+  content: "傔";
+}
+.fa-phone {
+  content: "傕";
+}
+.fa-square-o {
+  content: "傖";
+}
+.fa-bookmark-o {
+  content: "傗";
+}
+.fa-phone-square {
+  content: "傘";
+}
+.fa-twitter {
+  content: "備";
+}
+.fa-facebook-f,
+.fa-facebook {
+  content: "傚";
+}
+.fa-github {
+  content: "傛";
+}
+.fa-unlock {
+  content: "傜";
+}
+.fa-credit-card {
+  content: "傝";
+}
+.fa-feed,
+.fa-rss {
+  content: "傞";
+}
+.fa-hdd-o {
+  content: "傠";
+}
+.fa-bullhorn {
+  content: "傡";
+}
+.fa-bell {
+  content: "僳";
+}
+.fa-certificate {
+  content: "傣";
+}
+.fa-hand-o-right {
+  content: "傤";
+}
+.fa-hand-o-left {
+  content: "傥";
+}
+.fa-hand-o-up {
+  content: "傦";
+}
+.fa-hand-o-down {
+  content: "傧";
+}
+.fa-arrow-circle-left {
+  content: "储";
+}
+.fa-arrow-circle-right {
+  content: "傩";
+}
+.fa-arrow-circle-up {
+  content: "傪";
+}
+.fa-arrow-circle-down {
+  content: "傫";
+}
+.fa-globe {
+  content: "催";
+}
+.fa-wrench {
+  content: "傭";
+}
+.fa-tasks {
+  content: "傮";
+}
+.fa-filter {
+  content: "傰";
+}
+.fa-briefcase {
+  content: "傱";
+}
+.fa-arrows-alt {
+  content: "傲";
+}
+.fa-group,
+.fa-users {
+  content: "僀";
+}
+.fa-chain,
+.fa-link {
+  content: "僁";
+}
+.fa-cloud {
+  content: "僂";
+}
+.fa-flask {
+  content: "僃";
+}
+.fa-cut,
+.fa-scissors {
+  content: "僄";
+}
+.fa-copy,
+.fa-files-o {
+  content: "僅";
+}
+.fa-paperclip {
+  content: "僆";
+}
+.fa-save,
+.fa-floppy-o {
+  content: "僇";
+}
+.fa-square {
+  content: "僈";
+}
+.fa-navicon,
+.fa-reorder,
+.fa-bars {
+  content: "僉";
+}
+.fa-list-ul {
+  content: "僊";
+}
+.fa-list-ol {
+  content: "僋";
+}
+.fa-strikethrough {
+  content: "僌";
+}
+.fa-underline {
+  content: "働";
+}
+.fa-table {
+  content: "僎";
+}
+.fa-magic {
+  content: "僐";
+}
+.fa-truck {
+  content: "僑";
+}
+.fa-pinterest {
+  content: "僒";
+}
+.fa-pinterest-square {
+  content: "僓";
+}
+.fa-google-plus-square {
+  content: "僔";
+}
+.fa-google-plus {
+  content: "僕";
+}
+.fa-money {
+  content: "僖";
+}
+.fa-caret-down {
+  content: "僗";
+}
+.fa-caret-up {
+  content: "僘";
+}
+.fa-caret-left {
+  content: "僙";
+}
+.fa-caret-right {
+  content: "僚";
+}
+.fa-columns {
+  content: "僛";
+}
+.fa-unsorted,
+.fa-sort {
+  content: "僜";
+}
+.fa-sort-down,
+.fa-sort-desc {
+  content: "僝";
+}
+.fa-sort-up,
+.fa-sort-asc {
+  content: "僞";
+}
+.fa-envelope {
+  content: "僠";
+}
+.fa-linkedin {
+  content: "僡";
+}
+.fa-rotate-left,
+.fa-undo {
+  content: "僢";
+}
+.fa-legal,
+.fa-gavel {
+  content: "僣";
+}
+.fa-dashboard,
+.fa-tachometer {
+  content: "僤";
+}
+.fa-comment-o {
+  content: "僥";
+}
+.fa-comments-o {
+  content: "僦";
+}
+.fa-flash,
+.fa-bolt {
+  content: "僧";
+}
+.fa-sitemap {
+  content: "僨";
+}
+.fa-umbrella {
+  content: "僩";
+}
+.fa-paste,
+.fa-clipboard {
+  content: "僪";
+}
+.fa-lightbulb-o {
+  content: "僫";
+}
+.fa-exchange {
+  content: "僬";
+}
+.fa-cloud-download {
+  content: "僭";
+}
+.fa-cloud-upload {
+  content: "僮";
+}
+.fa-user-md {
+  content: "僰";
+}
+.fa-stethoscope {
+  content: "僱";
+}
+.fa-suitcase {
+  content: "僲";
+}
+.fa-bell-o {
+  content: "傢";
+}
+.fa-coffee {
+  content: "僴";
+}
+.fa-cutlery {
+  content: "僵";
+}
+.fa-file-text-o {
+  content: "僶";
+}
+.fa-building-o {
+  content: "僷";
+}
+.fa-hospital-o {
+  content: "僸";
+}
+.fa-ambulance {
+  content: "價";
+}
+.fa-medkit {
+  content: "僺";
+}
+.fa-fighter-jet {
+  content: "僻";
+}
+.fa-beer {
+  content: "僼";
+}
+.fa-h-square {
+  content: "僽";
+}
+.fa-plus-square {
+  content: "僾";
+}
+.fa-angle-double-left {
+  content: "儀";
+}
+.fa-angle-double-right {
+  content: "儁";
+}
+.fa-angle-double-up {
+  content: "儂";
+}
+.fa-angle-double-down {
+  content: "儃";
+}
+.fa-angle-left {
+  content: "億";
+}
+.fa-angle-right {
+  content: "儅";
+}
+.fa-angle-up {
+  content: "儆";
+}
+.fa-angle-down {
+  content: "儇";
+}
+.fa-desktop {
+  content: "儈";
+}
+.fa-laptop {
+  content: "儉";
+}
+.fa-tablet {
+  content: "儊";
+}
+.fa-mobile-phone,
+.fa-mobile {
+  content: "儋";
+}
+.fa-circle-o {
+  content: "儌";
+}
+.fa-quote-left {
+  content: "儍";
+}
+.fa-quote-right {
+  content: "儎";
+}
+.fa-spinner {
+  content: "儐";
+}
+.fa-circle {
+  content: "儑";
+}
+.fa-mail-reply,
+.fa-reply {
+  content: "儒";
+}
+.fa-github-alt {
+  content: "儓";
+}
+.fa-folder-o {
+  content: "儔";
+}
+.fa-folder-open-o {
+  content: "儕";
+}
+.fa-smile-o {
+  content: "儘";
+}
+.fa-frown-o {
+  content: "儙";
+}
+.fa-meh-o {
+  content: "儚";
+}
+.fa-gamepad {
+  content: "儛";
+}
+.fa-keyboard-o {
+  content: "儜";
+}
+.fa-flag-o {
+  content: "儝";
+}
+.fa-flag-checkered {
+  content: "儞";
+}
+.fa-terminal {
+  content: "儠";
+}
+.fa-code {
+  content: "儡";
+}
+.fa-mail-reply-all,
+.fa-reply-all {
+  content: "儢";
+}
+.fa-star-half-empty,
+.fa-star-half-full,
+.fa-star-half-o {
+  content: "儣";
+}
+.fa-location-arrow {
+  content: "儤";
+}
+.fa-crop {
+  content: "儥";
+}
+.fa-code-fork {
+  content: "儦";
+}
+.fa-unlink,
+.fa-chain-broken {
+  content: "儧";
+}
+.fa-question {
+  content: "儨";
+}
+.fa-info {
+  content: "儩";
+}
+.fa-exclamation {
+  content: "優";
+}
+.fa-superscript {
+  content: "儫";
+}
+.fa-subscript {
+  content: "儬";
+}
+.fa-eraser {
+  content: "儭";
+}
+.fa-puzzle-piece {
+  content: "儮";
+}
+.fa-microphone {
+  content: "儰";
+}
+.fa-microphone-slash {
+  content: "儱";
+}
+.fa-shield {
+  content: "儲";
+}
+.fa-calendar-o {
+  content: "儳";
+}
+.fa-fire-extinguisher {
+  content: "儴";
+}
+.fa-rocket {
+  content: "儵";
+}
+.fa-maxcdn {
+  content: "儶";
+}
+.fa-chevron-circle-left {
+  content: "儷";
+}
+.fa-chevron-circle-right {
+  content: "儸";
+}
+.fa-chevron-circle-up {
+  content: "儹";
+}
+.fa-chevron-circle-down {
+  content: "儺";
+}
+.fa-html5 {
+  content: "儻";
+}
+.fa-css3 {
+  content: "儼";
+}
+.fa-anchor {
+  content: "儽";
+}
+.fa-unlock-alt {
+  content: "儾";
+}
+.fa-bullseye {
+  content: "兀";
+}
+.fa-ellipsis-h {
+  content: "允";
+}
+.fa-ellipsis-v {
+  content: "兂";
+}
+.fa-rss-square {
+  content: "元";
+}
+.fa-play-circle {
+  content: "兄";
+}
+.fa-ticket {
+  content: "充";
+}
+.fa-minus-square {
+  content: "兆";
+}
+.fa-minus-square-o {
+  content: "兇";
+}
+.fa-level-up {
+  content: "先";
+}
+.fa-level-down {
+  content: "光";
+}
+.fa-check-square {
+  content: "兊";
+}
+.fa-pencil-square {
+  content: "克";
+}
+.fa-external-link-square {
+  content: "兌";
+}
+.fa-share-square {
+  content: "免";
+}
+.fa-compass {
+  content: "兎";
+}
+.fa-toggle-down,
+.fa-caret-square-o-down {
+  content: "児";
+}
+.fa-toggle-up,
+.fa-caret-square-o-up {
+  content: "兑";
+}
+.fa-toggle-right,
+.fa-caret-square-o-right {
+  content: "兒";
+}
+.fa-euro,
+.fa-eur {
+  content: "兓";
+}
+.fa-gbp {
+  content: "兔";
+}
+.fa-dollar,
+.fa-usd {
+  content: "兕";
+}
+.fa-rupee,
+.fa-inr {
+  content: "兖";
+}
+.fa-cny,
+.fa-rmb,
+.fa-yen,
+.fa-jpy {
+  content: "兗";
+}
+.fa-ruble,
+.fa-rouble,
+.fa-rub {
+  content: "兘";
+}
+.fa-won,
+.fa-krw {
+  content: "兙";
+}
+.fa-bitcoin,
+.fa-btc {
+  content: "党";
+}
+.fa-file {
+  content: "兛";
+}
+.fa-file-text {
+  content: "兜";
+}
+.fa-sort-alpha-asc {
+  content: "兝";
+}
+.fa-sort-alpha-desc {
+  content: "兞";
+}
+.fa-sort-amount-asc {
+  content: "兠";
+}
+.fa-sort-amount-desc {
+  content: "兡";
+}
+.fa-sort-numeric-asc {
+  content: "兢";
+}
+.fa-sort-numeric-desc {
+  content: "兣";
+}
+.fa-thumbs-up {
+  content: "兤";
+}
+.fa-thumbs-down {
+  content: "入";
+}
+.fa-youtube-square {
+  content: "兦";
+}
+.fa-youtube {
+  content: "內";
+}
+.fa-xing {
+  content: "全";
+}
+.fa-xing-square {
+  content: "兩";
+}
+.fa-youtube-play {
+  content: "兪";
+}
+.fa-dropbox {
+  content: "八";
+}
+.fa-stack-overflow {
+  content: "公";
+}
+.fa-instagram {
+  content: "六";
+}
+.fa-flickr {
+  content: "兮";
+}
+.fa-adn {
+  content: "兰";
+}
+.fa-bitbucket {
+  content: "共";
+}
+.fa-bitbucket-square {
+  content: "兲";
+}
+.fa-tumblr {
+  content: "关";
+}
+.fa-tumblr-square {
+  content: "兴";
+}
+.fa-long-arrow-down {
+  content: "兵";
+}
+.fa-long-arrow-up {
+  content: "其";
+}
+.fa-long-arrow-left {
+  content: "具";
+}
+.fa-long-arrow-right {
+  content: "典";
+}
+.fa-apple {
+  content: "兹";
+}
+.fa-windows {
+  content: "兺";
+}
+.fa-android {
+  content: "养";
+}
+.fa-linux {
+  content: "兼";
+}
+.fa-dribbble {
+  content: "兽";
+}
+.fa-skype {
+  content: "兾";
+}
+.fa-foursquare {
+  content: "冀";
+}
+.fa-trello {
+  content: "冁";
+}
+.fa-female {
+  content: "冂";
+}
+.fa-male {
+  content: "冃";
+}
+.fa-gittip,
+.fa-gratipay {
+  content: "冄";
+}
+.fa-sun-o {
+  content: "内";
+}
+.fa-moon-o {
+  content: "円";
+}
+.fa-archive {
+  content: "冇";
+}
+.fa-bug {
+  content: "冈";
+}
+.fa-vk {
+  content: "冉";
+}
+.fa-weibo {
+  content: "冊";
+}
+.fa-renren {
+  content: "冋";
+}
+.fa-pagelines {
+  content: "册";
+}
+.fa-stack-exchange {
+  content: "再";
+}
+.fa-arrow-circle-o-right {
+  content: "冎";
+}
+.fa-arrow-circle-o-left {
+  content: "冐";
+}
+.fa-toggle-left,
+.fa-caret-square-o-left {
+  content: "冑";
+}
+.fa-dot-circle-o {
+  content: "冒";
+}
+.fa-wheelchair {
+  content: "冓";
+}
+.fa-vimeo-square {
+  content: "冔";
+}
+.fa-turkish-lira,
+.fa-try {
+  content: "冕";
+}
+.fa-plus-square-o {
+  content: "冖";
+}
+.fa-space-shuttle {
+  content: "冗";
+}
+.fa-slack {
+  content: "冘";
+}
+.fa-envelope-square {
+  content: "写";
+}
+.fa-wordpress {
+  content: "冚";
+}
+.fa-openid {
+  content: "军";
+}
+.fa-institution,
+.fa-bank,
+.fa-university {
+  content: "农";
+}
+.fa-mortar-board,
+.fa-graduation-cap {
+  content: "冝";
+}
+.fa-yahoo {
+  content: "冞";
+}
+.fa-google {
+  content: "冠";
+}
+.fa-reddit {
+  content: "冡";
+}
+.fa-reddit-square {
+  content: "冢";
+}
+.fa-stumbleupon-circle {
+  content: "冣";
+}
+.fa-stumbleupon {
+  content: "冤";
+}
+.fa-delicious {
+  content: "冥";
+}
+.fa-digg {
+  content: "冦";
+}
+.fa-pied-piper-pp {
+  content: "冧";
+}
+.fa-pied-piper-alt {
+  content: "冨";
+}
+.fa-drupal {
+  content: "冩";
+}
+.fa-joomla {
+  content: "冪";
+}
+.fa-language {
+  content: "冫";
+}
+.fa-fax {
+  content: "冬";
+}
+.fa-building {
+  content: "冭";
+}
+.fa-child {
+  content: "冮";
+}
+.fa-paw {
+  content: "冰";
+}
+.fa-spoon {
+  content: "冱";
+}
+.fa-cube {
+  content: "冲";
+}
+.fa-cubes {
+  content: "决";
+}
+.fa-behance {
+  content: "冴";
+}
+.fa-behance-square {
+  content: "况";
+}
+.fa-steam {
+  content: "冶";
+}
+.fa-steam-square {
+  content: "冷";
+}
+.fa-recycle {
+  content: "冸";
+}
+.fa-automobile,
+.fa-car {
+  content: "冹";
+}
+.fa-cab,
+.fa-taxi {
+  content: "冺";
+}
+.fa-tree {
+  content: "冻";
+}
+.fa-spotify {
+  content: "冼";
+}
+.fa-deviantart {
+  content: "冽";
+}
+.fa-soundcloud {
+  content: "冾";
+}
+.fa-database {
+  content: "净";
+}
+.fa-file-pdf-o {
+  content: "凁";
+}
+.fa-file-word-o {
+  content: "凂";
+}
+.fa-file-excel-o {
+  content: "凃";
+}
+.fa-file-powerpoint-o {
+  content: "凄";
+}
+.fa-file-photo-o,
+.fa-file-picture-o,
+.fa-file-image-o {
+  content: "凅";
+}
+.fa-file-zip-o,
+.fa-file-archive-o {
+  content: "准";
+}
+.fa-file-sound-o,
+.fa-file-audio-o {
+  content: "凇";
+}
+.fa-file-movie-o,
+.fa-file-video-o {
+  content: "凈";
+}
+.fa-file-code-o {
+  content: "凉";
+}
+.fa-vine {
+  content: "凊";
+}
+.fa-codepen {
+  content: "凋";
+}
+.fa-jsfiddle {
+  content: "凌";
+}
+.fa-life-bouy,
+.fa-life-buoy,
+.fa-life-saver,
+.fa-support,
+.fa-life-ring {
+  content: "凍";
+}
+.fa-circle-o-notch {
+  content: "凎";
+}
+.fa-ra,
+.fa-resistance,
+.fa-rebel {
+  content: "凐";
+}
+.fa-ge,
+.fa-empire {
+  content: "凑";
+}
+.fa-git-square {
+  content: "凒";
+}
+.fa-git {
+  content: "凓";
+}
+.fa-y-combinator-square,
+.fa-yc-square,
+.fa-hacker-news {
+  content: "凔";
+}
+.fa-tencent-weibo {
+  content: "凕";
+}
+.fa-qq {
+  content: "凖";
+}
+.fa-wechat,
+.fa-weixin {
+  content: "凗";
+}
+.fa-send,
+.fa-paper-plane {
+  content: "凘";
+}
+.fa-send-o,
+.fa-paper-plane-o {
+  content: "凙";
+}
+.fa-history {
+  content: "凚";
+}
+.fa-circle-thin {
+  content: "凛";
+}
+.fa-header {
+  content: "凜";
+}
+.fa-paragraph {
+  content: "凝";
+}
+.fa-sliders {
+  content: "凞";
+}
+.fa-share-alt {
+  content: "几";
+}
+.fa-share-alt-square {
+  content: "凡";
+}
+.fa-bomb {
+  content: "凢";
+}
+.fa-soccer-ball-o,
+.fa-futbol-o {
+  content: "凣";
+}
+.fa-tty {
+  content: "凤";
+}
+.fa-binoculars {
+  content: "凥";
+}
+.fa-plug {
+  content: "処";
+}
+.fa-slideshare {
+  content: "凧";
+}
+.fa-twitch {
+  content: "凨";
+}
+.fa-yelp {
+  content: "凩";
+}
+.fa-newspaper-o {
+  content: "凪";
+}
+.fa-wifi {
+  content: "凫";
+}
+.fa-calculator {
+  content: "凬";
+}
+.fa-paypal {
+  content: "凭";
+}
+.fa-google-wallet {
+  content: "凮";
+}
+.fa-cc-visa {
+  content: "凰";
+}
+.fa-cc-mastercard {
+  content: "凱";
+}
+.fa-cc-discover {
+  content: "凲";
+}
+.fa-cc-amex {
+  content: "凳";
+}
+.fa-cc-paypal {
+  content: "凴";
+}
+.fa-cc-stripe {
+  content: "凵";
+}
+.fa-bell-slash {
+  content: "凶";
+}
+.fa-bell-slash-o {
+  content: "凷";
+}
+.fa-trash {
+  content: "凸";
+}
+.fa-copyright {
+  content: "凹";
+}
+.fa-at {
+  content: "出";
+}
+.fa-eyedropper {
+  content: "击";
+}
+.fa-paint-brush {
+  content: "凼";
+}
+.fa-birthday-cake {
+  content: "函";
+}
+.fa-area-chart {
+  content: "凾";
+}
+.fa-pie-chart {
+  content: "刀";
+}
+.fa-line-chart {
+  content: "刁";
+}
+.fa-lastfm {
+  content: "刂";
+}
+.fa-lastfm-square {
+  content: "刃";
+}
+.fa-toggle-off {
+  content: "刄";
+}
+.fa-toggle-on {
+  content: "刅";
+}
+.fa-bicycle {
+  content: "分";
+}
+.fa-bus {
+  content: "切";
+}
+.fa-ioxhost {
+  content: "刈";
+}
+.fa-angellist {
+  content: "刉";
+}
+.fa-cc {
+  content: "刊";
+}
+.fa-shekel,
+.fa-sheqel,
+.fa-ils {
+  content: "刋";
+}
+.fa-meanpath {
+  content: "刌";
+}
+.fa-buysellads {
+  content: "刍";
+}
+.fa-connectdevelop {
+  content: "刎";
+}
+.fa-dashcube {
+  content: "刐";
+}
+.fa-forumbee {
+  content: "刑";
+}
+.fa-leanpub {
+  content: "划";
+}
+.fa-sellsy {
+  content: "刓";
+}
+.fa-shirtsinbulk {
+  content: "刔";
+}
+.fa-simplybuilt {
+  content: "刕";
+}
+.fa-skyatlas {
+  content: "刖";
+}
+.fa-cart-plus {
+  content: "列";
+}
+.fa-cart-arrow-down {
+  content: "刘";
+}
+.fa-diamond {
+  content: "则";
+}
+.fa-ship {
+  content: "刚";
+}
+.fa-user-secret {
+  content: "创";
+}
+.fa-motorcycle {
+  content: "刜";
+}
+.fa-street-view {
+  content: "初";
+}
+.fa-heartbeat {
+  content: "刞";
+}
+.fa-venus {
+  content: "刡";
+}
+.fa-mars {
+  content: "刢";
+}
+.fa-mercury {
+  content: "刣";
+}
+.fa-intersex,
+.fa-transgender {
+  content: "判";
+}
+.fa-transgender-alt {
+  content: "別";
+}
+.fa-venus-double {
+  content: "刦";
+}
+.fa-mars-double {
+  content: "刧";
+}
+.fa-venus-mars {
+  content: "刨";
+}
+.fa-mars-stroke {
+  content: "利";
+}
+.fa-mars-stroke-v {
+  content: "刪";
+}
+.fa-mars-stroke-h {
+  content: "别";
+}
+.fa-neuter {
+  content: "刬";
+}
+.fa-genderless {
+  content: "刭";
+}
+.fa-facebook-official {
+  content: "到";
+}
+.fa-pinterest-p {
+  content: "刱";
+}
+.fa-whatsapp {
+  content: "刲";
+}
+.fa-server {
+  content: "刳";
+}
+.fa-user-plus {
+  content: "刴";
+}
+.fa-user-times {
+  content: "刵";
+}
+.fa-hotel,
+.fa-bed {
+  content: "制";
+}
+.fa-viacoin {
+  content: "刷";
+}
+.fa-train {
+  content: "券";
+}
+.fa-subway {
+  content: "刹";
+}
+.fa-medium {
+  content: "刺";
+}
+.fa-yc,
+.fa-y-combinator {
+  content: "刻";
+}
+.fa-optin-monster {
+  content: "刼";
+}
+.fa-opencart {
+  content: "刽";
+}
+.fa-expeditedssl {
+  content: "刾";
+}
+.fa-battery-4,
+.fa-battery,
+.fa-battery-full {
+  content: "剀";
+}
+.fa-battery-3,
+.fa-battery-three-quarters {
+  content: "剁";
+}
+.fa-battery-2,
+.fa-battery-half {
+  content: "剂";
+}
+.fa-battery-1,
+.fa-battery-quarter {
+  content: "剃";
+}
+.fa-battery-0,
+.fa-battery-empty {
+  content: "剄";
+}
+.fa-mouse-pointer {
+  content: "剅";
+}
+.fa-i-cursor {
+  content: "剆";
+}
+.fa-object-group {
+  content: "則";
+}
+.fa-object-ungroup {
+  content: "剈";
+}
+.fa-sticky-note {
+  content: "剉";
+}
+.fa-sticky-note-o {
+  content: "削";
+}
+.fa-cc-jcb {
+  content: "剋";
+}
+.fa-cc-diners-club {
+  content: "剌";
+}
+.fa-clone {
+  content: "前";
+}
+.fa-balance-scale {
+  content: "剎";
+}
+.fa-hourglass-o {
+  content: "剐";
+}
+.fa-hourglass-1,
+.fa-hourglass-start {
+  content: "剑";
+}
+.fa-hourglass-2,
+.fa-hourglass-half {
+  content: "剒";
+}
+.fa-hourglass-3,
+.fa-hourglass-end {
+  content: "剓";
+}
+.fa-hourglass {
+  content: "剔";
+}
+.fa-hand-grab-o,
+.fa-hand-rock-o {
+  content: "剕";
+}
+.fa-hand-stop-o,
+.fa-hand-paper-o {
+  content: "剖";
+}
+.fa-hand-scissors-o {
+  content: "剗";
+}
+.fa-hand-lizard-o {
+  content: "剘";
+}
+.fa-hand-spock-o {
+  content: "剙";
+}
+.fa-hand-pointer-o {
+  content: "剚";
+}
+.fa-hand-peace-o {
+  content: "剛";
+}
+.fa-trademark {
+  content: "剜";
+}
+.fa-registered {
+  content: "剝";
+}
+.fa-creative-commons {
+  content: "剞";
+}
+.fa-gg {
+  content: "剠";
+}
+.fa-gg-circle {
+  content: "剡";
+}
+.fa-tripadvisor {
+  content: "剢";
+}
+.fa-odnoklassniki {
+  content: "剣";
+}
+.fa-odnoklassniki-square {
+  content: "剤";
+}
+.fa-get-pocket {
+  content: "剥";
+}
+.fa-wikipedia-w {
+  content: "剦";
+}
+.fa-safari {
+  content: "剧";
+}
+.fa-chrome {
+  content: "剨";
+}
+.fa-firefox {
+  content: "剩";
+}
+.fa-opera {
+  content: "剪";
+}
+.fa-internet-explorer {
+  content: "剫";
+}
+.fa-tv,
+.fa-television {
+  content: "剬";
+}
+.fa-contao {
+  content: "剭";
+}
+.fa-500px {
+  content: "剮";
+}
+.fa-amazon {
+  content: "剰";
+}
+.fa-calendar-plus-o {
+  content: "剱";
+}
+.fa-calendar-minus-o {
+  content: "割";
+}
+.fa-calendar-times-o {
+  content: "剳";
+}
+.fa-calendar-check-o {
+  content: "剴";
+}
+.fa-industry {
+  content: "創";
+}
+.fa-map-pin {
+  content: "剶";
+}
+.fa-map-signs {
+  content: "剷";
+}
+.fa-map-o {
+  content: "剸";
+}
+.fa-map {
+  content: "剹";
+}
+.fa-commenting {
+  content: "剺";
+}
+.fa-commenting-o {
+  content: "剻";
+}
+.fa-houzz {
+  content: "剼";
+}
+.fa-vimeo {
+  content: "剽";
+}
+.fa-black-tie {
+  content: "剾";
+}
+.fa-fonticons {
+  content: "劀";
+}
+.fa-reddit-alien {
+  content: "劁";
+}
+.fa-edge {
+  content: "劂";
+}
+.fa-credit-card-alt {
+  content: "劃";
+}
+.fa-codiepie {
+  content: "劄";
+}
+.fa-modx {
+  content: "劅";
+}
+.fa-fort-awesome {
+  content: "劆";
+}
+.fa-usb {
+  content: "劇";
+}
+.fa-product-hunt {
+  content: "劈";
+}
+.fa-mixcloud {
+  content: "劉";
+}
+.fa-scribd {
+  content: "劊";
+}
+.fa-pause-circle {
+  content: "劋";
+}
+.fa-pause-circle-o {
+  content: "劌";
+}
+.fa-stop-circle {
+  content: "劍";
+}
+.fa-stop-circle-o {
+  content: "劎";
+}
+.fa-shopping-bag {
+  content: "劐";
+}
+.fa-shopping-basket {
+  content: "劑";
+}
+.fa-hashtag {
+  content: "劒";
+}
+.fa-bluetooth {
+  content: "劓";
+}
+.fa-bluetooth-b {
+  content: "劔";
+}
+.fa-percent {
+  content: "劕";
+}
+.fa-gitlab {
+  content: "劖";
+}
+.fa-wpbeginner {
+  content: "劗";
+}
+.fa-wpforms {
+  content: "劘";
+}
+.fa-envira {
+  content: "劙";
+}
+.fa-universal-access {
+  content: "劚";
+}
+.fa-wheelchair-alt {
+  content: "力";
+}
+.fa-question-circle-o {
+  content: "劜";
+}
+.fa-blind {
+  content: "劝";
+}
+.fa-audio-description {
+  content: "办";
+}
+.fa-volume-control-phone {
+  content: "加";
+}
+.fa-braille {
+  content: "务";
+}
+.fa-assistive-listening-systems {
+  content: "劢";
+}
+.fa-asl-interpreting,
+.fa-american-sign-language-interpreting {
+  content: "劣";
+}
+.fa-deafness,
+.fa-hard-of-hearing,
+.fa-deaf {
+  content: "劤";
+}
+.fa-glide {
+  content: "劥";
+}
+.fa-glide-g {
+  content: "劦";
+}
+.fa-signing,
+.fa-sign-language {
+  content: "劧";
+}
+.fa-low-vision {
+  content: "动";
+}
+.fa-viadeo {
+  content: "助";
+}
+.fa-viadeo-square {
+  content: "努";
+}
+.fa-snapchat {
+  content: "劫";
+}
+.fa-snapchat-ghost {
+  content: "劬";
+}
+.fa-snapchat-square {
+  content: "劭";
+}
+.fa-pied-piper {
+  content: "劮";
+}
+.fa-first-order {
+  content: "劰";
+}
+.fa-yoast {
+  content: "励";
+}
+.fa-themeisle {
+  content: "劲";
+}
+.fa-google-plus-circle,
+.fa-google-plus-official {
+  content: "劳";
+}
+.fa-fa,
+.fa-font-awesome {
+  content: "労";
+}
+.fa-handshake-o {
+  content: "劵";
+}
+.fa-envelope-open {
+  content: "劶";
+}
+.fa-envelope-open-o {
+  content: "劷";
+}
+.fa-linode {
+  content: "劸";
+}
+.fa-address-book {
+  content: "効";
+}
+.fa-address-book-o {
+  content: "劺";
+}
+.fa-vcard,
+.fa-address-card {
+  content: "劻";
+}
+.fa-vcard-o,
+.fa-address-card-o {
+  content: "劼";
+}
+.fa-user-circle {
+  content: "劽";
+}
+.fa-user-circle-o {
+  content: "劾";
+}
+.fa-user-o {
+  content: "勀";
+}
+.fa-id-badge {
+  content: "勁";
+}
+.fa-drivers-license,
+.fa-id-card {
+  content: "勂";
+}
+.fa-drivers-license-o,
+.fa-id-card-o {
+  content: "勃";
+}
+.fa-quora {
+  content: "勄";
+}
+.fa-free-code-camp {
+  content: "勅";
+}
+.fa-telegram {
+  content: "勆";
+}
+.fa-thermometer-4,
+.fa-thermometer,
+.fa-thermometer-full {
+  content: "勇";
+}
+.fa-thermometer-3,
+.fa-thermometer-three-quarters {
+  content: "勈";
+}
+.fa-thermometer-2,
+.fa-thermometer-half {
+  content: "勉";
+}
+.fa-thermometer-1,
+.fa-thermometer-quarter {
+  content: "勊";
+}
+.fa-thermometer-0,
+.fa-thermometer-empty {
+  content: "勋";
+}
+.fa-shower {
+  content: "勌";
+}
+.fa-bathtub,
+.fa-s15,
+.fa-bath {
+  content: "勍";
+}
+.fa-podcast {
+  content: "勎";
+}
+.fa-window-maximize {
+  content: "勐";
+}
+.fa-window-minimize {
+  content: "勑";
+}
+.fa-window-restore {
+  content: "勒";
+}
+.fa-times-rectangle,
+.fa-window-close {
+  content: "勓";
+}
+.fa-times-rectangle-o,
+.fa-window-close-o {
+  content: "勔";
+}
+.fa-bandcamp {
+  content: "動";
+}
+.fa-grav {
+  content: "勖";
+}
+.fa-etsy {
+  content: "勗";
+}
+.fa-imdb {
+  content: "勘";
+}
+.fa-ravelry {
+  content: "務";
+}
+.fa-eercast {
+  content: "勚";
+}
+.fa-microchip {
+  content: "勛";
+}
+.fa-snowflake-o {
+  content: "勜";
+}
+.fa-superpowers {
+  content: "勝";
+}
+.fa-wpexplorer {
+  content: "勞";
+}
+.fa-meetup {
+  content: "勠";
+}

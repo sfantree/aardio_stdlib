@@ -1,0 +1,32 @@
+﻿//rc4 加密算法
+import crypt;
+namespace crypt;
+
+class crypt.rc4 {
+
+    ctor( ... ) {  
+        this = ..crypt(...);
+    };
+    setPassword = function(key,flags=0) {
+    	if( type(key) != type.string ) error("请指定正确的密钥",2);
+
+    	if( #key <  5 ){
+    		key = ..raw.buffer(5,key);
+    	}
+    	elseif( #key> 16 ) {
+			return this.setHashPassword(key,0x8003/*_CALG_MD5*/,0x6801/*_CALG_RC4*/,flags);
+    	} 
+    	
+    	var ret,err  = this.setPlainPassword(key,0x6801/*_CALG_RC4*/,flags);
+		if(!ret) return null,err;
+    }
+}
+ 
+/**intellisense()
+crypt.rc4 = rc4加密算法
+crypt.rc4() = 返回RC4加密容器,\n可选使用一个字符串参数指定密钥向量\n如果要与其他编程语言有相同加解密结果,建议不要设置该参数\n!crypy_rc4.
+!crypy_rc4.setPassword(.("密钥",选项) = 密钥长度为5到16字节,\n密钥超过128位(16字节)时使用MD5转换为哈希值,\n如果密钥长度小于5字节自动填充'\0'\n参数@2不需要指定
+!crypy_rc4.decrypt(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回解密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+!crypy_rc4.encrypt(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回加密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+!crypy_rc4.hasKey() = 检测是否已设置密钥
+end intellisense**/

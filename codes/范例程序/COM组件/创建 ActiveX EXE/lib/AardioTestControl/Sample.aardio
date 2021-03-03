@@ -1,0 +1,49 @@
+import AardioTestControl.SampleForm;
+namespace AardioTestControl;
+import win.ui;
+
+class Sample{
+    
+   	ctor(activeX){
+   		this.activeX = activeX;
+   	}
+   	
+    Quit = function(){ 
+		this.activeX.stop(); // COM控件调用方必须调用这个函数退出进程
+	}
+	
+    Aardio = function( code ){
+		var func = loadcode(code)
+		if( func ){
+			return tostring( ( func() ) )
+		}
+	}
+	
+	Add = function(a,b){
+		..win.msgbox("我是com函数,我收到了参数：" + a + "," + b)
+		return a + b
+	} 
+	 
+ 	//窗口控件至少要实现以下接口(CreateWindow,DestroyWindow)
+	CreateWindow = function(hwndParent, x, y, cx, cy){
+		this.form = ..AardioTestControl.SampleForm(hwndParent);
+		this.form.setPos(x, y, cx, cy);
+		this.form.onDestroy = function(){
+		    this.activeX.stop();
+		}
+		
+		this.form.external = this;
+		this.form.externalEvent = this.externalEvent;
+		return this.form.hwnd;
+	}
+	
+	DestroyWindow = function(){
+		this.form.close();
+		..win.quitMessage();
+	} 
+	
+	SetExtent = function(cx,cy){
+		this.form.resize(cx,cy)	
+		return true;
+	}
+} 

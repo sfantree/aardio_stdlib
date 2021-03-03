@@ -1,0 +1,33 @@
+//注册表读写
+import console;
+import win.reg;
+
+//创建新的注册表路径
+var reg = win.reg("HKEY_CURRENT_USER\Software\ECranesoft\test.aardio.code") 
+
+reg.renameKey("test.aardio.code.new"); //修改键名
+reg.setDwValue("testaaa",123); //设置新值
+reg.delValue("testaaa"); //删除指定的值
+reg.save("/backup.bin"); //导出注册表
+reg.load("/backup.bin"); //导入注册表
+reg.close();
+
+reg = win.reg("HKEY_CURRENT_USER\Software\ECranesoft\"); 
+reg.delKey("test.aardio.code.new"); //删除键
+ 
+//仅打开已存在的路径
+var reg = win.reg("HKEY_CURRENT_USER\Software\ECranesoft\",true); 
+
+//枚举子项、以及子项的所有子项
+reg.enumKey(
+
+	function(
+		subKey, /*这是某个子节点(win.reg对象)*/
+		keyname/*这是reg子节点的一个子项的名字*/
+	){  
+		console.log(keyname) 
+	}  
+)
+
+reg.close();
+execute("pause")

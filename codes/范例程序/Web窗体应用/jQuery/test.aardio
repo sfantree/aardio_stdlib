@@ -1,0 +1,66 @@
+//jQuery简单测试
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="jQuery 测试";right=461;bottom=289;parent=...;scroll=1)
+winform.add()
+/*}}*/
+
+//创建web窗体
+import web.form;
+var wb = web.form( winform , , , ,true)
+
+wb.html = /**
+<!doctype html>
+<html>
+<head> 
+    <meta charset="utf-8"> 
+</head>
+<body>
+	<div id="idTest2" class="style2">
+   	测试文本
+	</div>
+	
+	<div id="idTest" class="style2">
+   	测试文本
+	</div>
+</body>
+</html>
+**/  
+winform.show();
+ 
+//获取文本
+winform.msgbox( wb.jQuery("#idTest").text() )
+
+//这样可以获取原始DOM对象
+var ele = wb.jQuery("#idTest")[0] 
+//winform.msgbox( ele.innerHTML )
+
+//根据节点ID查询节点,使用text() 函数修改文本 
+wb.jQuery("#idTest").html("Query有意思的是可以使用CSS的语法匹配一个节点的集合
+并将他们封装为一个组合,操作组合里所有对象一如操作一个对象,由jQuery自动完成循环操作 
+<a href='http://www.w3school.com.cn/jquery/' target='_blank'>打开 jQuery教程</a>") 
+
+//根据CSS类名查询节点,使用css() 函数修改样式
+wb.jQuery(".style2").css("font-size","10.5pt")
+
+//根据CSS标签名查询节点,使用css() 函数修改样式
+wb.jQuery("div#idTest2").css("color","red")
+ 
+winform.msgbox( "点确定隐藏指定节点" );
+wb.jQuery("div#idTest2").fadeOut( "slow" );
+
+//在Javascript中调用jQuery
+var js = /**
+	$("div#idTest").click(
+		function(){
+			$("div#idTest2").html("<a href='http://www.w3school.com.cn/jquery/' target='_blank'>打开 jQuery教程</a>")
+			$("div#idTest2").fadeIn( "slow" );
+		}
+	)	
+**/
+wb.doScript(js)
+winform.text = "点击文字试试"
+ 
+//进入消息循环
+win.loopMessage();
+return winform,wb;

@@ -1,0 +1,43 @@
+//存储过程
+
+import console;
+import sqlServer;
+
+//打开数据库
+var db = sqlServer( 
+    ["Data Source"]= "IP地址,服务端口";
+    ["Database"]= "数据库名";
+    ["User ID"]  = "用户名";
+    ["Password"]= "用户密码"; 
+)
+ 
+//创建存储过程
+if( ! db.existsProcedure("proc_aardio_test") ){
+ 	db.exec("
+ 	CREATE PROC proc_aardio_test( @a INT OUTPUT,@b INT )    
+	AS
+	begin
+		SET @a=123
+		SELECT @a + @b
+	end
+	");    
+}
+
+//创建命令参数对象,用于执行存储过程
+var cmd = db.createCommand( "proc_aardio_test" ); 
+
+//绑定存储过程参数
+cmd.bind(
+	a = 2;
+	b = 3;
+)
+
+//执行并显示结果
+console.dump(cmd.stepQuery() )
+
+console.dump("输出参数a的值",cmd.parameters("@a").value)
+
+//关闭数据库连接
+db.close();
+
+console.pause();

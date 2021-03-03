@@ -1,0 +1,20 @@
+﻿//simpleServer 网页服务端
+import wsock.tcp.simpleHttpServer;
+
+namespace web;
+
+simpleServer = ..wsock.tcp.simpleHttpServer;
+
+/**intellisense(web.simpleServer)
+getUrl("网页相对路径") = 可选使用参数@2指定网站根目录,默认为"/",\n查找可用端口创建HTTP服务器，返回返回完整URL\n此服务端限制使用本机IP127.0.0.1访问,并随机分配端口不会出现端口冲突\n如果HTTP服务器已启动则直接返回URL而不是重复启动服务器,\n省略参数返回首页URL,尾部不包含斜杠\n注意当前线程结束时,此服务器线程会自动退出
+getUrl(HTTP服务线程函数） = @.startUrl(\n	function(response,request){\n		response.loadcode( request.path );__/*注意此函数是用于响应网页请求的多线程回调函数,startUrl函数返回首页URL*/\n	} \n)
+threadNum = 此属性在调用getUrl以前自定义有效\n设置服务器线程数，默认为2个线程
+startPort = 此属性在调用getUrl以前自定义有效\n设置服务器端口,默认自动分配空闲端口
+documentRoot = 在调用getUrl以前自定义应用程序根目录位置\n不指定时默认为 io.fullpath("/")
+onThreadCreated() = @.onThreadCreated = function(documentRoot,urlRoot){
+	__/*一个HTTP服务监听线程准备就绪时触发此事件*/
+}
+wsock.tcp.simpleHttpServer.threadGlobal = @.threadGlobal = {
+	__/*在onThreadCreated事件触发前\n添加HTTP服务监听线程的全局变量*/
+}
+end intellisense**/

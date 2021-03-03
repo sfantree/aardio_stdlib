@@ -1,0 +1,93 @@
+﻿//textureBrush 画刷
+import gdip.core;
+namespace gdip;
+var gdip = gdip;
+
+class textureBrush {
+
+	ctor( image,wrapmode,dstX,dstY,dstWidth,dstHeight ){ 
+		if( wrapmode === null ) wrapmode = 0/*_WrapModeTile*/;
+		
+		var err;
+		var texture = {pointer handle}
+		if( type(wrapmode) == type.number ){
+			if( dstX === null )
+				err = ::Gdiplus.GdipCreateTexture(image,wrapmode,texture);
+		    else 
+		    	err = gdip.CreateTexture2(image,wrapmode,dstX,dstY,dstWidth,dstHeight,texture);
+		}
+		elseif(wrapmode) {
+			if(dstX===null){
+				dstX,dstY,dstWidth,dstHeight = 0,0,image.width,image.height;
+			}
+			err = gdip.CreateTextureIA(image,wrapmode/*imageAttributes*/,dstX,dstY,dstWidth,dstHeight,texture);
+		}
+		
+		
+		if(err) return null,gdip.errMsg[err]; 
+		this.pTexture = texture.handle; 
+		
+		..table.gc(this,"delete");
+	}
+
+	@_metaProperty
+}
+
+namespace textureBrush {
+
+	_metaProperty = ..util.metaProperty(   
+	
+		wrapMode = {
+			_get = function(){
+				var wrapMode = {int value} 
+				var e = ::Gdiplus.GdipGetTextureWrapMode(owner[["pTexture"]],wrapMode)
+				if(e) return null,gdip.errMsg[e]; 
+				return wrapMode.value; 
+			} 
+			_set = function(v){ 
+				::Gdiplus.GdipSetTextureWrapMode(owner[["pTexture"]], v)
+			}  	
+		}; 
+		translateTransform = function(dx,dy,order){
+			if(order===null) order = 0/*_MatrixOrderPrepend*/;
+			gdip.TranslateTextureTransform(owner[["pTexture"]],dx,dy,order);
+		}
+		scaleTransform = function(sx,sy,order){
+			if(order===null) order = 0/*_MatrixOrderPrepend*/;
+			gdip.ScaleTextureTransform(owner[["pTexture"]],sx,sy,order);
+		} 
+		rotateTransform = function(angle,order){
+			if(order===null) order = 0/*_MatrixOrderPrepend*/;
+			gdip.RotateTextureTransform(owner[["pTexture"]],angle,order);
+		}
+		delete = function(){
+			if( owner[["pTexture"]] ){
+				::Gdiplus.GdipDeleteBrush(owner[["pTexture"]])
+				owner[["pTexture"]] = null;
+			}
+		} 
+		_topointer = function(){
+			return owner[["pTexture"]];
+		}
+	)  
+}
+
+var $ = _dll;  
+//https://msdn.microsoft.com/en-us/library/windows/desktop/ms534054(v=vs.85).aspx
+CreateTexture2 = $.api("GdipCreateTexture2","int(PTR img,int wrapmpde,float x,float y,float width,float height,struct& texture)")
+CreateTextureIA = $.api("GdipCreateTextureIA","int(PTR img,ptr mageAttributes,float x,float y,float width,float height,struct& texture)")
+ScaleTextureTransform = $.api("GdipScaleTextureTransform","int(PTR texture,float x,float y,int order)")
+TranslateTextureTransform = $.api("GdipTranslateTextureTransform","int(PTR texture,float x,float y,int order)")
+RotateTextureTransform = $.api("GdipRotateTextureTransform","int(PTR texture,float angle,int order)")
+
+/**intellisense()
+gdip.textureBrush = 纹理画刷
+gdip.textureBrush(.(图像,样式,x,y,width,height) = 创建纹理画刷\n参数@1指定gdip.image或gdip.bitmap对象,\n其他所有参数可选
+gdip.textureBrush(.(图像,imageAttributes,x,y,width,height) = 创建纹理画刷\n参数@1指定gdip.image或gdip.bitmap对象,\n参数@2指定gdip.imageAttributes对象\n其他所有参数可选
+!gdip_texture.wrapMode = 画刷样式
+!gdip_texture.translateTransform(.(横位移,纵位移) = 平移变换,平移后平铺
+!gdip_texture.scaleTransform(.(水平比例,垂直比例) = 缩放变换
+!gdip_texture.rotateTransform(.(角度) = 旋转变换\n图案向左或向右旋转N度
+!gdip_texture.delete() = 删除画刷
+gdip.textureBrush()= !gdip_texture.
+end intellisense**/

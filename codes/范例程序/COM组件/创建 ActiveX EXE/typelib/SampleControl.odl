@@ -1,0 +1,45 @@
+import "ocidl.idl";
+
+[
+uuid(84DF165D-F254-4A88-9D32-445B69DB340F),
+version(1.0)
+]
+library AardioTestControl {
+
+	importlib("stdole32.tlb");
+
+	[ uuid(B1F019DF-5E3D-4660-BF9F-DB002CBEFE00) ]
+	dispinterface IAardioTestControlSampleEvent {
+		properties: 
+		
+		methods: 
+		[ id(1) ]
+		void onHello( [in] BSTR str );
+	}
+
+	[ uuid(9DFAA296-6DFC-4B21-BACD-B8E1CB0587C2) ]
+	dispinterface IAardioTestControlSample {
+	
+		properties: 
+		
+		methods: 
+			
+			[ id(1) ]
+			BSTR Aardio( [in] BSTR code );
+			
+			[ id(2) ]
+			int Add( [in] int a, [in] int b );
+			
+			[ id(3) ]
+			void Quit( void );
+	
+	};
+	
+	[ uuid(72E56402-47CE-47F3-B6B5-09F5DD1F6746),control ]
+	coclass Sample {
+		[default] dispinterface IAardioTestControlSample;
+		[default,source] dispinterface IAardioTestControlSampleEvent;
+	};
+
+};
+

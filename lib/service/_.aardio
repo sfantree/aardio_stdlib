@@ -1,0 +1,727 @@
+import process;
+namespace service; 
+
+::Advapi32 := ..raw.loadDll("Advapi32.dll");
+
+class manager{
+    ctor(desiredAccess,machineName,databaseName){ 
+        this.handle = ::Advapi32.OpenSCManagerW(machineName,databaseName,desiredAccess:1/*_SC_MANAGER_CONNECT*/);
+        ..table.gc(this, "close");
+    }; 	
+    create = function(binaryPathName,serviceName,displayName,desiredAccess,serviceType,startType,errorControl,loadOrderGroup,tagId,dependencies,serviceStartName,password){ 
+        if(!this.handle) return ;
+        if( type(binaryPathName) != type.string || !#serviceName ) error("请指定服务启动程序,参数@1错误",2);  
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名,参数@2错误",2);  
+        if( desiredAccess === null ) desiredAccess = 0x10/*_SERVICE_START*/;
+        if( serviceType === null ) serviceType = 0x10/*_SERVICE_WIN32_OWN_PROCESS*/;
+        if( startType === null ) startType = 0x2/*_SERVICE_AUTO_START*/;
+        if( errorControl === null ) errorControl = 0x0/*_SERVICE_ERROR_IGNORE*/;
+        if( displayName === null ) displayName = serviceName;
+        
+        if( ..io.localpath(binaryPathName) ) binaryPathName = ..io.localpath(binaryPathName);
+        var hService =  ::Advapi32.CreateServiceW(this.handle,serviceName,displayName,desiredAccess,serviceType,startType,errorControl,binaryPathName,loadOrderGroup,tagId,dependencies,serviceStartName,password); 
+        if( hService ){
+            var ret = ::Advapi32.StartServiceW(hService,0,null);
+            ::Advapi32.CloseServiceHandle(hService);
+            return !!ret;
+        }
+    };
+    open = function(serviceName,desiredAccess){
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        if( desiredAccess === null ) desiredAccess = 0x4/*_SERVICE_QUERY_STATUS*/
+        return ::Advapi32.OpenServiceW(this.handle, serviceName, desiredAccess ); 
+    };
+    start =function(serviceName,...){
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        var hService = this.open(serviceName, 0x10/*_SERVICE_START*/) 
+        if (hService) {
+            var args;
+            var len = 0;
+            if(...){
+                args = { ustring v[] = {serviceName;...} };
+                len = #args.v;
+            }
+            var ret = ::Advapi32.StartServiceW(hService,len,args);
+            ::Advapi32.CloseServiceHandle(hService);
+            return !!ret;
+        }
+    }; 
+    control = function(serviceName,desiredAccess,control){ 
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        var hService = this.open(serviceName, desiredAccess)
+        if (hService) {
+
+            var status = SERVICE_STATUS();
+            var ret  = ::Advapi32.ControlServiceW(hService,control,status);
+            ::Advapi32.CloseServiceHandle(hService);
+            return !!ret,status;
+        }
+    }; 
+    stop = function(serviceName,term){ 
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        if(! this.control(serviceName, 0x20/*_SERVICE_STOP*/,0x1/*_SERVICE_CONTROL_STOP*/) ){
+        	if( this.isStopped(serviceName) ) return true;
+        	return term ? this.terminate(serviceName);
+        }
+        return true;
+    };
+    terminate = function(serviceName){  
+		var status = this.queryStatus(serviceName)
+		if( status && status.processId ) {
+			var prcs = ..process( status.processId );
+			if( prcs ){
+				prcs.terminate();
+				prcs.free();
+				return true; 
+			}
+		}
+		
+		if( this.isStopped(serviceName) ) return true;
+	};
+    pause = function(serviceName){ 
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        return this.control(serviceName, 0x40/*_SERVICE_PAUSE_CONTINUE*/,0x2/*_SERVICE_CONTROL_PAUSE*/);
+    }; 
+    resume = function(serviceName){ 
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        return this.control(serviceName, 0x40/*_SERVICE_PAUSE_CONTINUE*/,0x3/*_SERVICE_CONTROL_CONTINUE*/);
+    };  
+    restart = function(serviceName,stopSec,startSec){
+		var delay = ..win[["delay"]] : sleep;
+		
+		this.stop(serviceName,true);
+	
+		var sec = 0;
+		while( ! this.isStopped(serviceName) ){
+			delay(1000);
+			sec++;
+			
+			if( (stopSec!==null) && (stopSec< sec) ){
+				this.terminate(serviceName);
+				break;
+			}
+		}
+	 	
+		
+		if(! this.start(serviceName) ){
+			if( this.terminate(serviceName) )this.start(serviceName);
+		}
+		
+		
+		var sec = 0;
+		while( !this.isRunning(serviceName)  ){
+			delay(1000);
+			sec++;
+			
+			if( (startSec!==null) && (startSec < sec) )return false;
+		}
+		this.close();	
+		
+		return true;
+	};
+    delete = function(serviceName){ 
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        this.stop(serviceName); 
+        
+        var hService = this.open(serviceName, 0x10000/*_DELETE*/ )
+        if (hService) {
+            var ret =  ::Advapi32.DeleteService(hService);
+            ::Advapi32.CloseServiceHandle(hService);
+            return ret; 
+        }
+    };
+    isExist = function(serviceName){ 
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        var hService = this.open(serviceName, 0x4/*_SERVICE_QUERY_STATUS*/)
+        if (hService) { 
+            ::Advapi32.CloseServiceHandle(hService);
+            return true; 
+        }
+    };
+    queryStatus = function(serviceName){ 
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        var hService = this.open(serviceName, 0x4/*_SERVICE_QUERY_STATUS*/)
+        if (hService) {
+            var status = SERVICE_STATUS_PROCESS();
+            var cbBytesNeeded = {INT value};
+            if( ! ::Advapi32.QueryServiceStatusExW(hService, 0/*_SC_STATUS_PROCESS_INFO*/, status,..raw.sizeof(status),cbBytesNeeded) ){
+                status = null;
+            }
+            else {
+                status.state = STATE_TEXT[status.currentState];
+            }
+            
+            ::Advapi32.CloseServiceHandle(hService);
+            return status; 
+        }
+    };
+    isStopped  = function(serviceName){ 
+    	var status = this.queryStatus(serviceName); 
+	    return  status ? (status.currentState == 1/*_SERVICE_STOPPED*/);
+    };
+    isRunning  = function(serviceName){ 
+    	var status = this.queryStatus(serviceName); 
+	    return  status ? (status.currentState == 0x4/*_SERVICE_RUNNING*/);
+    };
+    changeDescription = function(serviceName,desc){ 
+    	if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2); 
+    	return this.changeConfig2(serviceName,0x1/*_SERVICE_CONFIG_DESCRIPTION*/,{ustring value=desc});
+    };
+    queryDescription  = function(serviceName){ 
+    	if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2); 
+    	var out = {ustring value=desc};
+    	if(  this.queryConfig2(serviceName,0x1/*_SERVICE_CONFIG_DESCRIPTION*/,out) )
+    		return out.value;
+    };
+    queryBinaryPathName = function(serviceName){ 
+    	if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2); 
+    	var cfg = this.queryConfig(serviceName)
+    	if( cfg ) return cfg.binaryPathName;
+    };
+    startDelayed = function(serviceName,delayed){ 
+		if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2); 
+    	return this.startAutomatic(serviceName) ? this.changeConfig2(serviceName,3/*_SERVICE_CONFIG_DELAYED_AUTO_START_INFO*/,{bool delayed=delayed});
+    };
+    startManual = function(serviceName){
+    	return this.changeConfig(serviceName,,0x3/*_SERVICE_DEMAND_START*/);
+    };
+    startAutomatic = function(serviceName){
+    	return this.changeConfig(serviceName,,0x2/*_SERVICE_AUTO_START*/);	
+    };
+    startDisabled = function(serviceName){
+    	return this.changeConfig(serviceName,,0x4/*_SERVICE_DISABLED*/);	
+    };
+    changeConfig = function(serviceName,serviceType,startType,errorControl,binaryPathName,loadOrderGroup,tagId,dependencies,serviceStartName,password,displayName){ 
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        if( startType === null ) startType = 0x2/*_SERVICE_AUTO_START*/
+        if( serviceType === null ) serviceType = 0xFFFFFFFF/*_SERVICE_NO_CHANGE_INT*/
+        if( errorControl === null ) errorControl = 0xFFFFFFFF/*_SERVICE_NO_CHANGE_INT*/
+        
+        var hService = this.open(serviceName,0x2/*_SERVICE_CHANGE_CONFIG*/  )
+        if (hService) {
+            if(!tagId[["_struct"]]) tagId = null;// { INT value = tagId };
+            var ret = ::Advapi32.ChangeServiceConfigW(hService,serviceType,startType,errorControl,binaryPathName,loadOrderGroup,tagId,dependencies,serviceStartName,password,displayName);
+            ::Advapi32.CloseServiceHandle(hService);
+            return !!ret; 
+        }
+    }; 
+    changeConfig2 = function(serviceName,infoLevel,struct){ 
+    	if(!this.handle) return ; 
+    	if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+    	if( !struct[["_struct"]] ) error("参数@3必须是结构体",2)
+    	var hService = this.open(serviceName, 0x2/*_SERVICE_CHANGE_CONFIG*/);
+    	if (hService) {
+        	var ret = ::Advapi32.ChangeServiceConfig2W(hService,infoLevel,struct);
+        	::Advapi32.CloseServiceHandle(hService);
+        	return !!ret;
+    	}
+    }
+ 	queryConfig2 = function(serviceName,infoLevel,struct){ 
+    	if(!this.handle) return ; 
+    	if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+    	if( !struct[["_struct"]] ) error("参数@3必须是结构体",2)
+    	var hService = this.open(serviceName, 0x1/*_SERVICE_QUERY_CONFIG*/)
+    	if (hService) {
+    		var needSize = {INT size};
+        	::Advapi32.QueryServiceConfig2W(hService,infoLevel,null,0,needSize); 
+        	var buffer = ..raw.buffer(needSize.size);
+        	var ret = ::Advapi32.QueryServiceConfig2(hService,infoLevel,buffer,#buffer,needSize);;
+        	::Advapi32.CloseServiceHandle(hService);
+        	if( ret ){
+        		..raw.convert(buffer,struct)
+        	}
+        	return ret;
+    	}
+    }
+    queryConfig = function(serviceName){ 
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        var hService = this.open(serviceName, 0x1/*_SERVICE_QUERY_CONFIG*/)
+        if (hService) {
+            var cfg;
+            var cbBytesNeeded = {INT value};
+            ::Advapi32.QueryServiceConfig(hService,null,0,cbBytesNeeded) 
+            if( ::GetLastError() != 0x7A/*_ERROR_INSUFFICIENT_BUFFER*/) return;
+
+            var buf = ..raw.buffer(cbBytesNeeded.value);
+            if( ::Advapi32.QueryServiceConfig(hService,buf,cbBytesNeeded.value,cbBytesNeeded) ){
+                cfg = ..raw.convert(buf,QUERY_SERVICE_CONFIG());;
+            }
+        
+            ::Advapi32.CloseServiceHandle(hService);
+            return cfg; 
+        }
+    };
+    each = function(serviceType,serviceState,groupName){ 
+        if( serviceType === null ) serviceType = 0x30/*_SERVICE_WIN32*/;
+        if( serviceState === null )serviceState = 0x3/*_SERVICE_STATE_ALL*/;
+        
+        if(!this.handle) return ;  
+        
+        var cbBytesNeeded = {INT size};
+        var servicesReturned = {INT size};
+        var resumeHandle = {INT handle};
+        
+        var ok = ::Advapi32.EnumServicesStatusExW(this.handle,0/*_SC_ENUM_PROCESS_INFO*/,serviceType,serviceState,null,0,cbBytesNeeded,servicesReturned,resumeHandle,groupName);
+        if( ok || ( ::GetLastError() != 0xEA/*_ERROR_MORE_DATA*/) ){ return function(){}   };
+         
+         var buffer = ..raw.buffer(cbBytesNeeded.size);
+         var ok = ::Advapi32.EnumServicesStatusExW(this.handle,0/*_SC_ENUM_PROCESS_INFO*/,serviceType,serviceState,buffer,cbBytesNeeded.size,cbBytesNeeded,servicesReturned,resumeHandle,groupName);
+         if( !ok ){
+             return function(){ }
+         } 
+         
+         var offset = 0;
+         var count = servicesReturned.size; 
+         var info = {
+              ustring serviceName;
+              ustring displayName;
+              struct svrStatusProcess =  SERVICE_STATUS_PROCESS();
+        }
+        var infoSize = ..raw.sizeof(info); 
+        
+        return function(){
+            if( !count ) return;  
+             ..raw.convert(buffer,info,offset);
+             offset = offset + infoSize;
+              count--;
+               
+              info.svrStatusProcess.state = STATE_TEXT[info.svrStatusProcess.currentState];
+             return info.serviceName,info.displayName,info.svrStatusProcess; 
+        }  
+    };
+    eachDependent = function(serviceName,serviceState){  
+        if( serviceState === null )serviceState = 0x3/*_SERVICE_STATE_ALL*/;
+        
+        if(!this.handle) return ; 
+        if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名",2);  
+        var hService = this.open(serviceName, 0x8/*_SERVICE_ENUMERATE_DEPENDENTS*/)
+        if (!hService) return;
+        
+        var cbBytesNeeded = {INT size};
+        var servicesReturned = {INT size}; 
+        var ok = ::Advapi32.EnumDependentServicesW(hService,serviceState,null,0,cbBytesNeeded,servicesReturned);
+     	if( ok || ( ::GetLastError() != 0xEA/*_ERROR_MORE_DATA*/) ){ ::Advapi32.CloseServiceHandle(hService);return function(){}   };
+
+        var buffer = ..raw.buffer(cbBytesNeeded.size);
+        var ok = ::Advapi32.EnumDependentServicesW(hService,serviceState,buffer,cbBytesNeeded.size,cbBytesNeeded,servicesReturned);
+        if( !ok ){ ::Advapi32.CloseServiceHandle(hService); return function(){}   }; 
+         
+        var offset = 0;
+        var count = servicesReturned.size; 
+        var info = {
+              ustring serviceName;
+              ustring displayName;
+              struct serviceStatus =  SERVICE_STATUS();
+        }
+        var infoSize = ..raw.sizeof(info); 
+         
+        return function(){
+            if( !count ) return;  
+             ..raw.convert(buffer,info,offset);
+             offset = offset + infoSize;
+             count--;
+               
+             info.serviceStatus.state = STATE_TEXT[info.serviceStatus.currentState];
+             return info.serviceName,info.displayName,info.serviceStatus; 
+        },function(){
+        	::Advapi32.CloseServiceHandle(hService);
+        }
+        
+    };
+    close = function(){
+        if( this.handle ){  
+            ::Advapi32.CloseServiceHandle(this.handle);
+            this.handle = null;
+        }
+    }
+}
+ 
+namespace manager { 
+
+    class QUERY_SERVICE_CONFIG  {
+ 		INT serviceType;
+ 		INT startType;
+ 		INT errorControl;
+ 		ustring binaryPathName;
+ 		ustring loadOrderGroup;
+ 		INT tagId;
+ 		ustring dependencies;
+ 		ustring serviceStartName;
+ 		ustring displayName;
+    }  
+    
+    class SERVICE_STATUS_PROCESS {
+        INT serviceType;
+        INT currentState;
+        INT controlsAccepted;
+        INT win32ExitCode;
+        INT serviceSpecificExitCode;
+        INT checkPoint;
+        INT waitHint;
+        INT processId;
+        INT serviceFlags;
+    } 
+    
+    class SERVICE_STATUS {
+		INT serviceType;
+		INT currentState;
+		INT controlsAccepted;
+		INT win32ExitCode;
+		INT serviceSpecificExitCode;
+		INT checkPoint;
+		INT waitHint;
+    }
+        
+    
+    STATE_TEXT = {
+        [5] = "CONTINUE_PENDING";
+        [6] = "PAUSE_PENDING";
+        [7] = "PAUSED";
+        [4] = "RUNNING";
+        [2] = "START_PENDING";
+        [3] = "STOP_PENDING";
+        [1] = "STOPPED";
+    }
+}
+
+isExist = function(serviceName){
+	var srvMgr = manager();
+	var ret = srvMgr.isExist( serviceName );
+	srvMgr.close();
+	return ret;
+}
+
+start = function(serviceName){
+	var srvMgr = manager();
+	var ret = srvMgr.start( serviceName );
+	srvMgr.close();
+	return ret;
+}
+
+pause = function(serviceName){
+	var srvMgr = manager();
+	var ret = srvMgr.pause( serviceName );
+	srvMgr.close();
+	return ret;
+}
+
+resume = function(serviceName){
+	var srvMgr = manager();
+	var ret = srvMgr.resume( serviceName );
+	srvMgr.close();
+	return ret;
+}
+
+stop = function(serviceName,term){
+	var srvMgr = manager();
+	var ret = srvMgr.stop( serviceName,term );
+	srvMgr.close();
+	return ret;
+}
+
+terminate = function(serviceName){
+	var srvMgr = manager();
+	var ret = srvMgr.terminate( serviceName );
+	srvMgr.close();
+	return ret;
+}
+
+restart = function(serviceName,stopSec,startSec){
+	var srvMgr = manager();
+	var ret = srvMgr.restart( serviceName );
+	srvMgr.close();
+	return ret;
+}
+
+isStopped = function(serviceName){
+	var srvMgr = manager();
+	var ret = srvMgr.isStopped( serviceName );
+	srvMgr.close();
+	return ret;
+}
+
+isRunning = function(serviceName){
+	var srvMgr = manager();
+	var ret = srvMgr.isRunning( serviceName );
+	srvMgr.close();
+	return ret;
+}
+
+delete = function(serviceName){
+	var srvMgr = manager();
+	var ret = srvMgr.delete( serviceName );
+	srvMgr.close();
+	return ret;
+}
+
+create = function(binaryPathName,serviceName,displayName,description,...){
+	if( binaryPathName === null ) binaryPathName = ..io._exepath;
+	if( type(binaryPathName) != type.string || !#binaryPathName ) error("请指定服务启动程序,参数@1错误",2);  
+    if( type(serviceName) != type.string || !#serviceName ) error("请指定服务名,参数@2错误",2);  
+    
+	var srvMgr = manager(0x2/*_SC_MANAGER_CREATE_SERVICE*/);
+	var ret = srvMgr.create( binaryPathName,serviceName,displayName,...);
+	if( ret ){
+		srvMgr.changeDescription(serviceName,description)
+	}
+	srvMgr.close();
+	return ret;
+} 
+
+each = function(serviceType,serviceState,groupName){
+    var serviceMgr = manager(0x4/*_SC_MANAGER_ENUMERATE_SERVICE*/); 
+    return serviceMgr.each(serviceType,serviceState,groupName),function(){
+        serviceMgr.close(); 
+    } 
+} 
+
+_serveiceTableEntry = {};
+//服务没有结束前此函数不会返回,注册的入口函数启动服务以后应当首先调用registerServiceCtrlHandler
+startDispatchThread = function( disp ){ 
+    for(serviceName,serviceProc in disp){
+        ..table.push( _serveiceTableEntry,{ustring serviceName = serviceName; pointer lpServiceProc = ..thread.tostdcall(
+            function(argc,argv){
+            	import service; 
+            	service.serviceName = serviceName;
+            	
+                if( argc ){
+                    argv  = ..raw.convertArray(argv,argc,"ustring")
+                }
+                
+                return owner.serviceProc(owner.serviceName,argv);
+            },"void(int,pointer)",{serviceProc = serviceProc;serviceName=serviceName}) } );
+    }
+    ..table.push( _serveiceTableEntry ,{ustring serviceName;pointer lpServiceProc} ); 
+    ::Advapi32.StartServiceCtrlDispatcherW( { struct entry[] = _serveiceTableEntry } );  
+}
+ 
+_serveiceCtrlHandler = {};
+registerCtrlThread = function( serviceName,handler ){
+	if( type(serviceName) != type.string || !#serviceName) error("请指定服务名,参数@1错误",2);  
+    _serveiceCtrlHandler[serviceName] = ..thread.tostdcall(handler,"int(int,int,ptr,ptr)",{serviceName=serviceName});
+
+    var hServiceStatus = ::Advapi32.RegisterServiceCtrlHandlerExW( serviceName,_serveiceCtrlHandler[serviceName],null); 
+    if(hServiceStatus){
+        var status = manager.SERVICE_STATUS();
+        status.serviceType = 0x30/*_SERVICE_WIN32*/
+        status.currentState = 0x2/*_SERVICE_START_PENDING*/
+        status.controlsAccepted = 0x1/*_SERVICE_ACCEPT_STOP*/
+       	status.hServiceStatus = hServiceStatus; 
+       	status.threadId = ..thread.getId(); 
+       	..thread.set("NT_SERVICE_STATUS(" + serviceName + ")", )
+       	
+        return status; 
+    } 
+} 
+
+updateStatus = function(status,serviceName){
+	if( type(serviceName) != type.string || !#serviceName) error("请指定服务名,参数@1错误",2); 
+	if( status.threadId == ..thread.getId()  && status._struct ){
+		..thread.set("NT_SERVICE_STATUS(" + serviceName + ")", status )
+	}
+	else {
+		status = ..table.assign( ..thread.get("NT_SERVICE_STATUS(" + serviceName + ")"),status);
+	}
+	
+	return ::Advapi32.SetServiceStatusW( status.hServiceStatus,status);
+}
+
+::Wtsapi32 = ..raw.loadDll("wtsapi32.dll");
+sessions = function(){
+	var info = {ptr ptr}
+	var count = {INT size}
+	if(!::Wtsapi32.WTSEnumerateSessions(null,null,1,info,count)) return;
+	
+	return ..raw.convert(info.ptr,{ 
+    	struct infos[] = {
+    		length = count.size;
+			{
+				INT id;
+				ustring station;
+				int state;
+			}
+		} 
+	} )	[["infos"]]
+}
+
+eachSession = function(){
+	var s = sessions() : {};
+	var i,v;
+	return function(){
+		i,v = ..table.next(s,i);
+		if(v) return v.id,v.station,v.state;
+	}
+}
+
+activeSessionId = function(){
+	for id,station,state in eachSession(){
+		if( state == 0 ) return id;
+	}
+}
+
+msgbox = function(str,title,timeout,style,sid){
+    if( sid === null ) sid = activeSessionId();
+    if(sid===null) return;
+    
+    if( type(str) == type.table) str = ..table.tostring(str);
+    str = ..string.toUnicode(tostring(str));
+    title = ..string.toUnicode(tostring(title : self.serviceName : "service" ) );
+    
+    var resp = {int v}
+	if( ::Wtsapi32.WTSSendMessageW(0,sid,
+		title,#title,str,#str,style,timeout,resp,timeout!==nul) ){
+		return resp.v;	
+	}	
+}
+
+msgboxErr = function(str,title){
+	return msgbox(str,title,,0x10/*_MB_ICONHAND*/);
+}
+
+msgboxTest = function(str,title,timeout){
+	return msgbox(str,title,0x1 | 0x20 /*_MB_OKCANCEL|_MB_ICONQUESTION*/ ,timeout:10000 ) == 1/*_IDOK*/;	
+}
+
+/**intellisense()
+service = NT服务操作\n部份操作需要管理权限
+service.serviceName = 当前服务线程中运行的NT服务名，\n主线程应自行指定
+service.isExist(.("服务名") = 是否存在指定的服务
+service.start(.("服务名") = 启动服务,\n成功返回true,\n失败请使用lasterr函数获取错误信息
+service.restart(.("服务名",停止超时,启动超时) = 重新启动服务,成功返回true,\n超时以秒为单位，省略则不限时间等待操作完成\n停止超时达到时间后服务未正常停止则强制中断服务进程
+service.stop(.("服务名") = 停止服务,\n成功返回true,\n失败请使用lasterr函数获取错误信息
+service.stop(.("服务名",true) = 停止服务,如果失败就强制中断服务进程,\n成功返回true,\n失败请使用lasterr函数获取错误信息
+service.terminate(.("服务名") = 强制中断服务进程,\n成功返回true,
+service.isStopped(.("服务名") = 服务是否已停止
+service.isRunning(.("服务名") = 服务是否正在运行
+service.pause(.("服务名") = 暂停服务,\n成功返回true,\n失败请使用lasterr函数获取错误信息
+service.resume(.("服务名") = 暂停状态恢复运行,\n成功返回true,\n失败请使用lasterr函数获取错误信息
+service.create(.(启动路径,服务名,显示全名,服务描述) = 创建服务,\n参数@1可为空,默认使用当前应用程序路径,\n其他可选参数未列出请查看函数源码
+service.delete(.("服务名") = 删除服务\n注意删除服务前最好关闭服务管理器
+service.manager(.(desiredAccess,machineName,databaseName) = 创建管理器
+service.manager() = !ntsrvmgr.
+!ntsrvmgr.create(.(启动路径,服务名,显示全名) = 创建服务,其他可选参数未列出请查看函数源码
+!ntsrvmgr.open(serviceName,desiredAccess) = 打开服务句柄
+!ntsrvmgr.close() = 关闭
+!ntsrvmgr.isExist(.("服务名") = 是否存在指定的服务
+!ntsrvmgr.start(.("服务名") = 启动服务,\n成功返回true,\n失败请使用lasterr函数获取错误信息
+!ntsrvmgr.stop(.("服务名") = 停止服务,\n成功返回true,\n失败请使用lasterr函数获取错误信息
+!ntsrvmgr.stop(.("服务名",true) = 停止服务,如果失败就强制中断服务进程,\n成功返回true,\n失败请使用lasterr函数获取错误信息
+!ntsrvmgr.terminate(.("服务名") = 强制中断服务进程,\n成功返回true,
+!ntsrvmgr.pause(.("服务名") = 暂停服务,\n成功返回true,\n失败请使用lasterr函数获取错误信息
+!ntsrvmgr.resume(.("服务名") = 暂停状态恢复运行,\n成功返回true,\n失败请使用lasterr函数获取错误信息
+!ntsrvmgr.delete(.("服务名") = 删除服务\n注意删除服务前最好关闭服务管理器
+!ntsrvmgr.control(.(serviceName,desiredAccess,control) = 控制服务
+!ntsrvmgr.queryStatus(.("服务名") = 返回状态
+!ntsrvmgr.isStopped(.("服务名") = 服务是否已停止
+!ntsrvmgr.isRunning(.("服务名") = 服务是否正在运行
+!ntsrvmgr.queryConfig(.("服务名") = 返回配置
+!ntsrvmgr.changeDescription(.("服务名","说明") = 修改服务说明
+!ntsrvmgr.queryDescription(.("服务名") = 返回服务说明
+!ntsrvmgr.queryBinaryPathName(.("服务名") = 返回启动路径以及参数
+!ntsrvmgr.changeConfig(.(serviceName,serviceType,startType) = 修改配置,其他可选参数未列出请查看函数源码
+!ntsrvmgr.queryConfig2(.("服务名",配置项,配置值) = 获取配置\n配置值必须是结构体
+!ntsrvmgr.startDelayed(.("服务名",是否延时) = 设置为延时启动
+!ntsrvmgr.startManual(.("服务名") = 设置为手动启动
+!ntsrvmgr.startAutomatic(.("服务名") = 设置为自动启动
+!ntsrvmgr.startDisabled(.("服务名") = 设置为禁用
+!ntsrvmgr.changeConfig2(.("服务名",配置项,配置值) = 修改配置\n配置值必须是结构体
+!ntsrvmgr.eachDependent() = !ntsrvsta2.
+!ntsrvmgr.eachDependent("服务名") = @for(serviceName,displayName,serviceStatus in ??.eachDependent("__/*指定服务名列出依赖此服务的服务*/") ){
+	
+}
+service.each(serviceType,serviceState,groupName) = @for( serviceName,displayName,svrStatusProcess in service.each()){
+    io.print(serviceName, displayName,svrStatusProcess.state) 
+}
+service.updateStatus(.(服务状态表,服务名) = 参数@1应是registerCtrlHandler函数的返回值,\n在CtrlHandler函数中指定部份需要更新的值即可 
+service.startDispatchThread(服务回调函数表) = @.service.startDispatchThread( \n    服务名 = function(serviceName,argv){\n        import service; \n        var srvStatus = service.registerCtrlThread(serviceName,function(control,eventType,pEventData){ \n            import service; \n            if( control == 0x1/*_SERVICE_CONTROL_STOP*/ ){  \n                service.updateStatus({currentState = 0x1/*_SERVICE_STOPPED*/},owner.serviceName); \n            } \n        } )\n        \n        srvStatus.controlsAccepted = 0x1/*_SERVICE_ACCEPT_STOP*/\n        srvStatus.currentState = 0x4/*_SERVICE_RUNNING*/;\n        service.updateStatus(srvStatus,serviceName)\n         \n        __/*服务运行代码*/\n        \n        srvStatus.controlsAccepted = 0;\n        srvStatus.currentState = 0x1/*_SERVICE_STOPPED*/\n        service.updateStatus(srvStatus,serviceName)\n    }\n)
+service.registerCtrlThread(serviceName,handle) = @.registerCtrlThread( serviceName,function(control,eventType,pEventData){\n        \n    }\n)	
+service.registerCtrlThread() = !ntsrvsta2.
+service.each() = !ntsrvsta2.
+!ntsrvmgr.queryStatus() = !ntsrvsta2.
+!ntsrvsta2.serviceType = serviceType
+!ntsrvsta2.currentState = currentState
+!ntsrvsta2.state = state
+!ntsrvsta2.controlsAccepted = controlsAccepted
+!ntsrvsta2.win32ExitCode = win32ExitCode
+!ntsrvsta2.serviceSpecificExitCode = serviceSpecificExitCode
+!ntsrvsta2.checkPoint = checkPoint
+!ntsrvsta2.waitHint = waitHint 
+!ntsrvsta2.processId = processId
+!ntsrvsta2.serviceFlags = processId 
+!ntsrvmgr.queryConfig() = !ntsrvconfig.
+!ntsrvconfig.serviceType = serviceType
+!ntsrvconfig.startType = startType
+!ntsrvconfig.errorControl = errorControl
+!ntsrvconfig.binaryPathName = binaryPathName
+!ntsrvconfig.loadOrderGroup = loadOrderGroup
+!ntsrvconfig.tagId = tagId
+!ntsrvconfig.dependencies = dependencies
+!ntsrvconfig.serviceStartName = serviceStartName
+!ntsrvconfig.displayName = displayName
+service.sessions() = 返回操作系统所有登录用户会话
+service.eachSession（） = @for id,station,state in service.eachSession(){
+	if( state == 0 ) return id;__/*遍历操作系统所有登录用户会话，\nid为会话ID，station为会话名,state为会话状态\nstate为0为登录激活状态,1为已连接,4为断开状态*/
+} 
+service.activeSessionId（) = 返回操作系统活动用户会话ID
+service.msgboxErr(.("文本","标题") = 弹出错误对话框\n所有者窗口参数可选\n如果参数@1是表对象,自动调用table.tostring序列化为文本\n其他类型调用tostring转为字符串
+service.msgbox(.("文本","标题",等待超时值,样式) = 弹出对话框\n返回用户操作ID,如果不指定超时值返回IDASYNC 32001\n超时值以毫秒为单位,超时为0表示一直等待,不指定超时则不等待用户操作,\n除参数一以外,其他所有参数可选\n如果参数@1是表对象,自动调用table.tostring序列化为文本\n其他类型调用tostring转为字符串
+service.msgboxTest(.("文本","标题")  = 返回布尔值表示用户是否按了“确定”按钮。\n标题,所有者窗口参数可选
+end intellisense**/
+
+/**intellisense()
+_SERVICE_FILE_SYSTEM_DRIVER=@0x2/*_SERVICE_FILE_SYSTEM_DRIVER*/ 
+_SERVICE_KERNEL_DRIVER=@0x1/*_SERVICE_KERNEL_DRIVER*/
+_SERVICE_WIN32_OWN_PROCESS=@0x10/*_SERVICE_WIN32_OWN_PROCESS*/
+_SERVICE_WIN32_SHARE_PROCESS=@0x20/*_SERVICE_WIN32_SHARE_PROCESS*/
+_SERVICE_CONTINUE_PENDING=@0x5/*_SERVICE_CONTINUE_PENDING*/
+_SERVICE_PAUSE_PENDING=@0x6/*_SERVICE_PAUSE_PENDING*/
+_SERVICE_PAUSED=@0x7/*_SERVICE_PAUSED*/
+_SERVICE_RUNNING=@0x4/*_SERVICE_RUNNING*/
+_SERVICE_START_PENDING=@0x2/*_SERVICE_START_PENDING*/
+_SERVICE_STOP_PENDING=@0x3/*_SERVICE_STOP_PENDING*/
+_SERVICE_STOPPED=@0x1/*_SERVICE_STOPPED*/
+_SERVICE_ACCEPT_NETBINDCHANGE=@0x10/*_SERVICE_ACCEPT_NETBINDCHANGE*/
+_SERVICE_CONTROL_NETBINDADD=@0x7/*_SERVICE_CONTROL_NETBINDADD*/
+_SERVICE_CONTROL_NETBINDREMOVE=@0x8/*_SERVICE_CONTROL_NETBINDREMOVE*/
+_SERVICE_CONTROL_NETBINDENABLE=@0x9/*_SERVICE_CONTROL_NETBINDENABLE*/
+_SERVICE_CONTROL_NETBINDDISABLE=@0xA/*_SERVICE_CONTROL_NETBINDDISABLE*/
+_SERVICE_ACCEPT_PARAMCHANGE=@0x8/*_SERVICE_ACCEPT_PARAMCHANGE*/
+_SERVICE_CONTROL_PARAMCHANGE=@0x6/*_SERVICE_CONTROL_PARAMCHANGE*/
+_SERVICE_ACCEPT_PAUSE_CONTINUE=@0x2/*_SERVICE_ACCEPT_PAUSE_CONTINUE*/
+_SERVICE_CONTROL_PAUSE=@0x2/*_SERVICE_CONTROL_PAUSE*/
+_SERVICE_CONTROL_CONTINUE=@0x3/*_SERVICE_CONTROL_CONTINUE*/
+_SERVICE_ACCEPT_SHUTDOWN=@0x4/*_SERVICE_ACCEPT_SHUTDOWN*/
+_SERVICE_CONTROL_SHUTDOWN=@0x5/*_SERVICE_CONTROL_SHUTDOWN*/
+_SERVICE_ACCEPT_STOP=@0x1/*_SERVICE_ACCEPT_STOP*/
+_SERVICE_CONTROL_STOP=@0x1/*_SERVICE_CONTROL_STOP*/
+_SERVICE_ACCEPT_HARDWAREPROFILECHANGE=@0x20/*_SERVICE_ACCEPT_HARDWAREPROFILECHANGE*/
+_SERVICE_CONTROL_HARDWAREPROFILECHANGE=@0xC/*_SERVICE_CONTROL_HARDWAREPROFILECHANGE*/
+_SERVICE_ACCEPT_POWEREVENT=@0x40/*_SERVICE_ACCEPT_POWEREVENT*/
+_SERVICE_CONTROL_POWEREVENT=@0xD/*_SERVICE_CONTROL_POWEREVENT*/
+_SERVICE_ACCEPT_SESSIONCHANGE=@0x80/*_SERVICE_ACCEPT_SESSIONCHANGE*/
+_SERVICE_CONTROL_SESSIONCHANGE=@0xE/*_SERVICE_CONTROL_SESSIONCHANGE*/ 
+_SERVICE_RUNS_IN_SYSTEM_PROCESS=@0x1/*_SERVICE_RUNS_IN_SYSTEM_PROCESS*/
+_SERVICE_AUTO_START=@0x2/*_SERVICE_AUTO_START*/
+_SERVICE_BOOT_START=@0x0/*_SERVICE_BOOT_START*/
+_SERVICE_DEMAND_START=@0x3/*_SERVICE_DEMAND_START*/
+_SERVICE_DISABLED=@0x4/*_SERVICE_DISABLED*/
+_SERVICE_SYSTEM_START=@0x1/*SERVICE_SYSTEM_START*/
+_SERVICE_ADAPTER=@0x4/*_SERVICE_ADAPTER*/
+_SERVICE_FILE_SYSTEM_DRIVER=@0x2/*_SERVICE_FILE_SYSTEM_DRIVER*/
+_SERVICE_KERNEL_DRIVER=@0x1/*_SERVICE_KERNEL_DRIVER*/
+_SERVICE_RECOGNIZER_DRIVER=@0x8/*_SERVICE_RECOGNIZER_DRIVER*/
+_SERVICE_WIN32_OWN_PROCESS=@0x10/*_SERVICE_WIN32_OWN_PROCESS*/
+_SERVICE_WIN32_SHARE_PROCESS=@0x20/*_SERVICE_WIN32_SHARE_PROCESS*/
+_SERVICE_WIN32 =@0x30/*_SERVICE_WIN32*/
+end intellisense**/

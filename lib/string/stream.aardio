@@ -1,0 +1,89 @@
+//stream 资源文件流
+namespace string;
+
+class stream{
+	ctor( path ){
+		if(  ..io.exist(path) ){
+			this.handle = ..io.open(path,"rb");
+			this.isfile = true;
+		}
+		else {
+			this.handle = path;
+			if( #path < 0x410/*_MAX_PATH_U8*/){
+				var s = ..string.load(path);
+				if( s ) this.handle = s;
+			}
+			this.pos = 1;
+		}
+	}; 
+	close = function(){
+		if(!this.handle) return;
+		if( this.isfile  ) this.handle.close();
+		this.handle = null;
+	};
+	size = function(){
+		if( ! this.isfile ) return #this.handle;
+		else return this.handle.size(1)  	
+	};
+	read =  function(size){ 
+		var s;
+		if( ! this.isfile ){
+			s = ..string.slice(this.handle,this.pos,this.pos + size);
+			this.pos = this.pos + #s;
+		}
+		else {
+			s = this.handle.read(size)
+		} 
+		return s;
+	};
+	readBuffer =  function(buffer,l){ 
+		var t = type(buffer);
+		if( t == "buffer" ){
+			var m = #buffer;
+			if( !l ) l = m;
+			elseif( l > m ) l = m;
+			elseif( l < 0 ) return;	
+		}
+		else{
+			if(t!="pointer") error("参数@1必须指定缓冲区指针",2);
+			if(!l) error("无效的长度参数@2",2);
+		}
+			
+		var s;
+		if( ! this.isfile ){
+			s = ..string.slice(this.handle,this.pos,this.pos + size);
+			this.pos = this.pos + #s;
+			::CopyMemory(buffer,s,#s);
+		}
+		else {
+			return this.handle.readBuffer(buffer,size)
+		}
+	};
+	seek = function(offset,origin){
+		if(!origin) origin="set"; 
+		if( this.isfile ){
+			return this.handle.seek( origin,offset);
+		} 
+		
+		var pos;
+		if( origin == "set" )
+			pos = offset;
+		elseif( origin = "cur" )
+			pos = this.pos + offset;
+		else 
+			pos = #this.handle + offset;
+			
+		if( pos > #this.handle ) return -1;
+		this.pos = pos;
+		return 0;
+	};
+}
+
+/**intellisense()
+string.stream(.(文件路径) = 支持资源文件,\n参数也可以是普通字符串内容,\n创建的流是只读的
+string.stream() = !stdStringStream.
+!stdStringStream.read(.(长度) = 读取内容,返回字符串
+!stdStringStream.readBuffer( = 读取数据到缓冲区,成功返回读取长度,失败返回null
+!stdStringStream.readBuffer(.(缓冲区指针,读取长度) = 直接读数据到内存\n参数@1可以是缓冲区,或内存指针,\n如果是指针则必须指定读取长度,否则长度参数可选\n成功返回读取长度
+!stdStringStream.seek(.(偏移数值,"set") = 移动流指针,\n参数@2为以下值:\n"set":相对文件开始:\n"end":相对文件尾:\n"cur":相对当前位置
+end intellisense**/

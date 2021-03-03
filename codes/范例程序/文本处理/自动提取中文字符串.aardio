@@ -1,0 +1,35 @@
+//处理汉字
+import console;
+
+var str = /**
+取出所有的中文字符
+在模式匹配中,圆点'.'表示任意单字节字符,而冒号':'表示任意多字节字符(例如中文)
+abcddddddddddddd这是一个中文字符串adfasdfasdf这又是一个中文字符串<a href="">这是超链接标题</a>字符串**/ 
+ 
+for str in string.gmatch(str,':+') { 
+   console.log(str) 
+} 
+console.more(1);
+
+console.log("取左侧3个汉字",string.left(str,3,true) );
+console.log("取右侧3个汉字",string.right(str,3,true) );
+console.log("取第2到第5个汉字",string.slice(str,2,5,true) );
+console.more(1);
+
+//将中文字符串转换为数组
+var tab = string.split(str )
+for(i=1;#tab;1){ 
+	console.log( tab[i] ) //显示第i个字符
+}
+console.more(1)
+
+//转换为Uniocde( UTF-16 )
+var ustring = string.toUnicode(str);
+for(i=1;#ustring / 2 ;1){ //UTF-16每个字符串固定为两个字节
+	console.log( ustring[i],ustring[[i]] ) //下标操作符可以方便的支持Unicode双字节
+}
+
+//转换为拼音
+import string.conv.pinyin;
+console.log( string.conv.pinyin("新年好") )
+console.pause();

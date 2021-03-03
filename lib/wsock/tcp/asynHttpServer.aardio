@@ -1,0 +1,811 @@
+﻿//asynHttpServer 异步HTTP服务端
+
+import wsock.tcp.asynServer;
+import inet.url;
+import inet.httpStatusCode;
+import sessionHandler.default;
+import fsys.file;
+import fsys.path;
+import fsys.mime;
+import web.json;
+import web;
+import crypt;
+
+namespace wsock.tcp;
+
+class asynHttpServer{
+	ctor(documentRoot){
+		var errMsg;
+		this = ..wsock.tcp.asynServer();
+		if(!this ) return null,errMsg;
+		this.documentRoot = documentRoot : "/";
+		this.defalutDocument = "main.aardio";
+		
+		this.getUrl = function(path,localIp){  
+			var ip,port = this.getLocalIp();
+			if(!(ip&&port)) return;
+			
+			if(ip=="0.0.0.0")ip = localIp? ..wsock.getLocalIp() : "localhost";
+			var url = ..string.format("http://%s:%d",ip,port ); 
+			if( path )  {
+				path = ..string.replace(path,"\\","/");
+				if(path[1]=='/'#) path = ..string.right(path,-2);
+				
+				url = url + "/" + path;
+			};
+			return url;
+		}
+		
+		this._beforeStop = function(){
+			if( this._beforeHttpServerStop ) this._beforeHttpServerStop(); 
+		}
+		
+		this.onRead = function(hSocket,err){
+			var client = this.client(hSocket);
+			
+			var response,request,session = ..response,..request,..session;
+			this.onHttpRead(client);
+			..response,..request,..session = response,request,session;
+		}
+		
+		this.httpHandle = function(response,request,session){
+			response.loadcode( request.path );
+		};
+	}; 
+	run = function(app){
+		var url = this.getUrl();
+		if(!url){
+			this.start();
+			url = this.getUrl();
+		}
+		if(app) this.httpHandle = app;
+		return url;
+	};
+	onHttpRead = function(socketClient){
+		var strHeaders = socketClient.readTo('\r\n\r\n'); 
+		if(!strHeaders) return;
+		 
+		var requestHeaders = ..string.splitEx(strHeaders,"\r\n");
+    	var startRequestLine = requestHeaders[1];
+    	if(!startRequestLine){
+    		socketClient.shutdown();
+    	}
+    		
+    	startRequestLine = startRequestLine ? ..string.splitEx(startRequestLine,"\s+",3); 
+    	if( ( #startRequestLine != 3 ) ){
+        	socketClient.shutdown();
+        	return;
+    	}
+    	
+    	var environ = {};
+    	with environ{ 
+        	SERVER_NAME,SERVER_PORT = socketClient.getLocalIp();
+        	REMOTE_ADDR,REMOTE_PORT = socketClient.getRemoteIp();
+        	if(SERVER_PORT) SERVER_PORT = tostring(SERVER_PORT);
+        	if(REMOTE_PORT) REMOTE_PORT = tostring(REMOTE_PORT);
+        	REMOTE_HOST = REMOTE_ADDR;
+        	REQUEST_METHOD = startRequestLine[1];
+        	REQUEST_URI = startRequestLine[2];
+        	SERVER_PROTOCOL = startRequestLine[3];
+        	SERVER_SOFTWARE = "aardio server/1.0";
+        	GATEWAY_INTERFACE = 'CGI/1.1';
+        	DOCUMENT_ROOT = ..io.fullpath(this.documentRoot);
+        	HTTPS = "off";
+        	REQUEST_SCHEME = "http";
+        	
+        	if( ! ..string.startWith(SERVER_PROTOCOL,"HTTP/") ){
+				socketClient.shutdown();
+            	return;
+			}
+			
+			if(REQUEST_URI[1]!='/'#)  REQUEST_URI = "/" + REQUEST_URI;
+			
+			var uri = ..string.split(REQUEST_URI,"?");
+			QUERY_STRING = uri[2];
+			PATH_INFO = uri[1];
+			if( !..io.exist(PATH_INFO,4) && ..io.exist(PATH_INFO,0)  ){
+				var path = ..io.joinpath(PATH_INFO,this.defalutDocument);
+				if( ..io.exist( path,4 ) ){
+					if(PATH_INFO[#PATH_INFO]!=='/'#){
+						socketClient.write(SERVER_PROTOCOL 
+							+ ' 301 Moved Permanently\r\nLocation: '+PATH_INFO+'/\r\n\r\n');
+						socketClient.shutdown(0);
+						return;
+					}
+								
+					PATH_INFO = path;
+				}
+			}
+			PATH_INFO = ..inet.url.decode((..string.replace( PATH_INFO,"\\","/")));
+			PATH_TRANSLATED = ..io.fullpath(PATH_INFO);
+			if( ..string.endWith(PATH_INFO,".aardio",true) ){
+				SCRIPT_NAME =  PATH_INFO;
+				SCRIPT_FILENAME = PATH_TRANSLATED;
+			}
+			else {
+				SCRIPT_NAME = ..string.match(PATH_INFO,"(.*?\.aardio)/");
+				if(#SCRIPT_NAME)  SCRIPT_FILENAME = ..io.fullpath(SCRIPT_NAME);
+			}
+    	}
+    
+		var lastHeaderKey;
+		for(i=#requestHeaders;2;-1){
+			var line = requestHeaders[i];
+			if(line[1]==' ' || line[1]=='\t'){
+				if(lastHeaderKey){
+					requestHeaders[ lastHeaderKey ] = requestHeaders[ lastHeaderKey ] ++ ..string.trimleft(line);
+				}
+				continue;
+			};
+				
+			var h = ..string.splitEx(line,"\:\s*",2); 
+			h[1] = ..string.trim(h[1]); h[2] = ..string.trim(h[2]);
+			
+			lastHeaderKey = ..string.lower(h[1])
+			requestHeaders[ lastHeaderKey ] = h[2]; 
+			environ[ "HTTP_" + ..string.replace(..string.upper(lastHeaderKey),"-","_") ] = h[2]; 
+			requestHeaders[i] = {lastHeaderKey;h[2]};
+		}
+		requestHeaders@ = { _type="object" };
+		
+		with environ{ 
+			URL = PATH_INFO;
+			CONTENT_LENGTH = requestHeaders["content-length"];
+			CONTENT_TYPE = requestHeaders["content-type"];
+		}
+	
+		var cookies = environ.HTTP_COOKIE ? ..inet.url.splitParameters(environ.HTTP_COOKIE,"\;\s*") : {};  
+		var queryString = ..inet.url.splitParameters(environ.QUERY_STRING:"","\&\s*");
+		var response,request;
+		request = {
+			headers = requestHeaders;
+			environ = environ;
+			cookies = cookies;
+			get = queryString;
+			files = {};
+			documentRoot = environ.DOCUMENT_ROOT;
+			contentType = environ.CONTENT_TYPE;
+			contentLength = tonumber(environ.CONTENT_LENGTH:"0",10);
+			method = environ.REQUEST_METHOD;
+			protocol = environ.SERVER_PROTOCOL;
+			host = environ.HTTP_HOST;
+			serverPort = tonumber(environ.SERVER_PORT:"80",10);  
+			remoteAddr = environ.REMOTE_ADDR;
+			path = environ.PATH_INFO;
+			uri = environ.REQUEST_URI;
+			scheme = environ.REQUEST_SCHEME;
+			sessionId = cookies.aardiosessid;
+			createSessionId = function(){
+				owner.sessionId = ..crypt.md5(  ..string.format("%d|%.15s|%d|%d|%d|%0.8f",tonumber(..time()),
+					environ.REMOTE_ADDR : environ.HTTP_USER_AGENT : "",::Kernel32.GetCurrentProcessId(),..time.tick(),1,..math.random() ) );
+			};
+			postData = function(){  
+				if(owner._raw_stdin_data) return owner._raw_stdin_data; 
+				if( request.contentLength ){
+					owner._raw_stdin_data = socketClient.read(-request.contentLength);  
+				} 
+				return owner._raw_stdin_data;
+			};
+			postFileData = function(){
+				if(! (request.contentType && request.contentLength ) ) return;
+				if( owner._raw_stdin_data || owner._raw_file_data ) return owner._raw_file_data;
+				if ( ..string.startWith(environ.CONTENT_TYPE,"multipart/form-data",true) ) {
+					owner._raw_stdin_data = "";
+					var boundary = ..string.match(environ.CONTENT_TYPE,"boundary\s*=\s*(\S+)");
+					if(!boundary){
+						response.status = "400 Bad Request";
+						response.write("Missing boundary in multipart/form-data!"); 
+						response.close();
+					}
+					
+					var tempDir = ..io.joinpath("/config/temp/",..string.match(request.host,"[^\:]+") );
+					if(!..io.createDir(tempDir)) error("Unable to create directory:"+tempDir,2);
+					
+					var pid = ::Kernel32.GetCurrentProcessId();
+					var tempPathId = ..time.tick();
+					var tempPath = ..io.joinpath(tempDir,tempPathId)
+					while( ..io.exist(tempPath)){
+						tempPathId++;
+						tempPath = ..io.joinpath(tempDir,pid ++ tempPathId);
+					}
+			
+					var file,err = ..io.open(tempPath,"w+b");
+					if(!file) error(..string.concat("Upload failed: ",err) ,2);
+					 
+					
+					var outBuffer = ..raw.buffer(socketClient.bufferSize);
+					for(readSize,remainSize in socketClient.eachReadBuffer(outBuffer,request.contentLength) ){ 
+						if(readSize){
+							file.writeBuffer(outBuffer,readSize);	 
+						}
+					}
+					file.close();
+					
+					tempPath = ..io.fullpath( tempPath );
+					request.tempUploadPath = tempPath;
+					if(tempPath) {
+						import fsys.multipartFormData;
+						owner._raw_file_data= ..fsys.multipartFormData(tempPath,boundary);
+						if(owner._raw_file_data) return owner._raw_file_data;
+					}
+					
+					response.status = "400 Bad Request";
+					response.write("Request format is invalid: multipart/form-data!",err); 
+					response.close();
+				}
+			};
+			query = function(k){
+				return queryString[k] || request.post[[k]];
+			};
+		};
+		
+		if(!request.host){
+			request.host = environ.SERVER_NAME;
+			if( request.serverPort != 80) request.host = request.host + ":" + request.serverPort;
+		};		
+		request.url = request.scheme + "://"  + request.host  ++ request.path;
+		
+		if( ..string.cmp(request.headers["connection"],"keep-alive")==0 ){
+			request.keepAlive = true;
+		}	
+		
+		if( ! request.sessionId ){ request.createSessionId(); }	
+		var sesData,sesHandler,sesExpires;
+		var session;
+		session = {
+			start = function(expires){
+				for(name,handler in ..sessionHandler){
+					if( name == "default" ) continue;
+					if( handler[["startSession"]] ) {
+						sesHandler = handler;
+						break;
+					}
+				}
+				if(!sesHandler) sesHandler = ..sessionHandler.default;
+				sesData = sesHandler.startSession(expires);
+				sesExpires = expires;
+			};
+			clear = function(){
+				sesData = {};
+				if(sesHandler) sesHandler.clearSession();
+				else session.start();
+			}; 
+			save = function(){
+				if(sesHandler) sesHandler.saveSession(sesData,sesExpires);
+			};  
+			@{
+				_set = function(k,v){
+					if(!sesHandler) session.start();
+					
+    				sesData[[k]] = v;
+    				sesHandler.updateSession(sesData,k,v);
+    			}; 
+    			_get = function(k){
+    				if(!sesHandler) session.start();
+    				
+    				return sesData[[k]];
+    			}; 	 
+			}
+		} 	
+					
+		response = {
+			keepAlive = request.keepAlive;
+			headers = {};
+			cookies = {};
+			contentType = "text/html";
+			["close"] = function(continueRunning){ 
+				if(owner.closed){ 
+					if((!continueRunning) && (!response.continueRunning) )error(null);
+					return;
+				}
+				response.open();
+				
+				if(owner.transferChunked){
+					socketClient.write('0\r\n\r\n')
+				}
+				 
+				if( !owner.keepAlive ){
+					socketClient.shutdown();
+				}
+				
+				session.save();
+				
+				if( request.tempUploadPath ) {
+					..io.remove(request.tempUploadPath);
+					request.tempUploadPath = null;
+				}
+				owner.closed = true;
+				
+				if((!continueRunning) && (!response.continueRunning) )error(null);
+			}
+			["open"] = function(){
+				if( owner._headersWritten ) return; 
+				owner._headersWritten = true;
+				var postData = request.postFileData() : request.postData();
+				
+				owner.status =  owner.status ? ..inet.httpStatusCode.format(owner.status) : "200 OK";
+				owner.write(environ.SERVER_PROTOCOL," ",owner.status, '\r\n');
+				
+				if( owner.preheaders ){
+					var h = ..web.joinHeaders(owner.preheaders);
+					owner.write(h);
+				};	
+				
+				owner.write("Content-Type: ",owner.contentType:"text/html");
+				if(owner.charset!=""){owner.write("; charset=",owner.charset : "UTF-8");}
+				owner.write('\r\n');
+			
+			 	//用户不应当修改Connection，这个值应当由服务端控制
+			 	if(!owner.headers.Connection) {
+					if(owner.keepAlive){
+						if( owner.headers["Content-Length"]===null ) {  
+							owner.write('Transfer-Encoding: chunked\r\n');
+							owner.transferChunked = 0;
+						} 
+						owner.headers.Connection = "keep-alive";
+					}
+					else {
+						owner.headers.Connection = "close";	
+					}
+				}
+				
+				if(!owner.headers.Date) owner.headers.Date = tostring(  ..time.gmt() );
+				for (k, v in owner.headers) {
+					if( type(v) != 'table' ){
+						owner.write(k, ": ", v, '\r\n');
+					}
+					else{
+						for(i=1;#v) owner.write(k, ": ", v[i], '\r\n');
+					}
+				}	
+				
+				if( owner.cookies ){
+					if(!owner.cookieDomain) owner.cookieDomain = ..string.match(request.host,"[^\:]+");
+					if(!owner.cookiePath) owner.cookiePath ="/";
+					
+					var push = ..table.push;
+					for(k,v in owner.cookies){ 
+						if ( type(v) == type.table ) { 
+							if( !v.value ){
+								owner.write("Set-Cookie:",..inet.url.encode(k)
+									,"=deleted; expires=" + tostring(  ..time.gmt(1)) );  
+							}
+							var s = { ..inet.url.encode(tostring(v.value)) };
+							
+							if(v.expires && ..time.istime(v.expires)  ){ 
+								push(s,"expires=" + tostring( ..time.gmt(v.expires) ) );
+							}
+							elseif(v.maxAge){
+								push(s,"max-age=" + v.maxAge );
+							};
+							push(s,"domain=" + (v.domain : owner.cookieDomain) );
+							push(s,"path=" +  (v.path : owner.cookiePath) );
+							if(v.httpOnly || ((v.httpOnly === null ) && owner.cookieHttpOnly)) push(s,"HttpOnly");
+							if(v.secure || ((v.secure === null ) && owner.cookieSecure)) push(s,"Secure");
+							owner.write("Set-Cookie:",..inet.url.encode(k),"=",..string.join(s,"; ") ); 
+						} 
+						else{
+							if( v=="" ){
+								owner.write("Set-Cookie:",..inet.url.encode(k)
+									,"=deleted; expires=" + tostring(  ..time.gmt(1)) );  
+							}
+							else{
+								owner.write("Set-Cookie:",..inet.url.encode(k),"=",..inet.url.encode(tostring(v)) ); 
+								owner.write('; domain=',owner.cookieDomain ,"; path=",owner.cookiePath);
+							}
+						}
+						owner.write('\r\n');
+					}
+				}
+				
+				if(  request.sessionId ){
+					owner.write("Set-Cookie:AARDIOSESSID=" + request.sessionId + '; domain=' + owner.cookieDomain + '; path=/; HttpOnly\r\n');
+				}
+				owner.write('\r\n');
+				
+				if(owner.transferChunked === 0) owner.transferChunked = 1;
+			};
+			flush = function(){};
+			writeBuffer = function(buffer,len){
+				if( buffer === null ) return;
+				if( owner.closed ) return; 
+				if( ! owner._headersWritten ) owner.open();
+				if(len === null ) len = #buffer ; 
+				if(!len) return;
+				
+				if(owner.transferChunked ){
+					socketClient.write(..string.format("%x", len),'\r\n');
+					socketClient.writeBuffer(buffer,len);
+					socketClient.write('\r\n');
+				};
+				else{
+					socketClient.writeBuffer(buffer,len);
+				}
+			};
+			write = function(s,...){
+				if( s === null ) return;
+				if( response.closed ) return; 
+				if( ! response._headersWritten ) response.open();
+				
+				var ts = type(s);
+				if( ts == 'table' ){
+					if(s[["_struct"]]) {
+						if( s@[["_tostring"]] ){
+							 s = tostring(s);
+						} 
+						else {
+							s = ..raw.buffer(s);
+						} 
+					}
+					else s = ..web.json.stringify(s,owner.jsonPrettyPrint);
+				}
+				elseif( (ts != 'string') && (ts != 'buffer') ){
+					s = tostring(s);
+				};
+				 
+				if(owner.transferChunked ){
+					if(!#s) return;
+					
+					socketClient.write(..string.format("%x", #s),'\r\n');
+					socketClient.write(s,'\r\n');
+				};
+				else{
+					socketClient.write(s);
+				}
+				
+				if(...===null) return;
+			
+				return owner.write(...);
+			};
+			redirect = function(url,status){
+				owner.status = status : "302 Moved Temporarily";
+				if(!..inet.url.is(url,0x0/*_URLIS_URL*/)){
+					if(!..io.exist(request.path,4)){ 
+						var pathDoc =  ..io.joinpath(request.path,this.defalutDocument);
+						if( ..io.exist(request.path,0) && ( ..io.exist(pathDoc,4) ) ){
+							if(!..string.endWith(request.path,"/") )request.path=request.path+"/";
+						}
+					}
+					url=..inet.url.joinpath(request.scheme + "://"  + request.host  ++request.path,url);
+				}
+				owner.headers["Location"] = url;
+    			owner.close();
+			};
+			error = function(s,...){
+				if( s === null ) return;
+				if( owner.closed ) return;
+				response.keepAlive = null;
+				response.status = "500 Internal Server Error";
+				if( ! owner._headersWritten ) owner.open();
+				
+				if( type(s) == type.table ) s = ..web.json.stringify(s,true);
+				else s = tostring(s);
+				socketClient.write(s);
+					
+				if(...===null)return owner.close();
+				return owner.error(...);
+			};
+			customErrors = this.customErrors : {};
+			errorStatus = function(status){ 
+				if( response.customErrors[status] )  {
+					if(owner["errorStatusHandled"] === response.customErrors[status] ){
+						response.error("Handle already running!");
+						return;
+					}
+					owner["errorStatusHandled"] = response.customErrors[status];
+					
+					response.customErrors[status](response);
+				}
+				else{
+					response.status = ..inet.httpStatusCode.format(status);
+					response.write(response.status);
+				}
+				response.close();
+			};
+			loadcode = function(path,...){
+				if( request.method == "OPTIONS")return;
+				if(!path) path = request.path;
+				if( ! ..fsys.path.ischild("/",path) ){
+					return response.errorStatus(403);
+				}
+				
+				if(!..io.exist(path,4)){
+					
+					var pathDoc =  ..io.joinpath(path,this.defalutDocument);
+					if( ..io.exist(path,0) && ( ..io.exist(pathDoc,4) ) ){ 
+						path = pathDoc;
+						if(!..string.endWith(request.path,"/") )request.path=request.path+"/";
+					}
+	 				else {
+	 					if( ! ..string.endWith(path,".aardio",true) ){
+							if(!_exe_write_time){
+								var tmWrite = ..fsys.file.lastModified(..io._exepath); 
+								_exe_write_time = tmWrite ? tostring(tmWrite);
+							}
+							
+							var etag = ..crypt.md5( path ++ tostring(_exe_write_time) );
+							if( request.headers["if-none-match"] == etag ){
+								return response.errorStatus(304); 
+							}
+							response.headers["Etag"] = etag;
+							
+							var since = request.headers["if-modified-since"];
+							if( since ){
+								since = ..time.gmt(since);
+								if(since>=_exe_write_time){
+									return response.errorStatus(304);  
+								}
+							}
+	 					}
+	 					
+	 					var strData = ..string.load(path);
+	 					if(!strData){
+	 						strData = ..string.load(pathDoc);
+	 						if( strData ){
+	 							path = pathDoc;
+	 							if(!..string.endWith(request.path,"/") )request.path=request.path+"/";
+	 						}
+	 					}
+	 					
+	 					if(!strData){
+	 						response.headers["Etag"] = null; 
+	 						return response.errorStatus(404);
+	 					} 
+	 					
+	 					//资源文件
+	 					if( ! ..string.endWith(path,".aardio",true) ){
+	 						response.headers["Last-Modified"] = tostring(_exe_write_time);
+							response.headers["Accept-Ranges"] = "none";
+							
+	 						response.contentType = ..fsys.mime.fromFile(path);
+	 						response.write(strData);
+	 						return;
+	 					}
+	 					
+	 					var page,err = loadcode( strData );
+						if(!page){
+							response.error(err); 
+							return;
+						}
+						
+						invoke(page,...,...)
+						return; 
+	 				}
+				}
+				
+				if( ! ..string.endWith(path,".aardio",true) ){ 
+					if(..string.cmp(path,"/" + ..io._exefile) == 0 ){
+						return response.errorStatus(403);
+					}
+					
+					response.contentType = ..fsys.mime.fromFile(path);
+					var file = ..fsys.file(path,"rb");
+					var tmWrite = file.lastModified();
+					var contentSize = file.size(1);
+					var rangeBegin,rangeEnd = 0,contentSize-1;
+					file.close();
+					
+					var etag = ..crypt.md5( path ++ tostring(tmWrite) ) + "-" + ..string.hex( tostring(contentSize),"");
+					if( request.headers["if-none-match"] == etag ){
+						return response.errorStatus(304); 
+					}
+					response.headers["Etag"] = etag;
+					
+					var since = request.headers["if-modified-since"];
+					if( since ){
+						since = ..time.gmt(since);
+						if(since>=tmWrite){
+							return response.errorStatus(304);  
+						}
+					}
+					response.headers["Last-Modified"] = tostring(tmWrite);
+					response.headers["Accept-Ranges"] = "bytes";
+					
+					var range = request.headers.range;
+					if(range){
+						var rangeMatch,rangeSine;;
+						var rangeTest = request.headers["if-range"];
+						if(rangeTest){
+							rangeMatch = ..string.match(rangeTest,'"(.+)"');
+							if(!rangeMatch) rangeMatch = rangeTest;
+						}
+						if(!rangeMatch) rangeMatch = request.headers["if-match"];
+						if(!rangeSine) rangeSine = request.headers["if-unmodified-since"] || request.headers["unless-modified-since"];
+						if(rangeSine) rangeSine = ..time.gmt(rangeSine);
+						if( ( !rangeMatch || rangeMatch == etag ) && ( ! rangeSine || (  rangeSine >= tmWrite ) ) ){
+							var b,e = ..string.match(range,"bytes\s*=\s*(\d*)\-(\d*)");
+							if(e===null) e = rangeEnd;
+							
+							b = tonumber(b);
+							e = tonumber(e);
+							if( ( b && b> rangeEnd) || (e && e > rangeEnd) ){
+								return response.errorStatus(416);  
+							}
+							if(b!==null) rangeBegin = b;
+							if(e!=null) rangeEnd = e;
+							response.status = 206;
+						}
+					}
+					
+					response.headers["Content-Length"] = (rangeEnd - rangeBegin) + 1;
+					response.headers["Content-Range"] = ..string.format("%.0f-%.0f/%.0f",rangeBegin,rangeEnd,contentSize );
+					
+					var remainSize = rangeEnd-rangeBegin+1;
+					if(!remainSize){return;}
+					if(remainSize==contentSize)response.status = 200;
+			
+					if( request.method != "HEAD" ){
+						var file2 = ..io.open(path,"r+b");
+						var buffer = ..raw.buffer(65535);
+						file2.seek("set",rangeBegin)
+						for(i=rangeBegin;rangeEnd;65535){ 
+							var readSize = file2.readBuffer(buffer,remainSize>65535?65535:remainSize); 
+							if(!readSize) break ;
+							response.writeBuffer(buffer,readSize);
+							remainSize = remainSize - readSize;
+							..win.peekPumpMessage();
+						}
+						file2.close();
+					}
+					
+					return;
+				} 
+	
+				var page,err = loadcode( path );
+				if(!page){
+					response.error(err); 
+					return;
+				}
+				
+				invoke(page,...,...)
+			}
+		}
+		
+		if( ..string.cmp( request.headers["connection"],"Upgrade") == 0 ){
+			 
+			if( this.onUpgradeProtocol ){
+				var saverequest,saveresponse,savesession = ..request,..response,..session;
+				..request,..response = request,response;
+				var ret = this.onUpgradeProtocol(socketClient,request,response,session);
+				session.save();
+				..request,..response,..session = saverequest,saveresponse,savesession;
+				return ret;
+			}
+			
+			return response.errorStatus(400);
+		};
+		
+		if (environ.REQUEST_METHOD == "POST") {
+			if (  environ.CONTENT_TYPE && ..string.find(environ.CONTENT_TYPE,"@@application/x-www-form-urlencoded") ) {
+				var postData = request.postData();
+				if(postData) request.post = ..inet.url.splitParameters(postData,'\&');
+			} 
+		}
+		
+		if( request.method == "OPTIONS"){
+			response.headers["Allow"] = "OPTIONS, GET, HEAD, POST, PUT, DELETE, PATCH";
+			response.headers["Public"] = "OPTIONS, GET, HEAD, POST, PUT, DELETE, PATCH";
+		}
+		
+		..response = response;
+		..request = request;
+		..session = session;
+		if( ..string.startWith( request.path,"/config/",true ) ) {
+			return response.errorStatus(403);
+		}
+		elseif( ..string.startWith( request.path,"/lib/",true ) ) {
+			return response.errorStatus(403);
+		}
+		else{ 
+		
+			global.print = function(...){ response.write(...)  };
+			
+			var err;
+			var f = ..fiber.create( 
+				function(response,request,session){
+					var r,e = callex(,this.httpHandle ,,response,request,session);
+					if(!r) err = e; 
+				},request.documentRoot ); 
+			
+			var saverequest,saveresponse,savesession = ..request,..response,..session
+			..fiber.resume (f,response,request,session); 
+			..request,..response,..session = saverequest,saveresponse,savesession;
+			
+			response.continueRunning = true;
+			
+			if(err) {
+				if( environ.REMOTE_ADDR == "127.0.0.1"){
+					response.error('<!doctype html><html><head><meta charset="utf-8"></head><body><pre>',err,'</pre></body></html>'); 
+				}
+				else {
+					response.error('<!doctype html><html><head><meta charset="utf-8"></head><body><pre>服务器错误/内部错误</pre></body></html>');
+				}
+				
+				..io.stderr.write(err,'\r\n');
+			}
+		}
+    	
+    	response.close(true);
+	}
+}
+
+/**intellisense()
+wsock.tcp.asynHttpServer() = 创建单线程异步TCP服务端\n!stdasynHttpServer.
+end intellisense**/
+
+/**intellisense(!stdasynHttpServer)
+client(hSocket) = 用于获取客户端套接字对应的客户端对象
+isClosed(hSocket) = 连接是否已关闭
+isConnected(hSocket)  = 是否已连接并准备就绪
+client() = !stdtcpaclient.
+clients = 这是一个包含所有客户端套接字的表对象\n其中键为套接字句柄,值为 wsock.tcp.asynClient对象
+clients.? = !stdtcpaclient.
+start(.(IP,端口,请求队列大小) = 启动单线程异步TCP服务端,成功返回true,失败返回null,\n\n如果不写IP，则默认设为"0.0.0.0"也即监听本机所有IP,访问此服务端也不限制IP\n限制仅本机可以访问建议写127.0.0.1\n\n端口为0或省略则自动查找1025以后的空闲端口\n注意0-1023为系统通用服务保留端口,\n1024-49151为用户服务端口,其中大约%9已由IANA注册分配\n49152-65535为私有或临时端口
+run(httpProc) = @.run( \n    function(response,request,session){ \n         response.loadcode(request.path);\n    }__/*启动HTTP服务并在此回调函数中处理请求\n省略回调函数则默认调用response.loadcode*/\n);
+bind(.(IP,端口) = 绑定IP端口
+listen(.(请求队列大小) = 监听指定的IP端口
+shutdown() =  断开TCP服务端
+stop() = 关闭TCP服务端
+getLocalIp() = 返回当前绑定的IP,端口号
+getRemoteIp(hSocket) = 返回客户端IP地址,端口
+serverAddress = 服务端监听地址\n!sockaddr_in.
+acceptCount = 当前连接数,不可改动该值
+maxConnection = 最大连接数
+clientBufferSize = 客户端套接字读写缓冲区大小，默认为1MB\n缓冲区如果设置的太小，会导致过于频繁的调用读写函数
+keepAliveTimeout = 最大保持连接时间,以秒为单位,\n负数表示不限时间
+clearKeepAliveTimeout() = 关闭所有超出keepAliveTimeout限制的超时连接\n在连接超出最大连接数时,此函数会被自动调用
+getUrl(__) = 返回HTTP服务端访问网址,可选指定目录或文件路径\n注意参数第一个字符不需要指定斜杠\n如果参数@2为true，IP "0.0.0.0"替换为合适的内网IP而不是localhost	\n如果服务器启动失败不返回任何值
+documentRoot = 网站根目录,默认为"/"
+defalutDocument = 默认文档，默认为"main.aardio"
+customErrors = @.customErrors = {\n    [404] = function(response){\n		response.status = "404 Not Found";\n		response.write("404 Not Found"); __/*自定义错误页*/\n	} \n}
+onUpgradeProtocol = @.onUpgradeProtocol = function(client,request,response){
+	__/*处理客户端升级协议请求,\n可在此回调中切换到WebSocket协议*/
+}
+_beforeHttpServerStop = @._beforeHttpServerStop = function(){
+	__/*服务端关闭以前触发\n此回调函数是标准库保留接口\n用户不应使用此回调*/
+}
+beforeStop = @.beforeStop = function(){
+	__/*服务端关闭以前触发*/
+}
+_onClientClosed = @._onClientClosed = function(hSocket){
+	__/*客户端连接已经关闭时触发\n此函数在连接断开后一定会被触发\n此回调函数是标准库保留接口\n用户不应使用此回调*/
+}
+onClientClosed = @.onClientClosed = function(hSocket){
+	__/*客户端连接已经关闭时触发\n此函数在连接断开后一定会被触发*/
+}
+onOpen = @.onOpen = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*已连接\n在这里可以开始发送数据*/	
+}
+onClose = @.onClose = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*已断开连接,\n如果缓冲区中仍然有数据,\n这个事件可能在其他事件前面触发\n主动调用close函数立即关闭连接,此事件不会被触发,\n但onClientClosed事件总会在关闭连接后触发*/	
+}
+onReceive = @.onReceive = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*收到数据\n仅读取已到达的数据\n定义了此事件就不应同时定义onRead事件*/	
+}
+onRead = @.onRead = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*收到数据\n可阻塞读取数据\n定义了此事件就不应同时定义onReceive事件*/	
+}
+onOutOfBandData = @.onOutOfBandData = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*收到紧急数据\n即send函数最后一个flag参数设为_MSG_OOB时发送的1字节带外数据*/		
+}
+onSend = @.onSend = function(hSocket,err){
+    var client = ??.client(hSocket);
+    
+	__/*发送数据*/
+}
+onStop = @.onStop = function(err){
+    
+    
+	__/*已停止服务端\n主动调用stop函数停止服务端时不会触发此事件*/	
+}
+end intellisense**/

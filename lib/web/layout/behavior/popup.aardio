@@ -1,0 +1,44 @@
+//popup 弹出面板
+import web.layout.event;
+namespace web.layout.behavior.popup;
+
+onButtonClick = function (ltTarget,ltOwner,reason,behaviorParams) {
+	ltOwner.popupHide()
+}
+
+onHyperlinkClick = function (ltTarget,ltOwner,reason,behaviorParams) {
+	ltOwner.popupHide()	
+}
+
+onMouseDown = function (ltTarget,ltOwner,x,y,mouseParams) {
+	return true;
+}
+
+onMouseUp = function (ltTarget,ltOwner,x,y,mouseParams) {
+	ltOwner.popupHide();
+}
+
+onFocusLost = function (ltTarget,ltOwner,focusParams) {
+	if( ltOwner.isChild(ltTarget) )
+		ltOwner.popupHide();	
+}
+ 
+namespace handled {
+
+	onButtonClick = function (ltTarget,ltOwner,reason,behaviorParams) {
+		ltOwner.popupHide()
+	}
+	
+	onHyperlinkClick = function (ltTarget,ltOwner,reason,behaviorParams) {
+		ltOwner.popupHide()	
+	}
+	
+	onMouseUp = function (ltTarget,ltOwner,x,y,mouseParams) {
+		ltOwner.popupHide();
+	}
+	
+	onFocusLost = function (ltTarget,ltOwner,focusParams) {
+		if( ltOwner.isChild(ltTarget) )
+			ltOwner.popupHide();
+	}
+}

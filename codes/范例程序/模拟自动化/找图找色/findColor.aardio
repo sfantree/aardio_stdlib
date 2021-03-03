@@ -1,0 +1,18 @@
+﻿//屏幕找色
+import gdi;
+
+import mouse;
+import soImage;
+
+var imgScreen = soImage();//创建图像
+imgScreen.capture(); //抓屏
+
+//在图像上搜索指定颜色的点,
+//第一个参数是一个表示查找颜色的数值,更多参数用法请查看智能提示
+var x,y = imgScreen.findColor( gdi.RGB(48,171,53) );
+
+//快速移动鼠标
+mouse.move(1,1,true);
+
+//慢速移动鼠标，显示移动轨迹
+mouse.moveTo(x,y,true);

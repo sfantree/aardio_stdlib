@@ -1,0 +1,54 @@
+//util 网络实用工具
+import inet.http; 
+import process.popen;
+namespace inet.util;
+
+getWebServer = function(url){
+ 	var whttp = ..inet.http();
+ 	if( !..string.startWith(url,"http://",true) )
+ 		url = "http://" + url;
+ 		
+	if(! whttp.beginRequest( url ) ) return;
+	if(! whttp.send() ) return;
+	
+	var server = whttp.readHeader("Server")  
+	var poweredBy = whttp.readHeader("X-Powered-By")  
+	var aspnet_ver = whttp.readHeader("X-AspNet-Version")  
+	if(aspnet_ver)
+		poweredBy ++= "/" + aspnet_ver 
+		
+	whttp.close();	
+	return server, poweredBy
+}
+
+getSystem = function(host){
+	var subprocess = ..process.popen("ping " + host + " -n 1") 
+	var str = subprocess.read(-1);
+	subprocess.close(); 
+
+	ttl = ..string.match(str,"TTL\=(\d+)" )
+	ttl = tonumber(ttl) 
+ 	if(!ttl)
+ 		return "";
+
+	if( ttl>110 && ttl<128 )
+		return "Windows"
+	elseif( ttl>=32 && ttl<64 ) {
+		return "Linux"
+	}  
+	elseif( ttl <= 32 ) {
+		return "Win9x"
+	} 
+	elseif( ttl == 64 ) {
+		return "Compaq"
+	}
+	elseif( ttl > 128 ){
+		return "UNIX" 
+	} 
+	return ""
+}
+
+/**intellisense(inet.util)
+getSystem(__/*主机*/) = 检测目标主机操作系统
+getWebServer(__/*URL*/) = 检测Web服务器版本
+end intellisense**/

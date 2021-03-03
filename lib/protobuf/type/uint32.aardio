@@ -1,0 +1,28 @@
+﻿import protobuf.type.scalar
+namespace protobuf.type;
+ 
+class uint32{ 
+
+	ctor(...) {
+		this = ..protobuf.type.scalar(...)
+		this.wiredType = ..protobuf.message.wiredTypeVarint;
+	}
+	 
+	deSerialize = function () {
+		this.value = this.reader.nextUInt32();
+	}
+ 
+	serialize = function ( rec=-1 ) { 
+		var str = '';
+		
+		if ( rec > -1) {
+			str ++= this.encodeVarUint64( rec << 3 | this.wiredType );
+		}
+		this.value = tonumber(this.value) : 0;
+		 
+		var value = this.encodeVarUint64( this.value );
+		str ++= value;
+		 
+		return  str;
+	}
+}

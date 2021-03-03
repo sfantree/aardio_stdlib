@@ -1,0 +1,32 @@
+//timer 计时器
+namespace time.timer{
+	import time.performance;
+	var performance_tick = time.performance.tick;
+	var tkBegin = 0;
+	var map = {}
+	
+	start = function(name="default"){
+		map[name] = {};
+		map[name].tkBegin = performance_tick() 
+	}
+	
+	endTick = function(name="default"){
+		var ret = performance_tick()  - map[name].tkBegin ; 
+		map[name] = null;
+		return ret;
+	}
+	
+	test = function( loop,f ){
+		var b = performance_tick(); 
+		for(i=1;loop;1){ 
+			f(); 
+		}
+		return (performance_tick()-b) / loop;
+	}
+}
+
+/**intellisense(time.timer)
+start("name__") = 创建一个名字为name的计时器\n调用time.timer.endTick("name")函数时终止计时器\n并返回所耗时间(毫秒)。
+endTick("name__") = 终止指定名字计时器\n并返回所耗时间(毫秒)。
+test = @.test( 5, \n	function(){\n		for(i=1;1000){\n			__/*输入测试代码*/\n		} \n	}\n)
+end intellisense**/

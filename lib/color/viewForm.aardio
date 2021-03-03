@@ -1,0 +1,342 @@
+//viewForm 色表窗口
+import win.ui;
+import win.ui.ctrl.close;
+import color.view;
+import fsys.dlg;
+
+namespace color;
+class viewForm{
+	ctor(parent,tParam){
+	/*DSG{{*/
+	this = ..win.form(text="色表";right=906;bottom=633;bgcolor=16777215;exmode="none";mode="popup";parent=parent;tParam=tParam)
+	this.add(
+	btnAdd={cls="button";text="添加色卡";left=561;top=595;right=642;bottom=623;db=1;dl=1;z=19};
+	btnAnalogous={cls="button";text="类似色";left=108;top=562;right=181;bottom=590;db=1;dr=1;tabstop=1;z=8};
+	btnComplementary={cls="button";text="补色";left=24;top=562;right=97;bottom=590;db=1;dr=1;tabstop=1;z=7};
+	btnLightColor={cls="button";text="亮度变化表";left=397;top=562;right=488;bottom=590;db=1;dr=1;tabstop=1;z=11};
+	btnLoad={cls="button";text="导入色表";left=725;top=562;right=806;bottom=590;db=1;dr=1;tabstop=1;z=14};
+	btnMonochromaticColor={cls="button";text="单色调方案";left=295;top=562;right=386;bottom=590;db=1;dr=1;tabstop=1;z=10};
+	btnSave={cls="button";text="保存色表";left=810;top=562;right=891;bottom=590;db=1;dr=1;tabstop=1;z=15};
+	btnSearch={cls="button";text="查找";left=830;top=595;right=892;bottom=623;db=1;dr=1;z=4};
+	btnSplitComplementary={cls="button";text="分散互补色";left=192;top=562;right=283;bottom=590;db=1;dr=1;tabstop=1;z=9};
+	btnTetradicColor={cls="button";text="四色方案";left=583;top=562;right=656;bottom=590;db=1;dr=1;tabstop=1;z=13};
+	btnTriadicColor={cls="button";text="三色方案";left=499;top=562;right=572;bottom=590;db=1;dr=1;tabstop=1;z=12};
+	closeButton={cls="close";left=926;top=628;right=944;bottom=646;bgcolor=32768;db=1;dr=1;hide=1;z=5};
+	editKeyword={cls="edit";left=646;top=598;right=826;bottom=623;align="right";db=1;dl=1;dr=1;edge=1;z=20};
+	lbColor={cls="static";text="#";left=7;top=604;right=32;bottom=629;align="right";db=1;dl=1;transparent=1;z=2};
+	lbName={cls="static";text="描述:";left=338;top=604;right=375;bottom=629;align="right";db=1;dl=1;notify=1;transparent=1;z=6};
+	lbRgb={cls="static";text="RGB:";left=115;top=604;right=152;bottom=629;align="right";db=1;dl=1;notify=1;transparent=1;z=3};
+	plus={cls="plus";left=0;top=-1;right=906;bottom=552;db=1;dl=1;dr=1;dt=1;notify=1;z=1};
+	plusColor={cls="plus";left=36;top=598;right=113;bottom=625;align="left";border={color=-6250332;width=1};db=1;dl=1;editable=1;hidesel=false;notify=1;tabstop=1;textPadding={left=6;top=6};z=16};
+	plusColorName={cls="plus";left=379;top=598;right=557;bottom=623;align="left";border={color=-6250332;width=1};db=1;dl=1;editable=1;tabstop=1;textPadding={left=6;top=6};z=18};
+	plusRgb={cls="plus";left=155;top=598;right=337;bottom=623;align="left";border={color=-6250332;width=1};db=1;dl=1;editable=1;tabstop=1;textPadding={left=6;top=6};z=17}
+	)
+	/*}}*/
+	
+	this.btnAdd.oncommand = function(id,event){
+		var clr = ..color.parse(this.plusColor.text);
+		var colorName = this.plusColorName.text;
+		if( ..string.startWith(colorName,"参考色:") ){
+			colorName = ..string.replace(colorName,"参考色:","类");
+			colorName = ..string.replace(colorName,"%()","");
+		}
+		this.colorView.addItem(clr,colorName);
+	}
+	
+    this.btnLightColor.oncommand = function(id,event){
+		if(this.argbColor === null){
+			this.msgboxErr("请先单击选中配色的主色")
+			return;
+		}
+		var clrTable = ..color.table.lightColor(this.argbColor);
+		this.colorView.loadColorTable(clrTable,,,10);	
+		this.btnSearch.text = "恢复"
+	}
+
+    this.btnTetradicColor.oncommand = function(id,event){
+		if(this.argbColor === null){
+			this.msgboxErr("请先单击选中配色的主色")
+			return;
+		}
+		var clrTable = ..color.table.tetradicColor(this.argbColor );
+		this.colorView.loadColorTable(clrTable);
+		this.btnSearch.text = "恢复"
+	}
+
+    this.btnTriadicColor.oncommand = function(id,event){
+		if(this.argbColor === null){
+			this.msgboxErr("请先单击选中配色的主色")
+			return;
+		}
+		var clrTable = ..color.table.triadicColor(this.argbColor );
+		this.colorView.loadColorTable(clrTable);	
+		this.btnSearch.text = "恢复"		
+	}
+
+    this.btnAnalogous.oncommand = function(id,event){
+		if(this.argbColor === null){
+			this.msgboxErr("请先单击选中配色的主色")
+			return;
+		}
+		var clrTable = ..color.table.analogousColor(this.argbColor );
+		this.colorView.loadColorTable(clrTable);	
+		this.btnSearch.text = "恢复"
+	}
+
+    this.btnSplitComplementary.oncommand = function(id,event){
+		if(this.argbColor === null){
+			this.msgboxErr("请先单击选中配色的主色")
+			return;
+		}
+		var clrTable = ..color.table.splitComplementaryColor(this.argbColor );
+		this.colorView.loadColorTable(clrTable);		
+		this.btnSearch.text = "恢复"	
+	}
+
+    this.btnComplementary.oncommand = function(id,event){
+		if(this.argbColor === null){
+			this.msgboxErr("请先单击选中配色的主色")
+			return;
+		}
+		var clrTable = ..color.table.complementaryColor(this.argbColor );
+		this.colorView.loadColorTable(clrTable);		
+	}
+
+    this.btnMonochromaticColor.oncommand = function(id,event){
+		if(this.argbColor === null){
+			this.msgboxErr("请先单击选中配色的主色")
+			return;
+		}
+		var clrTable = ..color.table.monochromaticColor(this.argbColor );
+		this.colorView.loadColorTable(clrTable);
+		this.btnSearch.text = "恢复"
+	}
+
+    this.colorView = ..color.view( this.plus );
+	this.colorView.loadColorTable();
+	
+	this.colorView.onItemHover = function(index,rgb,argb,name,ename){
+    	this.text = name + " " + ename + " " + ..string.format("%s RGB(%d,%d,%d)",..color.stringify(rgb),..color.getRgb(rgb) );
+    	
+    	var rc = this.colorView.getItemRect(index,true);
+    	this.closeButton.colorIndex = index;
+    	this.closeButton.setPos(rc.right-13,rc.top-3);
+    	this.closeButton.show(4/*_SW_SHOWNOACTIVATE*/);
+	}
+	
+	this.closeButton.onMouseClick = function(wParam,lParam){
+	    this.colorView.delItem(owner.colorIndex);
+	}
+	
+	this.plusColor.editBox.modifyEvent(,0x1/*_ENM_CHANGE*/)
+	this.plusColor.editBox.oncommand = function(id,event){
+		if( event == 0x300/*_EN_CHANGE*/ ){
+			if(this.colorEditing) return;
+			if(this.colorChanging) return;
+			
+			var s = owner.text;
+			s = ..string.match(s,"^#?\x{6}$");
+			if(s) {
+				var clr =  ..color.parse(s);
+				if(clr!==null){
+					this.colorEditing = true;
+					this.setItemColor(clr,true);
+    				this.colorEditing = false;
+				} 
+			}
+		}
+		elseif( event == 0x100/*_EN_SETFOCUS*/ ) {
+			this.plusColor.foreground = 0xFFFFFFFF;
+		}
+		elseif( event == 0x200/*_EN_KILLFOCUS*/ ) {
+			this.plusColor.foreground = 0;
+		}
+	}
+	
+	this.plusRgb.editBox.oncommand = function(id,event){
+		if( event == 0x100/*_EN_SETFOCUS*/ ) {
+			this.plusRgb.foreground = 0xFFFFFFFF;
+		}
+		elseif( event == 0x200/*_EN_KILLFOCUS*/ ) {
+			this.plusRgb.foreground = 0;
+		}
+	}
+	
+	this.plusColorName.editBox.oncommand = function(id,event){
+		if( event == 0x100/*_EN_SETFOCUS*/ ) {
+			this.plusColorName.foreground = 0xFFFFFFFF;
+		}
+		elseif( event == 0x200/*_EN_KILLFOCUS*/ ) {
+			this.plusColorName.foreground = 0;
+		}
+	}
+	
+	this.colorView.onItemClick = function(index,rgb,argb,name,ename){
+		if(this.colorChanging) return;
+		this.colorChanging = true;
+		
+    	this.argbColor = argb;
+    	if( ename != "color" ) this.plusColorName.text = name + "(" + ename + ")";
+    	else this.plusColorName.text = name;
+    	
+    	var r,g,b = ..color.getRgb(rgb);
+    	this.plusColor.text = ..string.format("%02X%02X%02X", r,g,b);
+    	this.plusRgb.text = ..string.format("0x%06X RGB(%d,%d,%d)",rgb,..color.getRgb(rgb) )
+    	this.plusColor.background = argb;
+    	this.plusRgb.background = argb;
+    	this.plusColorName.background = argb;
+    	this.plusColorName.redrawTransparent();
+    	
+    	if(this.onColorChange){
+    		this.onColorChange(argb);
+    	}
+    	this.colorChanging = false;
+	}
+	
+	this.setItemColor = function(argb,gdi){
+		var rgb = argb;
+		if(gdi){
+			var r,g,b = ..color.getRgb(rgb);
+			argb = ..color.argb(r,g,b);
+		}
+		else {
+			var r,g,b = ..color.getRgba(rgb);
+			rgb = ..color.rgb(r,g,b);
+		}
+		
+		if(argb == this.argbColor) return;
+		var info = ..color.table.find(argb);
+		this.argbColor = argb;
+		if(info) {
+			if(info.argb === argb){
+				this.colorView.onItemClick(-1,info.rgb,info.argb,info.name,info.ename);	
+			}
+			else {
+				var r,g,b = ..color.getRgba(argb);
+				var r2,g2,b2 = ..color.getRgba(info.rgb);
+				this.colorView.onItemClick(-1,..color.rgb(r,g,b),argb,"参考色:"+info.name,..string.format("#%02X%02X%02X", r2,g2,b2));
+				this.plusColorName.background = info.argb;
+			}
+			
+		}
+		else {
+			var r,g,b = ..color.getRgba(argb);
+			this.colorView.onItemClick(-1,..color.rgb(r,g,b),argb,"","")
+		}
+		
+	}
+	
+	
+	this.colorView.onItemDoubuleClick = function(index,rgb,argb,name,ename){
+    	if(this.continueModal){
+    		this.endModal(argb);
+    	} 
+	}
+	
+	this.colorView.onItemLeave = function(){
+    	this.text = "色表";	
+    	if(!this.closeButton.state.hover){
+    		this.closeButton.show(false);	
+    	}
+	}
+	
+	this.setColorTable = function(clrTable){
+		this.defaultColorTable = ..table.clone(clrTable);
+		
+		clrTable = ..color.table.init(clrTable);
+		this.colorView.loadColorTable(clrTable);
+	}
+	
+	this.btnSearch.oncommand = function(id,event){
+    	var kw = ..string.trim( this.editKeyword.text );
+    	if(!#kw || this.btnSearch.text == "恢复"){
+    		if(this.defaultColorTable){
+    			var clrTable = ..table.clone(this.defaultColorTable);
+    			clrTable = ..color.table.init(clrTable);
+    			this.colorView.loadColorTable(clrTable);
+    		}
+    		else {
+    			this.colorView.loadColorTable(..color.table());
+    		}
+    		
+    		this.btnSearch.text = "查找";
+    		return;
+    	}
+    	
+    	kw = ..string.splitEx(kw,"\s+");
+		var clrTable = ..color.table();
+		clrTable = ..table.filter(clrTable,function(v,index){
+			for(i,k in kw){
+				if( ..string.find(v[1],k) || ..string.find(v[2],k) ) return true;
+			}
+		})
+		
+		if(this.defaultColorTable){
+			var clrTable2 = ..table.filter(this.defaultColorTable,function(v,index){
+				for(i,k in kw){
+					if( ..string.find(v[1],k) || ..string.find(v[2],k) ) return true;
+				}
+			})	
+			..table.append(clrTable,clrTable2);
+		}
+		
+		this.colorView.loadColorTable(clrTable);
+		this.btnSearch.text = "恢复"
+	}
+	
+	this.editKeyword.setCueBannerText("搜索关键字为空加载全部色卡");
+	this.onOk = function(){
+    	this.btnSearch.oncommand();
+	}
+
+	this.btnSave.oncommand = function(id,event){
+		var clrTable = this.colorView.getColorTable();
+		if(!clrTable){
+			this.msgboxErr("当前未加载色表");
+			return;
+		}
+		
+		if(this.continueModal){
+			this.endModal(clrTable)
+			return; 
+		}
+		
+		var path = ..fsys.dlg.save("*.colors|*.colors||","保存色表",,this);
+		if(path){
+			..string.save(path,..table.tostring(clrTable) )
+		}
+	}
+	
+	this.btnLoad.oncommand = function(id,event){
+		var path = ..fsys.dlg.open("*.colors|*.colors||","导入色表( 可以用鼠标将色表文件拖进色表窗口 )",,this);
+		if(path){
+			var str = ..string.load(path);
+			if(#str && str[1]=='{'#){
+				var clrTable = eval(str)
+				this.colorView.loadColorTable(clrTable);
+				this.btnSearch.text = "恢复"
+			}
+		}	
+	}
+	
+	this.onDropFiles = function(files){
+		var path = files[1];
+		if(!..string.endWith(path,".colors")){
+			return;
+		}
+		
+		var str = ..string.load(path);
+		if(#str && str[1]=='{'#){
+			var tab = eval(str)
+			this.colorView.loadColorTable(tab);
+			this.btnSearch.text = "恢复"
+		}
+	}
+
+	};
+}
+
+if( !owner ) ..color.viewForm().doModal();
+/**intellisense()
+color.viewForm() = 窗口类\n!winform.
+end intellisense**/

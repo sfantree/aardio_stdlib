@@ -1,0 +1,411 @@
+namespace inet;
+ 
+::Wininet := ..raw.loadDll("Wininet.dll") 
+
+/*intellisense(::)*/
+::InternetOpen = Wininet.api("InternetOpen","pointer(ustring agent,INT accessType,ustring proxy,ustring proxyBypass,INT flags)" )
+::InternetConnect = Wininet.api("InternetConnect","pointer(POINTER hInet,ustring serverName,INT serverPort,ustring userName,ustring password,INT service,INT flags,INT context)")
+::InternetCloseHandle =Wininet.api("InternetCloseHandle","bool(POINTER hInet)") 
+::InternetSetOption = Wininet.api("InternetSetOptionW","bool(pointer hInet,INT opt,struct buffer,INT len)")
+::InternetSetOptionPtr = Wininet.api("InternetSetOptionW","bool(pointer hInet,INT opt,pointer buffer,INT len)")
+::InternetQueryOption =  Wininet.api("InternetQueryOptionW","bool(POINTER hInet,INT option,struct &buffer,INT &length)")
+/*end intellisense*/
+
+var getLastResponseInfo =  Wininet.api("InternetGetLastResponseInfo","bool(INT& err, str& buffer,INT& len)")
+lastResponse = function(){
+	var ok,err,str,len = getLastResponseInfo(0,256,256);
+	if(!ok && ( len>256) ){
+		ok,err,str,len = getLastResponseInfo(0,len,len);
+	}
+	if(ok)return str,err;
+}  
+
+refreshOption = function(hInet){
+	::InternetSetOptionPtr(hInet,39/*_INTERNET_OPTION_SETTINGS_CHANGED*/, ,0);
+	::InternetSetOptionPtr(hInet,37/*_INTERNET_OPTION_REFRESH*/, ,0  ); 
+}
+
+INTERNET_PROXY_INFO = class {  
+    INT dwAccessType;
+    string ansiProxy;
+	string ansiProxyBypass;
+} 
+setProxy = function(proxyList,bypassList,hInet,ref){
+	if( proxy === null ) proxy = "";
+	if( proxyBypass === null ) proxyBypass = "<local>";
+	if( ref === null ) ref = true;
+	
+	var inf = INTERNET_PROXY_INFO(); 
+	
+	..thread.set("inet.proxyByPassList",bypassList)
+	if( ! proxyList ) {
+		inf.dwAccessType =  0x1/*_INTERNET_OPEN_TYPE_DIRECT*/;
+		..thread.set("inet.proxyList",false);
+		proxyList = null;
+	}
+	elseif( (type(proxyList) == "string") && #proxyList && ( proxy!="IE" ) ){
+		inf.dwAccessType = 0x3/*_INTERNET_OPEN_TYPE_PROXY*/ ;
+		..thread.set("inet.proxyList",proxyList);
+	}
+	else {
+		proxyList = "";
+	}
+	
+	inf.ansiProxy = proxyList;
+	inf.ansiProxyBypass = bypassList;
+	var ok = ::InternetSetOption(hInet,0x26/*_INTERNET_OPTION_PROXY*/,inf, 12/*..raw.sizeof(inf) */ );
+	if(ref)refreshOption(hInet);
+	
+	return ok;
+}
+setProxyAuth = function(u,p){
+	..thread.set("inet.proxyUsername",u)
+	..thread.set("inet.proxyPassword",p)
+}
+
+setAuth = function(user,pwd,hRequest){
+	user = ..string.toUnicode(user);
+	pwd = ..string.toUnicode(pwd);
+	return ::InternetSetOptionPtr(hRequest, 0x1C/*_INTERNET_OPTION_USERNAME*/,user, #user+1)
+		&& ::InternetSetOptionPtr(hRequest, 0x1D/*_INTERNET_OPTION_PASSWORD*/,pwd, #pwd+1); 	
+}
+
+/**intellisense(inet)
+lastResponse() = 返回服务器响应信息\n可用于查询服务器错误信息
+setProxyAuth(.("用户名","密码") = 设置inet.http默认代理登录信息\n该设置在进程内有效
+setProxy( = 修改同一进程内的默认代理设置\n对同一进程内的web.form,inet.http有效\n设置系统代理请使用 inet.conn.setProxy 函数
+setProxy(.(false) = 修改进程内默认代理设置为不使用代理
+setProxy(.("IE") = 修改进程内默认代理设置为使用IE代理设置\n此参数为默认值,可省略
+setProxy(.("SOCKS=代理服务器地址:端口","绕过代理地址") = 设置SOCKS4代理服务器,不支持登录\n绕过代理地址可在域名或IP中使用通配符,多个以分号分隔
+setProxy(.("被代理协议=代理协议://主机地址:端口号","绕过代理地址") = 设置HTTP,FTP等协议代理服务器\n参数@2可以直接写代理服务器域名或IP,\n省略协议则默认为HTTP,省略端口则默认为80,\n绕过代理地址可在域名或IP中使用通配符,多个以分号分隔
+setAuth(.("用户名","密码",http->request) = 设置登录信息,最后一个参数不能省略\n成功返回true
+refreshOption() = 刷新配置
+end intellisense**/
+
+/*---------------------
+缓存函数 开始
+---------------------*/
+var INTERNET_CACHE_ENTRY_INFO = class {
+	INT cbSize = 80;
+	ustring url;
+	ustring fileName;
+	INT cacheEntryType;
+	INT useCount;
+	INT hitRate;
+	INT sizeLow;
+	INT sizeHigh;
+	struct lastModifiedTime =  ::FILETIME();
+	struct expireTime =  ::FILETIME();
+	struct lastAccessTime =  ::FILETIME();
+	struct lastSyncTime =  ::FILETIME(); 
+	ustring headerInfo;
+	INT headerInfoSize;
+	ustring fileExtension;
+	union reserved = {
+		INT reserved;
+		INT exemptDelta;
+	} ;
+	BYTE buffer[4016];/*_MAX_CACHE_ENTRY_INFO_SIZE - 80 */
+}  
+ 
+FindFirstUrlCacheEntry = Wininet.api("FindFirstUrlCacheEntryW","pointer(ustring lpszUrlSearchPattern,struct &lpFirstCacheEntryInfo,INT& lpcbCacheEntryInfo)")
+FindNextUrlCacheEntry = Wininet.api("FindNextUrlCacheEntryW","int(pointer hEnumHandle,struct &lpNextCacheEntryInfo,INT& lpcbCacheEntryInfo)")
+FindCloseUrlCache = Wininet.api("FindCloseUrlCache","bool(pointer hEnumHandle)")
+GetUrlCacheEntryInfo = Wininet.api("GetUrlCacheEntryInfo","int(str url,struct &acheEntryInfo,INT &size)")
+
+deleteCache = Wininet.api("DeleteUrlCacheEntryW","int(ustring urlname)")
+getCacheInfo = function(url){ 
+	var entry = INTERNET_CACHE_ENTRY_INFO();   
+    GetUrlCacheEntryInfo(url,entry,4096/*_MAX_CACHE_ENTRY_INFO_SIZE*/); 
+	return entry;
+}
+eachCache = function(pattern,cacheType){
+	var entryInfo = INTERNET_CACHE_ENTRY_INFO();
+    var entrySize = 4096/*_MAX_CACHE_ENTRY_INFO_SIZE*/;
+    var hEntry = FindFirstUrlCacheEntry(cacheType, entryInfo, entrySize);   
+    var freeItor = function(){  
+   		if(hEntry){ 
+   			FindCloseUrlCache(hEntry);
+   			hEntry = null;
+   		}
+   	}   
+   	var gcEntry = ..gcdata( _gc = freeItor ;_topointer =  hEntry )
+   	var ok = hEntry;
+    
+    return function() {
+ 		while(ok){   
+			ok  = FindNextUrlCacheEntry(gcEntry, entryInfo,entrySize) 
+			if(ok && (!pattern || ..string.find(entryInfo.url,pattern) ) )
+				return entryInfo 
+		} 
+	} , freeItor ; 	
+ 
+}
+eachCookie = function(pattern){
+	return eachCache(pattern,"cookie:")
+}
+eachVisited = function(pattern){
+	return eachCache(pattern,"visited:")
+}
+clearCache = function(pattern ){
+	clearSesseion();
+	for( cache in eachCache(pattern) )
+		deleteCache( cache.url );  
+}
+clearCookie = function( pattern ){
+	clearSesseion();
+	for( cache in eachCache(pattern,"cookie:") )
+		deleteCache( cache.url );  
+}
+clearVisited = function( pattern  ){
+	for( cache in eachCache(pattern,"visited:") )
+		deleteCache( cache.url );  
+}
+clearSesseion = function(){
+	var ok = ::InternetSetOptionPtr( ,0x2A/*_INTERNET_OPTION_END_BROWSER_SESSION*/,,0); 
+	ok = ok && ::InternetSetOptionPtr( , 0x3C/*_INTERNET_OPTION_RESET_URLCACHE_SESSION*/, , 0)
+	return ok;	
+}
+
+var GetCookieA = Wininet.api("InternetGetCookieA","bool(str url,str name,str &data,INT & size)")
+var SetCookieA = Wininet.api("InternetSetCookieA","int(str url,str name,str data)") 
+getCookie = function(url){
+	url = ..string.replace(url,"^Cookie\:.+?\@","http://"); 
+	var ok,v,size = GetCookieA(url,"",0,0); 
+	ok,v = GetCookieA(url,k,size,size);
+	if(ok)return v,url;
+}
+
+setCookie = function(url,v,k){
+    if( type(k) == type.number ) k = ..time().addday(k);
+    
+	if( ..time.istime(k) ){  
+		SetCookieA(url, ,v );
+		return  SetCookieA(url, ,v + "; expires=" + tostring( ..time.gmt(k) ) );
+	}
+	else {
+		if( !#v  ) {
+			if( type(k) != type.string ) 
+				error("请使用参数@3指定cookie键名",2);
+			
+			SetCookieA(url,k ,"deleted" );
+			v = k + "=deleted; expires=" + tostring( ..time.gmt(1) );
+		}
+		return  SetCookieA(url,k,v )	
+	}
+	
+	if(ok)return data;
+}
+
+/**intellisense(inet)
+getCookie("http://__") = 返回指定网址的Cookie\n一般指定根域名就可以了，最好不要指定子域名\n注意不能获取HttpOnly Cookie、不能获取其他进程的会话Cookie
+setCookie(.("http://x.com","值","键") = 设置cookie,\n如果不指定值则删除cookie,\n如果指定键,值则设置会话cookie,\n第一个参数指定Cookie生效的域名\n注意cookie应该使用UrlEncode编码非ASCII字符
+setCookie(.("http://x.com","键=值",过期时间) = 设置cookie,\n参数@3使用time对象指定过期时间,\n如果不指定过期时间则设置会话cookie,\n否则修改持久化cookie,\n第一个参数指定Cookie生效的域名\n注意cookie应该使用UrlEncode编码非ASCII字符
+setCookie(.("http://x.com","键=值",过期天数) = 设置cookie,\n如果不指定过期天数则设置会话cookie,\n否则修改持久化cookie,\n第一个参数指定Cookie生效的域名\n注意cookie应该使用UrlEncode编码非ASCII字符
+deleteCache(__/*缓存URL*/) = 删除指定的缓存
+clearCookie(__/*可选输入查找模式串*/) = 清除指定Cookies
+clearVisited(__/*可选输入查找模式串*/) = 清除指定历史记录
+clearCache(__/*可选输入查找模式串*/) = 清除指定缓存
+clearSesseion() = 重置会话
+end intellisense**/
+
+/**intellisense()
+!inetcacheentry.url = URL地址名\n如果是Cookie文件,\n则可使用inet.getCookie()读取Cookie内容.
+!inetcacheentry.fileName = 缓存的本地文件名\n使用string.load()函数可以读取缓存内容
+!inetcacheentry.cacheEntryType = 缓存入口类型 
+!inetcacheentry.useCount = 当前用户使用缓存的次数 
+!inetcacheentry.sizeLow = 文件大小的低位
+!inetcacheentry.sizeHigh = 文件大小的高位
+!inetcacheentry.lastModifiedTime = 最后一次修改的时间
+!inetcacheentry.expireTime = 入口到期时间 
+!inetcacheentry.lastAccessTime = 最后一次访问的时间
+!inetcacheentry.lastSyncTime = 最后一次与服务器同步的时间
+!inetcacheentry.headerInfo = Internet缓存信息头的地址
+!inetcacheentry.headerInfoSize = Internet缓存信息头的信息大小 
+!inetcacheentry.fileExtension = 文件扩展(相当于将信息文件备份) 
+!inetcacheentry.reserved.exemptDelta = 豁免时间,跟最后访问时间有关
+end intellisense**/
+
+ /**intellisense()
+ _MAX_CACHE_ENTRY_INFO_SIZE=@4096/*_MAX_CACHE_ENTRY_INFO_SIZE*/
+_NORMAL_CACHE_ENTRY=@0x1/*_NORMAL_CACHE_ENTRY*/
+_STICKY_CACHE_ENTRY=@0x4/*_STICKY_CACHE_ENTRY*/
+_EDITED_CACHE_ENTRY=@0x8/*_EDITED_CACHE_ENTRY*/
+_TRACK_OFFLINE_CACHE_ENTRY=@0x10/*_TRACK_OFFLINE_CACHE_ENTRY*/
+_TRACK_ONLINE_CACHE_ENTRY=@0x20/*_TRACK_ONLINE_CACHE_ENTRY*/
+_SPARSE_CACHE_ENTRY=@0x10000/*_SPARSE_CACHE_ENTRY*/
+_COOKIE_CACHE_ENTRY=@0x100000/*_COOKIE_CACHE_ENTRY*/
+_URLHISTORY_CACHE_ENTRY=@0x200000/*_URLHISTORY_CACHE_ENTRY*/
+_URLCACHE_FIND_DEFAULT_FILTER=@0x300035/*_URLCACHE_FIND_DEFAULT_FILTER*/
+end intellisense**/
+
+
+/**intellisense()
+?inet.eachCookie = !inetcacheentry.
+?inet.eachVisited = !inetcacheentry.
+?inet.eachCache = !inetcacheentry.
+?inet.getCacheInfo = !inetcacheentry.
+inet.eachCache = @for cacheEntry in inet.eachCache(__/*可选输入查找URL匹配模式串\n例如域名*/){
+	//遍历所有缓存
+	
+}
+inet.eachVisited = @for cacheEntry in inet.eachVisited(__/*可选输入查找URL匹配模式串\n例如域名*/){
+	//遍历所有缓存历史
+	
+}
+inet.eachCookie = @for cacheEntry in inet.eachCookie(__/*可选输入查找URL匹配模式串\n例如域名*/){
+	//遍历所有缓存Cookie
+	
+}
+end intellisense**/
+
+  
+/*---------------------
+缓存函数 结束
+---------------------*/
+  
+ /**intellisense() 
+_HTTP_QUERY_FLAG_NUMBER=@0x20000000/*_HTTP_QUERY_FLAG_NUMBER*/
+_HTTP_QUERY_CONTENT_TYPE=@0x1/*_HTTP_QUERY_CONTENT_TYPE*/
+_HTTP_QUERY_CONTENT_LENGTH=@0x5/*_HTTP_QUERY_CONTENT_LENGTH*/
+_HTTP_QUERY_EXPIRES=@0xA/*_HTTP_QUERY_EXPIRES*/
+_HTTP_QUERY_LAST_MODIFIED=@0xB/*_HTTP_QUERY_LAST_MODIFIED*/
+_HTTP_QUERY_PRAGMA=@0x11/*_HTTP_QUERY_PRAGMA*/
+_HTTP_QUERY_VERSION=@0x12/*_HTTP_QUERY_VERSION*/
+_HTTP_QUERY_STATUS_CODE=@0x13/*_HTTP_QUERY_STATUS_CODE*/
+_HTTP_QUERY_STATUS_TEXT=@0x14/*_HTTP_QUERY_STATUS_TEXT*/
+_HTTP_QUERY_RAW_HEADERS=@0x15/*_HTTP_QUERY_RAW_HEADERS*/
+_HTTP_QUERY_RAW_HEADERS_CRLF=@0x16/*_HTTP_QUERY_RAW_HEADERS_CRLF*/
+_HTTP_QUERY_FORWARDED=@0x1E/*_HTTP_QUERY_FORWARDED*/
+_HTTP_QUERY_SET_COOKIE=@0x2B/*_HTTP_QUERY_SET_COOKIE*/
+_HTTP_QUERY_REQUEST_METHOD=@0x2D/*_HTTP_QUERY_REQUEST_METHOD*/
+_INTERNET_INVALID_PORT_NUMBER=@0x0/*_INTERNET_INVALID_PORT_NUMBER*/
+_INTERNET_SERVICE_HTTP=@0x3/*_INTERNET_SERVICE_HTTP*/
+_HTTP_QUERY_FLAG_SYSTEMTIME=@0x40000000/*_HTTP_QUERY_FLAG_SYSTEMTIME*/
+_PROXY_TYPE_PROXY=@0x2/*_PROXY_TYPE_PROXY*/
+_INTERNET_FLAG_KEEP_CONNECTION=@0x0/*_INTERNET_FLAG_KEEP_CONNECTION*/
+_INTERNET_OPEN_TYPE_PRECONFIG=@0x0/*_INTERNET_OPEN_TYPE_PRECONFIG*/
+_INTERNET_OPEN_TYPE_DIRECT=@0x1/*_INTERNET_OPEN_TYPE_DIRECT*/
+_INTERNET_OPEN_TYPE_PROXY=@0x3/*_INTERNET_OPEN_TYPE_PROXY*/
+_INTERNET_OPEN_TYPE_PRECONFIG_WITH_NO_AUTOPROXY=@0x4/*_INTERNET_OPEN_TYPE_PRECONFIG_WITH_NO_AUTOPROXY*/
+_INTERNET_DEFAULT_FTP_PORT=@0x15/*_INTERNET_DEFAULT_FTP_PORT*/
+_INTERNET_DEFAULT_GOPHER_PORT=@0x46/*_INTERNET_DEFAULT_GOPHER_PORT*/
+_INTERNET_DEFAULT_HTTP_PORT=@0x50/*_INTERNET_DEFAULT_HTTP_PORT*/
+_INTERNET_DEFAULT_HTTPS_PORT=@0x1BB/*_INTERNET_DEFAULT_HTTPS_PORT*/
+_INTERNET_DEFAULT_SOCKS_PORT=@0x438/*_INTERNET_DEFAULT_SOCKS_PORT*/ 
+_INTERNET_PER_CONN_FLAGS=@0x1/*_INTERNET_PER_CONN_FLAGS*/
+_INTERNET_PER_CONN_PROXY_SERVER=@0x2/*_INTERNET_PER_CONN_PROXY_SERVER*/
+_INTERNET_PER_CONN_PROXY_BYPASS=@0x3/*_INTERNET_PER_CONN_PROXY_BYPASS*/
+_INTERNET_FLAG_SECURE=@0x800000/*_INTERNET_FLAG_SECURE*/
+_INTERNET_FLAG_DONT_CACHE=@0x4000000/*_INTERNET_FLAG_DONT_CACHE*/
+_INTERNET_FLAG_KEEP_CONNECTIONN=@0x400000/*_INTERNET_FLAG_KEEP_CONNECTIONN*/
+_INTERNET_SERVICE_FTP=@0x1/*_INTERNET_SERVICE_FTP*/
+_INTERNET_SERVICE_GOPHER=@0x2/*_INTERNET_SERVICE_GOPHER*/
+_PROXY_TYPE_DIRECT=@0x1/*_PROXY_TYPE_DIRECT*/
+_INTERNET_FLAG_RELOAD=@0x80000000/*_INTERNET_FLAG_RELOAD*/
+_INTERNET_FLAG_CACHE_IF_NET_FAIL=@0x10000/*_INTERNET_FLAG_CACHE_IF_NET_FAIL*/
+_INTERNET_FLAG_HYPERLINK=@0x400/*_INTERNET_FLAG_HYPERLINK*/
+_HTTP_QUERY_ACCEPT=@0x18/*_HTTP_QUERY_ACCEPT*/
+_HTTP_QUERY_WARNING=@0x43/*_HTTP_QUERY_WARNING*/ 
+_HTTP_STATUS_PROXY_AUTH_REQ=@0x197/*_HTTP_STATUS_PROXY_AUTH_REQ*/
+_HTTP_STATUS_DENIED=@0x191/*_HTTP_STATUS_DENIED*/
+_HTTP_QUERY_FLAG_REQUEST_HEADERS=@0x80000000/*_HTTP_QUERY_FLAG_REQUEST_HEADERS*/
+_INTERNET_SUPPRESS_RESET_ALL=@0x0/*_INTERNET_SUPPRESS_RESET_ALL*/
+end intellisense**/
+
+ /**intellisense()
+_INTERNET_ERROR_BASE=@0x2EE0/*_INTERNET_ERROR_BASE*/ 
+_INTERNET_OPTION_CALLBACK=@1/*_INTERNET_OPTION_CALLBACK*/
+_INTERNET_OPTION_CONNECT_TIMEOUT=@2/*_INTERNET_OPTION_CONNECT_TIMEOUT*/
+_INTERNET_OPTION_CONNECT_RETRIES=@3/*_INTERNET_OPTION_CONNECT_RETRIES*/
+_INTERNET_OPTION_CONNECT_BACKOFF=@4/*_INTERNET_OPTION_CONNECT_BACKOFF*/
+_INTERNET_OPTION_SEND_TIMEOUT=@5/*_INTERNET_OPTION_SEND_TIMEOUT*/
+_INTERNET_OPTION_RECEIVE_TIMEOUT=@6/*_INTERNET_OPTION_RECEIVE_TIMEOUT*/
+_INTERNET_OPTION_DATA_SEND_TIMEOUT=@7/*_INTERNET_OPTION_DATA_SEND_TIMEOUT*/
+_INTERNET_OPTION_DATA_RECEIVE_TIMEOUT=@8/*_INTERNET_OPTION_DATA_RECEIVE_TIMEOUT*/
+_INTERNET_OPTION_HANDLE_TYPE=@9/*_INTERNET_OPTION_HANDLE_TYPE*/
+_INTERNET_OPTION_LISTEN_TIMEOUT=@0xB/*_INTERNET_OPTION_LISTEN_TIMEOUT*/
+_INTERNET_OPTION_READ_BUFFER_SIZE=@0xC/*_INTERNET_OPTION_READ_BUFFER_SIZE*/
+_INTERNET_OPTION_WRITE_BUFFER_SIZE=@0xD/*_INTERNET_OPTION_WRITE_BUFFER_SIZE*/
+_INTERNET_OPTION_ASYNC_ID=@0xF/*_INTERNET_OPTION_ASYNC_ID*/
+_INTERNET_OPTION_ASYNC_PRIORITY=@0x10/*_INTERNET_OPTION_ASYNC_PRIORITY*/
+_INTERNET_OPTION_PARENT_HANDLE=@0x15/*_INTERNET_OPTION_PARENT_HANDLE*/
+_INTERNET_OPTION_KEEP_CONNECTION=@0x16/*_INTERNET_OPTION_KEEP_CONNECTION*/
+_INTERNET_OPTION_REQUEST_FLAGS=@0x17/*_INTERNET_OPTION_REQUEST_FLAGS*/
+_INTERNET_OPTION_EXTENDED_ERROR=@0x18/*_INTERNET_OPTION_EXTENDED_ERROR*/
+_INTERNET_OPTION_OFFLINE_MODE=@0x1A/*_INTERNET_OPTION_OFFLINE_MODE*/
+_INTERNET_OPTION_CACHE_STREAM_HANDLE=@0x1B/*_INTERNET_OPTION_CACHE_STREAM_HANDLE*/
+_INTERNET_OPTION_USERNAME=@0x1C/*_INTERNET_OPTION_USERNAME*/
+_INTERNET_OPTION_PASSWORD=@0x1D/*_INTERNET_OPTION_PASSWORD*/
+_INTERNET_OPTION_ASYNC=@0x1E/*_INTERNET_OPTION_ASYNC*/
+_INTERNET_OPTION_SECURITY_FLAGS=@0x1F/*_INTERNET_OPTION_SECURITY_FLAGS*/
+_INTERNET_OPTION_SECURITY_CERTIFICATE_STRUCT=@0x20/*_INTERNET_OPTION_SECURITY_CERTIFICATE_STRUCT*/
+_INTERNET_OPTION_DATAFILE_NAME=@0x21/*_INTERNET_OPTION_DATAFILE_NAME*/
+_INTERNET_OPTION_URL=@0x22/*_INTERNET_OPTION_URL*/
+_INTERNET_OPTION_SECURITY_CERTIFICATE=@0x23/*_INTERNET_OPTION_SECURITY_CERTIFICATE*/
+_INTERNET_OPTION_SECURITY_KEY_BITNESS=@0x24/*_INTERNET_OPTION_SECURITY_KEY_BITNESS*/
+_INTERNET_OPTION_REFRESH=@0x25/*_INTERNET_OPTION_REFRESH*/
+_INTERNET_OPTION_PROXY=@0x26/*_INTERNET_OPTION_PROXY*/
+_INTERNET_OPTION_SETTINGS_CHANGED=@0x27/*_INTERNET_OPTION_SETTINGS_CHANGED*/
+_INTERNET_OPTION_VERSION=@0x28/*_INTERNET_OPTION_VERSION*/
+_INTERNET_OPTION_USER_AGENT=@0x29/*_INTERNET_OPTION_USER_AGENT*/
+_INTERNET_OPTION_END_BROWSER_SESSION=@0x2A/*_INTERNET_OPTION_END_BROWSER_SESSION*/
+_INTERNET_OPTION_PROXY_USERNAME=@0x2B/*_INTERNET_OPTION_PROXY_USERNAME*/
+_INTERNET_OPTION_PROXY_PASSWORD=@0x2C/*_INTERNET_OPTION_PROXY_PASSWORD*/
+_INTERNET_OPTION_CONTEXT_VALUE=@0x2D/*_INTERNET_OPTION_CONTEXT_VALUE*/
+_INTERNET_OPTION_CONNECT_LIMIT=@0x2E/*_INTERNET_OPTION_CONNECT_LIMIT*/
+_INTERNET_OPTION_SECURITY_SELECT_CLIENT_CERT=@0x2F/*_INTERNET_OPTION_SECURITY_SELECT_CLIENT_CERT*/
+_INTERNET_OPTION_POLICY=@0x30/*_INTERNET_OPTION_POLICY*/
+_INTERNET_OPTION_DISCONNECTED_TIMEOUT=@0x31/*_INTERNET_OPTION_DISCONNECTED_TIMEOUT*/
+_INTERNET_OPTION_CONNECTED_STATE=@0x32/*_INTERNET_OPTION_CONNECTED_STATE*/
+_INTERNET_OPTION_IDLE_STATE=@0x33/*_INTERNET_OPTION_IDLE_STATE*/
+_INTERNET_OPTION_OFFLINE_SEMANTICS=@0x34/*_INTERNET_OPTION_OFFLINE_SEMANTICS*/
+_INTERNET_OPTION_SECONDARY_CACHE_KEY=@0x35/*_INTERNET_OPTION_SECONDARY_CACHE_KEY*/
+_INTERNET_OPTION_CALLBACK_FILTER=@0x36/*_INTERNET_OPTION_CALLBACK_FILTER*/
+_INTERNET_OPTION_CONNECT_TIME=@0x37/*_INTERNET_OPTION_CONNECT_TIME*/
+_INTERNET_OPTION_SEND_THROUGHPUT=@0x38/*_INTERNET_OPTION_SEND_THROUGHPUT*/
+_INTERNET_OPTION_RECEIVE_THROUGHPUT=@0x39/*_INTERNET_OPTION_RECEIVE_THROUGHPUT*/
+_INTERNET_OPTION_REQUEST_PRIORITY=@0x3A/*_INTERNET_OPTION_REQUEST_PRIORITY*/
+_INTERNET_OPTION_HTTP_VERSION=@0x3B/*_INTERNET_OPTION_HTTP_VERSION*/
+_INTERNET_OPTION_RESET_URLCACHE_SESSION=@0x3C/*_INTERNET_OPTION_RESET_URLCACHE_SESSION*/
+_INTERNET_OPTION_ERROR_MASK=@0x3E/*_INTERNET_OPTION_ERROR_MASK*/
+_INTERNET_OPTION_FROM_CACHE_TIMEOUT=@0x3F/*_INTERNET_OPTION_FROM_CACHE_TIMEOUT*/
+_INTERNET_OPTION_BYPASS_EDITED_ENTRY=@0x40/*_INTERNET_OPTION_BYPASS_EDITED_ENTRY*/
+_INTERNET_OPTION_HTTP_DECODING=@0x41/*_INTERNET_OPTION_HTTP_DECODING*/
+_INTERNET_OPTION_DIAGNOSTIC_SOCKET_INFO=@0x43/*_INTERNET_OPTION_DIAGNOSTIC_SOCKET_INFO*/
+_INTERNET_OPTION_CODEPAGE=@0x44/*_INTERNET_OPTION_CODEPAGE*/
+_INTERNET_OPTION_CACHE_TIMESTAMPS=@0x45/*_INTERNET_OPTION_CACHE_TIMESTAMPS*/
+_INTERNET_OPTION_DISABLE_AUTODIAL=@0x46/*_INTERNET_OPTION_DISABLE_AUTODIAL*/
+_INTERNET_OPTION_MAX_CONNS_PER_SERVER=@0x49/*_INTERNET_OPTION_MAX_CONNS_PER_SERVER*/
+_INTERNET_OPTION_MAX_CONNS_PER_1_0_SERVER=@0x4A/*_INTERNET_OPTION_MAX_CONNS_PER_1_0_SERVER*/
+_INTERNET_OPTION_PER_CONNECTION_OPTION=@0x4B/*_INTERNET_OPTION_PER_CONNECTION_OPTION*/
+_INTERNET_OPTION_DIGEST_AUTH_UNLOAD=@0x4C/*_INTERNET_OPTION_DIGEST_AUTH_UNLOAD*/
+_INTERNET_OPTION_IGNORE_OFFLINE=@0x4D/*_INTERNET_OPTION_IGNORE_OFFLINE*/
+_INTERNET_OPTION_IDENTITY=@0x4E/*_INTERNET_OPTION_IDENTITY*/
+_INTERNET_OPTION_REMOVE_IDENTITY=@0x4F/*_INTERNET_OPTION_REMOVE_IDENTITY*/
+_INTERNET_OPTION_ALTER_IDENTITY=@0x50/*_INTERNET_OPTION_ALTER_IDENTITY*/
+_INTERNET_OPTION_SUPPRESS_BEHAVIOR=@0x51/*_INTERNET_OPTION_SUPPRESS_BEHAVIOR*/
+_INTERNET_OPTION_AUTODIAL_MODE=@0x52/*_INTERNET_OPTION_AUTODIAL_MODE*/
+_INTERNET_OPTION_AUTODIAL_CONNECTION=@0x53/*_INTERNET_OPTION_AUTODIAL_CONNECTION*/
+_INTERNET_OPTION_CLIENT_CERT_CONTEXT=@0x54/*_INTERNET_OPTION_CLIENT_CERT_CONTEXT*/
+_INTERNET_OPTION_AUTH_FLAGS=@0x55/*_INTERNET_OPTION_AUTH_FLAGS*/
+_INTERNET_OPTION_COOKIES_3RD_PARTY=@0x56/*_INTERNET_OPTION_COOKIES_3RD_PARTY*/
+_INTERNET_OPTION_DISABLE_PASSPORT_AUTH=@0x57/*_INTERNET_OPTION_DISABLE_PASSPORT_AUTH*/
+_INTERNET_OPTION_SEND_UTF8_SERVERNAME_TO_PROXY=@0x58/*_INTERNET_OPTION_SEND_UTF8_SERVERNAME_TO_PROXY*/
+_INTERNET_OPTION_EXEMPT_CONNECTION_LIMIT=@0x59/*_INTERNET_OPTION_EXEMPT_CONNECTION_LIMIT*/
+_INTERNET_OPTION_ENABLE_PASSPORT_AUTH=@0x5A/*_INTERNET_OPTION_ENABLE_PASSPORT_AUTH*/
+_INTERNET_OPTION_HIBERNATE_INACTIVE_WORKER_THREADS=@0x5B/*_INTERNET_OPTION_HIBERNATE_INACTIVE_WORKER_THREADS*/
+_INTERNET_OPTION_ACTIVATE_WORKER_THREADS=@0x5C/*_INTERNET_OPTION_ACTIVATE_WORKER_THREADS*/
+_INTERNET_OPTION_RESTORE_WORKER_THREAD_DEFAULTS=@0x5D/*_INTERNET_OPTION_RESTORE_WORKER_THREAD_DEFAULTS*/
+_INTERNET_OPTION_SOCKET_SEND_BUFFER_LENGTH=@0x5E/*_INTERNET_OPTION_SOCKET_SEND_BUFFER_LENGTH*/
+_INTERNET_OPTION_PROXY_SETTINGS_CHANGED=@0x5F/*_INTERNET_OPTION_PROXY_SETTINGS_CHANGED*/
+_INTERNET_OPTION_DATAFILE_EXT=@0x60/*_INTERNET_OPTION_DATAFILE_EXT*/
+_INTERNET_OPTION_CODEPAGE_PATH=@0x64/*_INTERNET_OPTION_CODEPAGE_PATH*/
+_INTERNET_OPTION_CODEPAGE_EXTRA=@0x65/*_INTERNET_OPTION_CODEPAGE_EXTRA*/
+_INTERNET_OPTION_IDN=@0x66/*_INTERNET_OPTION_IDN*/
+_INTERNET_OPTION_MAX_CONNS_PER_PROXY=@0x67/*_INTERNET_OPTION_MAX_CONNS_PER_PROXY*/
+_INTERNET_OPTION_SUPPRESS_SERVER_AUTH=@0x68/*_INTERNET_OPTION_SUPPRESS_SERVER_AUTH*/
+_INTERNET_OPTION_SERVER_CERT_CHAIN_CONTEXT=@0x69/*_INTERNET_OPTION_SERVER_CERT_CHAIN_CONTEXT*/
+_INTERNET_OPTION_CONTROL_SEND_TIMEOUT=@5/*_INTERNET_OPTION_CONTROL_SEND_TIMEOUT*/
+_INTERNET_OPTION_CONTROL_RECEIVE_TIMEOUT=@6/*_INTERNET_OPTION_CONTROL_RECEIVE_TIMEOUT*/
+end intellisense**/

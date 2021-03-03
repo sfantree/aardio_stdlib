@@ -1,0 +1,29 @@
+//checklist 复选列表框
+import win.ui.ctrl.listview;
+namespace win.ui.ctrl; 
+var listview = ..win.ui.ctrl.listview;
+
+class checklist{
+    ctor(parent,tParam){ 
+    	if( tParam ){
+    		tParam.cls = "SysListView32"; 
+    		tParam.style =  tParam.style | 1/*_LVS_REPORT*/ | 0x4000 /*_LVS_NOCOLUMNHEADER*/  
+    		if(tParam.edge)   
+				tParam.exstyle |= 0x200/*_WS_EX_CLIENTEDGE*/; 
+   		} 
+    };
+    onCreate = function(){  
+    	this.setExtended(0x4/*_LVS_EX_CHECKBOXES*/|0x20/*_LVS_EX_FULLROWSELECT*/);
+    	this.insertColumn("list",-1,,0x0/*_LVCFMT_LEFT*/) 
+    }; 
+	adjust = function(cx,cy){
+    	this.fillParent(1);
+	};
+    @_metaProperty;
+}
+checklist._metaProperty = listview._metaProperty;
+ 
+/**intellisense()
+?win.ui.ctrl.checklist  =!listview.
+win.ui.ctrl.checklist() = 复选列表框\n!listview.
+end intellisense**/

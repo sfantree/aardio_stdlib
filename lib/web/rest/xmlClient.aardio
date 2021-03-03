@@ -1,0 +1,27 @@
+import string.xml;
+import web.rest.client;
+namespace web.rest; 
+
+class xmlClient{
+	ctor( ... ){
+		this = ..web.rest.client( ... );
+		 
+		this.parseResponseResult = function(s){
+			var t = this._http.responseContentType;
+			if( t &&  ..string.match( t,"[\w\/]*<@@xml@>![\W]"  ) )
+				return  ..string.xml( s );
+				
+			s = ..string.trim(s);
+			if( s[1] == '<'# ){
+				return  ..string.xml( s );
+			}
+			return;
+		}
+		this.acceptType = "application/xml,text/xml,*/*";
+	}; 
+}
+ 
+/**intellisense()
+web.rest.xmlClient = REST客户端\n普通表单请求,返回数据为XML格式
+web.rest.xmlClient() = 创建REST客户端,\n!web_restClient.
+end intellisense**/

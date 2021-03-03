@@ -1,0 +1,22 @@
+﻿namespace protobuf.type;
+ 
+class sfixed64{ 
+
+	ctor(...) {
+		this = ..protobuf.type.scalar(...)
+		this.wiredType = ..protobuf.message.wiredType32Bit;
+	}; 
+	deSerialize = function () {
+		var value = this.reader.next32bit();
+		this.value = ..raw.convert({BYTES bin[4] = value},{long n}).n;
+	};
+	serialize = function ( rec=-1 ) { 
+		var str = '';
+		if ( rec > -1) {
+			str ++= this.encodeVarUint64( rec << 3 | this.wiredType );
+		}
+		
+		this.value = tonumber(this.value) : 0;
+		return str ++ ..raw.convert({int d = this.value },{BYTES bin[4] }).bin;
+	}
+}

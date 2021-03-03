@@ -1,0 +1,45 @@
+﻿//simpleWindow3 渐变标题栏
+import win.ui.layered;
+import win.ui.simpleWindow;
+import gdip.lineBrush;
+
+namespace win.ui;
+
+class simpleWindow3{
+	ctor( winform,fontSize,width=33,height=27,theight,background=0xCC000000,foreground=0 ){
+		if( theight === null ) theight = height *2;
+		var frmTitleBar = winform.add({{cls="custom";text="custom";left=0;top=0;marginRight=0;bottom=theight;dl=1;dr=1;dt=1;z=1}})[1];
+		frmTitleBar.orphanWindow();
+		
+		var layered = ..win.ui.layered(frmTitleBar);
+		if(layered) {
+			this = ..win.ui.simpleWindow(frmTitleBar,fontSize,width,height); 
+			this.background = background;
+			this.foreground = foreground;
+				
+			layered.onDrawBackground = function(graphics,l,t,w,h){
+    			var brush = ..gdip.lineBrush(::RECTF(0,0,w,h),this.background,this.foreground,1)
+    			graphics.fillRectangle(brush,0,0,w,h)
+    			brush.delete()  
+			}
+		}
+		else {
+			frmTitleBar.close();
+			this = ..win.ui.simpleWindow(winform,fontSize,width,height,theight);  
+		}
+	};
+}
+
+/**intellisense()
+win.ui.simpleWindow3 = 简单初始化无边框窗口,并创建渐变背景的标题栏,\n标题栏上添加最小化、最大化、关闭窗口等按钮,\n并自动添加拖动边框、窗口阴影、设置窗口最大化范围等,\n可以在窗体设计器的窗口属性中禁用最大化、最小化按钮\n禁用最大化按钮以后不添加用于拖动调整窗体大小的边框
+win.ui.simpleWindow3(.(窗体对象,字体大小,按钮宽度,按钮高度,标题栏高度,背景色,前景色) = 为参数@1指定的无边框窗口添加渐变背景的标题栏,\n可选使用参数@2指定标题栏按钮字体大小,以像素为单位,\n可选用参数@3,@4指定关闭等按钮宽度,高度\n标题栏高度为可选参数,\n背景色、前景色用于指定渐变顶部、底部颜色,都是可选参数
+win.ui.simpleWindow3() = !win_ui_simpleWindow3.
+!win_ui_simpleWindow3.skin(style) = @.skin(\n	background = { \n		hover = 0xff99ffcc;\n		active = 0xffff6666; \n		default = 0x00000000; \n	}\n	color = { \n		hover = 0xff666666;\n		active = 0xffffffff; \n		default = 0xffffffff; __/*自定义标题栏关闭、最大化、最小化按钮样式\n用法与plus控件的skin函数相同*/\n	}\n)
+!win_ui_simpleWindow3.titlebarMin = 最小化按钮,plus控件\n如果窗体设置了禁用最小化按钮则不创建此控件\n!ui_ctrl_plus.
+!win_ui_simpleWindow3.titlebarMax = 最大化按钮,plus控件\n如果窗体设置了禁用最大化按钮则不创建此控件,并且不添加拖动边框\n!ui_ctrl_plus.
+!win_ui_simpleWindow3.titlebarClose = 关闭按钮,plus控件\n!ui_ctrl_plus.
+!win_ui_simpleWindow3.titlebar = 标题栏,static控件\n!static.
+!win_ui_simpleWindow3.background = 可用ARGB格式颜色数值指定窗口线性渐变使用的顶部颜色
+!win_ui_simpleWindow3.foreground = 可用ARGB格式颜色数值指定窗口线性渐变使用的底部颜色
+!win_ui_simpleWindow3._form = 标题栏所在窗口\n!winform.
+end intellisense**/

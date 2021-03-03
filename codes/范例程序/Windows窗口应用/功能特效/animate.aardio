@@ -1,0 +1,16 @@
+//窗口动画演示
+import win.ui;
+/*DSG{{*/
+var winform = ..win.form(text="动画窗口演示";right=400;bottom=202;max=false;min=false)
+winform.add()
+/*}}*/
+
+import win.animate;
+win.animate.fade( winform ).show()
+
+winform.onClose = function(hwnd,message,wParam,lParam){
+    win.animate.roll(winform).hide()
+}
+
+win.loopMessage();
+return winform;

@@ -1,0 +1,66 @@
+//mem 内存信息
+import process;
+namespace sys.mem;
+
+GlobalMemoryStatusEx = ::Kernel32.api("GlobalMemoryStatusEx","void(struct& lpBuffer)");
+
+class MEMORYSTATUSEX{
+	INT length;
+	INT memoryLoad; 
+	struct totalPhys =  {
+    	INT size;
+    	int sizeHighPart;
+    };
+	struct availPhys =  {
+		INT size;
+		int sizeHighPart;
+    };
+	struct totalPageFile =  {
+		INT size;
+		int sizeHighPart;
+    };
+	struct availPageFile =  {
+		INT size;
+		int sizeHighPart;
+    };
+	struct totalVirtual =  {
+		INT size;
+		int sizeHighPart;
+    };
+	struct availVirtual =  {
+		int size;
+		INT sizeHighPart; 
+    };
+	struct availExtendedVirtual =  {
+		INT size;
+		int sizeHighPart;
+    };
+}
+
+function getInfo(){ 
+	var info = MEMORYSTATUSEX();
+	info.length = ..raw.sizeof(info);
+	
+	var ok = GlobalMemoryStatusEx( info ) ;
+	for(k,v in info){ 
+		if( v[["size"]] !== null ){   
+			v.formatSize = ..math.size64(v.size,v.sizeHighPart).format(); 
+		} 
+	}
+	
+	return info;
+}
+
+/**intellisense()
+sys.mem.getInfo() = 返回内存信息\n!MEMORYSTATUSEX2.
+!MEMORYSTATUSEX2.memoryLoad = 指示当前系统内存的使用百分比 
+!MEMORYSTATUSEX2.totalPhys = 总的物理内存大小\n!memorystatus_field.
+!MEMORYSTATUSEX2.availPhys = 可用的物理内存大小\n!memorystatus_field.
+!MEMORYSTATUSEX2.totalPageFile = 显示可以存在页面文件中的字节数\n!memorystatus_field.
+!MEMORYSTATUSEX2.availPageFile = 可用的页面文件大小\n!memorystatus_field.
+!MEMORYSTATUSEX2.totalVirtual = 虚拟内存大小\n!memorystatus_field.
+!MEMORYSTATUSEX2.availVirtual = 可用虚拟内存\n!memorystatus_field.
+!memorystatus_field.size = 内存大小
+!memorystatus_field.sizeHighPart = 内存大小高位
+!memorystatus_field.formatSize = 内存大小格式化串
+end intellisense**/

@@ -1,0 +1,318 @@
+﻿//asynClient 异步客户端
+import wsock.tcp.client;
+import win.ui;
+
+namespace wsock.tcp;
+
+class asynClient{
+	ctor( hSocket ){
+		this = ..wsock.tcp.client(hSocket); 
+		this.readyState = 0;
+		
+		if(!hSocket){
+			this._form = ..win.form();
+			this._form.messageOnly();
+			this.asyncSelect(0x10/*_FD_CONNECT*/|0x1/*_FD_READ*/|0x20/*_FD_CLOSE*/|0x4/*_FD_OOB*/|0x2/*_FD_WRITE*/
+				,0xACD1/*_WM_STD_SOCKET_NOTIFY*/,this._form.hwnd)
+		
+			this._form.wndproc ={
+				[0xACD1/*_WM_STD_SOCKET_NOTIFY*/] =  function(hwnd,message,wParam,lParam){  
+					var hSocket = topointer(wParam);
+					var err,event = ::HIWORD(lParam),::LOWORD(lParam);
+					if( hSocket != this.hSocket ) return;
+	
+					select(event) {
+						case 0x10/*_FD_CONNECT*/{
+							if( !err) this.readyState = 1;
+							if( this.onConnect ) this.onConnect(err);
+						}	
+						case 0x1/*_FD_READ*/{
+							if( this.onReceive ) this.onReceive(err);
+							else if( this.onRead ) {
+								var ok,event = this.asyncSelect( this.lastSelectEvent & ~0x1/*_FD_READ*/ );
+								if(ok){
+									this.onRead(err);
+									this.asyncSelect(event);
+								};
+							};
+						} 
+						case 0x20/*_FD_CLOSE*/{
+							this.readyState = 2;
+							if( this.onClose ) this.onClose(err);
+							this.close();
+							this.readyState = 3; 
+						}
+						case 0x2/*_FD_WRITE*/{ 
+							var sendbuffer10035 = this.sendbuffer10035;
+							if(#sendbuffer10035){
+								while(#sendbuffer10035){
+									var task = sendbuffer10035[1];
+									var ret,err = this.writeBuffer(task.buffer,task.len,task.offset,task);
+									if( !ret ) {
+										this.sendbuffer10035 = {};
+										this.shutdown();
+										return;
+									}
+									if( err == 10035 ) break;
+									..table.shift(sendbuffer10035,1);
+								}
+								if( this.shuttingDown10035 !== null ){
+									..wsock.shutdown(this.hSocket,this.shuttingDown10035);
+									this.shuttingDown10035 = null;
+								}
+							} 
+							else{
+								if( this.onSend ) this.onSend(err);	
+							}
+						}
+						case 0x4/*_FD_OOB*/{
+							if( this.onOutOfBandData ) this.onOutOfBandData(err);	
+						}
+					}
+				}
+				[0x2/*_WM_DESTROY*/] = function(){
+					this.close();
+				}
+			} 
+			
+		}
+
+		this.asynTryReadTo = this.readTo;
+		
+		..table.assign(this,__asynFunction__ ); 
+	 }
+}
+
+namespace asynClient{
+    
+    __asynFunction__ = {
+		readTo = function(ends,wait){
+			var s,pendding = owner.asynTryReadTo(ends,wait);
+			
+			if(pendding){
+				owner.unRead(s);
+				return;
+			}
+			
+			if(!s){
+				owner.shutdown();	
+			}
+			return s;
+		}
+	
+		read = function(len){ 
+			if( len === null ){
+				return  owner.readTo('\r\n'); 
+			}
+			
+			if( len[["_struct"]] ){
+				var s = len;
+				var l =  ..raw.sizeof(s);
+				var p,size = owner.readAlloc(l);
+				
+				if(p){
+					var result;
+			 		if( size == l ) {
+			 			result =  ..raw.convert(p,s);
+			 		}
+			 		else {
+			 			owner.unReadAlloc(p)
+			 			return;
+			 		}
+			 		
+			 		p = ..raw.realloc(0,p);
+			 		return result;
+				}
+				
+				owner.shutdown();
+				return;
+			}
+		 	
+			var p,size = owner.readAlloc(len);
+			if(p){
+				if( len !== null ){
+					len = ..math.abs(len);
+					if( size != len ){
+						owner.unReadAlloc(p)
+						
+						if( 10035 !== ::Ws2_32.WSAGetLastError() ){ 
+							owner.shutdown();
+						}
+			 			return;
+					}
+				}
+				
+				var s = ..raw.tostring(p,1,size);
+				p = ..raw.realloc(0,p);
+				return s;	
+			} 
+			
+			owner.shutdown();
+		};
+		readBuffer = function(buffer,l){
+			if(!owner.hSocket) return null,"tcp客户端已断开";
+			
+			if(buffer){
+				var m = #buffer;
+				if( !l ) l = m;
+				elseif( l > m ) l = m;
+				elseif( l < 0 ) return;
+			}
+			
+			var p,size = owner.readAlloc(l);
+			if(p){
+				if( l!== null){
+					l = ..math.abs(l);
+					if( l!= size ){
+						owner.unReadAlloc(p)
+						
+						if( 10035 !== ::Ws2_32.WSAGetLastError() ){ 
+							owner.shutdown();
+						}
+			 			return;
+					}
+				};
+				
+				if(!buffer) {
+					buffer = ..raw.buffer(size,p);
+					p = ..raw.realloc(0,p);
+					return buffer;	
+				}
+				else {
+					..raw.copy(buffer,p,size);
+					p = ..raw.realloc(0,p);
+					return size;
+				} 
+			} 
+			else {
+				owner.shutdown();
+			}
+		} 
+		
+		eachRead = function(remainSize){
+			var recvbuf,reads;
+			var bufSize = owner.bufferSize;
+			var hSocket = owner.hSocket;
+			var this = owner;
+			
+			return function(){
+				
+				if( remainSize !==  null ){
+					if( remainSize < bufSize ){bufSize = remainSize;}
+					if(!bufSize) return;
+				}
+				
+				var reads,recvbuf = 0;
+        		while( ( reads==0 ) && this.hSocket){
+        			reads,recvbuf = ..wsock.recv( hSocket,bufSize,bufSize,0);
+        			..win.delay(100);
+        		}
+        		
+        		if( reads>0 ) { 
+        			if( remainSize !==  null ){remainSize -= reads;}  
+					if(reads<bufSize) recvbuf = ..string.left(recvbuf,reads); 
+					return recvbuf,reads,remainSize
+				}  
+			} 
+		}; 
+		
+		eachReadBuffer = function(buffer,remainSize){
+			var recvbuf,reads;
+			var hSocket = owner.hSocket;
+			var recv = ::Ws2_32.recv;
+			var bufferSize = #buffer;
+			var this = owner; 
+			
+			return function(){
+				
+				if( remainSize !==  null ){
+					if( remainSize < bufferSize ){bufferSize = remainSize;}
+					if(!bufferSize) return;
+				}
+				
+        		var reads = 0;
+        		while( ( reads==0 ) && this.hSocket){
+        			reads = recv( hSocket,buffer,bufferSize,0);
+        			..win.delay(100);
+        		}
+        		 
+        		if( reads>0 ) { 
+        			if( remainSize !==  null ){remainSize -= reads;}   
+					return reads,remainSize
+				}  
+			} 
+		};
+	}
+}
+
+/**intellisense()
+wsock.tcp.asynClient = TCP异步客户端\n创建监听器
+wsock.tcp.asynClient(.() = 创建TCP异步客户端
+wsock.tcp.asynClient(.(套接字句柄) = 绑定异步套接字返回客户端对象\n不创建事件监听器
+wsock.tcp.asynClient() = !stdtcpaclient.
+end intellisense**/
+
+/**intellisense(!stdtcpaclient)
+readyState = 套接字连接状态,\n0为等待连接,1为已连接,2为正在关闭,3为已关闭
+isClosed() = 套接字是否已关闭
+isConnected() = 套接字是否已连接
+hSocket = 套接字句柄\n关闭对象后为空值\n此值应由对象自动维护，调用者不应修改此属性
+bufferSize = 读写缓冲区大小，默认为64KB\n缓冲区如果设置的太小，会导致过于频繁的调用读写函数
+readDelayInterval = 数据尚未到达时的等待时间\n此属性仅适用于界面线程异步套接字\n仅在所有read前缀的读数据函数中，读取长度为负值是有效,\neach前缀的迭代器函数也使用此属性指定的等待时间
+_form = 用于处理套接字消息的窗口对象\n!winform.
+getSocketError() = 获取并同时清除套接字错误代码
+connectTimeout(.(IP或域名,端口号,超时秒数) = 创建连接\n成功返回true
+bind(.(IP,端口) = 绑定IP端口
+connect(.(IP或域名,端口号) = 创建连接,\n异步套接字始终返回null，在onOpen,onErro回调事件中判断是否连接成功
+eachRead = @for(str,readSize,remainSize in ??.eachRead() ){ \n	__/*可选指在eachRead参数中指定最大长度,\n读取长度不可指定负数\n\n迭代变量:\nstr是本迭代次读取的字符串,readSize是读取的长度,	\nremainSize是剩余还没有读取的字节,	\n如果限定了最大长度,remainSize为0时才表示读完所有数据,	\n此函数不支持unRead送回的数据,\n异步客户端只能在onRead事件中使用\n\n如果套接字没有断开,并且出没有遇到错误,\n但是还没有数据到达,此函数会等待数据\n但不会阻塞消息循环*/\n} 
+eachReadBuffer = @for(readSize,remainSize in ??.eachReadBuffer() ){ \n	__/*可选指在eachReadBuffer参数中指定最大长度,\n读取长度不可指定负数\n\n迭代变量:\nreadSize是本次迭代读取的长度,buffer的实际长度可能大于readSize,	\nremainSize是剩余还没有读取的字节,	\n如果限定了最大长度,remainSize为0时才表示读完所有数据,	\n此函数不支持unRead送回的数据,\n异步客户端只能在onRead事件中使用\n\n如果套接字没有断开,并且出没有遇到错误,\n但是还没有数据到达,此函数会等待数据\n但不会阻塞消息循环*/\n} 
+readTo( = 读取直到以指定的字符串结束\n只能在onRead事件中使用\n\n此函数如果读取部分不完整数据会调用 unRead() 退回缓冲区\n读取不到任何数据会调用shutdown函数关闭连接
+readTo(.('结束串') = 读取直到以指定的字符串结束,返回值不包含结束串,\n该函数每次仅读取一个字节,效率较低\n只能在onRead事件中使用
+readTo(.('结束串',true)  = 读取直到以指定的字符串结束,返回值不包含结束串,\n如果没有读取到数据，则循环等待，等待时继续处理界面消息\n此用法仅适用于界面线程异步套接字\n该函数每次仅读取一个字节,效率较低
+read(.(读取长度) = 读取数据\n只能在onRead事件中使用\n参数可以指定长度,也可以使用接收数据的结构体作为参数\n此函数会循环读取数据，\n如果当前没有数据此函数会立即返回不会阻塞\n如果读取长度指定为负数,此函数会等待数据到达直到读取全部数据\n等待过程中不会阻塞消息循环\n不指定读取长度时表示读取一行,\n使用CRLF回车换行符分行\n\n此函数如果读取部分不完整数据会调用 unRead() 退回缓冲区\n读取不到任何数据会调用shutdown函数关闭连接
+readAll() =  读取全部数据\n只能在onRead事件中使用
+writeBuffer(.(缓冲区,长度) = 发送数据,\n参数@1应使用raw.buffer创建的缓冲区,\n可选使用参数2指定长度\n成功返回true
+readBuffer(.(缓冲区,读取长度) = 读取数据,返回buffer类型缓冲区,\n省略所有参数则读取所有数据，\n参数@1可选指定一个使用raw.buffer分配的缓冲区，\n省略读取长度时取缓冲区长度，\n\n如果参数@1指定了缓冲区,成功返回读取长度,\n否则成功返回缓冲区，\n失败返回null\n\n如果指定了长度,没有到完整的数据时,\n此函数会将数据退回缓冲区,并返回null\n如果读取出错,或没有读取到数据,此函数会自动调用shutdown关闭连接
+peek(.(长度) = 读取但并不移除缓冲区的数据,返回字符串\n不指定参数则使用bufferSize指定的大小分配buffer并尝试读取
+readOobByte() = 读取一个字节的紧急数据,返回字节码
+readAlloc( = 循环读取数据到动态指针内,\n对于异步套接字，只能在onRead函数内使用此函数,\n动态指针的使用风险较大,如果不是非常熟悉其规则,\n建议不要使用此函数\n\n对象所有read前缀的成员函数底层基本都是调用这个函数\n此函数读取的数据支持调用unRead或unReadAlloc,\n撤消并退回到读缓冲区
+readAlloc(.() = 循环读取数据，直到读取结束,
+readAlloc(.(读取长度) = 循环读取数据，直到达到参数中限定的最大长度\n无数据返回null，\n\n如果读取到数据则返回2个值：动态指针,内存长度\n调用者必须负责调用 raw.realloc(0,动态指针)\n释放返回值1返回的指针\n\n此函数直接操作内存，效率更好\n但一定要记住释放返回的内存指针
+readAlloc(.(动态指针) =  循环读取数据并存入参数指定的动态指针,\n返回新的指针地址和内存长度,\n此函数可能更新指针地址或分配的内存大小，\n必须使用返回的新指针覆盖原来保存该动态指针的变量值
+unReadAlloc(__) = 把readAlloc读取的动态指针退回缓存,\n\n注意退回数据的顺序是“后出先进”，\n最后读出的应当最先退回
+unRead(__) = 把read,readTo,readBuffer等函数读出的数据退回缓存，\n注意退回数据的顺序是“后出先进”，\n最后读出的应当最先退回
+write(.(->->->) = 发送数据,\n支持一个或多个参数，参数支持字符串、缓冲区(buffer)、数值、结构体\n成功返回true
+close() = 关闭TCP客户端\n如果未显式调用此函数\n在对象析构时,将会自动调用
+shutdown(__) = 断开连接,\n参数中指定0为仅停止收数据,指定1为停止发数据\n默认值为2表示停止收发数据\n此函数并不销毁套接字句柄,也不会关闭事件监听器
+setTimeouts(.(发送超时,接收超时) = 设置超时,以亳秒为单位(1秒为1000毫秒)
+getLocalIp() = 返回连接的本地IP,端口号
+getRemoteIp() = 返回连接的远程IP,端口号
+asyncSelect(.(event) = 检测到由event参数指明的网络事件后,\n参数@1使用_FD_前缀的常量指定,可使用位或操作符指定多个选项\n事件到达会触发相应的事件(参考on前缀的事件函数),\n\n失败返回null,以及错误信息,\n成功返回true,以及上次调用此函数指定的event参数
+lastSelectMessageId = 最后一次调用asyncSelect应用的消息ID\n不可手动修改此属性，应由对象自动维护
+lastSelectHwnd = 最后一次调用asyncSelect应用的窗口句柄\n不可手动修改此属性，应由对象自动维护
+lastSelectEvent = 最后一次调用asyncSelect应用的事件\n不可手动修改此属性，应由对象自动维护
+recv(.(最大接收长度) = 单次接收数据包\n如果参数不指定长度，则使用bufferSize指定的长度\n成功返回字符串,\n失败返回null,错误代码\n\nrecv,recvBuffer应在onReceive事件中使用，\n在onReceive里不能多次调用recv,recvBuffer。\nrecv,recvBuffer不保证每次一定会读完数据，所以在onClose事件里要继续读到没有任何数据。\n\n在 onRead事件中调用read前缀的系列函数可以循环读取所有接收的数据，\n这样就可以避免onClose以后还数据没有收完的问题
+recvBuffer(.(缓冲区,读取长度) = 单次接收数据包\n参数@1指定buffer类型缓冲区,\n参数@2可省略,默认为缓冲区长度,\n成功返回接收的长度,\n失败返回null,错误代码\n\nrecv,recvBuffer应在onReceive事件中使用，\n在onReceive里不能多次调用recv,recvBuffer。\nrecv,recvBuffer不保证每次一定会读完数据，所以在onClose事件里要继续读到没有任何数据。\n\n在 onRead事件中调用read前缀的系列函数可以循环读取所有接收的数据，\n这样就可以避免onClose以后还数据没有收完的问题
+send(.(数据,长度) = 单次发送数据包
+flush() = 兼容aardio标准流接口
+setopt(_SO__) = 设置选项\n参数@1使用_SO_前缀的常量指定选项,参数@2使用结构体或数值指定值\n可选用参数@3指定设置层次，默认为SOL_SOCKET\n成功返回true
+getopt(_SO__) = 获取选项\n参数@1使用_SO_前缀的常量指定选项,参数@2使用结构体指定值\n如果不指定参数@2,则获取一个32位整型数值,\n可选用参数@3指定设置层次，默认为SOL_SOCKET\n成功返回读取的结构体
+onConnect = @.onConnect = function(err){
+	__/*连接操作已完成,\n连接成功时err为0，且readyState为1,\n在这里可以开始发送数据*/	
+}
+onReceive = @.onReceive = function(err){
+	__/*收到数据,\n仅读取已到达的数据,\n定义了此事件就不应同时定义onRead事件*/	
+}
+onRead = @.onRead = function(err){
+	__/*收到数据,\n可阻塞读取数据,\n定义了此事件就不应同时定义onReceive事件*/	
+}
+onOutOfBandData = @.onOutOfBandData = function(err){
+	__/*收到紧急数据,\n即send函数最后一个flag参数设为_MSG_OOB时发送的1字节带外数据*/		
+}
+onSend = @.onSend = function(err){
+	__/*发送数据*/
+}
+onClose = @.onClose = function(err){
+	__/*已断开连接,\n如果缓冲区中仍然有数据,\n这个事件可能在其他事件前面触发*/	
+}	
+end intellisense**/

@@ -1,0 +1,73 @@
+﻿namespace service.simpleTool;
+
+run = function(serviceName,displayName,description){
+    if( _STUDIO_INVOKED ) return true;
+	if( !::Kernel32.GetConsoleWindow() ) return false;
+	
+	import service;	 
+	import console;
+	
+	if(!serviceName) serviceName = service.serviceName;
+	do{
+		if( service.isExist(serviceName) ){
+			console.log("服务[" + serviceName + "] 已安装")
+			
+			if( service.isRunning(serviceName) ){
+				console.log("服务[" + serviceName + "] 正在运行")
+				if( console.askYesNo("按Y键停止服务,按N键退出程序") ){
+			 		if( service.stop(serviceName) ){
+			 			sleep(500);
+			 			console.log("操作成功",serviceName);
+			 		}
+			 		else {
+			 			service.stop(serviceName,true);
+			 			sleep(500);
+			 		}
+				}
+				else {
+			 		return true;
+				}
+			}
+			else{
+				console.log("服务[" + serviceName + "] 已停止运行")
+				if( console.askYesNo("按Y键启动服务,按N键删除后台服务") ){
+			 		if( service.start(serviceName)  ){
+			 			sleep(500);
+			 			console.log("操作成功",serviceName);
+			 		} 
+			 		else {
+						console.log("启动服务失败",..lasterr()); 
+					}
+				}
+				else {
+			 		if(!service.delete( serviceName) ){
+			 			console.log("删除服务失败,请重启系统后再试",..lasterr());
+			 		}//最好不要同时打开服务管理器
+			 		sleep(500);
+				}
+			}
+		}
+		else{
+			console.log("服务[" + serviceName + "] 未安装")
+			if( console.askYesNo("按Y键注册后台服务,按N键退出程序") ){
+				if( service.create( ,serviceName,displayName:serviceName,description:serviceName)  ){
+			 		console.log("注册成功",serviceName)
+				} 
+				else {
+					console.log(..lasterr());
+				}
+				
+			}
+			else {
+				return true;
+			}
+		}
+	}while(true);
+	
+	return true; 
+}
+
+/**intellisense()
+service.simpleTool = 简单服务管理工具
+service.simpleTool.run(.(服务名,显示服务名,服务描述) = 是服务进程就直接返回false,否则启动简单服务管理工具\n如果指定了service.serviceName可以省略服务名,\n其他参数可选
+end intellisense**/

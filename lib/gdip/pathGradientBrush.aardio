@@ -1,0 +1,93 @@
+//pathGradientBrush 路径渐变笔刷
+import gdip.core;
+namespace gdip;
+
+class pathGradientBrush {
+
+	ctor( path ){ 
+		var err,handle = gdip.CreatePathGradientFromPath(path);
+		if(err) return null,gdip.errMsg[brush]; 
+		this.pBrush = handle; 
+		
+		..table.gc(this,"delete");
+	}
+
+	@_metaProperty//元表指向属性表
+}
+ 
+namespace pathGradientBrush {
+
+	self.gdip = ..gdip;
+	var gdip = gdip; 
+
+	_metaProperty = ..util.metaProperty(  
+		setCenterColor = function( color ){  
+			gdip.assert2( ::Gdiplus.GdipSetPathGradientCenterColor(owner[["pBrush"]],color ) );
+		};
+		setSurroundColors = function( colors,... ){  
+			if( type(colors) == "number" ) colors = {colors;...};
+			var count ={int value = #colors}
+			if( count.value < 1 ) error("参数中的数组长度错误",2); 
+			gdip.assert2( ::Gdiplus.GdipSetPathGradientSurroundColorsWithCount(owner[["pBrush"]],{ int colors[] = colors },count) );
+			return count.value;
+		};
+		setInterpolationColors = function( colors,points ){ 
+			var count = #colors;
+			if( count != #points ) error("参数中的数组长度错误",2)
+			gdip.assert2( ::Gdiplus.GdipSetPathGradientPresetBlend(owner[["pBrush"]],{ int colors[] = colors },{ float points[] = points },#points) )
+		};
+		setFocusScales = function(x,y){
+			gdip.assert2( gdip.SetPathGradientFocusScales(owner[["pBrush"]],x,y) );
+		};
+		setCenterPoint = function(x,y){
+			gdip.assert2( ::Gdiplus.GdipSetPathGradientCenterPoint(owner[["pBrush"]],::POINTF(x,y) ) );
+		};
+		gammaCorrection = {
+			_get = function(){ 
+				var g ={BOOL v}
+				gdip.assert2( ::Gdiplus.GdipGetPathGradientGammaCorrection(owner[["pBrush"]], v) ); 
+				return g.v;
+			} 
+			_set = function(v){ 
+				gdip.assert2( ::Gdiplus.GdipSetPathGradientGammaCorrection(owner[["pBrush"]], v) ); 
+			}  	
+		}; 
+		setBlend = function(blend,positions){
+			var count = #blend;
+			if( count != #positions ) error("参数中的数组长度错误",2)
+			gdip.assert2( ::Gdiplus.GdipSetPathGradientBlend(owner[["pBrush"]],{ float blend[] = blend },{ float positions[] = positions },#positions) )
+		}; 
+		delete = function(){
+			if( owner[["pBrush"]] ){
+				::Gdiplus.GdipDeleteBrush(owner[["pBrush"]])
+				owner[["pBrush"]] = null;
+			}
+		};
+		_topointer = function(){
+			return owner[["pBrush"]];
+		}
+	)  
+}
+ 
+var $ = _dll;  
+//http://msdn.microsoft.com/en-us/library/windows/desktop/ms534047(v=vs.85).aspx
+CreatePathGradientFromPath = $.api("GdipCreatePathGradientFromPath","int(PTR path,pointer& polyGradient)")
+SetPathGradientFocusScales = $.api("GdipSetPathGradientFocusScales","int(PTR brush,float xScale,float yScale)")
+
+ 
+/**intellisense()
+gdip.pathGradientBrush = 路径渐变笔刷
+gdip.pathGradientBrush(.(路径对象) = 参数是gdip.path对象
+gdip.pathGradientBrush()= !gdippathGradientbrush.
+end intellisense**/
+
+/**intellisense(!gdippathGradientbrush)
+setCenterPoint(.(x,y) = 设置中心点坐标
+setCenterColor(.(颜色) = 指定中心颜色\n颜色请使用0xAARRGGBB格式数值
+setSurroundColors(.(颜色数组) = 指定环绕颜色\n参数可以是数组,也可以是多个颜色数值参数,\n颜色请使用0xAARRGGBB格式数值
+setInterpolationColors(.(插值颜色数组,插值位置数组) = 定义多色渐变\n数组元素都是数值,长度必须相等\n插值位置以小数表示百分比,开始必须为0表示外边界,最后一个必须为1
+setFocusScales(.(x聚焦缩放,y聚焦缩放) = 对中心焦点进行缩放,参数为x轴、y轴的缩放比例,\n使中心颜色不仅显示在中心点,而是显示于围绕中心点进行缩放的路径内，\n被缩放的中心焦点路径内部使用中心颜色填充
+gammaCorrection = 是否允许伽马校正
+setBlend(.(颜色因子数组,位置因子数组) = 参数@1使用小数表示的百分比代表色彩渐变的度,\n0表示起点色,1表示完全转变为终点色\n合成位置中0表示起点,1表示终点,第一个合成位置必须是0,最后一个必须是1
+delete() = 释放路径对象
+end intellisense**/

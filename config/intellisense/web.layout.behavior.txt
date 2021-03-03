@@ -1,0 +1,81 @@
+﻿/***intellisense()
+onMouseEnter = @onMouseEnter = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onMouseLeave = @onMouseLeave = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onMouseMove = @onMouseMove = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onMouseUp = @onMouseUp = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onMouseDown = @onMouseDown = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onMouseDblClick = @onMouseDblClick = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onMouseWheel = @onMouseWheel = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onMouseTick = @onMouseTick = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onMouseIdle = @onMouseIdle = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onDrop = @onDrop = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onDragEnter = @onDragEnter = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onDragLeave = @onDragLeave = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onDragRequest = @onDragRequest = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onMouseClick = @onMouseClick = function( ltTarget,ltOwner,x,y,ltMouseParams ) {\n	__\n}
+onKeyDown = @onKeyDown = function( ltTarget,ltOwner,keyCode, altState, ltKeyParams ) {\n	__\n}
+onKeyUp = @onKeyUp = function( ltTarget,ltOwner,keyCode, altState, ltKeyParams ) {\n	__\n}
+onKeyChar = @onKeyChar = function( ltTarget,ltOwner,keyCode, altState, ltKeyParams ) {\n	__\n}
+onFocusLost = @onFocusLost = function( ltTarget,ltOwner,focusParams ) {\n	__\n}
+onFocusGot = @onFocusGot = function( ltTarget,ltOwner,focusParams ) {\n	__\n}  
+onGestureRequest = @onGestureRequest = function (ltTarget,ltOwner,ltGestureParams) {\n	ltGestureParams.flags = 0xFFFF/*_HL_GESTURE_FLAGS_ALL*/\n	return true;__\n}
+onGestureZoom = @onGestureZoom = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*缩放*/\n}
+onGesturePan = @onGesturePan = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*平移*/\n}
+onGestureRotate = @onGestureRotate = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*旋转*/\n}
+onGestureTap1 = @onGestureTap1 = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*单击*/\n}
+onGestureTap2 = @onGestureTap2 = function (ltTarget,ltOwner,ltGestureParams) {\n	__/*双击*/\n}
+onFrameDocumentComplete = @onFrameDocumentComplete = function (ltTarget,ltOwner,reason,behaviorParams)  {\n	if( ltOwner != ltOwner.root() ) return;\n	__/*文档或框架文档已加载\n} 
+onApplicationEvent = @onApplicationEvent = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*postEvent或sendEvent发出一大于0x100的消息*/\n}
+onElementControlCreated = @onElementControlCreated = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltCtrl = ltOwner.getCtrl();__/*自定义控件已创建*/\n}
+onButtonClick = @onButtonClick = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+onButtonPress = @onButtonPress = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+onButtonStateChanged = @onButtonStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+onEditValueChanging = @onEditValueChanging = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+onEditValueChanged = @onEditValueChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+onSelectSelectionChanged = @onSelectSelectionChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+onSelectStateChanged = @onSelectStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltOption = ..web.layout.element( behaviorParams.he )\n	__\n}
+onPopupRequest = @onPopupRequest = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+onPopupReady = @onPopupReady = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+onPopupDismissed = @onPopupDismissed = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+onMenuItemActive = @onMenuItemActive = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+onMenuItemClick = @onMenuItemClick = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+onContextMenuSetup = @onContextMenuSetup = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+onContextMenuRequest = @onContextMenuRequest = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var ltPopupOwner = ..web.layout.element( behaviorParams.he )\n	__\n}
+onVisualStateChanged = @onVisualStateChanged = function (ltTarget,ltOwner,shown,behaviorParams) {\n	__/*可视状态改变触发此事件*/\n}
+onDisabledStateChanged = @onDisabledStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*禁用状态改变改变触发此事件*/\n}
+onPopupDismissing = @onPopupDismissing = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*弹出节点隐藏时触发此事件*/n}
+onHyperlinkClick = @onHyperlinkClick = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*点击超链接时触发此事件*/\n}
+onTableHeaderClick = @onTableHeaderClick = function (ltTarget,ltOwner,cellIndex,behaviorParams) {\n	__/*grid控件单击列标题时触发此事件*/\n}
+onTableRowClick = @onTableRowClick = function (ltTarget,ltOwner,rowIndex,behaviorParams) {\n	__/*grid控件单击项目时触发此事件*/\n}
+onTableRowDblClick = @onTableRowDblClick = function (ltTarget,ltOwner,rowIndex,behaviorParams) {\n	__/*grid控件双击项目时触发此事件*/\n}
+onElementCollapsed = @onElementCollapsed = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*节点折叠触发此事件*/\n}
+onElementExpanded = @onElementExpanded = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*节点展开触发此事件*/\n}
+onActiveChild = @onActiveChild = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*激活子节点触发此事件*/n}
+onInitDataView = @onInitDataView = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+onRowsDataRequest = @onRowsDataRequest = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+onUiStateChanged = @onUiStateChanged = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*界面状态变更触发此事件,例如richedit光标移动等*/nn}
+onFormSubmit = @onFormSubmit = function (ltTarget,ltOwner,reason,behaviorParams) {\n	var formData = behaviorParams.data.getValue();__\n}
+onFormReset = @onFormReset = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n} 
+onClosePopup = @onClosePopup = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+onRequestTooltip = @onRequestTooltip = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__\n}
+onAnimation = @onAnimation = function (ltTarget,ltOwner,reason,behaviorParams) {\n	__/*节点动画触发此事件*/\n}
+onSize = @onSize = function (ltOwner) {\n	__/*节点大小改变时触发此事件*/\n}
+onExchangeDrag = @onExchangeDrag = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) {  \n	return true;__/*这里返回true才会显示可拖放鼠标指针*/ \n}
+onExchangeDragEnter = @onExchangeDragEnter = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) {  \n	return true;__/*拖入时触发此事件*/\n}
+onExchangeDragLeave = @onExchangeDragLeave = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) {  \n	return true;__/*拖离时触发此事件*/\n}
+onExchangeDrop = @onExchangeDrop = function( ltTarget,ltOwner,x,y,cmd,dataTypes,fetchData,exParams ) { \n    var data,dataType = fetchData( _HL_EXF__/*可选指定支持的拖放数据类型*/ );\n    if( data ) {\n        return true;\n    }\n}
+onDataArrived = @onDataArrived = function(ltTarget,ltOwner,data,dataType,status,url){\n    return true;__/*返回true撤消数据不显示内容*/\n}
+!ltEleScrollInfo.pos = !point.
+onTimer = @onTimer = function (ltOwner,timerId) {\n	__/*定时器触发此事件*/\n}
+onClick = @onClick = function( ltOwner ){\n	__/*click函数触发此事件*/\n	return true;\n} 
+onIsEmpty = @onIsEmpty = function( ltOwner ){\n	__\n	return true,false__/*分别为:是否中止事件传递,是否为空值*/;\n}
+onGetValue = @onGetValue = function( ltOwner ){\n	\n	return true,__/*返回控件值*/;\n}
+onSetValue = @onSetValue = function(  ltOwner,value ){\n	__\n	return true\n}
+onReplaceSel = @onReplaceSel = function(  ltOwner,value ){\n	__\n	return true\n}
+onGetCaretPos = @onGetCaretPos = function(  ltOwner,value ){\n	__\n	return true,__/*光标位置:left,top,width,height*/\n}
+onDetach = @onDetach = function( ltOwner ){\n	\n	__/*节点注销behavior时触发此事件*/	\n}
+onAttach = @onAttach = function( ltOwner ){\n	\n	__/*节点附加behavior时触发此事件*/	\n}
+onDrawForeground = @onDrawForeground  = function(ltOwner,hdc,rc){ \n	__/*自绘前景*/\n	return true;\n}
+onDrawContent = @onDrawContent = function(ltOwner,hdc,rc){ \n	__/*自绘内容*/\n	return true;\n}
+onDrawBackground = @onDrawBackground= function(ltOwner,hdc,rc){ \n	__/*自绘背景*/\n	return true;\n}
+end intellisense***/

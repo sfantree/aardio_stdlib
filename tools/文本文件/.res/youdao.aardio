@@ -1,0 +1,29 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add()
+/*}}*/
+
+import web.form;
+var wbYoudao = web.form( winform );  
+wbYoudao.noScriptErr = true;
+wbYoudao.go("http://fanyi.youdao.com/"); 
+
+winform.getValue = function(){
+	var ggInput = wbYoudao.getEle("inputOriginal");
+	if( ggInput ){
+		return ggInput.innerText;
+	}
+}
+
+winform.setValue = function(value){
+	var ggInput = wbYoudao.getEle("inputOriginal");	
+	if( ggInput ){
+		ggInput.innerText = value 
+		ggInput.fireEvent("oninput")
+	}
+}
+
+winform.show();
+win.loopMessage();
+return winform;

@@ -1,0 +1,109 @@
+//apiHook 函数钩子
+namespace thread {
+	
+	apiHook = class {
+		ctor ( dllName, apiName,apiProto, callback,ownerTable) { 
+			this.apiProto = apiProto;
+			
+			try{
+				this.dll = ..raw.loadDll(dllName)
+				this.hModule = this.dll.gethandle();
+			} 
+			if (!this.hModule) {
+				error("找不到 " + dllName, 2);
+			} 
+			
+			this.pTargetFunction  = GetProcAddress(this.hModule, apiName);
+			if (!this.pTargetFunction ) {
+				this.pTargetFunction  = GetProcAddress(this.hModule, apiName + "A");
+			}
+			if (!this.pTargetFunction ) { 
+				error("找不到指定的函数!", 2);
+			} 
+			 
+			if( type(callback)!= type.function && ( !tonumber(callback) )){   
+				error("参数@4必须指定钩子函数",2);
+			};
+			this.callback = callback;
+			
+			..table.gc( this,"unInstall" );
+		}
+		install = function () { 
+			var jmpOpCodeLen = 5;
+			this.addrProtect = prcsHook.protect(tonumber(this.pTargetFunction), 0x40/*_PAGE_EXECUTE_READWRITE*/, jmpOpCodeLen * 2);
+			if (!this.addrProtect ) { 
+				error("修改内存属性失败!", 2);
+			}
+			 
+			var restoreOpCode = prcsHook.readString(tonumber(this.pTargetFunction),jmpOpCodeLen * 2);
+			this.restoreOpCodeSize,restoreOpCode = getHookSize(  restoreOpCode,jmpOpCodeLen ); 
+			
+			var addrTargetFunction = tonumber(this.pTargetFunction );
+			this.addrTrampoline = prcsHook.malloc( this.restoreOpCodeSize + jmpOpCodeLen,0x40/*_PAGE_EXECUTE_READWRITE*/) 
+			
+			if( type(callback) == type.function ){
+				this.callback_c = ..thread.tostdcall(
+					function(...){  
+					
+						if(!owner.callApi){
+							owner.callApi = raw.main.api(owner.addrTrampoline, owner.apiProto);
+							owner.addrTrampoline = null;
+							owner.apiProto = null;
+						}
+						
+						return owner.callback(...);
+					} , apiProto,..table.mix( { 
+						callback = callback;
+						addrTrampoline = this.addrTrampoline;
+						apiProto = apiProto },ownerTable ) 
+					);
+				this.addrHookFunction = tonumber( ..raw.toPointer(this.callback_c) )
+			}
+			else {
+				this.addrHookFunction = tonumber(callback);
+				if( !this.addrHookFunction )
+					error("参数@4必须指定钩子函数",2);
+			}
+			 
+			prcsHook.write( this.addrTrampoline,restoreOpCode, '\xE9'/*JMP*/, { 
+				int jmpAddr = addrTargetFunction + this.restoreOpCodeSize - (this.addrTrampoline + this.restoreOpCodeSize + jmpOpCodeLen )
+			} )
+			
+			prcsHook.write( addrTargetFunction, '\xE9'/*JMP*/, {
+				int jmpAddr = this.addrHookFunction - (addrTargetFunction + jmpOpCodeLen);
+			} ) 
+			return this; 
+		}
+		unInstall = function () {  
+			if (! ( this.pTargetFunction && this.addrProtect ) ) {
+				return;
+			}
+			
+			prcsHook.writeString(tonumber(this.pTargetFunction),topointer(this.addrTrampoline) ,this.restoreOpCodeSize );
+			prcsHook.protect(tonumber(this.pTargetFunction),this.addrProtect, this.restoreOpCodeSize);
+			this.pTargetFunction = null; 
+			
+			prcsHook.mfree( this.addrTrampoline ); 
+			this.callback_c = null;
+		}
+	}	
+}
+
+namespace thread.apiHook {
+	import ..process;
+	import ..raw.asm.opCode;
+	getHookSize = ..raw.asm.opCode.getHookSize;
+	
+	prcsHook = ..process(); 
+	
+	GetProcAddress = ::Kernel32.api("GetProcAddress","pointer(pointer hModule,string lpProcName)");
+	GetCurrentThreadId = ::Kernel32.api( "GetCurrentThreadId", "INT()")
+}
+
+/**intellisense()
+thread.apiHook = 多线程API函数钩子，多线程调用该API都会被拦截处理。\n仅拦截当前线程调用的钩子建议使用 raw.apiHook
+thread.apiHook("DLL","API名","函数原型",函数对象) = @var HookProc = function (hwnd, text, caption, flag) {\n    import win;\n    owner.callApi(hwnd, text, "APIHOOK成功: " + caption, flag);\n    return 0;\n}\nhook = thread.apiHook("user32.dll", "MessageBox", "int(int,string,string,int)",\n     HookProc,/*owner*/).install(); 
+thread.apiHook() = !thread_apihook. 
+!thread_apihook.install() = 安装钩子\n!thread_apihook.
+!thread_apihook.unInstall() = 卸载钩子
+end intellisense**/

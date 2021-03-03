@@ -1,0 +1,110 @@
+//hash 哈希对象
+if(!crypt) error("该类仅供crypt库内部调用",2)
+namespace crypt;
+
+class hash{
+	ctor( cryptContent,algid = 0x8003/*_CALG_MD5*/,hKey/*密钥散列*/,flag=0){ {
+		this.cryptContent = cryptContent;//防止析构 
+		this.hKey = hKey;
+    	var ret,hHash = CreateHash( this.cryptContent.hCryptProv,algid,hKey,0 ); 
+		if (!ret) {  
+			return null,..lasterr();
+		}
+		this.handle = hHash;
+		..table.gc(this,"destroy");
+	} }; 
+	getValue = function () { 
+		var ret,size = GetHashParamByInt(this.handle, 0x4/*_HP_HASHSIZE*/, 4, 4, 0); 
+		var ret,str = GetHashParamByString(this.handle, 0x2/*_HP_HASHVAL*/, size, size, 0);
+		 
+		if (ret) {
+			return str;
+		}
+	};
+	getHexValue = function( upper=true  ){
+		var s = this.getValue(); 
+		if( s ){
+			var f = upper?"%02X":"%02x"
+			var s = ..string.replace(s,".",
+				function(c){
+					return ..string.format(f, c[1] )
+				}
+			);  
+			return s;
+		}
+	};
+	hashData = function (data) {
+		return HashData(this.handle , data, #data, 0);
+	};
+	setParamStruct = function(param,data,flag=0){ 
+		return CryptSetHashParamStruct(this.handle ,param ,data,flag);
+	};
+	hashBuffer = function (buffer,l) {
+		var m = #buffer;
+		if( !l ) l = m;
+		elseif( l > m ) l = m;
+		elseif( l < 0 ) return;
+		return HashData(this.handle , buffer,l, 0);
+	};
+	deriveKey = function(algId = 0x6801/*_CALG_RC4*/, flag=0,bits=0){
+		if(algId==0x6801 && bits === null) bits = 128;
+		var ret,hKey = DeriveKey(this.cryptContent.hCryptProv,algId,this.handle,flag | (bits <<16) ); 
+		if(ret){ 
+			this.cryptContent.setKey(hKey);  
+			return true;
+		};
+		return null,..lasterr(,"deriveKey");
+	};
+	sign = function(keySpec = 2/*_AT_SIGNATURE*/,sDescription,flags=0){
+		var r,sOut,size = CryptSignHash( this.handle,keySpec,sDescription,flags,0,0) ;
+		if( r && size ) r,sOut,size = CryptSignHash( this.handle,keySpec,sDescription,flags,size,size) ;
+		if( r ) return sOut;
+	};
+	destroy = function () {
+		if (this.handle) {
+			DestroyHash(this.handle); 
+			if( this.cryptContent.lastHash == this){
+				this.cryptContent.lastHash = null;
+			}
+			this.handle = null;
+			
+			if( this.hKey ){
+				..crypt.DestroyKey(this.hKey );
+				this.hKey = null;
+			};
+		};
+	};
+	@_meta;
+}
+
+namespace hash{
+	_meta = {
+		_topointer = function(){
+			return owner.handle;
+		} 
+	}
+	
+	if(! ::Advapi32 )error("crypt.hash仅用于crypt库内部调用")
+	
+	CreateHash = ::Advapi32.api("CryptCreateHash", "int(POINTER hProv,int algid,pointer hKey,int flags, pointer& phHash)");
+	DestroyHash = ::Advapi32.api("CryptDestroyHash", "int(POINTER hHash)");
+	HashData = ::Advapi32.api("CryptHashData", "bool(POINTER hHash, string pbData, int dwDataLen,INT flags)");
+	GetHashParamByInt = ::Advapi32.api("CryptGetHashParam", "int(POINTER hHash, int type, int& pbBuff, int& pbBuffLen,int flags)");
+	GetHashParamByString = ::Advapi32.api("CryptGetHashParam", "int(POINTER hHash, int type, string& pbBuff, int& pbBuffLen, int flags)");
+	CryptSetHashParamStruct = ::Advapi32.api("CryptSetHashParam", "bool(POINTER hHash, INT dwParam,struct pbData,INT dwFlags)");		
+	DeriveKey = ::Advapi32.api("CryptDeriveKey", "bool(POINTER hProv,INT Algid,POINTER hBaseData,int flags,pointer &phKey)"); 
+	CryptSignHash = ::Advapi32.api("CryptSignHashW","bool(POINTER hHash,INT keySpec,ustring sDesc,INT flags,string &sign,INT &sigLen") 
+}
+
+/**intellisense()
+crypt.hash() = !crypt_hash.
+!crypt_hash.destroy() = 删除哈希对象
+!crypt_hash.deriveKey(.(算法ID,选项) = 导出会话密钥设置为容器对象当前密钥\n会话密钥由容器对象管理,该函数成功返回true
+!crypt_hash.getValue() = 返回原始哈希值数据,\n即未转换为16进制
+!crypt_hash.getHexValue() = 返回十六进制哈希值(大写)
+!crypt_hash.getHexValue(false) = 返回十六进制哈希值(小写)
+!crypt_hash.hashData(__/*字符串*/) = 计算哈希值
+!crypt_hash.hashBuffer(.(缓冲区指针,长度) = 缓冲区指针必须�raw.bufferc()创建的托管指针\n长度为可选参数
+!crypt_hash.deriveKey(.(算法ID,选项) = 从哈希表中派生密钥,\n参数可选,算法ID默认为_CALG_RC4,选项默认为0\n密钥自动绑定到CSP密钥容器对象\n该函数无返回值
+!crypt_hash.sign() = 返回签名\n可在参数中指定密钥容器,默认为_AT_SIGNATURE\n导入密钥时请改为_AT_KEYEXCHANGE
+end intellisense**/

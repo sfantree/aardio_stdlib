@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project ver="10" name="AardioCOM" libEmbed="true" icon="..." CompanyName="单位名称" FileDescription="AardioCOM" LegalCopyright="Copyright (C) 作者 2011" ProductName="AardioCOM" InternalName="AardioCOM" FileVersion="0.0.1.23" ProductVersion="0.0.1.23" publishDir="/dist/" ui="win" output="AardioCOM.exe" dstrip="false" local="false">
+	<file name="main.aardio" path="main.aardio"/>
+	<folder name="测试代码" path="test" embed="false" local="false">
+		<file name="test.aardio" path="test\test.aardio" comment="test\test.aardio"/>
+		<file name="test.ps1" path="test\test.ps1" comment="test\test.ps1"/>
+		<file name="test.vbs" path="test\test.vbs" comment="test\test.vbs"/>
+	</folder>
+	<folder name="COM类型库" path="typelib" embed="true" local="false">
+		<file name="MKTYPLIB.aardio" path="typelib\MKTYPLIB.aardio" comment="typelib\MKTYPLIB.aardio"/>
+		<file name="ODL语法参考.html" path="typelib\ODL语法参考.html" comment="typelib\ODL语法参考.html"/>
+		<file name="SampleControl.odl" path="typelib\SampleControl.odl" comment="typelib\SampleControl.odl"/>
+		<file name="SampleControl.tlb" path="typelib\SampleControl.tlb" comment="typelib\SampleControl.tlb"/>
+	</folder>
+</project>

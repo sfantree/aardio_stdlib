@@ -1,0 +1,58 @@
+namespace protobuf.reader;
+ 
+class inputString {
+	 
+	ctor(data) {
+		this.data = data;
+		this.length = #data; 
+		
+		if(#data)this.pointer = 1;
+		else this.pointer = 0;
+	};
+	getPointer = function() {
+		return this.pointer;
+	};
+	addPointer = function (add) {
+		this.pointer += add;
+	};
+	decodeNextVarUint64 = function() {
+  		var r = ..math.size64(0);
+  		var bits = 0;
+  		var i = this.pointer;
+  		var buf = this.data;
+  		
+  		while (buf[i] & 0x80) {
+  			r.add( ..math.size64(buf[i] & 0x7F).lshift(bits) );
+    		bits += 7; 
+    		i++;
+  		}
+  		
+  		this.pointer = i+1;
+  		return r.add( ..math.size64(buf[i] & 0x7F).lshift(bits) ); 
+	};
+	nextUInt32 = function() {
+		return tonumber(this.decodeNextVarUint64());
+	};
+	nextInt32 = function() {
+		return ..raw.convert({LONG n=this.decodeNextVarUint64()},{int n}).n 
+	};
+	nextString = function(){
+		var length = this.nextUInt32();
+		var from = this.getPointer();
+		this.addPointer(length);
+		return ..string.slice(this.data, from, this.pointer-1)
+	};
+	next64bit = function(){
+		var from = this.getPointer();
+		this.addPointer(8);
+		return ..string.slice(this.data, from, this.pointer-1)	
+	};
+	next32bit = function(){
+		var from = this.getPointer();
+		this.addPointer(4);
+		return ..string.slice(this.data, from, this.pointer-1)	
+	};
+	getMessageFrom = function(from){
+		return ..string.slice(this.data, from, this.pointer-1); 
+	};
+}  

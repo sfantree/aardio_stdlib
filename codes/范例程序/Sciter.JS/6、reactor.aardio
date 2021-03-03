@@ -1,0 +1,48 @@
+//Reactor
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="Sciter 脚本调用本地函数";right=1014;bottom=523;parent=...)
+winform.add()
+/*}}*/
+
+import web.sciter;
+var wbSciter = web.sciter( winform );
+
+wbSciter.html = /**
+<html>
+    <head>
+        <title>Test</title>
+        <style></style>
+        <script> 
+          class Hello extends Element 
+          {
+            count = 0;
+
+            render() 
+            {
+              return <body>
+                <button id="test">{this.count} clicks</button>
+              </body>;
+            }
+
+            ["on click at button#test"]() 
+            {
+              this.componentUpdate( { count : this.count + 1 } ); 
+            }
+
+          }
+
+          document.body.patch(<Hello/>);
+
+        </script>
+
+    </head>
+    <body>
+    </body>
+
+
+</html>
+**/
+
+winform.show()
+win.loopMessage();

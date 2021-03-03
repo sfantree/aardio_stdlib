@@ -1,0 +1,198 @@
+//client 客户端
+import wsock; 
+import wsock.err;
+namespace wsock.udp
+
+class client {
+
+	ctor(){ 
+		if(! ..wsock.open() ){ 
+			error( ( wsock.err.lasterr() ),2 ) 
+		}
+		 
+		var hSocket= ..wsock.socket(0x2/*_AF_INET*/,0x2/*_SOCK_DGRAM*/,0x11/*_IPPROTO_UDP*/)
+		if( hSocket= _INVALID_SOCKET ){ 
+			wsock.close() //关闭wsock
+			error( ( wsock.err.lasterr() ),2 ) 
+		} 
+		..table.gc(this,"close"); 
+		this.lastAddr = ..wsock.sockaddr_in();
+		this.hSocket = hSocket;
+	};
+	bind = function(ip,port){
+		if( ip === null ) ip = ..wsock.getIp();
+		var service = ..wsock.sockaddr_in( ip,port : 0 ); 
+		service.sin_family = 0x2/*_AF_INET*/ 
+		if ..wsock.bind( this.hSocket,service,..raw.sizeof(service)) =-1/*_SOCKET_ERROR*/	{ 
+			return null, ..wsock.err.lasterr() ;
+		} 
+		return true;
+	}; 
+	sendto = function(str,ip,port,flags){ 
+		var addr = ip === null ? this.lastAddr : ..wsock.sockaddr_in( ip,port,0x2/*_AF_INET*/);
+		if(!addr) return;
+		
+		if ..wsock.sendto( this.hSocket,str,#str,flags : 0,addr,..raw.sizeof(addr)) =-1/*_SOCKET_ERROR*/	{  
+			return null,"发送数据失败"
+		} 
+		 
+		this.lastAddr = addr;
+		return true;
+	}; 
+	recvfrom = function(len,ip,port,flags){ 
+		if(!len) len = 1024;
+		var addr = ip === null ? this.lastAddr : ..wsock.sockaddr_in(ip,port,0x2/*_AF_INET*/);
+		if(!addr) return;   
+		
+		var reads,str = ..wsock.recvfrom( this.hSocket,len,len,flags : 0,addr,..raw.sizeof(addr))
+		if(reads>0) {
+			this.lastAddr = addr;
+			return ..string.left(str,reads);
+		}
+	};
+	connect = function(ip,port){
+		var addr = ip === null ? this.lastAddr : ..wsock.sockaddr_in( ip,port,0x2/*_AF_INET*/)
+		if(!addr) error("请指定IP或端口地址",2); 
+		
+		if ..wsock.connect( this.hSocket,addr,..raw.sizeof(addr)) =-1/*_SOCKET_ERROR*/	{  
+			return null,"连接服务端失败"
+		} 
+		this.lastAddr = addr;
+		return true;
+	};
+	send = function(s,len,flag){
+		if(!owner.hSocket) return null,"tcp客户端已断开";
+		
+		var bytes = ..wsock.send(owner.hSocket,s,len : #s,flag : 0 );
+		if( bytes == -1/*_SOCKET_ERROR*/ ) return null;
+		return bytes;
+	};
+	recv = function(size){
+		if(!size)size = owner.bufferSize;
+		if(!owner.hSocket) return null,"tcp客户端已断开";
+		
+		var reads,recvbuf = ..wsock.recv( owner.hSocket,size,size,0);
+        if( reads>0 ) {   
+			if(reads<size) recvbuf = ..string.left(recvbuf,reads);
+			return recvbuf; 
+		}
+		return null,reads;   
+	};
+	setBroadcast = function(val){ 
+		return ( ..wsock.setsockoptByInt(this.hSocket,0xFFFF/*_SOL_SOCKET*/,0x20/*_SO_BROADCAST*/,val?1:0,4) == 0 )
+	}; 
+	setTimeouts = function(send=30000,receive=30000){
+		return ( ..wsock.setsockoptByInt(this.hSocket,0xFFFF/*_SOL_SOCKET*/,0x1005/*_SO_SNDTIMEO*/,send,4) == 0 )
+			&& ( ..wsock.setsockoptByInt(this.hSocket,0xFFFF/*_SOL_SOCKET*/,0x1006/*_SO_RCVTIMEO*/,receive,4)  == 0 ) 
+	};
+	getRemoteAddress = function(){ 
+	    return this.lastAddr; 
+    };
+	getRemoteIp = function(){  
+	    return ..wsock.inet_ntoa(this.lastAddr.sin_addr),..raw.swap( this.lastAddr.sin_port,"WORD");  
+    };  
+    getLocalIp = function(){ 
+	    var addr = ..wsock.sockaddr_in();  
+    	var addrLen = ..raw.sizeof(addr);  
+    	if ( 0 == ..wsock.getsockname(owner.hSocket, addr,addrLen))   {  
+        	return tostring(addr.sin_addr),..wsock.ntohs( addr.sin_port );  
+    	}  
+    };
+    setopt = function(opt,v,level){
+        if( level === null) level = 0xFFFF/*_SOL_SOCKET*/;
+		if(v[["_struct"]]===null) return owner.setopt(opt,{int v=v});
+		return  ..wsock.setsockopt(owner.hSocket,level,opt,v,..raw.sizeof(v) ) == 0
+	};
+	getopt = function(opt,v,level){
+		if( level === null) level = 0xFFFF/*_SOL_SOCKET*/;
+		if(v===null) return owner.getopt(opt,{int v=v}).v;
+		if  ..wsock.getsockopt(owner.hSocket,level,opt,v,..raw.sizeof(v) ) == 0
+			return v;
+	};
+	reuseAddress = function(r){
+		return owner.setopt(0x4/*_SO_REUSEADDR*/,r?1:0)
+	};
+	joinGroup = function(addr,interface){
+		if( type(addr) == type.string ) addr =  ..wsock.inet_addr(addr);
+		if( interface === null ) interface = "0.0.0.0";
+		if( type(interface) == type.string ) interface =  ..wsock.inet_addr(interface);
+		
+		var ip_mreq ={ 
+      		INT imn_multiaddr = addr;
+      		INT imr_interface= interface;
+		}
+		return  ..wsock.setsockopt(owner.hSocket,0/*_IPPROTO_IP*/,12/*_IP_ADD_MEMBERSHIP*/
+					,ip_mreq,..raw.sizeof(ip_mreq) ) == 0
+	};
+	leaveGroup = function(addr,interface){
+		if( type(addr) == type.string ) addr =  ..wsock.inet_addr(addr);
+		if( interface === null ) interface = "0.0.0.0";
+		if( type(interface) == type.string ) interface =  ..wsock.inet_addr(interface);
+		
+		var ip_mreq ={ 
+      		INT imn_multiaddr = addr;
+      		INT imr_interface= interface;
+		}
+		return  ..wsock.setsockopt(owner.hSocket,0/*_IPPROTO_IP*/,13/*_IP_DROP_MEMBERSHIP*/
+					,ip_mreq,..raw.sizeof(ip_mreq) ) == 0
+	};
+	setMulticastLoopback = function(d){
+		return owner.setopt(11/*_IP_MULTICAST_LOOP*/,!!d,0)
+	};
+	setMulticastInterface = function(interface){
+		if( interface === null ) interface = ..wsock.getIp();
+		if( type(interface) == type.string ) interface =  ..wsock.inet_addr(interface);
+		return owner.setopt(12/*_IP_MULTICAST_IF*/,interface,0)
+	};
+	setMulticastTtl = function(ttl){
+		return owner.setopt(10/*_IP_MULTICAST_TTL*/,ttl,0)
+	};
+	asyncSelect = function(event,userMsgId,hwnd){
+		if(!owner.hSocket) return;
+		
+		var lastSelectEvent = owner.lastSelectEvent : 0;
+		var err = ..wsock.WSAAsyncSelect(owner.hSocket, hwnd : owner.lastSelectHwnd
+			,userMsgId === null ? owner.lastSelectMessageId : userMsgId, event);
+			
+		if( err == -1/*_SOCKET_ERROR*/ ) return false,err;
+		
+		if(userMsgId)owner.lastSelectMessageId = userMsgId;
+		if(hwnd)owner.lastSelectHwnd = hwnd;
+		owner.lastSelectEvent = event;
+		
+		return true,lastSelectEvent;
+	}; 
+	close = function(){
+		if( this.hSocket ){ 
+			..wsock.closesocket(this.hSocket)
+			..wsock.close();
+			this.hSocket = null;
+		}  
+	}
+}
+
+/**intellisense()
+wsock.udp.client = udp客户端支持库
+wsock.udp.client() = 创建udp客户端\n!udp_client.
+!udp_client.bind(.(IP,端口) = 绑定IP端口\n如果不指定IP则默认获取内网IP作为参数
+!udp_client.setBroadcast(true) = 允许广播
+!udp_client.getRemoteAddress() = 最后最后发送或接收的sockaddr_in结构体\n!sockaddr_in.
+!udp_client.getRemoteIp() = 返回最后发送或接收的IP,端口
+!udp_client.getLocalIp() = 返回本机IP,端口
+!udp_client.sendto(.(发送数据,IP或域名,端口号) = 发送数据,IP端口号为可选参数,\n成功返回true
+!udp_client.recvfrom(.(缓冲区长度,IP或域名,端口号) = 接收并返回数据,IP端口号为可选参
+!udp_client.connect(.(IP或域名,端口号) = 连接IP以及端口号\n省略参数则使用lastAddr
+!udp_client.recv(.(最大接收长度) = 调用connect以后可以使用此函数接收数据包\n如果参数不指定长度，则使用bufferSize指定的长度\n成功返回字符串,\n失败返回null,错误代码
+!udp_client.send(.(数据,长度) = 调用connect以后可以使用此函数接收数据包发送数据包
+!udp_client.close() = 关闭udp客户端\n如果未显式调用此函数\n在对象析构时,将会自动调用.
+!udp_client.setTimeouts(.(发送超时,接收超时) = 设置超时,以亳秒为单位(1秒为1000毫秒)
+!udp_client.setopt(_SO__) = 设置选项\n参数@1使用_SO_前缀的常量指定选项,参数@2使用结构体、数值、布尔值都可以\n可选用参数@3指定设置层次，默认为SOL_SOCKET\n成功返回true
+!udp_client.getopt(_SO__) = 获取选项\n参数@1使用_SO_前缀的常量指定选项,参数@2使用结构体指定值\n如果不指定参数@2,则获取一个32位整型数值,\n可选用参数@3指定设置层次，默认为SOL_SOCKET\n成功返回读取的结构体
+!udp_client.joinGroup(.(广播组IP地址,网络接口IP) = 加入广播组\n参数@2可省略
+!udp_client.leaveGroup(.(广播组IP地址,网络接口IP) = 退出广播组\n参数@2可省略
+!udp_client.setMulticastLoopback(true) = 是否启用多播回送
+!udp_client.setMulticastInterface(__) = 设置组播网卡IP，不指定参数自动取网卡IP
+!udp_client.setMulticastTtl(__) = 设置组播报文的数据包的TTL
+!udp_client.reuseAddress(true) = 是否允许端口重用
+!udp_client.asyncSelect(.(event,userMsgId,hwnd) = 检测到由event参数指明的网络事件后,\n事件到达向hwnd指定句柄的窗口发送userMsgId消息,\n第二次调用此函数可省略句柄以及消息ID\n\n失败返回null,以及错误信息,\n成功返回true,以及上次调用此函数指定的event参数
+end intellisense**/

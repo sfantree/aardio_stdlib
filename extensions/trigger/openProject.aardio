@@ -1,0 +1,38 @@
+import fsys;
+import ide; 
+import ide.command;
+ide.command.join( ide.processGroup() );
+
+var projPath = ide.getProjectPath();
+if(!#projPath) return;
+
+if( ..string.startWith(projPath,"\\") ) {
+	import win;
+	win.msgboxErr('请不要在共享文件中打开工程文件:\n' + projPath,"aardio",ide.getMainHwnd());
+	return;
+}
+
+var recentList = {};
+var cfgRecentProject = ..string.load("~/config/RECENT.PROJECT.TABLE");
+if( cfgRecentProject ){
+	try{
+		recentList = eval(cfgRecentProject)
+	} 
+	if(!recentList) return;
+}
+
+import fsys.path;
+for(i=#recentList;1;-1){ 
+	if( fsys.path.cmp(recentList[i],projPath) === 0 ){
+		table.remove(recentList,i);
+		break;
+	}
+} 
+ 
+if( #recentList > 30 ){
+	recentList =  ..table.slice( recentList,1,30);
+}
+..table.unshift( recentList,ide.getProjectPath() )
+string.save("~/config/RECENT.PROJECT.TABLE",..table.tostring(recentList) )
+
+ide.command.post("aardioQuickerRecentProjectChanged");

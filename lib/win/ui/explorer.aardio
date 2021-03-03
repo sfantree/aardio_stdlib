@@ -1,0 +1,218 @@
+﻿//explorer 文件树形视图
+import fsys;
+import win.imageList;
+import sys.volume;
+import fsys.info;
+
+namespace win.ui;
+class explorer{
+	ctor( treeview ){
+		this.treeview = treeview;
+		this._form = treeview._parentForm;
+		treeview.modifyStyle(0x2000/*_TVS_NOSCROLL*/|0x8000/*_TVS_NOHSCROLL*/);
+		
+		var x,y = treeview.getPos();
+		var hCombobox = ::User32.RealChildWindowFromPoint(this._form.hwnd,x + 50,y - 20);
+
+		if( hCombobox ){
+			this.combobox = this._form.getCtrl(hCombobox);
+			if(this.combobox[["cls"]]!="combobox") this.combobox = null;
+		}
+		
+		this.setIconSize = function(size){
+			var shil =  __shilImageList[ ..string.lower(size:"small") ] : 0;
+			var imgList = ..win.imageList.shell( shil ); 
+			this.treeview.setImageList(imgList,0/*_TVSIL_NORMAL*/);
+			if( this.imageList )this.imageList.destroy();
+			this.imageList = imgList;
+		}
+		this.setIconSize("small");
+		
+		this.loadFile = function(path,wildcard,pattern){
+			this.wildcard = wildcard;
+			this.pattern = pattern;
+			this.treeview.clear();
+			return this.loadItemFile( ,path);
+		}
+		
+		this.loadItemFile = function(hItem,path){
+			var files,dirs;
+			if( ( path === null  ) && ( hItem === null  ) ){
+				dirs = ..sys.volume.getLogicalDrives();
+				if(this.combobox) {
+					this.combobox.items = dirs; 
+					
+					this.combobox.oncommand = function(id,event){
+    					if(event == 1/*_CBN_SELCHANGE*/){
+    						var driver = owner.selText;
+							if(#driver) this.loadFile(driver)	
+    					} 
+					}	
+				}
+				
+				for(i=1;#dirs;1){
+					dirs[dirs[i]] = dirs[i] +"\";
+				}
+				
+			}
+			else{
+				if(!..fsys.isDir(path) ) error("路径不是一个有效的目录",2);
+				files,,dirs = ..fsys.list(path,this.pattern,this.wildcard); 
+				if(hItem===null) this.rootPath = path;
+				
+				if( (!#dirs) && (!#files) && hItem ){
+					treeview.setItem(
+						hItem = hItem;
+						cChildren = 0;
+						mask = 0x40/*_TVIF_CHILDREN*/;
+					)
+					return;
+				}
+			};
+			
+			..win.ui.waitCursor(true);
+			
+			var treeview = this.treeview;
+			var getInfo = ..fsys.info.get;
+			var toUnicode = ..string.toUnicode;
+			var tvItem = ..win.ui.ctrl.treeview.TVITEM();
+			tvItem.mask = 1/*_TVIF_TEXT*/ | 0x20/*_TVIF_SELECTEDIMAGE*/  | 2/*_TVIF_IMAGE*/ | 1/*_TVIF_TEXT*/ | 0x40/*_TVIF_CHILDREN*/
+			var inst = {
+    			pointer hParent = hItem;
+    			addr hInsertAfter; 
+    			struct item = tvItem; 
+			}  
+			
+			treeview.setRedraw(false);
+			
+			var filename;
+			for(i=1;#dirs){
+				filename = dirs[i];
+    			var sfi = getInfo(dirs[ filename ]	, 0x10/*_SHGFI_USEFILEATTRIBUTES*/ | 0x4000/*_SHGFI_SYSICONINDEX*/);
+				tvItem.textPtr = toUnicode( filename ); 
+        		tvItem.cChildren = 1; //The item has one or more child items
+        		tvItem.iImage = sfi.iIcon;
+        		tvItem.iSelectedImage = sfi.iIcon; 
+        		inst.hInsertAfter = ::SendMessageByStruct(treeview.hwnd,0x1132/*_TVM_INSERTITEMW*/,0,inst );
+    		}
+    		
+    		tvItem.mask = tvItem.mask &~0x40;
+    		for(i=1;#files){
+    			filename = files[i];
+    			var sfi = getInfo(files[filename]	,0x10/*_SHGFI_USEFILEATTRIBUTES*/ | 0x4000/*_SHGFI_SYSICONINDEX*/); 
+				tvItem.textPtr = toUnicode(filename);
+        		tvItem.iImage = sfi.iIcon; 
+        		tvItem.iSelectedImage = sfi.iIcon; 
+				inst.hInsertAfter = ::SendMessageByStruct(treeview.hwnd,0x1132/*_TVM_INSERTITEMW*/,0,inst ); 
+    		}
+    		
+    		treeview.setRedraw(true);
+    		..win.ui.waitCursor(false);
+		}
+		
+		this.getFilePath = function(hItem){
+			if( hItem === null ) return this.rootPath;
+			var path = ..io.joinpath(this.rootPath,this.treeview.getItemPath(hItem));
+			if( path && path[#path] == ':'# ) path = path +"\";
+			return path;
+		}
+		
+		this.getCurrentFilePath = function(){
+			var hItem = this.treeview.getSelection();
+			if( hItem ) return this.getFilePath(hItem);
+		}
+				
+		this.treeview._onDestroy = function(){
+			this.treeview.setImageList(null,0/*_TVSIL_NORMAL*/);
+			if( this.imageList )this.imageList.destroy()
+		}
+		
+		this.treeview._prenotify = function(id,code,ptr){
+	 
+ 	 		if( code = 0xFFFFFE3A/*_TVN_ITEMEXPANDINGW*/){  
+ 	 				var nmtv = this.treeview.getNotifyMessage(code,ptr) 
+ 	 				if(nmtv.action & 2/*_TVE_EXPAND*/) { 
+ 	 					var hItem = nmtv.itemNew.hItem; 
+    					if( ! this.treeview.isExpandedOnce(hItem) ) {
+    			 			this.loadItemFile( hItem,this.getFilePath(hItem) );
+    			 			if( this.onExpandedOnce ){
+    			 				this.onExpandedOnce( hItem );
+    			 			}
+						}
+ 	 				}
+ 	 		}
+	 		elseif( code == 0xFFFFFFFE/*_NM_CLICK*/ ){  
+				var hItem,flags = this.treeview.hitTest()  
+				if( hItem  && this.onClick && ( flags & 6/*_TVHT_ONITEMLABEL | _TVHT_ONITEMICON*/) ){
+			 		this.onClick( this.getFilePath(hItem),hItem );
+				}
+			}
+			elseif( code ==  0xFFFFFE3D/*_TVN_SELCHANGEDW*/ ){  
+				var hItem = this.treeview.getSelection() ; 
+				if( hItem && this.onSelChanged){ 
+			 		this.onSelChanged( this.getFilePath(hItem),hItem );
+				}
+			}
+			elseif( code == 0xFFFFFFFD/*_NM_DBLCLK*/){  
+				var hItem,flags = this.treeview.hitTest()  
+				if( hItem  && this.onDoubleClick && ( flags & 6/*_TVHT_ONITEMLABEL | _TVHT_ONITEMICON*/) ){ 
+			 		this.onDoubleClick( this.getFilePath(hItem),hItem );
+				}
+			}
+			elseif(code = 0xFFFFFFFB/*_NM_RCLICK*/){
+				var x,y = ..win.getMessagePos(); 
+				var hItem,flags = this.treeview.hitTest(x,y,true)  
+				if( hItem  && this.onRightClick ){  
+			 		this.onRightClick( this.getFilePath(hItem),hItem,x,y );
+				}
+			} 
+		
+		}
+		
+		this.loadFile();
+		..table.gc(this,function(){
+			if( this.imageList )this.imageList.destroy();
+			this.imageList = null;
+		})
+		
+	}
+}
+
+namespace explorer{
+	__shilImageList = { 
+		large = 0/*SHIL_LARGE */;
+		small = 1/*SHIL_SMALL */;
+		extralarge = 2/*_SHIL_EXTRALARGE*/;
+		syssmall = 3/*_SHIL_SYSSMALL*/;
+		jumbo = 4/*_SHIL_JUMBO*/;
+	}  	
+}
+
+/**intellisense()
+win.ui.explorer = 用于创建类似资源管理器的文件树形视图
+win.ui.explorer(__) = 创建类似资源管理器的文件树形视图\n请在参数中指定一个已创建的treeview视图对象,\n创建对象时会自动启用treeview控件的滚动条,\n默认会在树形视图控件顶部自动搜索下拉框用于显示驱动器列表
+win.ui.explorer() = !win_ui_explorer.
+end intellisense**/
+
+/**intellisense(!win_ui_explorer)
+combobox = 用于显示驱动器的下拉框,\n默认会在树形视图控件顶部自动搜索下拉框,也可以自行指定\n!combobox.
+loadFile(.("目录路径","通配符","模式匹配") = 搜索文件并加载到树形视图\n不指定任何参数调用此函数时默认显示所有硬盘分区,\n除参数@1以外,其他参数可选\n参数@2使用模式匹配语法匹配文件名\n通配符默认值是"*.*",也可以传入通配符数组
+getFilePath(.(hItem) = 返回节点文件路径,不指定节点句柄时返回根路径
+getCurrentFilePath() = 返回当前选中节点文件路径\n注意onClick事件触发时树形控件尚未更改选中状态
+setIconSize("large") = 显示大图标\n可选参数有：large,small,extralarge,syssmall,jumbo
+onExpandedOnce = @.onExpandedOnce = function(hItem){
+	__/*第一次展开参数指定的节点*/
+}
+onClick = @.onClick = function(filePath,hItem){
+	__/*用户单击节点或节点图标,此时尚未改变选中节点*/
+}
+onSelChanged = @.onSelChanged = function(filePath,hItem){
+	__/*用户已改变选中节点*/
+}
+onDoubleClick = @.onDoubleClick = function(filePath,hItem){
+	__/*用户双击节点或节点图标,此时尚未改变选中节点*/
+}
+onRightClick = @.onRightClick = function(filePath,hItem,x,y){
+	__/*用户右键单击节点*/	
+}
+end intellisense**/

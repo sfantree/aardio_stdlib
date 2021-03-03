@@ -1,0 +1,30 @@
+//虚拟桌面
+import win.ui;
+import win.util.desktop;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=262;bottom=179;parent=...)
+winform.add(
+btnDefault={cls="button";text="切换到默认桌面";left=53;top=110;right=202;bottom=143;font=LOGFONT(name='Microsoft Sans Serif');z=3};
+btnToMyDesktop={cls="button";text="切换到myDesktop";left=53;top=64;right=202;bottom=97;font=LOGFONT(name='Microsoft Sans Serif');z=2};
+static={cls="static";text="ctrl + D 试试";left=59;top=27;right=229;bottom=62;color=255;font=LOGFONT(name='宋体';h=-21);transparent=1;z=1}
+)
+/*}}*/
+
+var virDesktp = win.util.desktop();
+virDesktp.create("myDesktop") //创建桌面 
+
+hkid = winform.reghotkey(function(id,mod,vk){
+    virDesktp.switch( ) //切换桌面   
+},2/*_MOD_CONTROL*/,'D'#); 
+
+winform.btnDefault.oncommand = function(id,event){
+	virDesktp.switch("Default" ) 
+} 
+
+winform.btnToMyDesktop.oncommand = function(id,event){
+	virDesktp.switch("myDesktop" ) //切换桌面
+}
+
+winform.show() 
+win.loopMessage();
+

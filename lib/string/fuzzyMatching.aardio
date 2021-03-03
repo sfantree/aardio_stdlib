@@ -1,0 +1,54 @@
+//fuzzyMatching 模糊匹配
+namespace string; 
+
+class fuzzyMatching{
+	ctor(str,m=":|<[\a\p]+>"){ 
+		str = ..string.trim(str);
+		var tmplate = {}
+		for t in ..string.gmatch( str,m) { 
+			..table.push(tmplate,"@"+t);
+		}
+		
+		var replace =  ..string.replace;
+		var left = ..string.left;
+		var push = ..table.push;
+	}
+	match = function(strCmp){ 
+		var rs,rc = strCmp,0;  
+		var count = 0; 
+		for(i,t in tmplate){ 
+			 rs,rc = replace(rs,t,"",1); 
+			 if(rc)count += rc;
+		}
+
+		for(i=#str/2;2;-1){ 
+			if( left(str,i) == left(strCmp,i) ){ 
+				count += i*2; 
+				break;
+			} 
+		}; 
+		return count / ( ( #str + #tmplate)/100 )/100;
+	} 
+	find = function(array){
+		var tMatch = {}
+		for(i=1;#array;1){
+			push(tMatch,{string=array[i];similar=this.match(array[i]) })
+		}
+		..table.sort(tMatch,function(b){ 
+			return owner.similar > b.similar
+		} ); 
+		
+		var match = tMatch[1].string; 
+		if( #match/2 > #str)return "",0
+		if( #str/2 > #match)return "" ,0
+		return match,tMatch[1].similar; 
+	} 
+}
+
+/**intellisense()
+string.fuzzyMatching = 模糊匹配
+string.fuzzyMatching("模板字符串") = 创建模糊匹配对象
+string.fuzzyMatching() = !string_fuzzyMatching.
+!string_fuzzyMatching.match(.(匹配字符串) = 返回匹配相似度\n相似度为小数,最大相似为1,不相似为0
+!string_fuzzyMatching.find(.(匹配字符串数组) = 返回最匹配的字符串,以及相似度(小数,最大相似为1,不相似为0)\n无匹配则返回空串
+end intellisense**/

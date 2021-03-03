@@ -1,0 +1,346 @@
+//2、编译java源码
+
+/*
+默认自带绿色精简版的JRE(版本1.6),压缩后6.8MB,可根据需要继续精简,或替换JRE版本
+默认在EXE目录或工程目录下的JAVA/jre 子目录查找jre,删除自带jre将会使用系统安装的jre或jdk(向下兼容jre 1.7,1.7,1.8.....)
+
+编译Java源码必须安装JDK(包含编译器javac.exe),
+注意高版本JDK中编译的JAVA程序不应在低版本的JRE中运行。
+*/
+
+//import win;
+//win.setenv("JAVA_HOME","C:\Program Files\Java\jdk1.6.0_45"); //可以在导入JAVA支持库以前手动指定绿色版JDK目录
+//win.setenv("JRE_HOME","C:\Program Files\Java\jre7"); //可以在导入JAVA支持库以前手动指定绿色版JRE目录
+
+import java; 
+import console; 
+
+var home,ver = java.getJavaHome();
+console.log("当前JDK编译器版本",ver);
+console.log("当前JDK编译器所在目录",home);
+console.log("当前JDK编译器路径",java.getJavacPath () ); 
+console.log("当前加载的JRE根目录",java.getJvmHome() )
+ 
+jreVersion = {
+	[0x00010006] = "6.0";//java 6( 1.6为内部版本号)
+	[0x00010007] = "6.0";//注意根据JAVA官方文档,JAVA 7 GetVersion()返回的版本号仍为1.6 
+	[0x00010008] = "8.0";//java 8
+	[0x00010009] = "9.0";//java 8
+}
+ 
+console.log("当前加载的JRE版本",jreVersion[ java().env.GetVersion()  ]  ) 
+import fsys.version
+var javac = java.getJavacPath();
+if( ..io.exist(javac) ){
+	var productVersion = fsys.version.getInfo( javac ).productVersion;
+	console.log( "当前JDK编译器产品版本",productVersion,"产品版本8.0对应内部版本号1.8" )
+	
+	productVersion.build = 0;
+	productVersion.revision = 0;
+	if( productVersion > fsys.version(jreVersion[ java().env.GetVersion()  ] ) ){
+		console.log("JDK与JRE版本不一致,编译后的JAVA程序可能无法正常运行,请按确定退出本程序。")
+		console.pause()
+		return;
+	}
+}
+else {
+	//下载JDK1.6
+	import com;
+	try{
+		var thunder = com.CreateObject("ThunderAgent.Agent")  
+		thunder.AddTask(
+			"http://download.oracle.com/otn/java/jdk/6u45-b06/jdk-6u45-windows-i586.exe",
+			"jdk-6u45-windows-i586.exe", io.fullpath("~/download/") ,"jdk 1.6","http://download.oracle.com/otn/java/jdk/6u45-b06/jdk-6u45-windows-i586.exe", 1,false, 1) 
+		thunder.CommitTasks() 
+	}
+}
+
+
+var javacode = /****
+package aardio.interopServices;
+import java.lang.reflect.Method;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+public class utility{ 
+	static public boolean fieldExists(Object[] args) {
+    	try {
+    		Class ownerClass = args[0].getClass();
+    		if( ownerClass.equals( Class.class ) ) ownerClass = (Class)args[0];
+        	Field field = ownerClass.getField((String)args[1]); 
+        	if(field!=null) return true;
+        } catch (Exception e) {
+        
+        }  
+        return false;
+    } 
+    static public Object getFieldValue(Object[] args) {
+    	try {
+    		Class ownerClass = args[0].getClass();
+    		if( ownerClass.equals( Class.class ) ) ownerClass = (Class)args[0];
+        	Field field = ownerClass.getField((String)args[1]); 
+        	if(field!=null) return field.get(args[0]);
+        	return null;
+        } catch (Exception e) {
+            return null;
+        }  
+    }  
+    static public void setFieldValue(Object[] args) {
+    	Field field = null;
+    	try {
+    		Class ownerClass = args[0].getClass();
+    		if( ownerClass.equals( Class.class ) ) ownerClass = (Class)args[0];
+        	field = ownerClass.getField((String)args[1]);
+        	if(field==null) return;
+        	field.set(args[0],args[2]); 
+        } catch (IllegalArgumentException ea ){
+        
+        	if( args[2] instanceof Double ) {
+        		double v = ((Double)(args[2])).doubleValue();
+        		
+        		try {
+        			field.set(args[0],((Float)(float)v));
+        			return;
+        		} 
+        		catch (Exception ea2 ){
+        		
+        		}
+        		
+        		try {
+        			field.set(args[0],((Character)(char)v));
+        			return;
+        		} 
+        		catch (Exception ea3 ){
+        		}
+        		
+        		try {
+        			field.set(args[0],((Short)(short)v));
+        			return;
+        		} 
+        		catch (Exception ea4 ){
+        		
+        		}
+        		
+        		try {
+        			field.set(args[0],((Integer)(int)v));
+        			return;
+        		} 
+        		catch (Exception ea1 ){
+        		
+        		}
+        	}
+        } catch (Exception e) {
+        	e.printStackTrace();
+        } 
+    } 
+	public static Object invokeMethod(Object[] args) throws Exception {   
+     	Class ownerClass = args[0].getClass();
+     	Class[] argsClass = new Class[args.length-2];  
+     	Object[] args2 = new Object[args.length-2]; 
+     	boolean numberTest = false;
+     	Method method = null;
+     	
+     	if( ownerClass.equals( Class.class ) ) ownerClass = (Class)args[0];
+  
+  		try{
+     		for (int i = 2, j = args.length; i < j; i++) {   
+		
+         		argsClass[i-2] = args[i].getClass(); 
+         		args2[i-2] = args[i];  
+          		if( argsClass[i-2].equals(Integer.class) ){
+					argsClass[i-2] = int.class;
+				}
+				else if( argsClass[i-2].equals(Double.class) ){
+					argsClass[i-2] = double.class;
+					numberTest = true;
+				}
+				else if( argsClass[i-2].equals(Float.class) ){
+					argsClass[i-2] = float.class;
+				}
+				else if( argsClass[i-2].equals(Long.class) ){
+					argsClass[i-2] = long.class;
+				}
+				else if( argsClass[i-2].equals(Character.class) ){
+					argsClass[i-2] = char.class;
+				}
+				else if( argsClass[i-2].equals(Short.class) ){
+					argsClass[i-2] = short.class;
+				}
+				else if( argsClass[i-2].equals(Boolean.class) ){
+					argsClass[i-2] = boolean.class;
+				}
+     		} 
+     		
+     		method = ownerClass.getMethod((String)args[1],argsClass);
+     	}catch(NoSuchMethodException e1){ 
+			if( numberTest){ 
+				try{
+					for (int i = 2, j = args.length; i < j; i++) {   
+						if( args[i].getClass().equals(Double.class) ){
+							argsClass[i-2] = int.class;
+							args2[i-2] = (int)((double)(Double)(args[i]));  
+						}
+     				} 
+     				method = ownerClass.getMethod((String)args[1],argsClass);	
+				}
+				catch(NoSuchMethodException e2){
+					try{
+						for (int i = 2, j = args.length; i < j; i++) {   
+							if( args[i].getClass().equals(Double.class) ){
+								argsClass[i-2] = float.class;
+								args2[i-2] = (float)((double)(Double)(args[i])); 
+							}
+     					} 
+     					method = ownerClass.getMethod((String)args[1],argsClass);	
+					}
+					catch(NoSuchMethodException e3){
+						try{
+           					for (int i = 2, j = args.length; i < j; i++) {   
+								if( args[i].getClass().equals(Double.class) ){
+									argsClass[i-2] = short.class;
+									args2[i-2] = (short)((double)(Double)(args[i])); 
+								}
+     						} 
+     						method = ownerClass.getMethod((String)args[1],argsClass);	
+						}
+						catch(NoSuchMethodException e4){
+							try{
+          						for (int i = 2, j = args.length; i < j; i++) {   
+									if( args[i].getClass().equals(Double.class) ){
+										argsClass[i-2] = char.class;
+										args2[i-2] = (char)((double)(Double)(args[i])); 
+									}
+     							}
+     							method = ownerClass.getMethod((String)args[1],argsClass);	
+							}
+							catch(NoSuchMethodException e5){
+								throw e5;
+							}	
+						}
+					}	
+				}
+			}
+		}    
+      	
+     	return method.invoke(args[0], args2);
+	}     
+	public static Object createInstance(Object[] args) throws Exception {   
+     	Class ownerClass = (Class)args[0];
+     	Class[] argsClass = new Class[args.length-1];  
+     	Object[] args1 = new Object[args.length-1]; 
+     	boolean numberTest = false;
+     	Constructor method = null; 
+  
+  		try{
+     		for (int i = 1, j = args.length; i < j; i++) {   
+		
+         		argsClass[i-1] = args[i].getClass(); 
+         		args1[i-1] = args[i];  
+          		if( argsClass[i-1].equals(Integer.class) ){
+					argsClass[i-1] = int.class;
+				}
+				else if( argsClass[i-1].equals(Double.class) ){
+					argsClass[i-1] = double.class;
+					numberTest = true;
+				}
+				else if( argsClass[i-1].equals(Float.class) ){
+					argsClass[i-1] = float.class;
+				}
+				else if( argsClass[i-1].equals(Long.class) ){
+					argsClass[i-1] = long.class;
+				}
+				else if( argsClass[i-1].equals(Character.class) ){
+					argsClass[i-1] = char.class;
+				}
+				else if( argsClass[i-1].equals(Short.class) ){
+					argsClass[i-1] = short.class;
+				}
+				else if( argsClass[i-1].equals(Boolean.class) ){
+					argsClass[i-1] = boolean.class;
+				}
+     		} 
+     		
+     		method = ownerClass.getConstructor(argsClass);
+     	}catch(NoSuchMethodException e1){ 
+			if( numberTest){ 
+				try{
+					for (int i = 1, j = args.length; i < j; i++) {   
+						if( args[i].getClass().equals(Double.class) ){
+							argsClass[i-1] = int.class;
+							args1[i-1] = (int)((double)(Double)(args[i]));  
+						}
+     				} 
+     				method = ownerClass.getConstructor(argsClass);	
+				}
+				catch(NoSuchMethodException e2){
+					try{
+						for (int i = 1, j = args.length; i < j; i++) {   
+							if( args[i].getClass().equals(Double.class) ){
+								argsClass[i-1] = float.class;
+								args1[i-1] = (float)((double)(Double)(args[i])); 
+							}
+     					} 
+     					method = ownerClass.getConstructor(argsClass);	
+					}
+					catch(NoSuchMethodException e3){
+						try{
+           					for (int i = 1, j = args.length; i < j; i++) {   
+								if( args[i].getClass().equals(Double.class) ){
+									argsClass[i-1] = short.class;
+									args1[i-1] = (short)((double)(Double)(args[i])); 
+								}
+     						} 
+     						method = ownerClass.getConstructor(argsClass);	
+						}
+						catch(NoSuchMethodException e4){
+							try{
+          						for (int i = 1, j = args.length; i < j; i++) {   
+									if( args[i].getClass().equals(Double.class) ){
+										argsClass[i-1] = char.class;
+										args1[i-1] = (char)((double)(Double)(args[i])); 
+									}
+     							}
+     							method = ownerClass.getConstructor(argsClass);	
+							}
+							catch(NoSuchMethodException e5){
+								throw e5;
+							}	
+						}
+					}	
+				}
+			}
+		}    
+      	
+     	return method.newInstance(args1);
+	}    
+	public static boolean objectIsNumber(Object v){
+		if( v instanceof Integer ) return true;
+		if( v instanceof Double ) return true;
+		if( v instanceof Float ) return true;
+		if( v instanceof Short ) return true;
+		if( v instanceof Character ) return true;
+		if( v instanceof Long ) return true;
+		return false;
+	} 
+	public static boolean objectIsString(Object v){
+		return v instanceof String;
+	} 
+	public static String object2String(Object v){
+		return (String)v;
+	} 
+	public static double object2Number(Object v){
+		if( v instanceof Integer ) return ((Integer)v).doubleValue();
+		if( v instanceof Double ) return ((Double)v).doubleValue();
+		if( v instanceof Float ) return ((Float)v).doubleValue();
+		if( v instanceof Short ) return  ((Short)v).doubleValue();
+		if( v instanceof Character ) return (double)(char)((Character)v);
+		if( v instanceof Long ) ((Long)v).doubleValue();
+		return (double)( (Double)(v) );
+	} 
+}  
+****/
+
+string.save( "\utility.java",string.fromto(javacode) )  
+java.compile("\utility.java"," -Xlint:unchecked")
+
+console.log("如果控制台没有显示错误,则编译成功") 
+console.pause()

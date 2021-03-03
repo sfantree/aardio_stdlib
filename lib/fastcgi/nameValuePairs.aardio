@@ -1,0 +1,93 @@
+﻿//nameValuePairs 列表
+namespace fastcgi.nameValuePairs;
+
+class decoder{  
+	ctor(){ 
+		this.data = {}	
+	}; 
+	push = function(str){
+		..table.push(this.data,str);
+		if(!#str){  }
+		return #str;
+	};
+	readNumber = function () {  
+		var n = this.str[this.pos];  
+		if (n >> 7 == 1) {
+		 
+			n = (this.str[this.pos] & 0x7F) << 24 
+				| this.str[this.pos+1] << 16
+				| this.str[this.pos+2] << 8
+				| this.str[this.pos+3]
+			 
+			this.pos = this.pos + 4;
+			return n ; 
+		} 
+		this.pos = this.pos + 1;
+		return n;
+	}
+	readString = function(n){
+		var s = ..string.slice(this.str,this.pos,this.pos+n-1);
+		this.pos = this.pos + n;
+		return s;
+	};
+	parse = function(str){
+		if( str ) this.push(str);
+		
+		var list = {};
+		this.str = ..string.join(this.data);
+		this.pos = 1;
+		while ( this.pos < #this.str ) {
+			var nl = this.readNumber();
+			var vl = this.readNumber();
+			var name = this.readString(nl);
+			var value = this.readString(vl);
+			list[name] = value;
+		}
+		this.pos = 1;
+		return list;
+	} 
+} 
+
+class encoder{ 
+	writeNumber = function (n) {    
+		if (n > 0x7F ) { 
+			..table.push(this.data 
+				, ..string.pack( 
+					(2_10000000 | ( ( n >> 24) & 0xFF) ) 
+			  		,( n >> 16) & 0xFF
+			  		,( n >> 8) & 0xFF
+			  		,( n & 0xFF) 
+				)
+			);
+		} 
+		else {
+			..table.push(this.data,..string.pack( n & 0x7F ) );	
+		} 
+	}
+	writeString = function(s){
+		..table.push(this.data,s);
+	};
+	build = function(list){ 
+		this.data = {};
+		for(k,v in list){ 
+			k = tostring(k);
+			v = tostring(v);
+			this.writeNumber(#k);
+			this.writeNumber(#v);
+			this.writeString(k);
+			this.writeString(v);
+		} 
+		return ..string.join(this.data);
+	} 
+}
+
+/**intellisense()
+fastcgi.nameValuePairs = 名值对
+fastcgi.nameValuePairs.decoder() = 名值对编码器\n!fastcginameValuePairsdec.
+fastcgi.nameValuePairs.encoder() = 名值对解码器\n!fastcginameValuePairsenc.
+!fastcginameValuePairsdec.push(.(字符串) = 读入二进制字符串
+!fastcginameValuePairsdec.parse(.(字符串) = 解析并返回表对象,\n可省略参数并使用push函数添加字符串
+!fastcginameValuePairsenc.build(.(表对象) = 编码并返回二进制字符串
+end intellisense**/
+
+

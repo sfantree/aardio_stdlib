@@ -1,0 +1,63 @@
+//SQLite增删改查
+
+import sqlite
+import console;
+ 
+//创建数据库
+var db = sqlite("/test-sqlite.db")
+
+//创建表 
+if( not db.existsTable("film") ){  
+	/*
+	sqlite可以象MSSQL那样将表名等标识符放在方括号里(避免表名是保留字等),
+	也可以将MYSQL那样将表示放在反引号里(键盘左上角波浪线下面的符号)
+	也可以按ANSI SQL约定放在双引号里,更可以放在单引号里
+	
+	SQL里面一般应当用单引号包含字符串( 各种数据库都支持的标准写法 )
+	双引号在ANSI SQL中规定用来包含表名 - 一个容易让人误解的规定,所以MSSQL用了中括号,而MYSQL用了反引号。
+	*/
+	db.exec( "CREATE TABLE [film](title, length, year, starring);")  
+}  
+ 
+//增 - 使用命名参数示例 
+var command = db.prepare("REPLACE INTO film VALUES (@title,@length,@year, 'Jodie Foster');" ) 
+command.step(  
+	title = "标题";
+	length = 4;
+	year = time.now();
+)    
+ 
+//删 - 执行SQL语句,自动调用 string.format 格式化( 不会添加并过滤分隔符 )生成语句示例 
+db.exec("DELETE FROM [%s] WHERE title='%s';","film","要删除的标题")
+
+//改 - exec函数也可以用一个表添加简单的命名参数( 添加并过滤分隔符 )
+db.exec("UPDATE film SET title = @title,length=@length WHERE title = @oldTitle;",{
+	title = "新的标题123";
+	length = #"新的标题";
+	oldTitle = "标题";
+} );
+	
+//查 - 返回首行数据
+var result = db.stepQuery("SELECT * FROM [film]"
+	,{ title = "新的标题"} //可选使用表对象指定where条件参数
+) 
+
+/*
+迭代方式查询数据,注意：
+查询时数据库返回的第一个字段必须非空( 首个返回值为空表示中段 for语句 )
+如果首字段可能为空,那么可以把SQLite默认就有的索引字段 rowid 放在最前面。
+*/
+for rowid,title, length, year, starring in db.each("SELECT rowid,* FROM film") {
+	console.log( rowid,title, length, year, starring  ) 
+}
+
+//查 - 返回数据表
+var dataTable = db.getTable("SELECT * FROM [film] " 
+	,{ title = "新的标题"} //可选使用表对象指定where条件参数
+)
+console.varDump( dataTable );
+
+//删除表 
+db.exec("DROP TABLE film" );
+
+console.pause();

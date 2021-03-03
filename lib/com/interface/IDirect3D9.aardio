@@ -1,0 +1,188 @@
+import com.interface; 
+namespace com.interface;
+
+class IDirect3D9{
+
+	ctor () {
+		this = ..com.interface.IUnknown();
+	};
+	pointer RegisterSoftwareDevice = "int(pointer pInitializeFunction)";
+	pointer GetAdapterCount = "INT()";
+	pointer GetAdapterIdentifier__ = "int(INT adapter,INT flags,struct &pIdentifier)";
+	pointer GetAdapterModeCount = "INT(INT adapter,int format)";
+	pointer EnumAdapterModes = "int(INT adapter,int format,int mode,struct& pMode)";
+	pointer GetAdapterDisplayMode = "int(INT adapter,struct& pMode )";
+	pointer CheckDeviceType = "int(INT adapter,int DevType,INT adapterFormat,int BackBufferFormat,BOOL bWindowed)";
+	pointer CheckDeviceFormat = "int(INT adapter,int DeviceType,INT adapterFormat,INT Usage,int RType,int CheckFormat)";
+	pointer CheckDeviceMultiSampleType = "int(INT adapter,int DeviceType,int SurfaceFormat,bool Windowed,int MultiSampleType,INT& pQualityLevels)";
+	pointer CheckDepthStencilMatch = "int(INT adapter,int DeviceType,INT adapterFormat,int RenderTargetFormat,int DepthStencilForma)";
+	pointer CheckDeviceFormatConversion = "int(INT adapter,int DeviceType,int SourceFormat,int TargetForma)";
+	pointer GetDeviceCaps__ = "int(INT adapter,int DeviceType,struct &pCaps)";
+	pointer GetAdapterMonitor = "pointer(INT adapter)";
+	pointer CreateDevice = "int(INT adapter,INT DeviceType,int hFocusWindow,INT BehaviorFlags,struct& pPresentationParameters,pointer& ppReturnedDeviceInterface)";  
+
+	GetAdapterIdentifier = function(adapter,flags){
+		var info = D3DADAPTER_IDENTIFIER9();
+		if( owner.GetAdapterIdentifier__(adapter : 0,flags : 0,info) >=0/*_SUCCEEDED*/ ){
+			info.Description = ..string.str(info.Description);
+			info.Driver = ..string.str(info.Driver);
+			info.DeviceName = ..string.str(info.DeviceName);
+			return info;
+		}
+	};
+	GetDeviceCaps = function(adapter,deviceType){
+		var caps = D3DCAPS9();
+		if( owner.GetDeviceCaps__(adapter : 0,deviceType : 1/*_D3DDEVTYPE_HAL*/,caps) >=0/*_SUCCEEDED*/ ){
+			return caps;
+		}
+	};
+}
+
+namespace IDirect3D9{
+	IID = "{81BDCBCA-64D4-426d-AE8D-AD0147F4275C}";
+	
+	class D3DADAPTER_IDENTIFIER9{
+    	BYTE Driver[512];
+    	BYTE Description[512];
+    	BYTE DeviceName[32]; 
+    	struct DriverVersion= {
+    		INT HighPart;
+    		int LowPart;
+    	}
+    	INT VendorId;
+    	INT DeviceId;
+    	INT SubSysId;
+    	INT Revision; 
+    	struct DeviceIdentifier = ..win.guid(); 
+    	INT WHQLLevel; 
+	} ; 
+	
+	var D3DVSHADERCAPS2_0 = class {
+  		INT Caps;
+  		int DynamicFlowControlDepth;
+  		int NumTemps;
+  		int StaticFlowControlDepth;
+	} 
+	
+	class D3DCAPS9{
+  		int DeviceType;
+  		INT AdapterOrdinal;
+  		INT Caps;
+  		INT Caps2;
+  		INT Caps3;
+  		INT PresentationIntervals;
+  		INT CursorCaps;
+  		INT DevCaps;
+  		INT PrimitiveMiscCaps;
+  		INT RasterCaps;
+  		INT ZCmpCaps;
+  		INT SrcBlendCaps;
+  		INT DestBlendCaps;
+  		INT AlphaCmpCaps;
+  		INT ShadeCaps;
+  		INT TextureCaps;
+  		INT TextureFilterCaps;
+  		INT CubeTextureFilterCaps;
+  		INT VolumeTextureFilterCaps;
+  		INT TextureAddressCaps;
+  		INT VolumeTextureAddressCaps;
+  		INT LineCaps;
+  		INT MaxTextureWidth;
+  		INT MaxTextureHeight;
+  		INT MaxVolumeExtent;
+  		INT MaxTextureRepeat;
+  		INT MaxTextureAspectRatio;
+  		INT MaxAnisotropy;
+  		float MaxVertexW;
+  		float GuardBandLeft;
+  		float GuardBandTop;
+  		float GuardBandRight;
+  		float GuardBandBottom;
+  		float ExtentsAdjust;
+  		INT StencilCaps;
+  		INT FVFCaps;
+  		INT TextureOpCaps;
+  		INT MaxTextureBlendStages;
+  		INT MaxSimultaneousTextures;
+  		INT VertexProcessingCaps;
+  		INT MaxActiveLights;
+  		INT MaxUserClipPlanes;
+  		INT MaxVertexBlendMatrices;
+  		INT MaxVertexBlendMatrixIndex;
+  		float MaxPointSize;
+  		INT MaxPrimitiveCount;
+  		INT MaxVertexIndex;
+  		INT MaxStreams;
+  		INT MaxStreamStride;
+  		INT VertexShaderVersion;
+  		INT MaxVertexShaderConst;
+  		INT PixelShaderVersion;
+  		float PixelShader1xMaxValue;
+  		INT DevCaps2;
+  		float MaxNpatchTessellationLevel;
+  		INT Reserved5;
+  		INT MasterAdapterOrdinal;
+  		INT AdapterOrdinalInGroup;
+  		INT NumberOfAdaptersInGroup;
+  		INT DeclTypes;
+  		INT NumSimultaneousRTs;
+  		INT StretchRectFilterCaps;
+  		struct VS20Caps = D3DVSHADERCAPS2_0();
+  		struct PS20Caps = D3DVSHADERCAPS2_0();
+  		INT VertexTextureFilterCaps;
+  		INT MaxVShaderInstructionsExecuted;
+  		INT MaxPShaderInstructionsExecuted;
+  		INT MaxVertexShader30InstructionSlots; 
+  		INT MaxPixelShader30InstructionSlots;
+	};
+}
+
+try {
+
+	::D3d9 := ..raw.loadDll("d3d9.dll");
+	::Direct3DCreate9 := D3d9.api("Direct3DCreate9","pointer(INT SDKVersion)"); 
+	
+	IDirect3D9.Create = function( version = 32/*_D3D_SDK_VERSION*/ ){
+		var pD3d = Direct3DCreate9(version/*_D3D_SDK_VERSION*/); 
+		if(pD3d) {
+			var d3d = ..com.interface(pD3d,IDirect3D9);
+			..com.Release( pD3d );
+			return d3d;
+		}
+	}
+}
+catch(e){
+	IDirect3D9.Create = function(){
+		
+	} 
+}
+
+/**intellisense()
+com.interface.IDirect3D9 = IDirect3D9
+com.interface.IDirect3D9.Create(32) = 创建接口,参数指定版本号
+!IDirect3D9.AddRef() = 引用计数加一,返回引用计数
+!IDirect3D9.Release() = 引用计数减一,返回引用计数
+!IDirect3D9.QueryInterface(__/*接口数*/) = 参数是接口类,参考com.interface.IUnknown源码
+!IDirect3D9.GetAdapterCount() =  得到显卡数量
+!IDirect3D9.GetDeviceCaps() = !D3DCAPS9.
+!IDirect3D9.GetDeviceCaps(.(adapter,deviceType) =  返回D3DCAPS9结构体包含指定设备的性能参数\nadapter可省略,默认为_D3DADAPTER_DEFAULT,\ndeviceType可省略,默认为 _D3DDEVTYPE_HA
+!IDirect3D9.GetAdapterIdentifier(.(adapter,flags) =  返回显卡信息\nadapter可省略,默认为_D3DADAPTER_DEFAULT
+!IDirect3D9.GetAdapterIdentifier() = !D3DADAPTER_IDENTIFIER9.
+!D3DADAPTER_IDENTIFIER9.Driver = Driver
+!D3DADAPTER_IDENTIFIER9.Description = Description
+!D3DADAPTER_IDENTIFIER9.DeviceName = DeviceName
+!D3DADAPTER_IDENTIFIER9.DriverVersion = DriverVersion
+!D3DADAPTER_IDENTIFIER9.DriverVersion.HighPart = HighPart
+!D3DADAPTER_IDENTIFIER9.DriverVersion.LowPart = LowPart
+!D3DADAPTER_IDENTIFIER9.VendorId = VendorId
+!D3DADAPTER_IDENTIFIER9.DeviceId = DeviceId
+!D3DADAPTER_IDENTIFIER9.SubSysId = SubSysId
+!D3DADAPTER_IDENTIFIER9.Revision = Revision
+com.interface.IDirect3D9.Create() = !IDirect3D9.
+
+_D3DADAPTER_DEFAULT=@0/*_D3DADAPTER_DEFAULT*/
+_D3DDEVTYPE_HAL=@1/*_D3DDEVTYPE_HAL*/
+_D3DDEVTYPE_REF=@2/*_D3DDEVTYPE_REF*/
+_D3DDEVTYPE_SW=@3/*_D3DDEVTYPE_SW*/
+_D3DDEVTYPE_FORCE_DWORD=@0x7FFFFFFF/*_D3DDEVTYPE_FORCE_DWORD*/
+end intellisense**/

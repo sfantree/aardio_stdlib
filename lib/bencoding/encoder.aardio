@@ -1,0 +1,61 @@
+//encoder 编码器
+namespace bencoding;
+
+class encoder{
+	ctor(){
+	   	var push = ..table.push;
+	   	var join = ..string.join;
+	   	var encodeString = function(value){
+	   		return #value + ":" + value;
+	   	};
+	   	var encodeInt = function(value){
+	   		return "i" + tostring(value,10) + "e";
+	   	};
+	   	var encodeList = function(value){
+	   		var lst = {"l"};
+	   		for(i=1;#value;1){
+	   			push(lst,this.stringify(value[i]));
+	   		}
+	   		push(lst,"e");
+	   		return join(lst);
+	   	} 
+	   	var encodeDict = function(value){
+	   		var dict = {"d"};
+	   		for k,v in ..table.eachName(value){
+	   			push(dict,encodeString(k),this.stringify(v) );
+	   		} 
+	   		push(dict,"e");
+	   		return join(dict);
+	   	}
+	   	this.stringify = function(value){
+	   		select(type(value)) {
+    			case "table" {
+    				var len = #value;  
+    				var dataType = type.rget(value);
+					if( ( len && (dataType != "object") ) || dataType == "array" ){ 
+						return encodeList(value); 
+					}
+					else {
+						return encodeDict(value); 
+					}
+    			} 
+    			case "string"{  
+        			return encodeString(value); 
+    			} 
+    			case "number"{
+        			return encodeInt(value); 
+    			} 
+    			else {
+    				return null,"unsupported data type:" + type(value);
+    			} 
+    		}
+	   	}
+	 } 
+}
+
+/**intellisense() 
+bencoding.encoder = bencoding编码器
+bencoding.encoder() = 创建bencoding编码器\n!stdbencodingencoder.
+!stdbencodingencoder.stringify(.(数据) = 编码并返回文本
+end intellisense**/
+

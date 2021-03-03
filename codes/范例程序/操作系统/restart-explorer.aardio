@@ -1,0 +1,13 @@
+﻿//修复桌面图标空白
+
+import fsys;
+import process;
+
+var explorerPath = process.kill("explorer.exe")
+if( explorerPath ) {
+	fsys.delete(io.appData("iconcache.db"));  
+	process.execute(explorerPath);
+	
+	::Shell32.SHChangeNotify(0x8000000/*_SHCNE_ASSOCCHANGED*/,0,0,0);
+}
+

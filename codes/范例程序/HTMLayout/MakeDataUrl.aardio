@@ -1,0 +1,43 @@
+//Data URL 转换工具
+import win.ui;
+/*DSG{{*/
+var winform = ..win.form( text="HTMLayout Data Url 转换工具";left=-50;bottom=325;topmost=1;right=399;border="resizable";parent=...)
+winform.add( 
+static={ dl=1;bottom=324;text="请将图片等文件拖放到上面的文本框中进行转换";left=11;top=300;z=2;db=1;transparent=1;right=433;cls="static" };
+edit={ dr=1;dl=1;vscroll=1;color=0;right=439;left=9;dt=1;db=1;cls="edit";bottom=292;multiline=1;top=9;font=LOGFONT( name='宋体' );acceptfiles=1;z=1;hscroll=1;edge=1 }
+)
+/*}}*/
+
+convert_t = function(path,mime){
+	import crypt.bin;
+	return string.format('data:%s;base64,\r\n%s',mime,crypt.bin.encodeBase64( string.load(path) ) ) 
+}
+ 
+import fsys;
+import fsys.mime;
+
+winform.edit.wndproc = function(hwnd,message,wParam,lParam){
+	if( message == 0x233/*_WM_DROPFILES*/ ){
+		if( winform.edit.busy ) return;
+		
+		var path = win.getDropFile(wParam)[1]
+		if( fsys.isDir(path) ){
+			winform.edit.text = "路径不能是一个目录"
+			return;
+		}
+		
+		var mime = fsys.mime.fromFile( path )
+		if(!mime){
+			winform.edit.text = "无效的文件格式";
+			return;
+		}
+		
+		winform.edit.busy = true;
+		winform.edit.text = "正在转换,请稍候......"; 
+		winform.edit.text =	win.invoke(convert_t,path,mime); 
+		winform.edit.busy = false;
+	}
+}
+
+winform.show() 
+win.loopMessage();

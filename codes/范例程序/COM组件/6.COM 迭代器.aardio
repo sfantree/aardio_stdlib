@@ -1,0 +1,17 @@
+//com迭代器
+//演示com迭代器
+import com;
+import console;
+
+try{
+    word = com.GetObject("Word.Application")
+    for index, doc in com.each(word.Documents) {
+        console.log(doc.Name)
+    }
+}
+catch(e){
+    console.log( e )
+    console.log( "请先打开word" )
+}
+
+execute("pause")

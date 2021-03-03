@@ -1,0 +1,193 @@
+//table 线程共享表
+namespace thread 
+
+var t_call = ..thread.call 
+
+class table{
+	ctor( name,clear=false){
+		if(!name) name = "$_thread_table:" + ..thread.add("$_thread_table_id",1);
+			
+		if( ( ! ..thread.get(name ) || clear) ){ 
+			..thread.set(name,{}) 
+		}
+			
+		this.name = name
+	}; 
+	set = function(k,v){
+		t_call("__table_set", ,this.name,k,v )
+	}
+	get = function(k,v){
+		return t_call("__table_get", ,this.name,k )
+	}
+	getByNamespace = function(k){
+		return t_call("__table_getByNamespace", ,this.name,k)
+	}
+	setByNamespace = function(k,v){
+		t_call("__table_setByNamespace", ,this.name,k,v )
+	}
+	lenByNamespace = function(k,v){
+		t_call("__table_lenByNamespace", ,this.name,k,v )
+	}
+	len = function(){
+		return t_call("__table_len", ,this.name )
+	}
+	append = function(...){
+		return t_call("__table_append", ,this.name,... )
+	}
+	each = function(){ 
+		return this.next,this	
+	}	
+	@meta;
+}
+
+var tableFunc = { 
+    shift=1;
+    unshift=1;
+	right=1;
+	slice=1;
+	sort=1;
+	unpack=1;
+	new=1;
+	range=1;
+	mixin=1;
+	next=1;
+	splice=1;
+	tostring=1;
+	insert=1;
+	pop=1;
+	concat=1;
+	push=1;
+	count=1;
+	reverse=1;
+	left=1;
+	append=1;
+	remove=1;
+	clear=1;
+} 
+table.meta = {
+	_get = function(k,ownerCall){
+		if( !ownerCall && !tableFunc[k] )
+			return t_call("__table_get", ,owner.name,k )
+			
+		owner[[k]] =  function(...){
+			return t_call("__table_call",k,owner.name,... )
+		}
+		return owner[[k]]; 
+	}
+	_set = function(k,v){
+		if( tableFunc[k] )
+			error("不能修改默认函数",2)
+			
+		t_call("__table_set", ,owner.name,k,v )
+	}
+	_serialize = function(kernelCall){
+		if(kernelCall) return `global.import('thread.table') : thread.table("`++owner.name++`")`;
+		else {
+			return owner.tostring();
+		}
+	}
+	_json = function(){
+		return ..thread.get(owner.name);
+	} 
+}
+ 
+lock("INIT.THREAD.CALL.{7EC7B22E-F1A6-4AA7-B5A3-4741C583AA00}")
+if( ! get("__table_call" ) ){
+	set(
+		"__table_call",
+		function( name,...){
+			var t = global[name];
+			if(t)return table[owner]( t,...);
+		}
+	)  
+	set(
+		"__table_get",
+		function( name,k){
+			var t = global[name];
+			if(t)return t[k];
+		}
+	)
+	set(
+		"__table_set",
+		function( name,k,v){
+			var t = global[name];
+			if(t)t[k] = v;
+		}
+	)
+	set(
+		"__table_getByNamespace",
+		function( name,k){
+			var t = global[name];
+			if(t)return ( ..table.getByNamespace(k,t) );
+		}
+	)
+	set(
+		"__table_lenByNamespace",
+		function( name,k){
+			var t = global[name];
+			if(t)return #..table.getByNamespace(k,t);
+		}
+	)
+	set(
+		"__table_setByNamespace",
+		function( name,k,v){
+			var t = global[name];
+			if(t)..table.setByNamespace(k,v,t); 
+		}
+	)
+	set(
+		"__table_len",
+		function( name ){
+			var t = global[name];
+			if(t) return #(t);
+			return 0;
+		}
+	) 
+	set(
+		"__table_append",
+		function( name,... ){
+			var t = global[name];
+			if(t) ..table.append(t,...); 
+		}
+	) 
+}
+unlock("INIT.THREAD.CALL.{7EC7B22E-F1A6-4AA7-B5A3-4741C583AA00}")
+ 
+/**intellisense()
+thread.table = 线程共享表
+thread.table("__") = 创建多线程共享表\n可选使用参数@1指定线程共享变量名,\n省略参数则自动生成共享变量名
+thread.table() = !thread_table.
+?thread.table =  !thread_table.
+!thread_table.get("键名") = 读取成员值
+!thread_table.set("键名",__/*值*/) = 写入成员值
+!thread_table.getByNamespace("__/*指定表内名字空间路径*/") = 在指定表查找并返回成员
+!thread_table.setByNamespace("__/*指定表内名字空间路径*/",新值) = 参数一指定表内名字空间路径,如果不存在则则创建此表内名字空间,\n支持索引操作符,可以使用[]空索引实现在数组尾部添加值\n参数二指定需要设置的值,如果不指定则创建空表并赋值
+!thread_table.lenByNamespace("__/*指定表内名字空间路径*/") = 返回指定元素长度
+!thread_table.next(.() = 获取table的第一个键值对元素
+!thread_table.next(.( key ) = 迭代获取table的下一个键值对元素
+!thread_table.tostring(__) = 获取table的字符串表达式
+!thread_table.concat(.( tab2 ) = 拼接多个table对象
+!thread_table.insert(.(要插入的值,要插入的位置 ) = 插入元素到指定位置
+!thread_table.insert(.(要插入的值 ) = 插入元素到table头部
+!thread_table.remove(.(位置 ) = 在表中指定位置移除元素
+!thread_table.remove(.( ) = 在table头部移除元素
+!thread_table.push(.(__) = 在顺序数组尾部压入一个或多个元素,返回数组大小
+!thread_table.push(.(__v1,v2,v3,...) = 在顺序数组尾部压入多个元素,返回数组大小
+!thread_table.pop(__) = 在顺序数组尾部弹出一个或多个元素并作为返回值
+!thread_table.sort(.( ) = 排序
+!thread_table.sort(.( comProc ) = 排序,comProc指定用于比较元素大小的函数
+!thread_table.reverse(__) =  table数组倒序排列。
+!thread_table.range(__) =  返回table数组的最小索引,最大索引\nmin,max=tab.range();
+!thread_table.unpack(__) =  返回表中所有的元素\na,b,c,d,e = tab.unpack();
+!thread_table.left(len__) = 返回table对象左侧开始返回指定个数的元素。
+!thread_table.right(len__ = 返回table对象右侧开始返回指定个数的元素 
+!thread_table.len() = 返回table长度
+!thread_table.count() = 获取table成员总数
+!thread_table.unshift(.(要插入的一个或多个元素) = 插入一个或多个元素到数组头部,返回数组长度
+!thread_table.shift(.(移除数目) = 自数组头部移除并返回指定个数成员,\n参数默认为1
+!thread_table.append(__) = 追加一个或多个数组到线程共享表,\n此函数内部使用table.append实现,规则相同,\n但无返回值
+!thread_table.each = @for( k,v in ??.each() ){
+	__ 
+}
+!thread_table.clear() = 清空共享表中的所有值
+end intellisense**/

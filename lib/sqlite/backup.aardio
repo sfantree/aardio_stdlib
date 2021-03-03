@@ -1,0 +1,88 @@
+﻿//backup 备份
+namespace sqlite;
+
+if( ! ..___sqlite_dll__ ) error("必须先导入sqlite才能导入sqlite.backup",2);
+var dll = ..___sqlite_dll__;
+
+class backup{
+	ctor(src,dst,srcName,dstName){
+		if( type(dst) == type.string ) {
+			var err;
+			dst,err = ..sqlite(dst)	
+			if(!dst) return null,err;
+			
+			this.freeDstDb = dst;
+		};
+		if( type(src) == type.string ) {
+			var err;
+			src,err = ..sqlite(src)	
+			if(!src) return null,err;
+			
+			this.freeSrcDb = src;
+		};
+		if(!src[["db"]]) error("源数据库错误",2);
+		if(!dst[["db"]]) error("目的数据库错误",2);
+		
+		this.handle = dll.sqlite3_backup_init(dst.db,dstName:"main",src.db,srcName:"main");
+		if(!this.handle ){
+			 var msg,err = ..sqlite.lasterr(dst.db); 
+			 if(this.freeDstDb)this.freeDstDb.close();
+			 if(this.freeSrcDb)this.freeSrcDb.close();
+			 return null,msg,err;
+		} 
+		
+		..table.gc(this,"finish");
+	};
+	step = function(pages){
+		if(pages===null) pages = -1;
+		var err = dll.sqlite3_backup_step(this.handle,pages);
+		if( err ) {
+			if( err == ..sqlite.DONE ) this.finish();
+			else ..sqlite.checkResult(err);
+		}
+		return err;
+	};
+	remaining = function(){
+		return dll.sqlite3_backup_remaining(this.handle);
+	};
+	count = function(){
+		return dll.sqlite3_backup_pagecount(this.handle);
+	};
+	eachStep = function(n){
+		if(n===null) n = 1;
+		var count = this.count(); 
+		return function(){
+			if( 0 == this.step(n) ){
+				return this.remaining(),count;
+			};
+		} 
+	}
+	finish = function(){ 
+		if(this.handle){
+			var err = dll.sqlite3_backup_finish(this.handle,pages);
+			if( err ) ..sqlite.checkResult(err);
+			
+			if(this.freeDstDb)this.freeDstDb.close();
+			if(this.freeSrcDb)this.freeSrcDb.close();
+			this.handle = null;
+			return err;
+		}
+	}
+	
+}
+
+/**intellisense()
+sqlite.backup( = 创建数据库备份对象\n因为sqlite可以有不同版本的替换实现,\n所以请在导入sqlite.backup以前必须先导入sqlite支持库,
+sqlite.backup(.(src,dst,srcName,dstName) = 创建数据库备份对象\nsrc指定源数据库,可以是一个sqlite数据库对象,也可以指定要打开的数据库路径\ndst指定输出数据库,可以是一个sqlite数据库对象,也可以指定要打开的数据库路径\nsrcName为源数据库名,dstName为目的数据库名\n数据库名字一般不用指定,默认为"main",也就是主数据库
+sqlite.backup() = !sqlit_backup.
+end intellisense**/
+
+/**intellisense(!sqlit_backup)
+step() = 执行备份操作\n可选在参数中指定页数,\n指定为负数或者不指定则默认备份所有数据\n返回成功返回0,备份完成返回101,也就是sqlite.DONE\n其他数据库错误会抛出异常\n在备份完成后自动调用finish函数释放资源
+eachStep(1) = @for remaining,count in ??.eachStep(1) {
+	__/*用于for in语句中执行备份操作的迭代器\n参数指定每次迭代备份的页数,不指定时默认为1\n迭代变量remaining为剩余的页数,count为总页数\n备份完成退出循环并调用finish函数释放资源\n其他数据库错误会抛出异常*/
+}
+remaining() = 当前剩余的页数
+count() = 需要备份的总页数
+finish() = 释放备份对象
+end intellisense**/

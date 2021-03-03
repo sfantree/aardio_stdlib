@@ -1,0 +1,76 @@
+//hook 键盘钩子
+import win;
+import key;
+ 
+var SetWindowsHookEx = ::User32.api("SetWindowsHookExW","pointer(int idHook,pointer lpfn, pointer hmod,INT dwThreadId)");
+var CallNextHookEx = ::User32.api("CallNextHookEx","int( POINTER hhk,int nCode,INT wParam,int lParam)");
+var UnhookWindowsHookEx = ::User32.api("UnhookWindowsHookEx","int(pointer hhk)");
+ 
+var WH_KEYBOARD_LL  = 13
+
+var KBDLLHOOKSTRUCT = class{
+    INT vkCode;
+    INT scanCode;
+    INT flags;
+    INT time;
+    INT extraInfo;
+}
+
+var LowLevelKeybdProc  = function( nCode, wParam, lParam){  
+  
+	if ( nCode == 0/*_HC_ACTION*/ ) {  
+		
+    	var ll = KBDLLHOOKSTRUCT();
+		ll = ..raw.convert(topointer(lParam),ll )
+ 	 
+		if( ( type(owner.proc) == type.function)  &&  (owner.proc(wParam,ll.vkCode,ll.scanCode
+			,ll.flags & 0x10/*_LLKHF_INJECTED*/, ll.flags,ll.time,ll.extraInfo) )  ){
+			 	return 1;
+		}
+	}
+  
+	return CallNextHookEx(owner._hhk, nCode, wParam, lParam);   
+}
+
+namespace key  
+	class hook{
+	ctor(){ 
+		this._proc_c = ..raw.tostdcall( LowLevelKeybdProc,"int(int nCode, INT wParam, int lParam)",this) 
+		this.hhk = SetWindowsHookEx(WH_KEYBOARD_LL,this._proc_c,_HINSTANSE,0);   
+		this._hhk = this.hhk;  
+   		..table.gc(this,"close"); 
+	}
+	
+	close  = function(){
+		if(this.hhk){  
+			UnhookWindowsHookEx(this.hhk);
+			this.hhk  = null;
+		}
+	}
+}
+
+/**intellisense()
+key.hook = 键盘钩子\n一般不使用key.hook实现快捷键、热键功能\n创建快捷键、热键参考:aardio范例->Windows窗口应用->快捷键
+key.hook() = 创建按键监听钩子\n!stdkeyhook.
+!stdkeyhook.proc = @.proc = function(msg,vkcode,scancode,injected,flags,timeStamp,extraInfo){
+	if( injected ) return;//忽略模拟按键
+	 
+    var kn = key.getName( vkcode );
+    select(msg) {
+    	case 0x100/*_WM_KEYDOWN*/ ,0x104/*_WM_SYSKEYDOWN*/{
+    	    io.print("按下",kn)
+    	}
+    	case 0x101/*_WM_KEYUP*/,0x105/*_WM_SYSKEYUP*/{
+    	    io.print("弹起",kn)
+    	}  
+    }   
+    
+	__/*取消按键调用 return true;*/
+}
+!stdkeyhook.close() = 释放按键录制钩子
+_LLKHF_EXTENDED=@1/*_LLKHF_EXTENDED*/
+_LLKHF_INJECTED=@0x10/*_LLKHF_INJECTED*/
+_LLKHF_ALTDOWN=@0x20/*_LLKHF_ALTDOWN*/
+_LLKHF_UP=@0x80/*_LLKHF_UP*/
+end intellisense**/
+  

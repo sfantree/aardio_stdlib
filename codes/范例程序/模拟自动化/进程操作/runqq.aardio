@@ -1,0 +1,9 @@
+//自动打开桌面qq
+
+import process 
+import fsys.lnk;
+ 
+//参数为要查找的文件名,支持模式表达式, 可忽略大小写
+qqpath  = fsys.lnk.search( {"qq.exe";"QQScLauncher.exe";"QQProtect.exe"} )  
+  
+process.execute( qqpath )

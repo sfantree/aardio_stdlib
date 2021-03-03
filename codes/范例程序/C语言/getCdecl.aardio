@@ -1,0 +1,58 @@
+//aardio调用C语言函数
+var code = /****
+	#include <stdio.h>
+	#include <stdlib.h> 
+
+	//C99 __VA_ARGS__
+	#define dprintf(level, __VA_ARGS__) printf(__VA_ARGS__) 
+	
+	int helloW (const wchar_t *msg)  
+	{   
+   		io_reopen(); //打开控制台窗口 
+   		
+   		int n = 10;//变量声明可以放函数中间
+   		long long ln = 100;//64位整数(也就是aardio中的long),C99
+   		char s[n]; //变长数组,C99 VLA  
+   		
+   		//C99标准引入了Designated Initializers特性使得数组、结构体和联合体的初始化更加灵活和方便。
+   		struct { int x, y; } st[10] = { [0].x = 1, [0].y = 2 }; 
+    	int tab[10] = { 1, 2, [5] = 5, [9] = 9};
+    	
+    	//C99 compound literal 
+    	int *p = (int []){ 1, 2, 3 };
+
+		//GCC 数组初始化 
+		struct { int x, y; } st2 = { x: 1, y: 1};
+		struct { int x, y; } st3 = { .x = 1, .y = 1};
+		
+		//GCC case ranges
+		int a = 2;
+		switch(a) {
+    		case 1 ... 9:
+          		printf("range 1 to 9\n");
+          		break;
+    		default:
+          		printf("unexpected\n");
+          		break;
+    	}
+
+		//GCC __attribute__语句
+		int a2 __attribute__ ( ( aligned(8) ) );
+ 		
+		return 0; 
+	} 
+
+****/
+import win;
+import console;
+import tcc;  
+
+var vm = tcc(); //创建TCC编译器
+ 
+vm.compile(code); //编译UTF8编码的C源码,必须使用最新版TCC扩展库
+
+//调用C函数
+var ret = vm.helloW('测试一下'u);
+console.log( "C函数返回值", ret )
+
+console.pause();

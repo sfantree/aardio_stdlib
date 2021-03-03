@@ -1,0 +1,35 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="管道演示";right=495;bottom=431;parent=...)
+winform.add(
+btnPing={cls="button";text="findstr";left=24;top=169;right=132;bottom=202;z=1};
+edit={cls="edit";text="bbs";left=224;top=172;right=472;bottom=204;edge=1;z=6};
+editInput={cls="edit";text='www.aardio.com\r\nwww.aardio.cn\r\nbbs.aardio.com';left=16;top=32;right=480;bottom=167;edge=1;multiline=1;z=2};
+editOutput={cls="richedit";left=16;top=212;right=480;bottom=416;edge=1;hscroll=1;multiline=1;vscroll=1;z=3};
+static={cls="static";text="输入字符串:";left=16;top=8;right=120;bottom=24;transparent=1;z=4};
+static2={cls="static";text="启动参数：";left=136;top=177;right=208;bottom=193;align="right";transparent=1;z=5}
+)
+/*}}*/
+
+winform.btnPing.oncommand = function(id,event){
+	
+	thread.invoke(
+		function(winform){
+			
+			import process.popen;
+			var prcs = process.popen("findstr",winform.edit.text); 
+			
+			//写数据到进程输入流
+			prcs.writeClose(winform.editInput.text);
+			
+			//自进程获取输入数据
+			winform.editOutput.text = prcs.read(-1);
+			
+			prcs.close(); 
+			
+		},winform
+	) 
+}
+
+winform.show() 
+win.loopMessage();

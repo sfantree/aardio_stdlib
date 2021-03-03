@@ -1,0 +1,28 @@
+//自定义控制台颜色
+
+import console;
+console.setTitle("自定义控制台颜色");
+
+//修改整个控制台的颜色
+for(name,clr in console.color){
+	console.setColor(0xF-clr, clr); 
+    console.log("来来我是一个菠菜",name);
+    sleep(100); 
+} 
+
+console.setColor();
+console.pause();
+
+//仅修改文本区的前景色与背景色
+for(name,clr  in console.color){
+	console.setTextAttribute(0xF-clr, clr); 
+    console.log("来来我是一个菠菜",name);
+    sleep(100);	
+
+} 
+console.setTextAttribute();
+
+//仅修改输出文本的颜色，并且恢复默认之前的颜色。
+console.writeColorText("文本",console.color.yellow,console.color.darkGray);
+ 
+console.pause();

@@ -1,0 +1,217 @@
+//parse 语法分析
+import ide;
+import fsys;
+namespace protobuf;
+  
+class parser{ 
+
+    parseFile = function (protofile,ns="",inProject ){
+    	var str = ..string.load(protofile);
+        if(!str)
+        	error("打开*.proto文件失败",2)
+        	
+    	return this.parse(str,ns,inProject);
+    }
+    parse = function (str,ns="",inProject=true){  
+     	this.lex = ..protobuf.parser.lex(str) 
+     	this.lex.next();
+     	 
+     	this.subMessage = {}
+     	this.subEnum = {}
+     	this.nameSpace = ns;
+     	this.name = "";
+     	
+        this._parseMessage( this ); 
+         
+        this._createLib( inProject );
+    }
+
+ 	_createLib = function(inProject){ 
+ 		var libDir = inProject ? ( ..ide.getProjectDir() : "\") : "\" 
+ 		libDir = ..fsys.joinpath( libDir,"lib\\");  
+ 		
+ 		for(k,message in this.subMessage){ 
+ 			var dir = ..io.fullpath( libDir ++ ..string.replace(message.nameSpace,"\.","\") )
+ 			..fsys.createDir(dir)
+ 			
+ 			var path = ..fsys.joinpath(dir,message.name + ".aardio")
+ 			
+ 			var code = message.serialize();
+ 			for(k,message in this.subMessage){
+ 				var ns =  ..protobuf.parser.message.combineNamespace(message.nameSpace,message.name );
+ 		
+ 				if( ..string.find(code,"@"".." + ns + '"') ){
+ 					code = "import " + ns + ';\r\n' + code;
+ 				}
+ 			}
+ 			
+ 			..string.save(path, (#message.nameSpace?("namespace "+message.nameSpace + ';\r\n'):"")
+ 				+ 'import protobuf.message;\r\nimport util.metaProperty;\r\n\r\n' + code )
+ 		} 
+ 		
+ 		..ide.refreshUserLib();
+ 	}
+ 	 
+    _parseMessage = function(  msgParent ) {
+    
+		var lex = this.lex;  
+ 
+        while ( lex.token ){
+             
+            lex.check( ..protobuf.parser.lex._tk_keyword ) 
+            
+            if ( ..string.cmp( lex.data,'message') == 0 ) {
+            	 
+            	lex.next();//exit 'message'
+            	lex.check( ..protobuf.parser.lex._tk_keyword ) 
+            	var nameMsg = lex.data;
+            	 
+            	var msg = ..protobuf.parser.message();
+            	msg.name = lex.data;
+            	msg.nameSpace = ..protobuf.parser.message.combineNamespace( msgParent.nameSpace,msgParent.name );
+            	msg.parent = msgParent; 
+            	 
+            	msgParent.subMessage[ msg.name ] = msg;
+             
+             	lex.next(); 
+             	
+            	//lex.next();//exit 'message name'
+            	var beginLine = lex.line;
+            	lex.checkNext('{'#) 
+            	 
+                this._parseMessage(  msg );
+                
+                if( lex.token != '}'# ){
+                	error("缺少'}' (行:" + lex.line + ") 匹配'}'(行:" +beginLine + ")",2)
+                } 
+                 
+                lex.next();  
+            }
+            else if ( ..string.cmp( lex.data,'enum') == 0 )  {
+                lex.next();//exit 'enum'
+            	lex.check( ..protobuf.parser.lex._tk_keyword ) 
+            	var nameEnum = lex.data;
+            	 
+            	lex.next();
+            	lex.check('{'#);
+            	  
+            	var body = lex.matchNext("%{}");
+            	body = ..string.replace(body,"    ",'\t');//规范缩进格式
+            	body = ..string.replace(body,'\t\t','\t');//移除多余缩进
+            	body = ..string.replace(body,'\t\\}','}');//移除多余缩进 
+            	msgParent.subEnum[nameEnum] = body;    
+            	
+            }
+            else if ( ..string.cmp( lex.data,'package') == 0 )  {  
+            
+            	lex.next();//exit 'package'
+            	lex.check( ..protobuf.parser.lex._tk_keyword ) 
+            	if( (msgParent == this) && (#msgParent.nameSpace) && ( msgParent.nameSpace != lex.data ) ){
+            		msgParent.nameSpace = msgParent.nameSpace + "." + lex.data; 
+            	}
+            	else {
+            		msgParent.nameSpace = lex.data; 
+            	}
+            	lex.next();
+            	
+            	lex.checkNext(';'#);
+            	
+            }
+            else { 
+            
+                var field = ..protobuf.parser.field();
+                if( msgParent.fields ){
+                	..table.push(msgParent.fields,field);
+                }
+                 
+                if ( ..string.cmp( lex.data,'required') == 0 ) {
+                	field.required = true;
+                	lex.next()
+                }
+                elseif ( ..string.cmp( lex.data,'optional') == 0 ) {
+                	field.optional = true;
+                	lex.next()
+                } 
+                elseif ( ..string.cmp( lex.data,'repeated') == 0 ) {
+                	field.repeated = true;
+                	lex.next()
+                }
+                elseif ( ..string.cmp( lex.data,'option') == 0 ) {
+                	field.option = true;
+                	lex.next()
+                	
+                	field.varName = lex.data;
+                	lex.next();
+                	
+                	lex.checkNext('='#);
+                	
+                	if( !msgParent.option ){
+                		msgParent.option = {}
+                	}
+                	msgParent.option[field.varName] = lex.data; 
+                	lex.next();
+                	lex.checkNext(';'#); 
+                	continue;
+                }
+                else {
+                	error("语法错误,需要关键字'required' 位于行:" ++ lex.line,2)
+                } 
+                 
+                field.fullTypeName = ..protobuf.parser.message.scalarTypes[lex.data]
+                if(!field.fullTypeName){
+                	field.fullTypeName = msgParent.findType(lex.data) ;
+                }
+                field.typeName = lex.data; 
+                lex.next();  
+                
+                field.varName = lex.data;
+                lex.next();
+                
+                lex.checkNext('='#);
+                lex.check( ..protobuf.parser.lex._tk_number );
+                field.fieldIndex = lex.data; 
+                lex.next(); 
+                
+                if( lex.testNext('['#) ){
+                	lex.check( ..protobuf.parser.lex._tk_keyword ) 
+                	if ( ..string.cmp( lex.data,'default') != 0 ) {
+                		error("语法错误,需要关键字'defalut' 位于行:"++lex.line,2)
+                	}
+                	lex.next();
+                	
+                	lex.checkNext('='#);
+                	if(lex.token == ..protobuf.parser.lex._tk_keyword ){
+                		lex.default = msgParent.findType( field.typeName, lex.data );
+                	} 
+                	else {
+                		lex.default = lex.data;
+                	}
+                	lex.next();
+                	
+                	lex.checkNext(']'#); 
+                }
+                 
+                lex.checkNext(';'#); 
+                field.comment = lex.comment; 
+                if(lex.token == '}'#){ 
+                	return;
+                } 
+            }
+        } 
+    }
+   
+
+} 
+
+//类作为父名字空间时,import子库必须放在类定义之后
+import protobuf.parser.lex;
+import protobuf.parser.message;
+
+/**intellisense()
+?protobuf.parser = !protobuf_parser.
+protobuf.parser() = !protobuf_parser.
+!protobuf_parser.parseFile(__) = 编译proto文件
+!protobuf_parser.parseFile(__,"pb") = 编译proto文件\n第二个参数指定消息对象归属默认名字空间pb
+!protobuf_parser.parse(__) = 编译proto代码
+!protobuf_parser.parse(__,"pb") = 编译proto代码\n第二个参数指定消息对象归属默认名字空间pb
+end intellisense**/

@@ -1,0 +1,35 @@
+import console;
+import wsock.tcp.server;
+
+var tcpServer = wsock.tcp.server("127.0.0.1",7510)
+ 
+console.log("服务端已启动")
+tcpServer.forever(
+	function(acceptSocket){
+	
+		var client = wsock.tcp.client(,acceptSocket);
+		
+		import fsys.dlg;  
+		var fpath = fsys.dlg.open( , "客户端连接成功,请选择文件然后开始发送");
+		if( fpath){ 
+			var file,err = io.open(fpath,"rb") //注意io.open默认是文本方式读出的,b指定二进制模式 
+			if( file ){  
+				while( 
+		    		var buf;
+		    		buf,readSize = file.read(1024);
+		    		buf
+				) {
+					client.writeBuffer(buf,readSize) ; 
+				} 
+				file.close(); 
+				
+				console.log("服务端发送文件完成"); 
+			} 
+		}
+		
+		client.close();
+	}
+)
+ 
+console.log("服务端已关闭")
+console.pause()

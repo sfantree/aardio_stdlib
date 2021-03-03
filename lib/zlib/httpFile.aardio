@@ -1,0 +1,77 @@
+﻿//httpFile 网络安装包
+import fsys;
+import zlib.unzip;
+import inet.downBox;
+namespace zlib.httpFile;
+
+download = function(url,title="下载",saveDir,extraDir,saveName,parentForm){
+	var tUrl = ..inet.url.split(url);
+	if(!tUrl){
+		error("错误的URL参数",2)
+	}
+	var tPath = ..io.splitpath(tUrl.path)
+	
+	saveDir = ..io.fullpath(saveDir : "~\download\" )
+	..fsys.createDir(saveDir);
+	
+	if(!saveName){
+		saveName = tPath.file;
+	}
+	if(!extraDir){
+		extraDir = ..string.match(saveName,"(.+)\.[^\.]+$"  );
+		if(!extraDir) extraDir = saveName + ".uncompress";
+		extraDir = ..fsys.joinpath(saveDir,extraDir)
+	}
+	else {
+		extraDir = ..io.fullpath(extraDir);
+	} 
+	
+	var pathCabinet = ..fsys.joinpath(saveDir,saveName)
+	var downBox = ..inet.downBox( parentForm,title,false);
+	downBox.headers = self.headers;
+	downBox.referer = self.referer;
+	downBox.userAgent = self.userAgent;
+	downBox.preget = self.preget;
+	
+	downBox.endProc = function(){  
+		..win.delay(1000);
+		downBox.text = "正在解压:" + saveName;
+		..zlib.unzip.extract( pathCabinet,extraDir,
+			function(fileName,extractPath,fileInfo,size,unitSize,unitName){
+				downBox.labInfo.text = fileName;
+				downBox.progress.stepProgress(); 
+				..win.peekPumpInputMessage();
+				
+				if(extractPath){ 
+					return downBox.continueModal;
+				}  
+			}, ,
+			function(numEntries){
+				downBox.progress.hide = false;
+				downBox.progress.setProgressRange(1,..math.min(numEntries,0xFFFF));
+				downBox.progress.progressPos = 0;
+				downBox.labProgress.text = "正在解压缩,文件目录总数: " + numEntries;
+			}
+		) 
+		owner.endModal(); 
+	}
+	downBox.download(url,pathCabinet,null,null,"" ) 
+	
+	if(!downBox.complete){ 
+		return;
+	} 
+	
+	if( ! ..io.exist(pathCabinet,4) ){  
+		return false; 
+	}  
+	return true; 		
+}
+
+/**intellisense(zlib)
+httpFile = 网络下载并解压zip文件
+httpFile.headers =下载时添加的HTTP请求头
+httpFile.referer = 下载时的HTTP引用页
+httpFile.userAgent =  下载时用到的User Agent
+httpFile.preget = 首次连接慢的下载服务器请设为true
+httpFile.download(.(URL,对话框标题,下载目录,解压目录,存储文件名,父窗口) = 下载zip文件,除url以外，其他所有参数可选\n成功返回true,失败返回false或null
+end intellisense**/

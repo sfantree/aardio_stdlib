@@ -1,0 +1,15 @@
+﻿//打开系统设置
+import process.control;
+
+if(_WIN10_LATER){
+	/*
+	更多设置页面地址参数：
+	https://docs.microsoft.com/en-us/windows/uwp/launch-resume/launch-settings-app
+	*/
+	process.control("ms-settings:personalization-background")
+}
+else {
+	process.control("desk.cpl",,2)
+}
+
+process.control("ms-settings:")

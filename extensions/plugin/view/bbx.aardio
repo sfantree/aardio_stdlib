@@ -1,0 +1,52 @@
+import win.ui;
+/*DSG{{*/
+var winform = ..win.form(text="百宝箱......";left=0;top=0;right=599;bottom=399;border="none";exmode="none";mode="child";parent=...;scroll=1)
+winform.add()
+/*}}*/
+
+import ide; 
+import web.form;  
+var wb = web.form( winform, 0x4/*_UIFLAG_NO3DBORDER*/ | 0x200000/*_UIFLAG_NO3DOUTERBORDER*/, , ,true/*securityTrusted*/ );
+ 
+wb.external={
+	edit = function(){
+		ide.openDocument( "\bbx.aardio" ) 
+	} 
+}
+ 
+var html = /**
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />  
+<style type="text/css"> 
+body,a {
+	font-family: Tahoma;
+	font-size: 9pt;
+	line-height: 18px;
+}
+a {
+	text-decoration : none;
+	color :#657EB9 ;
+	font-weight: normal;
+}
+a:visited
+{
+	text-decoration : none;
+	color : #657EB9;
+	font-weight: normal;
+}
+a:hover {text-decoration : underline; color : #F16F31; } 
+</style>
+</head>
+<body>
+	<div >  本功能正在开发中,敬请关注!<br /><br />
+		<a href="javascript:void(0);" onclick="javascript:external.edit()">点这里编辑此插件源码</a>
+	</div>
+</body>
+</html>
+**/ 
+wb.write( html )
+wb.wait(""); 
+
+ide.pluginViewShow(winform)  
+win.loopMessage();

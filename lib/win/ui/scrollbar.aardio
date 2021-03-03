@@ -1,0 +1,23 @@
+//scrollbar 窗口滚动条
+import win.ui.ctrl.scrollbar
+namespace win.ui
+
+class scrollbar{
+	ctor( hwnd,vert){
+		 this = ..win.ui.ctrl.scrollbar();
+		 this.hwnd = hwnd;
+		 if(vert)
+		 	this._bar = 0x1/*_SB_VERT*/
+		 else {
+		 	this._bar = 0x0/*_SB_HORZ*/
+		 } 
+		 this.show(true);
+	}; 
+}
+
+/**intellisense()
+scrollbar = 窗口滚动条
+win.ui.scrollbar(winform->hwnd) = 参数指定父窗口句柄\n在窗口上创建水平滚动条
+win.ui.scrollbar(winform->hwnd,true) = 参数指定父窗口句柄\n在窗口上创建垂直滚动条
+?win.ui.scrollbar  =!scrollbar.
+end intellisense**/

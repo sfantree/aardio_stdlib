@@ -1,0 +1,4 @@
+﻿import chrome.app;
+
+namespace process.chrome;
+app = ..chrome.app;

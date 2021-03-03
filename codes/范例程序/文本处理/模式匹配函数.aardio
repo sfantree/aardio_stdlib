@@ -1,0 +1,41 @@
+//模式匹配函数
+import console;
+
+//查找字符串
+var i,j = string.find("abc456d" ,"c\d+");
+
+if( i ) //如果找到i为大于0的数值
+   console.log("在 'abc456d' 中找到 c\d+" ,"从" + i + "到" + j);
+
+
+if(not string.find("abcd" ,"不可能") ) 
+    console.log("没有从 'abcd' 中找到 '不可能' ");
+
+// 在模式匹配中 .圆点标记匹配任意字符
+str = string.replace("abcd",".","k");
+console.log(str); //输出kkkk
+
+str = string.replace("abcd",".","k",1);
+console.log(str); //输出kbcd 
+
+var url = console.getText( "请输入网址:" )
+
+import inet.url;
+console.log("直接用标准库函数检测字符串是否网址",inet.url.is(url) );  
+console.log("简单检测是否以http开始（忽略大小写）",string.startWith(url,"http",true) );
+console.log("使用模式匹配检测字符串是否以https:或http:开始（忽略大小写）"
+	,string.match(url,"^<@@https@>|<@@http@>\:") 
+	)	
+/*
+注意逻辑或操作符 | 匹配成功后不会回退，
+例如：string.match("https://","^<http>|<https>\:")  将不会匹配成功，
+匹配时<http>匹配成功，而s不匹配\:，匹配将会失败。
+
+我们需要修改为 string.match("https://","^<https>|<http>\:") 
+这样http:,https: 开头的网址都能匹配成功。 
+
+如果要忽略大小写，需要改为 
+string.match("https://","^<@@https@>|<@http@>\:") 。
+*/
+
+console.pause();

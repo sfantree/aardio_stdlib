@@ -1,0 +1,24 @@
+import console;
+import com;
+
+try{
+	obj = com.CreateObject("AardioTestControl.Sample")
+}
+
+if(!obj){
+	console.log("请发布本工程,注册控件以后再运行本示例")
+	execute("pause") //按任意键继续
+	io.close();//关闭控制台
+	return;
+}
+
+console.log("12+3等于" ,obj.Add(12,3) );
+
+obj.Aardio("
+	import win;
+	win.msgbox('Hello,我是aardio编写的COM控件,我正在执行aardio代码','AardioCOM.Test')
+")
+
+obj.Quit();
+ 
+console.pause();

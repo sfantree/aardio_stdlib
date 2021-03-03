@@ -1,0 +1,34 @@
+//uploadData 上传数据包
+
+import web.multipartFormData;
+namespace web; 
+
+class uploadData {
+
+	ctor( fields,fname, file,mime ){
+	
+		multipartFormData = ..web.multipartFormData(); 
+		if( #fields ){
+			var tfield = ..string.split(fields,"&")
+			for(i=1;#tfield;1){
+				nv = ..string.split(tfield[i],"=");
+				multipartFormData.add(nv[1],nv[2] );
+			}
+		}
+		
+		if( fname && file ){
+			multipartFormData.add(fname, "@"+file);
+		} 
+		
+		this.data = multipartFormData.readAll();
+		this.header = ..string.format('\r\nContent-Type: %s\r\n',multipartFormData.contentType() )   
+	} 
+}
+
+/**intellisense()
+web.uploadData = 已废弃支持库,建议使用 web.multipartFormData 替代
+web.uploadData("","","\__/*上传文件路径*/") = 创建上传表单数据\n参数一以&分隔多个键值对字段值\n参数二指定上传文件字段名\n参数三指定上传文件
+!uploadData.data = 上传表示数据
+!uploadData.header = 上传HTTP请求头
+?web.uploadData = !uploadData.
+end intellisense**/

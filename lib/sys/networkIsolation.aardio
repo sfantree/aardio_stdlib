@@ -1,0 +1,117 @@
+﻿//networkIsolation 网络隔离
+import sys.acl;
+import win.reg;
+namespace sys.networkIsolation;
+	
+::FirewallApi = ..raw.loadDll("Firewallapi.dll");
+
+class INET_FIREWALL_APP_CONTAINER {
+	ptr appContainerSid;
+	ptr userSid;
+	ustring appContainerName;
+	ustring displayName;
+	ustring description;
+	struct capabilities = {
+		INT count;
+		ptr capabilities;
+	};
+	struct binaries = {
+		INT count;
+		ptr binaries;
+	};
+	ustring workingDirectory;
+	ustring packageFullName;
+}  
+
+var sidToString = ..sys.acl.sidToString;
+
+getAppContainers = function(){
+    var enumAppContainers = ::FirewallApi.NetworkIsolationEnumAppContainers;
+    if(!enumAppContainers){
+    	return {};
+    }
+    
+	var numPublicAppCs = {INT count}
+	var publicAppCs = {ptr ptr}
+	if( 0 == enumAppContainers(2/*NETISO_FLAG_MAX*/,numPublicAppCs,publicAppCs) ){
+		var apps = ..raw.convertArray(publicAppCs.ptr,numPublicAppCs.count,INET_FIREWALL_APP_CONTAINER)
+		for(i=1;#apps;1){
+			apps[i].sid = sidToString(apps[i].appContainerSid)
+		} 
+		
+		::FirewallApi.NetworkIsolationFreeAppContainers(publicAppCs.ptr);
+		return apps;
+	}
+}
+
+getPackages = function(){
+	var reg = ..win.reg("HKEY_CURRENT_USER\Software\Classes\ActivatableClasses\Package");
+	for(keyname,writetime in reg.eachKey() ){
+		 
+	}
+}
+
+getAppContainerConfig = function(){
+	var numPublicAppCs = {INT count}
+	var publicAppSids = {ptr ptr}
+	if( 0 == ::FirewallApi.NetworkIsolationGetAppContainerConfig(numPublicAppCs,publicAppSids) ){
+		var configs = ..raw.convertArray(publicAppSids.ptr,numPublicAppCs.count,{ ptr sid;INT attributes;})
+		
+		var heap = ::Kernel32.GetProcessHeapP();
+	 	for(i=1;#configs;1){
+	 		var sid = configs[i].sid;
+			configs[i].sid = sidToString(sid)
+			::Kernel32.HeapFree(heap, 0, sid);
+		}  
+    
+    	::Kernel32.HeapFree(heap, 0, publicAppSids.ptr);
+		return configs;
+	}
+} 
+
+getLoopbackState = function(){
+	var configs = getAppContainerConfig();
+	
+	var result = {};
+	for(i,cfg in configs){
+		result[cfg.sid] = true;
+	} 
+	
+	return result;
+}
+
+var sidFromString = ..sys.acl.sidFromString;
+enableLoopback = function(sids){
+	var configs = getAppContainerConfig();
+	for(i=#configs;1;-1){
+		if(sids[configs[i].sid]!==null){
+			..table.remove(configs,i);
+		} 
+	}
+	
+	for(sid,enabled in sids){
+		if(enabled){
+			..table.push(configs,{
+				ptr sid = sid;
+				INT attributes;
+			});
+		}
+	}
+	
+	for(i=#configs;1;-1){
+		configs[i].sid = sidFromString(configs[i].sid);
+	}
+	
+	::FirewallApi.NetworkIsolationSetAppContainerConfig(#configs,{ struct configs[] = configs });
+}
+
+/**intellisense(sys.networkIsolation)
+getAppContainers() = 返回包含所有APP容器信息的数组
+getAppContainerConfig() = 获取所有APP容器的本机网络配置,\n返回值是一个数组，数组无素请查看此函数源码
+getLoopbackState() = 获取所有APP容器的本机网络配置,\n返回值是一个表，键为SID字符串，值指定是否允许访问本机网络
+enableLoopback(sidConfigs) = 允许或禁用指定APP容器是否可以访问本机网络\n参数必须是一个表，键为SID字符串，值指定是否允许访问本机网络,\n仅修改指定SID的配置
+end intellisense**/
+
+/**intellisense()
+sys.networkIsolation = 用于管理 UWP 应用网络隔离配置,仅适用于 WIN10。
+end intellisense**/

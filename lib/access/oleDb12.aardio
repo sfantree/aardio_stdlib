@@ -1,0 +1,35 @@
+﻿//oleDb12 驱动程序
+import win.reg;
+import inet.downBox;
+import process;
+import access;
+
+namespace access.oleDb12;
+
+exist = function(){
+	var reg = ..win.regReader("HKEY_CLASSES_ROOT\Microsoft.ACE.OLEDB.12.0")
+	if( reg ){ 
+		var v = reg.queryValue("");
+    	reg.close();
+    	return !!v;
+	}
+}
+
+install = function(winform,title){
+	if( exist() ) return true;
+	
+    var downBox = ..inet.downBox(winform,title : "正在下载本程序必须的数据驱动组件 Microsoft.ACE.OLEDB.12.0",1 );
+    downBox.referer = "https://www.microsoft.com/zh-cn/download/confirmation.aspx?id=13255";
+    
+    if( downBox.download( "https://download.microsoft.com/download/2/4/3/24375141-E08D-4803-AB0E-10F2E3A07AAA/AccessDatabaseEngine.exe" 
+            ,"~/download/AccessDatabaseEngine.exe" ) ){
+                
+        ..process.executeWait("~/download/AccessDatabaseEngine.exe","/passive");
+        return exist();
+    }	
+}
+
+/**intellisense(access.oleDb12)
+exist() = 检测Microsoft.ACE.OLEDB.12.0驱动程序是否已安装
+install(.(父窗体,标题) = 所有参数可选\n如果未安装Microsoft.ACE.OLEDB.12.0,在微软网站下载并自动安装\n安装成功返回true,已安装直接返回true\n失败返回false\n\n安装驱动程序时需要管理权限,在已经有管理权限的安装向导中可自动执行\n普通权限进程需要用户确认
+end intellisense**/

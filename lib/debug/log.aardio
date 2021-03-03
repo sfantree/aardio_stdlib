@@ -1,0 +1,144 @@
+//log 调试日志
+import fsys; 
+import debug;
+import crypt.bin;
+import util.table;
+import web.json;
+import console;
+
+namespace debug.log
+ 
+var defaultPathKey = "ED3D6BB8-2353-4784-B8B9-FFCC6D8B8050.debug.log.defaultPath";
+var logPath,lockName;
+getPath = function(){
+	return logPath or ..thread.get(defaultPathKey) or "/config/dbg$.log";
+}
+
+setPath = function( path ){
+	var defaultPath = ..thread.get(defaultPathKey);
+	if( !path ){ 
+		logPath = defaultPath or "/config/dbg$.log";
+		..fsys.createParentDir(logPath);
+		return;
+	}  
+	elseif( logPath == path ) {
+		return;
+	}
+	
+	logPath = path; 
+	..fsys.createParentDir(logPath);
+	if(!defaultPath ){
+		..thread.set( defaultPathKey,logPath );
+	}
+}
+
+var LOCKNAME = "{903EEA9E-4366-4769-ADFB-5E208C8C7E17}"; 
+
+checkSize = function( maxSize ){
+	..thread.lock( LOCKNAME ) {
+		if( !logPath ) setPath();
+		
+		var file,err = ..io.open(logPath,"r");
+		if( file ) {
+			var size = file.size(1);
+			file.close();
+			
+			if( size > maxSize ){
+				..fsys.delete(logPath)
+			} 
+		}
+	} ..thread.unlock(LOCKNAME);
+}
+
+var currentSrc;
+var printArgs = function(args,dumpTable){
+
+	if( !logPath ) setPath();
+	
+	var _,len = ..table.range(args);
+	var createTime = ..time.now();
+	createTime.format="%Y-%m-%d %H:%M:%S";
+	len++;args[len] = ..string.concat('\n> Time: ',tostring(createTime));
+	
+	var dInfo = ..debug.queryinfo(3,"select source,currentline");
+	if( dInfo.source.src != currentSrc ){
+		while(!..string.len(dInfo.source.src) ){
+			dInfo.source.src = ..string.left(dInfo.source.src ,-2);
+			if(!#dInfo.source.src) break;
+		}
+		len++;args[len] = ..string.concat('\n> File: ',dInfo.source.src); 
+		currentSrc = dInfo.source.src;
+	}  
+	len++;args[len] =  ..string.format('\n> Line: #%03d ',dInfo.currentline);     
+	 
+	
+	..thread.lock("LOCKNAME",function(){
+		var file,err = ..io.open(logPath,"a+t");
+		if(!file) return;
+		
+		if( _STUDIO_INVOKED ){
+			..console.open();
+			for(k,v in ..table.eachArgs(args) ){
+				if(dumpTable && type(v) == type.table ) v = ..util.table.stringify(v,#args==1);
+				file.write(tostring(v),'\t'); 
+				..console.stdout.write(tostring(v),'\t'); 
+			}
+			
+			..console.stdout.write('\n\n');
+		}
+		else {
+			var tLog = {};
+			for(k,v in ..table.eachArgs(args) ){
+				if(dump && type(v) == type.table ) v = ..util.table.stringify(v,#args==1);
+				..table.push(tLog,tostring(v)); 
+			}
+			file.write( ..crypt.bin.encodeBase64(..string.join(tLog,'\t') ) );
+		}
+		file.write('\n\n')
+		
+		file.close();
+	})
+}
+
+print = function(...){
+	printArgs( {...} ); 
+}
+
+printf = function(s,...){
+	if( ...!== null ) s = ..string.format(s,... )
+	printArgs( { s } );
+}
+
+dump = function(...){ 
+	printArgs( {...},true );
+}
+
+dumpJson = function(v){ 
+	printArgs( { ..web.json.stringify(v,true,false) } );
+}
+
+traceback = function(){
+	printArgs( { ( ..debug.traceback(,,2) ) } );
+}
+ 
+decode = function(path,step=5){
+	if(!..io.exist(path) ) error("请在参数中指定有效的日志文件路径",2);
+	var bin = ..string.load(path);
+	for s in ..string.gmatch( bin,"[\p\w\r\n]+?\r\n\r\n") { 
+		..console.log( ..crypt.bin.decodeBase64(s) )
+		..console.more( step )
+	} 
+}
+
+/**intellisense(debug)
+log = 调试日志文件操作\n所有输出函数在开发时同时输出到控制台\n发布后自动使用BASE64编码后写入日志
+log.setPath("/config/dbg$->log") = 设志日志文件路径,进程内全局有效,\n如果不指定路径,默认设置为 /config/dbg$.log
+log.checkSize(0x20000) = 检测日志文件是否超过128KB,\n超过参数指定的大小则清空日志文件
+log.print("__") = 写入调试日志一个以上的参数
+log.printf("__") = 将所有参数调用string.format格式化然后输出
+log.dump(__) = 写入调试日志一个以上的参数\n其中table类型将序列化为字符串
+log.dumpJson(__) = 写入调试日志的参数转换为JSON然后输出
+log.traceback() = 在控制台输出当前函数调用栈信息
+log.decode( = 解码并在控制台输出日志文件内容
+log.decode(.(日志路径,每次显示日志数);
+end intellisense**/

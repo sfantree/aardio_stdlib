@@ -1,0 +1,1 @@
+::User32.SwapMouseButton( !::User32.GetSystemMetrics( 0x17/*_SM_SWAPBUTTON*/ ) ) 

@@ -1,0 +1,35 @@
+﻿import zlib.httpFile;
+import inet.http;
+
+if( !_WIN7_LATER ){
+	error("Electron组件到少要求Win7/Win2008 R2或之后的操作系统",2)
+}
+
+namespace electron.runtime; 
+
+electronDir = ..io.getSpecial( 0x1c /*_CSIDL_LOCAL_APPDATA*/  ,"aardio/std/electron/11.2.1/");
+pathdll = ..io.joinpath(electronDir,"\electron.dll"); 
+path = ..io.joinpath(electronDir,"\electron.exe");
+chromeVersion = 78;
+ 
+if( ..io.exist(pathdll) ){
+    path = pathdll;
+    return;
+}
+
+if( !..io.exist(path) ){
+    ..zlib.httpFile.referer = "https://npm.taobao.org/mirrors/electron/11.2.1/"
+	..zlib.httpFile.download("https://npm.taobao.org/mirrors/electron/11.2.1/electron-v11.2.1-win32-ia32.zip"
+		,"正在下载" + (..win[["title"]] or "本程序") + "必须的组件",..io.joinpath(electronDir,"\.download"),electronDir,"electron-v7.1.2-win32-ia32.zip"); 
+} 
+
+..io.rename(path,pathdll);
+..io.remove( ..io.joinpath(electronDir,"\resources\app") );
+
+if(..io.exist(pathdll))  path =   pathdll;
+
+/**intellisense()
+electron.runtime = 在使用electron以前首先导入此支持库,\n可检测electron是否存在,如果没有找到会自动下载electron.\n\n发布EXE时可自动复制运行库到发布目录下,\n并在生成EXE时自动运行asar打包工具打包electron主进程代码
+electron.runtime.path = electron.exe路径,如果这里指定了路径,\n那么electron.app的参数中可以省略不指定electron.exe路径
+electron.runtime.chromeVersion = 对应的chrome内核版本
+end intellisense**/

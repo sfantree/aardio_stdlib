@@ -1,0 +1,44 @@
+//messageFilter 消息特权隔离
+namespace win.messageFilter;
+
+try {
+
+	ChangeWindowMessageFilter = ::User32.api( "ChangeWindowMessageFilter", "bool(INT msg,INT flag)");
+	
+	try {
+		ChangeWindowMessageFilterEx = ::User32.api( "ChangeWindowMessageFilterEx", "bool(addr hwnd,INT msg,INT flag,struct &chgFilter)");
+	};
+	
+	change = function(hwnd,flag,msg,...){
+		if( !hwnd || !ChangeWindowMessageFilterEx ){
+			if( ChangeWindowMessageFilter(msg,flag) ){
+				if(!...) return true;
+				return change(hwnd,flag,...);
+			}
+		}
+		
+		var chgFilter = {  INT cbSize = 8;  INT extStatus; }
+		if( ChangeWindowMessageFilterEx(hwnd,msg,flag,chgFilter) ){
+			if( !... ) return true,chgFilter.extStatus;
+			return change(hwnd,flag,...);
+		}
+	}
+}
+catch( e ){
+	change = function() {};
+}
+ 
+/**intellisense()
+win.messageFilter = 用于管理权限进程设置消息特权隔离白名单
+win.messageFilter.change(.(窗口句柄,选项,消息,->->->) = 变更消息特权隔离白名单,成功返回true,\n如果不指定窗口句柄则设置进程级白名单
+win.messageFilter.change(窗口句柄,阻止选项,消息) = @.change(__,1/*_MSGFLT_ADD*/\n	,0x4A/*_WM_COPYDATA*/,0x233/*_WM_DROPFILES*/,0x0049/*_WM_COPYGLOBALDATA*/ )
+_MSGFLT_ALLOW=@1/*_MSGFLT_ALLOW*/
+_MSGFLT_DISALLOW=@2/*_MSGFLT_DISALLOW*/
+_MSGFLT_RESET=@0/*_MSGFLT_RESET*/
+_MSGFLT_ADD=@1/*_MSGFLT_ADD*/
+_MSGFLT_REMOVE=@2/*_MSGFLT_REMOVE*/
+_MSGFLTINFO_NONE=@0/*_MSGFLTINFO_NONE*/
+_MSGFLTINFO_ALLOWED_HIGHER=@3/*_MSGFLTINFO_ALLOWED_HIGHER*/
+_MSGFLTINFO_ALREADYALLOWED_FORWND=@1/*_MSGFLTINFO_ALREADYALLOWED_FORWND*/
+_MSGFLTINFO_ALREADYDISALLOWED_FORWND=@2/*_MSGFLTINFO_ALREADYDISALLOWED_FORWND*/
+end intellisense**/

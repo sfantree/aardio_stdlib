@@ -1,0 +1,26 @@
+//shell
+import com;
+import com.shell;
+import process;
+import console;
+
+shell = com.CreateObject("Shell.Application");
+/*
+shell.CascadeWindows() //层叠窗口
+shell.TileHorizontally(); //横向平铺窗口
+shell.TileVertically(); //纵向平铺窗口
+shell.MinimizeAll(); //最小化所有窗口
+shell.UndoMinimizeALL(); //撤消全部最小化
+*/
+	
+if( _WIN10_LATER ){
+	for i,item in com.shell.eachApp(){ 
+		console.log( item.name, item.path );
+	}
+	
+	com.shell.activateApp('Microsoft.MicrosoftEdge_8wekyb3d8bbwe!MicrosoftEdge'
+		, 'http://www.aardio.com');
+	
+	// 下面这样也可以打开WIN10应用	
+	// process.explore("shell:appsFolder\Microsoft.MicrosoftEdge_8wekyb3d8bbwe!MicrosoftEdge")
+}

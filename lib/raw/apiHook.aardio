@@ -1,0 +1,120 @@
+//apiHook 函数钩子
+//http://bbs.aardio.com/forum.php?mod=viewthread&tid=970
+namespace raw {
+	
+	class apiHook {
+		ctor ( dllName, apiName,apiProto,callback ) { 
+			if( type(callback) == type.string ){
+				var tmp = apiProto;
+				apiProto = callback;
+				callback = tmp;
+			};
+			
+			this.apiProto = apiProto;
+			
+			try{
+				this.dll = ..raw.loadDll(dllName)
+				this.hModule = this.dll.gethandle();
+			} 
+			if (!this.hModule) {
+				error("找不到 " + dllName, 2);
+			} 
+			
+			this.pTargetFunction  = GetProcAddress(this.hModule, apiName);
+			if (!this.pTargetFunction ) {
+				this.pTargetFunction  = GetProcAddress(this.hModule, apiName + "A");
+			}
+			if (!this.pTargetFunction ) { 
+				error("找不到指定的函数!", 2);
+			}
+			
+			if( type(callback) == type.function ){
+				this.callback_c = ..raw.tostdcall(callback, apiProto,this);
+				this.addrHookFunction = getPointerAddress(this.callback_c) 
+			}
+			else {
+				this.addrHookFunction = tonumber(callback);
+				if( !this.addrHookFunction )
+					error("参数@4必须指定钩子函数",2);
+			}
+			 
+			..table.gc( this,"unInstall" );
+		}
+		install = function () { 
+			var jmpOpCodeLen = 5;
+			var threadCmpOpCodeLen = 20;
+			this.addrProtect = prcsHook.protect(tonumber(this.pTargetFunction), 0x40/*_PAGE_EXECUTE_READWRITE*/, jmpOpCodeLen * 2);
+			if (!this.addrProtect ) { 
+				error("修改内存属性失败!", 2);
+			}
+			 
+			var restoreOpCode = prcsHook.readString(tonumber(this.pTargetFunction),jmpOpCodeLen * 2);
+			this.restoreOpCodeSize,restoreOpCode = getHookSize(  restoreOpCode,jmpOpCodeLen ); 
+			
+			var addrTargetFunction = tonumber(this.pTargetFunction );
+			this.addrTrampoline = prcsHook.malloc( this.restoreOpCodeSize + jmpOpCodeLen,0x40/*_PAGE_EXECUTE_READWRITE*/) 
+			this.addrThreadCheck = prcsHook.malloc( threadCmpOpCodeLen + jmpOpCodeLen,0x40/*_PAGE_EXECUTE_READWRITE*/) 
+			
+			prcsHook.write( this.addrThreadCheck,
+				'\x50', //push eax
+				'\xB8', { addr getTid = getPointerAddress(GetCurrentThreadId) }, //mov eax,getTid
+				'\xFF\xD0', //call eax
+				'\x3D', {INT tid = ..thread.getId() }, //cmp eax,tid
+		 		'\x58', //pop eax
+				'\x0F\x84',{ 
+					addr hookFunc = this.addrHookFunction  - (this.addrThreadCheck + threadCmpOpCodeLen) 
+				}, //je hookFunc
+				'\xE9', {
+					addr orgFunc = this.addrTrampoline - (this.addrThreadCheck + threadCmpOpCodeLen + jmpOpCodeLen)
+				} //jmp orgFunc
+			) 
+			 
+			prcsHook.write( this.addrTrampoline,restoreOpCode, '\xE9'/*JMP*/, {
+				int jmpAddr = addrTargetFunction + this.restoreOpCodeSize - (this.addrTrampoline + this.restoreOpCodeSize + jmpOpCodeLen )
+			} )
+			
+			prcsHook.write( addrTargetFunction, '\xE9'/*JMP*/, {
+				int jmpAddr = this.addrThreadCheck - (addrTargetFunction + jmpOpCodeLen)
+			} )
+			 
+			this.callApi = ..raw.main.api(topointer(this.addrTrampoline), this.apiProto );
+			return this; 
+		}
+		unInstall = function () {  
+			if (! ( this.pTargetFunction && this.addrProtect ) ) {
+				return;
+			}
+			
+			prcsHook.writeString(tonumber(this.pTargetFunction),topointer(this.addrTrampoline) ,this.restoreOpCodeSize );
+			prcsHook.protect(tonumber(this.pTargetFunction),this.addrProtect, this.restoreOpCodeSize);
+			this.pTargetFunction = null; 
+			
+			prcsHook.mfree( this.addrTrampoline ); 
+			prcsHook.mfree(this.addrThreadCheck);
+		}
+	}	
+}
+
+namespace raw.apiHook {
+	import ..process;
+	import ..raw.asm.opCode;
+	getHookSize = ..raw.asm.opCode.getHookSize;
+	
+	prcsHook = ..process(); 
+	
+	GetProcAddress = ::Kernel32.api("GetProcAddress","pointer(pointer hModule,string lpProcName)");
+	GetCurrentThreadId = ::Kernel32.api( "GetCurrentThreadId", "INT()")
+	
+	getPointerAddress = function(p){
+		return ..raw.convert( { pointer arg = p }, { addr ret } ).ret;
+	} 
+}
+
+/**intellisense()
+raw.apiHook = 安装到当前线程的API函数钩子，不是来自当然线程的调用忽略。\n多线程钩子请使用 thread.apiHook
+raw.apiHook(DLL文件名,API函数名,函数原型,钩子函数) = @HookMessageBox = function (hwnd, text, caption, flag) {\n    owner.callApi(hwnd, text, "APIHOOK成功: " + caption, flag);\n    return 0;\n}\nhook = raw.apiHook("user32.dll", "MessageBox", "int(int,string,string,int)", HookMessageBox).install(); 
+raw.apiHook() = !raw_apihook.
+!raw_apihook.install() = 安装钩子\n!raw_apihook.
+!raw_apihook.unInstall() = 卸载钩子 
+getPointerAddress(.(指针) = 返回数值类型指针地址
+end intellisense**/

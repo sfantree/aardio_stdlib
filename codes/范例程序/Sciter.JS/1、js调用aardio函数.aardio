@@ -1,0 +1,88 @@
+//js调用aardio函数
+//请务必更新 web.sciter 扩展库到最新版
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="js 调用 aardio 自定义事件";right=1014;bottom=523;parent=...)
+winform.add()
+/*}}*/
+
+import web.sciter;
+var wbSciter = web.sciter( winform );
+
+// 用于支持 Javascript 中的 console.log 函数;
+import web.sciter.debug;
+wbSciter.attachEventHandler( web.sciter.debug );
+
+//自定义behavior
+namespace web.sciter.behavior.customEvent {  
+	
+	//behavior 中名称不以 on 开始的函数都是自定义函数
+	testJs = function(scOwner,str,jsCallback){ 
+		import console
+		console.log("behavior里的函数 testJs 被调用了");
+		console.log("自定义函数接收到的第一个参数总是节点自身")
+		console.log("然后才是其他参数",str)
+		
+		//aardio里调用behavior自定义函数的方法是一样的,提供一模一样的xcall函数
+		scOwner.xcall("testJs2",str);
+		
+		//在 aardio 中能接收 Javascript 返回值的地方都支持直接返回Javascript 函数对象
+		jsCallback("在 aardio 中能接收 Javascript 返回值的地方都支持直接返回Javascript 函数对象")
+	}
+	
+	testJs2 = function(scOwner,...){
+		console.log("behavior里的函数 testJs2 被调用了",...)
+		console.log("自定义函数接收到的第一个参数总是节点自身")
+		console.log(scOwner.outerHTML)
+	}
+	
+	//JS 脚本中读取 value 时触发此回调，第2个返回值返回 value 的值
+	onGetValue = function( ltOwner ){
+		return true,"Value:onGetValue";
+	}
+	
+	//JS 脚本中使用修改 value 值时触发此回调
+	onSetValue = function(  ltOwner,value ){
+		
+		return true
+	}
+}
+
+wbSciter.html = /**
+<!doctype html>
+<html>
+<head>
+	<META http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<script type="text/tiscript">
+	
+	</script>
+	<style type="text/css">
+	html,body{ height:100%; margin:50; } 
+	
+	#my-button{  
+		behavior:"customEvent clickable"; 
+	}
+	</style>
+</head>
+<body> 
+<button id="my-button">调用 behavior 定义的 aardio函数：testJs </button> 
+<br> 请务必更新 web.sciter 扩展库到最新版本
+
+<script>
+
+var button = document.getElementById("my-button");
+button.addEventListener('click', () => { 
+    
+    // 调用 aardio 函数, 请务必更新 web.sciter 扩展库到最新版本
+	button.xcall("testJs", "hello",function jsCallback(argA){
+		console.log("在aardio中调用了 Javascript 回调函数",argA)
+	}); 
+})
+
+</script>
+</body>
+</html>
+**/
+
+winform.show();	
+win.loopMessage();

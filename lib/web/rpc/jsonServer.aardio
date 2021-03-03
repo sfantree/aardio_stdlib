@@ -1,0 +1,235 @@
+﻿//jsonServer 服务端
+import web.json;
+import string.aasdl;
+
+namespace web.rpc;
+
+class jsonServer{
+	ctor(external){};
+	rpc = {
+		external = external;
+		_rpcResponse = function(reqData,$){
+	 	
+			if( ! reqData  ){
+				return { 
+					error = {
+						code = -32700;
+						message = "Invalid JSON was received by the server." 
+					};
+				};  
+			};
+		  	
+			if( ! (reqData[["method"]] && reqData[["jsonrpc"]] ) ){
+				return { 
+					error = {
+						code = -32600;
+						message = "Invalid Request	The JSON sent is not a valid Request object."
+					};
+				}
+			};
+			
+			if(!owner.external){
+				return {
+					error = {
+						code = -32601;
+						message = "The method does not exist / is not available.."
+					};
+				}
+			}
+			
+			var result,err; 
+			var method = reqData[["method"]];
+			if(method=="?"){
+				if(!owner.aasdl){
+					owner.aasdl = ..string.aasdl(owner.external);
+				}
+				
+				return {
+					result = owner.aasdl;
+					id = reqData.id;
+				}
+			}
+			
+			var ns,m = ..string.match(method,"(.+)\.([^.]+)$");
+			if( ns && m ){
+				var obj = ..table.getByNamespace(ns,owner.external);
+				if( (type(obj) == type.table ) && obj[m] ){ 
+					if( m[1] == '$'# ){
+						if(reqData.params) result,err = invoke(obj[m],obj,$,..table.unpackArgs(reqData.params) );
+						else result,err= invoke(obj[m],obj,$);	
+					}
+					else {
+						if(reqData.params) result,err = invoke(obj[m],obj,..table.unpackArgs(reqData.params) );
+						else result,err= invoke(obj[m],obj);
+					} 
+				}
+				else {
+					return {
+						error = {
+							code = -32601;
+							message = "The method does not exist / is not available.."
+						};
+					}
+				}
+				
+			}
+			else {
+				if(owner.external[method] ){
+					if( method[1] == '$'# ){
+						if(reqData.params) result,err = invoke(owner.external[method],owner.external,$,..table.unpackArgs(reqData.params) );
+						else result,err = invoke(owner.external[method],owner.external,$);	
+					}
+					else {
+						if(reqData.params) result,err = invoke(owner.external[method],owner.external,..table.unpackArgs(reqData.params) );
+						else result,err = invoke(owner.external[method],owner.external);
+					}
+				}
+				else {
+					return {
+						error = {
+							code = -32601;
+							message = "The method does not exist / is not available.."
+						};
+					}
+				}	
+			} 
+			
+			if((result === null) && (err!==null)){ 
+				if( type(err) == type.string ){
+					err = {
+						code =-32603;
+						message = err;
+					} 
+				}
+				elseif( type(err) == type.number ){
+					err = {
+						code = err;  
+					} 
+				}	
+				elseif( err[["code"]] || err[["message"]] ){
+				 	
+				}
+				else {
+					err = {
+						code =-32603;  
+					}
+				} 
+			}
+			else {
+				err = null;
+			}
+			
+			
+			return {
+				error = err;
+				result = result;
+				id = reqData.id;
+			}
+		}
+		_beginRpcResponse = function($,request,response){
+			if( request.method != 'POST' ) return;
+			
+			if(!owner.external) owner.external=this;
+			 
+			var reqData = request.postData();
+			if( reqData && owner.beforeJsonParse ) {
+				reqData = owner.beforeJsonParse(reqData);
+			}
+			 	
+			if(reqData) reqData = ..web.json.tryParse(reqData); 
+			if( ! reqData  ){
+				owner._write({error = {
+					code = -32700;
+					message = ..string.concat("Invalid JSON was received by the server.");
+				}},response)
+				return;
+			};
+			
+			if(#reqData){
+				var transaction = {}
+				for(i=1;#reqData;1){
+					var repData  = owner._rpcResponse(reqData[i],$);
+					if( reqData[i].id ) {
+						repData.id = reqData[i].id;
+						..table.push(transaction,repData); 
+					};
+				}
+				
+				if(#transaction){
+					owner._write(transaction,response);
+				};
+				return;
+			};
+			
+			var repData = owner._rpcResponse(reqData,$); 
+			if(reqData.id!=null) {
+				repData.id = reqData.id;
+				owner._write(repData,response);
+			}
+		};
+		_write = function(repData,response){
+			repData.jsonrpc =  "2.0";
+			
+			var jsonData = ..web.json.stringify(repData);
+			if( owner.afterJsonStringify ) {
+				jsonData = owner.afterJsonStringify(jsonData);
+				if(!jsonData) return true;
+			}
+			
+			response.contentType = "text/json";
+			return response.write(jsonData);
+		}; 
+		run = function($){
+			var this = owner;
+			if(!$) $ = ..request;
+			var request,response = ..request,..response;
+			
+			try{
+				this._beginRpcResponse($,request,response);
+			}
+			catch(e){
+				if( this.onError ) {
+					this.onError(e,request.postData());
+				}
+				this._write({
+					error = {
+						code = -32603/*_JSONRPC_INTERNAL_ERROR*/; 
+						message = ..string.concat( "Internal JSON-RPC Error:",e);
+					};
+				},response)
+			};
+		}
+		
+	}
+}
+
+/**intellisense()
+web.rpc.jsonServer = 基于HTTP协议的JSON-RPC 2.0服务端\n需要在HTTP服务器上运行\n[关于JSON-RPC 2.0](http://www.jsonrpc.org/specification)
+web.rpc.jsonServer() = 创建JSON-RPC 2.0服务端\n可选在构造参数中指定监听客户端调用的监听器对象\n如果不指定参数,保用对象自身监听客户端调用\n!stdwebrpcjsonServer.
+!stdwebrpcjsonServer.? = 客户端可以调用的远程对象名或远程方法名字,\n客户端传过来的params参数必须是数组\n服务端会展开此数组作为函数的调用参数\n函数第一个返回值指定为客户端获取的result返回值\n函数的第二个返回值指定为客户端error错误对象\n错误对象可以是数值，字符串、或符合JSON-RPC2.0协议的表对象,\n!web_rpcJsonClient.
+end intellisense**/
+
+/**intellisense(!stdwebrpcjsonServer)
+rpc.run() = 运行JSON-RPC服务端响应用户请求\n可选在函数参数中所有名字首字符为$的回调函数的首个回调$参数,\n$参数默认为request
+rpc.external = 指定包含客户端可以调用的远程函数的表对象,可嵌套子表\n\n如果远程函数名第一个字符是$,则第一个回调参数为$,$对象由run函数指定,\n如果创建服务端对象的构造参数中没有指定表,\n这个对象默认指向对象自身\n可在调用run函数之前更改此对象
+rpc.onError = @.onError = function(err,requestData){
+	__/*服务器内部错误时触发此事件\nerr为抛出的异常对象,一般为错误信息\nrequestData为客户端发送的请求数据*/
+} 
+rpc.aasdl = 指定自定义的aasdl\n如果不指定,服务端会根据external自动生成aasdl\n如果客户端请求的方法名为"?"时,返回此属性,\n[关于aasdl](http://bbs.aardio.com/doc/aasdl)
+rpc.beforeJsonParse = @.beforeJsonParse = function(jsonData){
+    __/*可以在这里解密客户端数据,返回null中止本次调用*/
+	return jsonData;
+}
+rpc.afterJsonStringify = @.afterJsonStringify = function(jsonData){
+    __/*可以在这里加密服务端JSON,返回null中止本次调用*/
+	return jsonData;
+}
+end intellisense**/
+
+ /**intellisense()
+_JSONRPC_PARSE_ERROR=@-32700/*_JSONRPC_PARSE_ERROR*/
+_JSONRPC_INVALID_REQUEST=@-32600/*_JSONRPC_INVALID_REQUEST*/
+_JSONRPC_METHOD_NOTFOUND=@-32601/*_JSONRPC_METHOD_NOTFOUND*/
+_JSONRPC_INVALID_PARAMS=@-32602/*_JSONRPC_INVALID_PARAMS*/
+_JSONRPC_INTERNAL_ERROR=@-32603/*_JSONRPC_INTERNAL_ERROR*/
+end intellisense**/

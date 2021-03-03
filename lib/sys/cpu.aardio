@@ -1,0 +1,125 @@
+//cpu 处理器信息
+import process 
+namespace sys.cpu;
+ 
+var app = ..process();
+
+var __cpuId = app.asmCdecl(
+	"void(INT id,struct &cpuid)",
+	'\x55', //push ebp
+	'\x89\xE5', //mov ebp,esp
+	'\x81\xEC\xC0\x00\x00\x00', //sub esp,0C0h
+	'\x53', //push ebx
+	'\x51', //push ecx
+	'\x52', //push edx
+	'\x56', //push esi
+	'\x57', //push edi
+	'\x8B\x45\x08', //mov eax,[ebp+8] ;
+	'\x8B\x75\x0C', //mov esi,[ebp+12] ;
+	'\x0F\xA2', //cpuid
+	'\x89\x06', //mov [esi],eax
+	'\x89\x5E\x04', //mov [esi+4],ebx
+	'\x89\x4E\x08', //mov [esi+8],ecx
+	'\x89\x56\x0C', //mov [esi+12],edx
+	'\x5F', //pop edi
+	'\x5E', //pop esi
+	'\x5A', //pop edx
+	'\x59', //pop ecx
+	'\x5B', //pop ebx
+	'\x89\xEC', //mov esp, ebp
+	'\x5D', //pop ebp
+	'\xC3', //ret
+)
+
+getInfo = function(idx=1,info){
+	if( ! info["_struct"] || ..raw.sizeof(info) != 16 ){
+		error("参数@2 错误",2)
+	}
+	return __cpuId( idx,info); 
+}
+
+getVender = function(){
+	var cpuInfo = __cpuId( 0,{ INT eax;BYTE ebx[4];BYTE ecx[4];BYTE edx[4] })
+	return ..string.str( ..string.concat( cpuInfo.ebx,cpuInfo.edx,cpuInfo.ecx ) ),eax/*Max Standard function*/;
+} 
+
+getMaxExtFunction = function(){
+	return __cpuId(0x80000000,{ INT eax;INT ebx;INT ecx;INT edx }).eax 
+} 
+
+getBrand = function(){
+
+	if( getMaxExtFunction() < 0x80000004 )
+		return;
+	 
+	return ..string.str( ..string.concat( 
+		__cpuId( 0x80000002,{ BYTE str[16] }).str,
+		__cpuId( 0x80000003,{ BYTE str[16] }).str,
+		__cpuId( 0x80000004,{ BYTE str[16] }).str
+	) )
+}
+
+var __rdtsc = app.asmCdecl(
+	"void(pointer pSleep,INT &eax)",//请指定函数原型
+	'\x55', //push ebp
+	'\x89\xE5', //mov ebp,esp
+	'\x53', //push ebx
+	'\x51', //push ecx
+	'\x52', //push edx
+	'\x56', //push esi
+	'\x57', //push edi
+
+	'\x8B\x5D\x0C', //mov ebx,[ebp+12]
+	'\x31\xC9', //xor ecx,ecx
+ 
+	'\x6A\x32', //push 32h;
+	'\xFF\x55\x08', //call [ebp+8] ;Sleep(50);
+
+	'\x31\xC0', //xor eax,eax
+	'\x0F\x31', //rdtsc
+	'\x89\x03', //mov [ebx] ,eax
+	'\x89\xD1', //mov ecx ,edx
+ 
+	'\x68\xF4\x01\x00\x00', //push 1F4h;
+	'\xFF\x55\x08', //call [ebp+8] ;Sleep(500);
+
+	'\x31\xC0', //xor eax,eax
+	'\x0F\x31', //rdtsc
+	'\x2B\x03', //sub eax,[ebx]
+	'\x19\xCA', //sbb edx,ecx
+	'\x89\x03', //mov [ebx], eax
+	'\x89\xD1', //mov ecx,edx
+	
+	'\x5F', //pop edi
+	'\x5E', //pop esi
+	'\x5A', //pop edx
+	'\x59', //pop ecx
+	'\x5B', //pop ebx
+	'\x89\xEC', //mov esp, ebp
+	'\x5D', //pop ebp
+	'\xC3', //ret
+)
+
+getFrequence = function(){
+	var prio = app.getPriorityClass();
+	app.setPriorityClass(0x80/*_HIGH_PRIORITY_CLASS*/);
+    var eax = __rdtsc( ::Kernel32.api( "Sleep", "void()")  ,0);
+    app.setPriorityClass(prio);
+	return eax /(1000*500);
+}
+ 
+/**intellisense(sys.cpu)
+getMaxExtFunction() = CPU的扩展信息最大查询索引
+getInfo = @.getInfo(1__/*查询索引*/,{ INT eax;INT ebx;INT ecx;INT edx } )
+getVender() = 返回制造商信息,以及CPU基础信息最大查询索引\nIntel会返回"GenuineIntel",\nAMD会返回"AuthenticAMD"
+getBrand() = 返回CPU商标信息 
+getFrequence() = 返回CPU频率
+getInfo() = !sys_cpu_info.
+end intellisense**/
+
+/**intellisense(!sys_cpu_info)
+eax = 整数
+ebx = 整数
+ecx = 整数
+edx = 整数
+end intellisense**/

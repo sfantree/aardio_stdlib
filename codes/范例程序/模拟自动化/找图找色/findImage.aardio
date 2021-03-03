@@ -1,0 +1,60 @@
+﻿//屏幕找图
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="请稍候正在打开网页......";right=759;bottom=469)
+/*}}*/
+
+//导入浏览器控件支持库
+import web.form; 
+
+//在winform上建立浏览器控件窗口
+var wb = web.form( winform  ); 
+
+//打开网页
+wb.go("http://bbs.aardio.com/forum-image-1.html");
+
+//显示窗口
+winform.show();   
+
+//等待指定HTML节点（匹配tagName,src等节点属性）
+wb.waitQueryEles( tagName="img"; src="aardio\.png" )
+win.delay(1000);//给点时间让图像显示出来
+
+import soImage;//导入搜图扩展库
+import inet.http;//导入HTTP支持库
+
+winform.text = "请稍候,下在下载样本数据"
+var imgBytes = inet.http().get("http://bbs.aardio.com/static/image/common/aardio.png");
+
+//创建查找图像
+var imgFind = soImage();
+imgFind.setBytes( imgBytes,"*.png"); //解析下载的图像数据，注意要指定图像文件后缀名
+imgFind.crop(29,33,193,55);//裁剪图像,尽可能去掉背景，保留特征最强的部分
+
+/*
+也可以使用下面的方法加载要查找的样本图像，
+查找图像要尽可能的小，并尽可能裁剪去掉背景，突出查找特征。
+img.load("/要查找的图片.bmp");
+*/
+
+//抓取屏幕图像
+var imgScreen = soImage();
+imgScreen.capture(winform.hwnd); //窗口截图
+
+/*
+在屏幕上查找图像
+img.findImage(屏幕图像,x,y,x2,y2,step)
+参数x,y,x2,y2指定要查找的范围，x、y为左上角坐标,x2、y2为右下角坐标。
+step参数指定步进。除第一个参数以外，所有参数可选。
+*/
+var sm,x,y = imgFind.findImage(imgScreen  );
+winform.text = "已找到图片，相似度：" + sm;
+
+//移动鼠标
+import mouse;
+x,y = win.toScreen(winform.hwnd,x,y); //窗口坐标转换为屏幕坐标
+mouse.moveTo(x-50,y-50,true);//保留鼠标轨迹模仿真实的鼠标移动
+mouse.click();//点击鼠标
+
+//启动消息循环
+win.loopMessage();

@@ -1,0 +1,126 @@
+﻿//iisInstall 安装
+import dotNet;
+import console;
+import process;
+import fsys.acl;
+
+namespace fastcgi.iisInstall{
+    
+    if(_STUDIO_INVOKED){
+		..console.log("请先发布并生成 EXE 文件后再执行本程序")
+		..console.pause();
+		return;
+	}
+
+    var appDomain = ..dotNet.clr().createAppDomain();
+	var serverManager = appDomain.load("Microsoft.Web.Administration").createInstance("ServerManager");
+
+	var domain = ..console.getText( '请输入启用 FastCgiModule（aardio）的网站，直接回车安装到所有网站\n：' )
+	domain = ..string.trim(domain);
+	
+	while(#domain){
+		var err;
+		try{
+			var config = serverManager.GetWebConfiguration(domain);
+			var handlersSection = config.GetSection("system.webServer/handlers");
+			
+			var handlersCollection = handlersSection.GetCollection();
+			
+			var updateSite = function(){
+				for(i=1;handlersCollection.Count;1){
+					var element = handlersCollection.Item[i-1]
+					if(element.Item["path"] == "*.aardio"){
+						element.Item["scriptProcessor"] = ..io._exepath;
+						return true;
+					} 
+				}	
+			}
+			
+			if(!updateSite()){
+				var addElement = handlersCollection.CreateElement("add");
+				addElement.Item["name"] = "aardio";
+				addElement.Item["path"] = "*.aardio";
+				addElement.Item["verb"] = "*";
+				addElement.Item["modules"] = "FastCgiModule";
+				addElement.Item["scriptProcessor"] = ..io._exepath;
+				handlersCollection.AddAt(0, addElement); 	
+			} 
+		}
+		catch(e){
+			..console.log(e)
+			err = e;
+			domain = ..console.getText( '请输入正确的网站名：' )
+		}
+		 
+		if(!err) {
+			break;
+		} 
+	}
+	
+	if(!#domain){
+		var appHostConfig = serverManager.GetApplicationHostConfiguration();
+		var handlersSection = appHostConfig.GetSection("system.webServer/handlers");
+		
+		var handlersCollection = handlersSection.GetCollection();
+		var updateHandler = function(){
+			for(i=1;handlersCollection.Count;1){
+				var element = handlersCollection.Item[i-1]
+				if(element.Item["path"] == "*.aardio"){
+					element.Item["scriptProcessor"] = ..io._exepath;
+					return true;
+				} 
+			}	
+		}
+			
+		if(!updateHandler()){
+			var addElement = handlersCollection.CreateElement("add");
+			addElement.Item["name"] = "aardio";
+			addElement.Item["path"] = "*.aardio";
+			addElement.Item["verb"] = "*";
+			addElement.Item["modules"] = "FastCgiModule";
+			addElement.Item["scriptProcessor"] = ..io._exepath;
+			handlersCollection.AddAt(0, addElement);			
+		}
+
+	}
+	 
+	if(..process().isWow64()){
+		var appPools = serverManager.ApplicationPools;
+		for(i=1;appPools.Count;1){
+			var pool = appPools.Item[i-1]
+			if(pool.Name){
+				appPools.Item[pool.Name].Enable32BitAppOnWin64 = true;
+			} 
+		} 
+	}
+	
+/*
+	var appHostConfig = serverManager.GetApplicationHostConfiguration();
+	var fastCgiSection = appHostConfig.GetSection("system.webServer/fastCgi");
+	var fastCgiCollection = fastCgiSection.GetCollection();
+	var applicationElement = fastCgiCollection.CreateElement("application");
+	applicationElement["fullPath"] = ..io._exepath;
+	applicationElement["arguments"] = "";
+	applicationElement["maxInstances"] = 8; 
+	applicationElement["idleTimeout"] = 300;
+	applicationElement["activityTimeout"] = 30;
+	applicationElement["requestTimeout"] = 90; 
+	applicationElement["instanceMaxRequests"] = 10000;
+	applicationElement["protocol"] = "NamedPipe";
+	applicationElement["flushNamedPipe"] = false;
+	fastCgiCollection.Add(applicationElement);	
+*/
+	
+	serverManager.CommitChanges(); 
+	appDomain.unload();
+	
+	..fsys.acl.icacls( ..io._exedir,"/T","/grant","NT AUTHORITY\IUSR:RXM");
+	..fsys.acl.icacls( ..io._exedir,"/T","/grant","BUILTIN\IIS_IUSRS:RXM");
+
+	..console.log("FastCgiModule（aardio）已安装成功！")
+	..console.pause()
+}
+
+/**intellisense()
+fastcgi.iisInstall = 自动安装注册 IIS 服务器 *.aardio 处理程序映射
+end intellisense**/

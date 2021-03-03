@@ -1,0 +1,37 @@
+//json转table
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="json 转 table";right=969;bottom=691)
+winform.add(
+btnJsonToTable={cls="button";text="json 转 table";left=748;top=648;right=873;bottom=681;db=1;dr=1;z=2};
+btnTableToJson={cls="button";text="table 转 json";left=606;top=648;right=731;bottom=681;db=1;dr=1;z=3};
+edit={cls="edit";left=9;top=6;right=961;bottom=641;db=1;dl=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=1}
+)
+/*}}*/
+
+import web.json;
+import util.table;
+winform.btnJsonToTable.oncommand = function(id,event){
+	var str = winform.edit.text
+	var tab,err = web.json.tryParse(str);
+	if(!tab){
+		winform.edit.showErrorTip("无效JSON",err)
+		return;
+	}
+	
+	winform.edit.text = util.table.stringify(tab,'\t')
+}
+
+winform.btnTableToJson.oncommand = function(id,event){
+	var str = winform.edit.text
+	var tab = eval(str);
+	if(!tab){
+		winform.edit.showErrorTip("无效的 table 对象",err)
+		return;
+	}
+	
+	winform.edit.text = web.json.stringify(tab,true,false)	
+}
+
+winform.show();
+win.loopMessage();

@@ -1,0 +1,78 @@
+//RSA签名
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="RSA签名";right=786;bottom=542)
+winform.add(
+btnExportPrivatePkcs1Raw={cls="button";text="导出PKCS#1私钥";left=32;top=119;right=169;bottom=155;dl=1;dt=1;z=5};
+btnExportPrivatePkcs8={cls="button";text="导出PKCS#8私钥";left=32;top=171;right=169;bottom=207;dl=1;dt=1;z=4};
+btnExportPublicPkcs1Raw={cls="button";text="导出PKCS#1公钥";left=32;top=66;right=169;bottom=102;dl=1;dt=1;z=3};
+btnExportPublicX509={cls="button";text="导出x509公钥";left=32;top=14;right=169;bottom=50;dl=1;dt=1;z=2};
+btnImportKey={cls="button";text="导入公钥或私钥(自动识别)";left=417;top=248;right=767;bottom=284;db=1;dr=1;z=6};
+btnSign={cls="button";text="签名(使用私钥)";left=434;top=496;right=568;bottom=532;db=1;dr=1;z=8};
+btnVerify={cls="button";text="验证(使用公钥)";left=585;top=496;right=719;bottom=532;db=1;dr=1;z=9};
+editKey={cls="richedit";left=189;top=14;right=769;bottom=244;db=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(name='新宋体');hscroll=1;multiline=1;vscroll=1;z=1};
+editSign={cls="edit";left=370;top=292;right=769;bottom=358;edge=1;multiline=1;z=10};
+editText={cls="richedit";text="测试数据";left=42;top=365;right=769;bottom=493;db=1;dl=1;dr=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=7};
+static={cls="static";text="签名:";left=258;top=306;right=354;bottom=327;align="right";transparent=1;z=11}
+)
+/*}}*/
+
+import crypt.rsa;
+var rsa = crypt.rsa();
+rsa.genKey(2/*_AT_SIGNATURE*/);
+rsa.userKeyContainer = 2/*_AT_SIGNATURE*/; 
+
+winform.btnExportPublicX509.oncommand = function(id,event){
+	winform.editKey.text = rsa.exportPublicKeyX509ToPem(rsa.userKeyContainer);
+}
+
+winform.btnExportPublicPkcs1Raw.oncommand = function(id,event){
+	winform.editKey.text = rsa.exportPublicKeyPkcs1RawToPem();
+}
+
+winform.btnExportPrivatePkcs8.oncommand = function(id,event){
+	winform.editKey.text = rsa.exportPrivateKeyPkcs8ToPem(rsa.userKeyContainer);
+}
+
+winform.btnExportPrivatePkcs1Raw.oncommand = function(id,event){
+	winform.editKey.text = rsa.exportPrivateKeyPkcs1RawToPem();	
+}
+
+winform.btnImportKey.oncommand = function(id,event){
+	var header = rsa.importPemKey(winform.editKey.text);
+	if(header) {
+		winform.msgbox("已导入：" + header);
+		
+		//导入时使用的密钥容器是 _AT_KEYEXCHANGE
+		rsa.userKeyContainer = 1/*_AT_KEYEXCHANGE*/;
+	}
+	else winform.msgboxErr("错误的密钥格式")
+}
+
+winform.btnSign.oncommand = function(id,event){
+    var plaintext = winform.editText.text;
+    var hash = rsa.createHashByMd5()
+	hash.hashData(plaintext)
+	var sign =  hash.sign(rsa.userKeyContainer); //获取签名 
+	if(sign){
+		winform.editSign.text = crypt.encodeBin(sign);	
+	}
+	else {
+		winform.msgboxErr("签名失败,请检查是否导入了正确的私钥")
+	}
+	
+}
+
+winform.btnVerify.oncommand = function(id,event){
+    var sign = crypt.decodeBin(winform.editSign.text);
+    rsa.createHashByMd5().hashData(winform.editText.text)
+	if( !rsa.verifySignature(sign) ){
+    	winform.msgboxErr("签名是错误的,数据已被篡改,或未导入正确的公钥");
+    } 
+	else {
+		winform.msgboxErr("签名是正确的,数据未被篡改");
+	} 
+}
+
+winform.show() 
+win.loopMessage();

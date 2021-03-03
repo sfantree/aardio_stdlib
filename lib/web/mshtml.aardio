@@ -1,0 +1,135 @@
+//mshtml 文档对象
+import web.rest.client;
+import fsys.codepage;
+import web.form;
+namespace web
+
+class mshtml{
+	ctor(doc,...){
+		if( doc ){
+			this.document = ..com.IsObject(doc)  ?  doc : doc.getDoc(...)   
+		}
+		else {
+			this.document = ..com.CreateObject("{25336920-03F9-11cf-8FD0-00AA00686F13}") 
+		}
+	}; 
+	@_metaProperty;
+}
+
+namespace mshtml{ 
+	_metaProperty = ..util.metaProperty(
+	
+		go = function(url,headers){  
+			var str ;
+			if(!..inet.url.is(url)) str = ..fsys.codepage.load(url);
+			if(!str){
+				if(!owner.http){
+					owner.http = ..web.rest.client();
+				}
+				str = owner.http.get(url,headers,owner[["location"]]);
+			}
+			
+			if(str){
+				owner.write(str)
+				owner[["location"]] = url
+			}
+		}
+		post = function(url,postdata,headers='\r\nContent-Type: application/x-www-form-urlencoded' ){ 
+			if(headers=="")headers=null;
+			if(!postdata)return owner.go(url); 
+			if(!owner.http){
+				owner.http = ..inet.http()
+			}
+			var str = owner.http.post(url,postdata,headers,owner[["location"]]); 
+			if(str){
+				owner.document.write(str)
+				owner[["location"]] = url
+			} 
+		}
+		getDoc = function(frame){  
+			if(frame===null)
+				return owner.document; 
+			
+			var ele = owner.getFrame(frame);  
+   			if(ele){
+   				var doc;
+   				try{
+   					doc = ele.Document; //ele.contentDocument
+   				}
+   				return doc;
+   			}
+		} 
+		waitDoc = function( frame,timeout){ 
+			var doc = owner.document
+			var tk = 0;
+			do{  
+				if(doc.readyState == 'interactive' || doc.readyState == 'complete'  )	
+					 return doc;
+					  
+				if( timeout && tk>timeout)
+						return null,"Timeout!"
+						
+				tk+=101;  
+			} while( ..win.delay(100) )
+		}
+		waitEle = function(name,frame,timeout,complete=true ){  
+			var ele,t;
+			var wb = owner;
+			if(timeout){
+				t = ..time.tick();
+			}
+			do{
+				if(t && ((..time.tick()-t)>=timeout)){
+					return ; 
+				}
+				ele = ele || wb.getEle(name,frame);
+				if(ele && ( (!complete) || ele.readyState == 'loaded' || ele.readyState == 'complete')  )
+					return ele;
+			}while(..win.delay(200)) 
+		}
+		wait = function(url,timeout){
+			owner.waitDoc(null,timeout);
+			return true;
+		} 
+		write = function(strhtml,frame ){
+			var doc = owner.getDoc(frame) 
+			if(!doc)
+				return false;
+			
+			doc.write(strhtml); 
+			doc.close();
+		}  
+		html = {
+			_set = function(s){
+				owner.write(s);
+			}
+			_get = function(){
+				return owner.getDoc().documentElement.outerHTML;
+			} 
+		} 
+		@{ _get = ..web.form._metaProperty } /*属性表可继承*/ 
+	)
+}
+
+/***intellisense()
+web.mshtml = MSHTML支持库
+web.mshtml() = 创建HTML文档对象\n!mshtm.
+web.mshtml(doc) = 创建HTML文档对象\n可选指定一个document对象
+web.mshtml(wb,框架名) = 创建HTML文档对象\n可选指定一个wb窗体,以及框架名
+!mshtm.write("__") =  将字符串值写入网页、不允许追加
+!mshtm.write("__","框架名") = 将字符串值写入框架网页、不允许追加 
+!mshtm.write("__") = 将字符串值写入网页	
+!mshtm.go("__/*网址*/") = 打开网址或本地路径\n注意驱动器根目录要以反斜杠结束
+!mshtm.post(.("__/*网址*/","k=v&k2=v2") = 自动提交表单
+!mshtm.post(.("__/*网址*/","k=v&k2=v2","自定义http头") = 自动提交表单
+!mshtm.post(.("__/*网址*/","k=v&k2=v2","自定义http头","目标框架") = 自动提交表单
+!mshtm.go("__/*网址*/","自定义http头") = 打开网址
+!mshtm.go("__/*网址*/","自定义http头","目标框架") = 打开网址
+!mshtm.getDoc(__/*框架名*/) = 获取文档对象\n参数可以是框架名,ID,基于0的索引,或者frame节点
+!mshtm.waitEle() = !ele.
+!mshtm.waitEle("__") = 返回一个节点对像或框架内子节点对像\n并等待加载完成
+!mshtm.waitEle("__","",20000) = 返回一个节点对像\n第三个参数指定超时值(毫秒)
+!mshtm.getDoc() = document.
+!mshtm.waitDoc() = document.
+!mshtm.html = @.html = /**\n<!doctype html>\n<html>\n<head>\n    <meta charset="utf-8">\n    <meta http-equiv="X-UA-Compatible" content="IE=edge" />\n</head>\n<body>\n    <div></div>\n</body>\n</html>\n**/
+end intellisense***/

@@ -1,0 +1,29 @@
+ 
+	
+import com.interface; 
+namespace  com.interface;
+
+class IOleWindow{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer GetWindow = "int(int &phwnd)";
+	pointer ContextSensitiveHelp = "int(bool fEnterMode)"; 
+}
+IOleWindow.IID = "{00000114-0000-0000-C000-000000000046}";
+
+ 
+IOleWindow.Query = function(obj){
+		return ..com.interface(obj,IOleWindow)
+}  
+ 
+/**intellisense()
+com.interface.IOleWindow.Query(__/*com对象或指针*/) = 查询并创建IOleWindow接口
+!IOleWindow.AddRef() = 引用计数加一,返回引用计数
+!IOleWindow.Release() = 引用计数减一,返回引用计数
+!IOleWindow.QueryInterface(__/*接口数*/) = 参数是接口类,参考com.interface.IUnknown源码 
+!IOleWindow.GetWindow(0) =  返回句柄
+!IOleWindow.ContextSensitiveHelp(false) =  
+?com.interface.IOleWindow.Query = !IOleWindow.
+com.interface.IOleWindow.Query() = !IOleWindow.
+end intellisense**/

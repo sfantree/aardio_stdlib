@@ -1,0 +1,13 @@
+﻿import win.ui;
+/*DSG{{*/
+var winform = win.form(text="使用html5media让所有浏览器兼容<Video><Audio> 标签";right=1253;bottom=748)
+winform.add()
+/*}}*/
+
+import web.form; 
+var mb = web.form(winform)
+
+mb.go("https://html5media.info/")  
+winform.show();
+
+win.loopMessage();

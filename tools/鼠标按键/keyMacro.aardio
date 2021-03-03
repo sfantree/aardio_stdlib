@@ -1,0 +1,200 @@
+//按键指令生成器
+import key.hook;
+import win.ui;
+import win.clip;
+import winex;
+/*DSG{{*/
+var winform = win.form(text="按键指令生成器 正在录制......";right=397;bottom=392;max=false;parent=...)
+winform.add(
+btnCpy={cls="button";text="复制代码";left=273;top=349;right=384;bottom=383;z=1};
+btnPause={cls="button";text="暂停录制";left=141;top=349;right=252;bottom=383;z=2};
+chkLR={cls="checkbox";text="区分左右控制键";left=18;top=351;right=138;bottom=367;z=5};
+static={cls="static";text="本程序自动监测按键、切换窗体等操作,并生成相应的示范指令。";left=25;top=8;right=386;bottom=22;transparent=1;z=6};
+txtAction={cls="edit";text="请按键";left=15;top=27;right=382;bottom=52;align="center";edge=1;multiline=1;readonly=1;z=4};
+txtCode={cls="edit";left=15;top=57;right=382;bottom=343;edge=1;hscroll=1;multiline=1;readonly=1;vscroll=1;z=3}
+)
+/*}}*/
+
+var tabDown={};
+var tabUp={};
+var tabPress={} 
+ 
+recordDown = function(vk){  
+	var kname = key.getName(vk)
+	//防止重复记录同一个键的弹起消息
+	if( tabDown[#tabDown] == kname )
+		return;
+		
+	table.push( tabDown,kname );
+	showAction( "key.down" ,kname );	
+}
+ 
+recordUp = function(vk){
+	var kname = key.getName(vk)
+	
+	//防止重复记录同一个键的弹起消息
+	if( tabUp[#tabUp] == kname )
+		return;
+	
+	table.push( tabUp,kname );
+	showAction( "key.up" ,kname );
+	
+	if( (#tabUp) == (#tabDown) ){
+		if( #tabUp > 1 ){
+			addPress("key.combine",table.unpack(tabDown) );  
+		}
+		else{ 
+			addPress("key.press",table.unpack(tabDown) );
+		}
+		
+		tabUp = {};
+		tabDown = {}; 
+	}
+}
+
+getPattern = function(str){
+	if(!#str)
+		return "";
+		
+	var mbs = string.match(str,":+")
+	if(#mbs)
+		return mbs;
+		
+    str = string.replace(str,"(\p)","\\\1") 
+    str = string.replace(str,"\d+","\\d+") 	
+    return str;
+}
+ 
+var hwndPress = winform.hwnd;
+var tickPress = time.tick();
+addPress = function(op,...){
+	var last = tabPress[#tabPress];
+	var event = {op;...} ;
+	
+	if( last 
+		&& ( op == "key.press" )  
+		&&( ( (last[1]== "key.press") && (#last==2) ) || (last[1]== "key.repeat" ) )
+		&& last[2]==event[2] 
+	)  { 
+		table.pop( tabPress )
+		var n = last[3] : 1;
+		n++;
+		table.push( tabPress,{"key.repeat";last[2];n} )
+	}
+	else{
+	
+		//计算是否需要延时
+		if( time.tick()- tickPress > 500){
+			table.push(tabPress,{ "win.delay";time.tick()- tickPress }  );
+		}
+		
+		if( win.getForeground() != hwndPress ){
+			//建立窗体锚点
+			hwndPress = win.getForeground();
+			if( hwndPress != winform.hwnd){
+				var tfindarg = {"winex.findActivate"; getPattern(win.getText(hwndPress,10)) } 
+				var hctrl = winex.findEx(hwndPress);
+				if(hctrl){
+					table.push(tfindarg,getPattern(win.getText(hctrl,10)),getPattern(win.getClass(hwndPress)),getPattern(win.getClass(hctrl)),win.getId(hctrl) );
+				}
+				table.push(tabPress,tfindarg );
+			}
+		}
+		
+		table.push( tabPress,{op;...} )
+	}
+	
+	tickPress = time.tick() 
+	showAction( op,... )
+	showCode();
+}
+
+getArgString = function(t){
+	for(k,v in t){ 
+		if( type(v) == type.string ){
+			t[k] = '"' + v + '"';
+		}
+		else {
+			t[k] = tostring(v)
+		} 
+	}
+	return string.join(t,",");
+}
+ 
+act2Code = function(op,...){
+	var tab = {};
+	table.push( tab,op);
+	table.push( tab,"(",getArgString({...}) ,")" );
+	
+	return  string.join( tab );
+}
+ 
+showAction = function(op,...){
+	winform.txtAction.text = act2Code(op,...);
+	 
+} 
+ 
+showCode = function(){
+	var tab ={"import key;";"import winex;"}
+	for(i=1;#tabPress;1){
+	   table.push(tab,	act2Code( table.unpack(tabPress[i]) )  ); 
+	}
+	var str  = string.join(tab,'\r\n')
+	if(! winform.chkLR.checked )
+		str = string.replace(
+			str,
+			"<LCTRL>|<RCTRL>|<LSHIFT>|<RSHIFT>|<LALT>|<RALT>|<LWIN>|<RWIN>",
+			function(m){
+				return string.slice(m,2);
+			}
+		)
+	
+	winform.txtCode.text = str
+	winform.txtCode.setsel(-1,-1)
+	 
+}
+ 
+
+var hook = key.hook();
+
+var hookproc=function(msg,vkcode,scancode){ 
+    select(msg) {
+    	case 0x100/*_WM_KEYDOWN*/ ,0x104/*_WM_SYSKEYDOWN*/ {
+    	    recordDown( vkcode ) 
+    	}
+    	case 0x101/*_WM_KEYUP*/,0x105/*_WM_SYSKEYUP*/ {
+    	    recordUp( vkcode ); 
+    	}  
+    }   
+}
+hook.proc = hookproc
+
+winform.btnPause.oncommand = function(id,event){
+	if( winform.btnPause.text=="暂停录制" ){
+		hook.proc = null;
+		winform.btnPause.text = "继续录制"
+		winform.text = "按键指令生成器 已暂停" 
+		winform.txtAction.text = "已暂停"
+	}
+	else {
+		hook.proc = hookproc
+		winform.btnPause.text = "暂停录制"
+		winform.text = "按键指令生成器 正在录制......" 
+		winform.txtAction.text = "请选择目标窗体,然后按键"
+	}
+	
+	
+}
+ 
+winform.btnCpy.oncommand = function(id,event){
+	win.clip.write( winform.txtCode.text )
+}
+
+winform.chkLR.oncommand = function(id,event){ 
+	showCode() 
+}
+ 
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();
+hook.close()

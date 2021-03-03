@@ -1,0 +1,46 @@
+//font 字体对话框
+namespace win.dlg; 
+
+class font {
+	ctor(hwndOwner,param){
+		..table.assign(this,{
+   			INT structSize = 60;
+   			int hwndOwner = hwndOwner[["hwnd"]] : hwndOwner;
+   			pointer hDC;  
+   			pointer logFont;  
+   			int pointSize;
+   			INT flags = 0x3/*_CF_BOTH*/ | 0x100/*_CF_EFFECTS*/ | 0x1/*_CF_SCREENFONTS*/ |0x40/*_CF_INITTOLOGFONTSTRUCT*/;
+   			int rgbColors;  
+   			int custData; 
+   			pointer lpfnHook; 
+   			string templateName;  
+   			pointer hInstance; 
+   			string style; 
+   			WORD fontType = 0x400/*_REGULAR_FONTTYPE*/;
+   			int sizeMin = 8 ;
+   			int sizeMax = 72
+		} ,param)  
+	}
+	chooseFont = function(){ 
+		if( this.sizeMax ) this.flags = this.flags | 0x2000/*_CF_LIMITSIZE*/ 
+		if( type(this.logFont ) != type.buffer ){
+			this.logFont = ..raw.buffer( this.logFont[["_struct"]]?this.logFont : 60 );  
+		} 
+		
+		if(  ::Comdlg32.ChooseFont(this) ){
+			var logfont = ..raw.convert(this.logFont ,LOGFONT())
+			logfont.color = this.rgbColors;
+			return logfont;
+		}
+	} 
+}
+
+::Comdlg32 := ..raw.loadDll("comdlg32.dll");
+
+/**intellisense()
+win.dlg.font = 通用字体对话框
+win.dlg.font(winform__/*父窗体*/) = 创建通用字体对话框 
+win.dlg.font() = !windlgfont.
+!windlgfont.logFont = 字体对象\n!logfont.
+!windlgfont.chooseFont() = 弹出选择字体对话框,成功返回::LOGFONT结构体的字体\n!logfont.
+end intellisense**/ 

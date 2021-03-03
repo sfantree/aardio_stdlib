@@ -1,0 +1,194 @@
+//调试进程列表
+import ide;
+import win.ui;
+import win.ui.menu;
+/*DSG{{*/
+var winform = win.form(text="aardio- 调试进程列表";left=-2;top=-2;right=610;bottom=247;exmode="none";max=false;mode="popup";parent=...;topmost=1)
+winform.add(
+btnStop={cls="button";text="停止";left=475;top=216;right=572;bottom=242;db=1;dr=1;z=3};
+listview={cls="listview";left=9;top=7;right=602;bottom=199;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(name='SimSun');fullRow=1;gridLines=1;msel=false;vscroll=1;z=1};
+static={cls="static";left=13;top=8;right=494;bottom=24;dl=1;dt=1;transparent=1;z=2}
+)
+/*}}*/
+
+import win.ui.atom;
+var atom,hwnd = winform.atom("aardio.process.F4700CFB-B4ED-4637-8F19-C76B3B8DC7F9");
+if(!atom){ 
+	win.quitMessage();	return;
+}
+
+//初始化 列表框控件
+winform.listview.insertColumn("进程",50 ) 
+winform.listview.insertColumn("窗口",100 ) 
+winform.listview.insertColumn("CPU",40 ) 
+winform.listview.insertColumn("内存﻿工作集",80 ) 
+winform.listview.insertColumn("提交大小",80 ) 
+winform.listview.insertColumn("源文件",-1 )
+winform.listview.adjust = function(cx,cy){
+    winform.listview.fillParent(4);
+} 
+winform.transparent(210) 
+
+winform.listview.updateProcess = function(items){
+	var selIndex = winform.listview.selIndex;
+	winform.listview.clear();
+	for(i=1;#items;1){
+		winform.listview.addItem(items[i]);
+	}
+	winform.listview.selIndex = selIndex;
+}
+
+ 
+thread.invoke( 
+	function(winform){
+		import ide;
+		import winex;
+		import process;
+		import process.usage;
+
+		var usageList = {};
+		listProcess = function(winform){ 
+		 
+			var ptitle = {}
+			var plst = ide.processList();
+		
+			for hwnd,title,threadId,processId in winex.each(  ) { 
+				if(#title && ! ..win.getParent(hwnd) && ..win.isVisible(hwnd) ){  
+					ptitle[processId] = title;
+				}
+			}
+			
+			var procsList = {}
+			for(id,pathCode in plst ){
+				if( ..string.endWith(pathCode,".plugin") ) continue;
+				if( ..string.endWith(pathCode,"\tools\开发环境\statusBar.aardio") ) continue;
+				if(!usageList[id]){
+					usageList[id]= process.usage(id);
+				} 
+				
+				if(usageList[id]){
+					if( usageList[id].stillActive() ){
+						var memSet,commitSize = usageList[id].memString();
+						table.push(procsList,{ tostring(id);ptitle[id]:"";usageList[id].cpuString();memSet;commitSize; pathCode} )
+					}
+				}
+			}
+			
+			for(id,usage in usageList){
+				if( !usageList[id].stillActive() ){usageList[id].free();usageList[id]=null;}
+			}
+			
+			winform.listview.updateProcess(procsList);
+		}
+
+		while(!thread.get("ide.process.exit")){
+			listProcess(winform);
+			sleep(2000)
+		}
+		thread.set("ide.process.exit",null )
+		
+	},winform
+)
+
+import process;
+killProcess = function(){
+	var pid = winform.listview.getItemText( winform.listview.selIndex );
+	if(!pid){
+		winform.msgboxErr("请点选要停止的进程");
+		return;
+	}
+	
+	pid = tonumber( pid  );
+	if( pid ){
+		var prcs = process(pid,0x1/*_PROCESS_TERMINATE*/);
+		if( prcs ){
+			prcs.terminate();
+			prcs.free();
+			winform.listview.delItem( winform.listview.selIndex )
+			winform.listview.selIndex = -1;
+		}
+	}
+}
+
+editFile = function(){ 
+	var pid = winform.listview.getItemText( winform.listview.selIndex );
+	if(!pid){
+		winform.msgboxErr("请点选要编辑源码的进程");
+		return;
+	}
+	
+	pid = tonumber( pid  );
+	if( pid ){
+		var plst = ide.processList();
+		var file = plst[pid];
+		if( file ){
+			if( ..io.exist(file) ){
+				ide.openDocument(file)
+			}
+			else {
+				winform.msgboxErr("该源码尚未保存"); 
+			}
+			
+		}
+	}
+}
+
+setForeground = function(){ 
+	var pid = winform.listview.getItemText( winform.listview.selIndex );
+	if(!pid){
+		winform.msgboxErr("请点选要前置窗口的进程");
+		return;
+	}
+	
+	pid = tonumber( pid  );
+	if( pid ){
+		for hwnd,title,threadId,processId in winex.each(  ) { 
+			if(processId!=pid) continue;
+			if(#title && ! ..win.getParent(hwnd) && ..win.isVisible(hwnd) ){  
+				..win.setForeground(hwnd)
+			}
+		}
+	}
+}
+
+winform.popmenu = win.ui.popmenu(winform);//创建弹出菜单
+winform.popmenu.add('终止进程',function(id){ 
+	killProcess();
+});
+winform.popmenu.add('前置窗口(可直接双击)',function(id){ 
+	setForeground();
+});
+winform.popmenu.add('编辑源文件',function(id){ 
+	editFile();
+});
+
+
+winform.btnStop.oncommand = function(id,event){
+	killProcess();
+}
+ 
+winform.listview.onnotify = function(id,code,ptr){ 
+    
+    select(code) { 
+    	case 0xFFFFFFFB/*_NM_RCLICK*/  {
+    		var x,y = win.getMessagePos();
+    		winform.popmenu.popup(x,y,true);//弹出菜单
+    	}
+    	case 0xFFFFFFFD/*_NM_DBLCLK*/  {
+    		setForeground();
+    	}
+    }
+    
+}
+
+winform.onClose = function(hwnd,message,wParam,lParam){
+	winform.show(false);
+    thread.set("ide.process.exit",true )
+    while( thread.get("ide.process.exit") ){
+    
+    } 
+}
+
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();

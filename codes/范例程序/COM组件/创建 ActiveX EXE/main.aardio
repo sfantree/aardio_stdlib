@@ -1,0 +1,40 @@
+import win;
+import com.activeX;
+
+global.onError = function( err,over ){ 
+    if(!over){
+        import debug;
+        var stack = debug.traceback(,"调用栈",3);
+    }
+    
+    win.msgboxErr(err) 
+}
+
+import AardioTestControl.Sample;
+var activeX = com.activeX("AardioTestControl.Sample") 
+var ok,message = activeX.main();
+
+if( !ok && !message  ) {  
+	var id = win.msgbox("可用的启动参数如下:
+	
+/r 或 /RegServerPerUser 注册组件
+/u 或 /UnregServerPerUser 卸载组件
+
+按『是』注册控件，按『否』卸载控件","activeX控件演示",3/*_MB_YESNOCANCEL*/)   
+	
+    if( id == 6/*_IDYES*/ ){
+		activeX.register(); 
+		win.msgbox("注册组件成功");
+    }
+    elseif( id ==7/*_IDNO*/ ) {
+    	activeX.unRegister();
+    	win.msgbox("卸载组件成功");
+    } 
+} 
+elseif( message ){
+	win.msgbox(message); //注册或卸载控件回显信息  
+}
+else {
+	//ok为真,message为空表示组件成功启动
+}
+

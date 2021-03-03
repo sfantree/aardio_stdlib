@@ -1,0 +1,18 @@
+//localization 简繁体自动转换
+import win.ui;
+import string.conv;
+namespace win.ui.localization;
+	
+var L = ..string.conv.localized;
+
+..win._form.createWindowEx = function(exStyle,className,text,style,x,y,width,height,hwndParent,hMenu,hlnstance,lpParam){
+    return ::CreateWindowEx(exStyle,className,L(text),style,x,y,width,height,hwndParent,hMenu,hlnstance,lpParam);
+}
+
+..win.setText = function(hwnd,s){
+	return ::User32.SetWindowText(hwnd,L(s) );
+}
+
+/**intellisense()
+win.ui.localization = 在创建win.form对象以前导入,\n可检测系统内码自动对文本进行简繁体转换
+end intellisense**/

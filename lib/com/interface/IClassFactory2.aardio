@@ -1,0 +1,47 @@
+﻿import win.ole;
+import com.interface; 
+namespace com.interface;
+
+class IClassFactory2{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer CreateInstance = "int(pointer pUnkownOuter,struct iid,pointer& ppv)";
+	pointer LockServer = "int(bool bLock)"; 
+	pointer GetLicInfo = "int(struct &pLicInfo)"; 
+	pointer RequestLicKey__ = "int(INT dwReserved,ptr &pBstrKey)"; 
+	pointer CreateInstanceLic__ = "int(pointer pUnkownOuter,pointer pUnkReserved,struct iid,ptr bstrKey,pointer& ppv)"; 	
+	CreateInstanceLic = function(pUnkownOuter,pUnkReserved,iid,strKey){
+		var bstrKey = ::SysAllocString(strKey);
+		var hr,ppv = owner.CreateInstanceLic__(pUnkownOuter,pUnkReserved,iid,bstrKey);
+		::SysFreeString(bstrKey);
+		return hr,ppv;
+	}
+	RequestLicKey = function(){
+		var hr,bstrKey = owner.RequestLicKey__(0);
+		if(bstrKey){
+			var strKey = ..raw.str(bstrKey,true);
+			::SysFreeString(bstrKey); 
+			return strKey;
+		}
+	} 
+}
+
+IClassFactory2.IID = "{B196B28F-BAB4-101A-B69C-00AA00341D07}";
+
+ 
+IClassFactory2.Query = function(obj){
+	return ..com.interface(obj,IClassFactory2)
+}  
+           
+/**intellisense()
+com.interface.IClassFactory2.Query(__/*com对象或指针*/) = 查询并创建IClassFactory2接口
+!IClassFactory2.AddRef() = 引用计数加一,返回引用计数
+!IClassFactory2.Release() = 引用计数减一,返回引用计数
+!IClassFactory2.QueryInterface(__/*接口数*/) = 参数是接口类,参考com.interface.IUnknown源码
+!IClassFactory2.CreateInstance(__) = 注册
+!IClassFactory2.CreateInstanceLic(__) =  注册
+!IClassFactory2.RequestLicKey() =  生成注册码,无参数
+!IClassFactory2.LockServer(__) =  
+com.interface.IClassFactory2.Query() = !IClassFactory2. 
+end intellisense**/

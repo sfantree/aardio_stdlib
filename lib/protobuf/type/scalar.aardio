@@ -1,0 +1,17 @@
+import protobuf.message
+
+namespace protobuf.type
+
+class scalar{
+	ctor( ... ){
+		this = ..protobuf.message(...)
+		this.value = null;
+	};
+	setValue = function ( value ){	
+		this.value = value ;	
+	}
+	getValue = function(){
+		return this.value;
+	}
+	_isScalar = true;
+}

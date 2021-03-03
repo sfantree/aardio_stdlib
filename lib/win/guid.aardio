@@ -1,0 +1,114 @@
+//guid 唯一标识
+import util.metaProperty;
+namespace win 
+
+class guid{
+	ctor(d1,d2,d3,d4,...){
+		this.Data1 = d1;
+		this.Data2 = d2;
+		this.Data3 = d3;
+		this.Data4 = d4;
+		if( ...!== null ) this.Data4 = ..string.pack(d4,...);
+	}
+	INT Data1;
+	WORD Data2;
+	WORD Data3;
+	BYTE Data4[8]; 
+	@_metaProperty;
+}  
+
+namespace guid{
+	
+	::Ole32 := ..raw.loadDll("Ole32.dll");
+	Rpcrt4 := ..raw.loadDll("Rpcrt4.dll");
+	
+	_metaProperty = ..util.metaProperty(
+		_eq = function(b){   
+			return owner.Data1 == b.Data1 
+				&& owner.Data2 == b.Data2 
+				&& owner.Data3 == b.Data3 
+				&& owner.Data4 == b.Data4; 
+		};
+		isNull = function(){
+			return !(owner.Data1  || owner.Data2  || owner.Data3 || #owner.Data4); 
+		};
+		_tostring = function(lower) {
+			var ps = {ptr p};
+			var re = Rpcrt4.UuidToString(owner,ps)
+			if( ps.p ){
+				var str = ..string.fromUnicode(ps.p,,true );
+				Rpcrt4.RpcStringFree(ps);
+				return lower ? str : ..string.upper(str);
+			}
+		};
+		create = function(){
+			Rpcrt4.UuidCreate(owner);
+			return owner;
+		};
+		hex = function(){
+			return ..string.hex(..raw.buffer(owner));
+		};
+		fromString = function(progId){  
+			var hr;
+			progId = ..string.toUnicode(progId);
+			
+			if(progId[1]=='{'# ){
+				hr = ::Ole32.CLSIDFromString( progId,owner ) ;
+			}
+			else{
+				hr = ::Ole32.CLSIDFromProgID( progId,owner);
+			}
+			
+			if( (hr)>=0/*_SUCCEEDED*/ )
+				return owner; 
+		};
+		toProgId = function(){ 
+			var hr,,progId = ::Ole32.ProgIDFromCLSID(owner,{ptr value});
+			if( (hr)>=0/*_SUCCEEDED*/ ){ 
+				var str = ..string.fromUnicode(progId.value,,true);
+				::Ole32.CoTaskMemFree(progId.value) 
+				return str;  
+			}  
+		};
+	)
+
+	create = function() { 
+    	return ..win.guid().create();	 
+	};
+	
+	var _guid = create();
+	valid = function(guid){
+		if( type(guid) == "string" ) guid = fromString(guid);
+		if(  _guid._struct == guid[["_struct"]] ) return guid;
+	};
+	
+	fromString = function(progId){
+		return ..win.guid().fromString(progId); 
+	} 
+	  
+	toProgId = function(guid){
+		if( type(guid) == "string" )
+			guid = ..win.guid().fromString(guid);
+			
+		return guid.toProgId();
+	}
+}
+
+/**intellisense()
+win.guid.create() = 创建GUID结构体并初始化为唯一值,\n此对象可以使用tostring函数转换为大写字符串\n!win_guid.
+win.guid() = 创建GUID结构体,初始化为空值,\n此对象可以使用tostring函数转换为大写字符串,\ntostring参数为false是返回小写字符串\n!win_guid.
+win.guid(.(数值,数值,数值,'\x00\x00\x00\x00\x00\x00\x00\x00') = 创建GUID结构体\n参数@4也可以用8个字节码数值表示
+win.guid.fromString("__/*请输入ProgID*/") = 字符串转换为GUID\n失败返回null空值\n!win_guid.
+win.guid.toProgId("__/*请输入GUID*/") = GUID转换为ProgId(返回字符串)\n失败返回null空值
+win.guid.valid(.(GUID对象) = 判断是否有效GUID对象,\n如果参数是ProgId(字符串),则尝试转换,\n合法GUID则返回GUID对象,否则返回空
+win.guid.valid() = !win_guid.
+!win_guid.Data1 = INT类型
+!win_guid.Data2 = WORD类型
+!win_guid.Data3 = WORD类型
+!win_guid.Data4 = 字符串值
+!win_guid.hex() = 转换为16进制格式\n返回值可以置入单引号转义字符串内使用
+!win_guid.isNull() = 是否等于GUID_NULL，也就是结构体内存的所有字节值为0
+!win_guid.create() = 初始化为唯一值，返回自身\n!win_guid.
+!win_guid.fromString("__/*请输入ProgID*/") = 字符串转换为GUID结构体,返回自身,\n可使用tostring函数将GUID结构体重新转换为字符串\n!win_guid.
+!win_guid.toProgId() = CLSID转换为ProgId,返回字符串 
+end intellisense**/

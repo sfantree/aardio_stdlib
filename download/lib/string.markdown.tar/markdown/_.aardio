@@ -1,0 +1,231 @@
+//markdown 解释器
+//https://github.com/vmg/sundown
+import win.ui;
+namespace string;
+
+class markdown{
+	ctor( extensions,maxNesting=16,htmlOpt=0,useCallbacks){
+		if( extensions === null ){
+			extensions = 8/*_MD_MKDEXT_AUTOLINK*/ | 4/*_MD_MKDEXT_FENCED_CODE*/ | 2/*_MD_MKDEXT_TABLES*/  | 1/*_MD_MKDEXT_NO_INTRA_EMPHASIS*/
+		}
+		this._callbacks = sd_callbacks() ;
+		this._options = html_renderopt();
+		sdhtml_renderer(this._callbacks, this._options, 0);
+		
+		if( useCallbacks){
+			for(name,func in useCallbacks){
+				this._callbacks[name] = ..raw.tocdecl(func,sd_callbacks_proto[name],useCallbacks);  
+			} 
+		}  
+		
+		this._callback_c = ..raw.malloc(this._callbacks);
+		this._options_c = ..raw.malloc(this._options); 
+		var hMarkdown = sd_markdown_new(extensions,maxNesting,this._callback_c ,this._options_c );
+		if(!hMarkdown)return null,"sd_markdown_new failed!";
+		
+		..table.add_gc(this,"free");
+		
+	};
+	render = function(str){  
+		var ob = buffer(64);
+		sd_markdown_render(ob, str, #str, hMarkdown);
+		var str = tostring(ob) ;
+		ob.release(); 
+		return str;
+	};
+	free = function(){
+		if( hMarkdown ){
+			sd_markdown_free( hMarkdown );
+			hMarkdown = null;
+		}
+	}
+}
+
+namespace markdown{
+	var dll = ..raw.loadDll($"~/lib/string/markdown/.res/sundown.dll","sundown.dll","cdecl")
+
+	sd_markdown_new = dll.api("sd_markdown_new","pointer(INT extensions,INT maxNesting,POINTER callbacks,POINTER opaque)" )
+	sd_markdown_render = dll.api("sd_markdown_render","void(POINTER ob,pointer document,INT doc_size,POINTER md)" )
+	sd_markdown_free = dll.api("sd_markdown_free","void(POINTER md)" ) 
+	
+	sdhtml_renderer = dll.api("sdhtml_renderer","INT(struct &callbacks,struct &options,INT render_flags)" )   
+	sdhtml_smartypants = dll.api("sdhtml_smartypants","INT(POINTER ob,POINTER text,INT size)" )   
+	
+	class buffer{
+		ctor( size = 1024 ){
+			var hBuffer;
+			
+			if( type(size) == type.pointer){
+				hBuffer = size;
+			}
+			else{
+				hBuffer = bufnew(size)
+				..table.add_gc(this,"release");
+			}
+		};
+		grow = function( size = 64 ){
+			return bufgrow(hBuffer, size ) == 0;
+		}
+		release = function(){
+			if(hBuffer){
+				bufrelease(hBuffer)
+				hBuffer = null;
+			}
+		}
+		put = function(s,len){
+			if(!len)len=#s;
+			bufput( hBuffer,s,len );
+		}
+		printf = function(f,...){
+			var s = ..string.format(f,... )
+			bufput( hBuffer,s,#s )
+		}
+		
+		data = function(){
+			return bufdata(hBuffer);
+		}
+		size = function(){
+			return bufsize(hBuffer);
+		}
+		totring = function(){
+			return bufcstr(hBuffer);
+		} 
+		topointer = function(){
+			return hBuffer;
+		}
+		@_meta;
+	}
+	namespace buffer{
+		_meta = {
+			_topointer = function(){
+				return owner.topointer();
+			} 
+			_tostring = function(){
+				return owner.totring();
+			}
+		}
+		
+		bufnew = dll.api("bufnew","pointer(INT size)" ) 
+		bufgrow = dll.api("bufgrow","int(POINTER buf,INT size)" ) 
+		bufrelease = dll.api("bufrelease","void(POINTER buf)" ) 
+		bufcstr = dll.api("bufcstr","string(POINTER buf)" ) 
+		bufsize = dll.api("bufsize","INT(POINTER buf)" ) 
+		bufdata = dll.api("bufdata","pointer(POINTER buf)" )  
+		bufput = dll.api("bufput","INT(POINTER buf,pointer,INT size)" ) 	
+	}
+	
+	class html_renderopt {
+		stuct toc_data = {
+			int header_count;
+			int current_level;
+			int level_offset;
+		};
+		INT flags;
+		pointer link_attributes; /* extra callbacks */ 
+	};
+	
+	class sd_callbacks { 
+		pointer blockcode ;
+		pointer blockquote;
+		pointer blockhtml;
+		pointer header;
+		pointer hrule;
+		pointer list;
+		pointer listitem;
+		pointer paragraph;
+		pointer table;
+		pointer table_row;
+		pointer table_cell; 
+		pointer utolink;
+		pointer codespan;
+		pointer double_emphasis;
+		pointer emphasis;
+		pointer image;
+		pointer linebreak;
+		pointer link;
+		pointer raw_html_tag;
+		pointer triple_emphasis;
+		pointer strikethrough;
+		pointer superscript; 
+		pointer entity;
+		pointer normal_text; 
+		pointer doc_header;
+		pointer doc_footer;
+	};
+	
+	sd_callbacks_proto = {
+		blockcode = "void(pointer ob, pointer text, pointer lang, pointer opaque)";
+		blockquote = "void(pointer ob, pointer text, pointer opaque)";
+		blockhtml = "void(pointer ob,pointer text, pointer opaque)";
+		header = "void(pointer ob, pointer text, int level, pointer opaque)";
+		hrule = "void(pointer ob, pointer opaque)";
+		list = "void(pointer ob, pointer text, int flags, pointer opaque)";
+		listitem = "void(pointer ob, pointer text, int flags, pointer opaque)";
+		paragraph = "void(pointer ob, pointer text, pointer opaque)";
+		table = "void(pointer ob, pointer header, pointer body, pointer opaque)";
+		table_row = "void(pointer ob, pointer text, pointer opaque)";
+		table_cell = "void(pointer ob, pointer text, int flags, pointer opaque)";
+		autolink = "int(pointer ob, pointer link,int type, pointer opaque)";
+		codespan = "int(pointer ob, pointer text, pointer opaque)";
+		double_emphasis = "int(pointer ob, pointer text, pointer opaque)";
+		emphasis = "int(pointer ob, pointer text, pointer opaque)";
+		image = "int(pointer ob, pointer link, pointer title, pointer alt, pointer opaque)";
+		linebreak = "int(pointer ob, pointer opaque)";
+		link = "int(pointer ob, pointer link, pointer title, pointer content, pointer opaque)";
+		raw_html_tag = "int(pointer ob, pointer tag, pointer opaque)";
+		triple_emphasis = "int(pointer ob, pointer text, pointer opaque)";
+		strikethrough = "int(pointer ob, pointer text, pointer opaque)";
+		superscript = "int(pointer ob, pointer text, pointer opaque)";
+		entity = "void(pointer ob, pointer entity, pointer opaque)";
+		normal_text = "void(pointer ob, pointer text, pointer opaque)";
+		doc_header = "void(pointer ob, pointer opaque)";
+		doc_footer = "void(pointer ob, pointer opaque)";
+	}
+}
+
+/**intellisense()
+string.markdown(extensions,maxNesting,htmlOpt) = 创建MARKDOWN解析器,所有参数可选
+string.markdown(extensions,maxNesting,htmlOpt,自定义回调函数) = @.markdown(8,,,{\n	blockcode = function(ob, text, lang, opaque){  \n		ob = string.markdown.buffer(ob);\n		text = string.markdown.buffer(text);\n		ob.put( tostring(text) )\n	}; \n} );
+string.markdown() = !string_markdown.
+!string_markdown.render(.(MARKDOWN字符串) = 解析并返回HTML
+!string_markdown.free() = 释放解析器对象,\n该函数可在对象回收时自动调用
+string.markdown.buffer(.(缓冲区初始大小) = 创建缓冲区,参数可选
+string.markdown.buffer() = !string_markdown_buf.
+!string_markdown_buf.grow(.(增加大小) =  增加缓冲区大小
+!string_markdown_buf.put(.(写入数据,长度) = 写入数据到缓冲区,长度为可选参数
+!string_markdown_buf.printf(.("%s",其他格式化参数) = 写放格式化字符串,\n格式化语法与 string.format相同
+!string_markdown_buf.data() = 返回缓冲区指针
+!string_markdown_buf.size() = 返回缓冲区数据大小
+!string_markdown_buf.totring() = 返回缓冲区文本
+
+_MD_HTML_SKIP_HTML=@1/*_MD_HTML_SKIP_HTML*/
+_MD_HTML_SKIP_STYLE=@2/*_MD_HTML_SKIP_STYLE*/
+_MD_HTML_SKIP_IMAGES=@4/*_MD_HTML_SKIP_IMAGES*/
+_MD_HTML_SKIP_LINKS=@8/*_MD_HTML_SKIP_LINKS*/
+_MD_HTML_EXPAND_TABS=@0x10/*_MD_HTML_EXPAND_TABS*/
+_MD_HTML_SAFELINK=@0x20/*_MD_HTML_SAFELINK*/
+_MD_HTML_TOC=@0x40/*_MD_HTML_TOC*/
+_MD_HTML_HARD_WRAP=@0x80/*_MD_HTML_HARD_WRAP*/
+_MD_HTML_USE_XHTML=@0x100/*_MD_HTML_USE_XHTML*/
+_MD_HTML_ESCAPE=@0x200/*_MD_HTML_ESCAPE*/
+_MD_HTML_TAG_NONE=@0/*_MD_HTML_TAG_NONE*/
+_MD_HTML_TAG_OPEN=@1/*_MD_HTML_TAG_OPEN*/
+_MD_HTML_TAG_CLOSE=@2/*_MD_HTML_TAG_CLOSE*/
+_MD_MKDA_NOT_AUTOLINK=@0/*_MD_MKDA_NOT_AUTOLINK*/
+_MD_MKDA_NORMAL=@1/*_MD_MKDA_NORMAL*/
+_MD_MKDA_EMAIL=@2/*_MD_MKDA_EMAIL*/
+_MD_MKD_TABLE_ALIGN_L=@1/*_MD_MKD_TABLE_ALIGN_L*/
+_MD_MKD_TABLE_ALIGN_R=@2/*_MD_MKD_TABLE_ALIGN_R*/
+_MD_MKD_TABLE_ALIGN_CENTER=@3/*_MD_MKD_TABLE_ALIGN_CENTER*/
+_MD_MKD_TABLE_ALIGNMASK=@3/*_MD_MKD_TABLE_ALIGNMASK*/
+_MD_MKD_TABLE_HEADER=@4/*_MD_MKD_TABLE_HEADER*/
+_MD_MKDEXT_NO_INTRA_EMPHASIS=@1/*_MD_MKDEXT_NO_INTRA_EMPHASIS*/
+_MD_MKDEXT_TABLES=@2/*_MD_MKDEXT_TABLES*/
+_MD_MKDEXT_FENCED_CODE=@4/*_MD_MKDEXT_FENCED_CODE*/
+_MD_MKDEXT_AUTOLINK=@8/*_MD_MKDEXT_AUTOLINK*/
+_MD_MKDEXT_STRIKETHROUGH=@0x10/*_MD_MKDEXT_STRIKETHROUGH*/
+_MD_MKDEXT_SPACE_HEADERS=@0x40/*_MD_MKDEXT_SPACE_HEADERS*/
+_MD_MKDEXT_SUPERSCRIPT=@0x80/*_MD_MKDEXT_SUPERSCRIPT*/
+_MD_MKDEXT_LAX_SPACING=@0x100/*_MD_MKDEXT_LAX_SPACING*/
+end intellisense**/
+

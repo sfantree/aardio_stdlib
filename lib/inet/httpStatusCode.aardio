@@ -1,0 +1,143 @@
+//httpStatusCode HTTP状态码
+namespace inet.httpStatusCode;
+	
+..table.assign( self, {
+	[100]="提示/客户端应继续请求";
+	[101]="提示/切换协议";
+	[200]="已成功";
+	[201]="已成功/创建资源";
+	[202]="已成功/接受请求";
+	[203]="已成功/非权威信息";
+	[204]="已成功/无内容";
+	[205]="已成功/重置内容";
+	[206]="已成功/断点续传部份内容";
+	[300]="重定向/多项选择";
+	[301]="重定向/永久移动地址";
+	[302]="重定向/已找到地址";
+	[303]="重定向/参见其他";
+	[304]="重定向/未修改使用缓存";
+	[305]="重定向/需使用代理";
+	[306]="重定向/未使用";
+	[307]="重定向/临时";
+	[400]="客户端错误/错误请求";
+	[401]="客户端错误/未授权";
+	[402]="客户端错误/需付费";
+	[403]="客户端错误/禁止访问";
+	[404]="客户端错误/未找到";
+	[405]="客户端错误/错误的指令动词";
+	[406]="客户端错误/拒绝请求";
+	[407]="客户端错误/要求代理认证";
+	[408]="客户端错误/请求超时";
+	[409]="客户端错误/冲突";
+	[410]="客户端错误/已删除";
+	[411]="客户端错误/未指定长度";
+	[412]="客户端错误/未满足前提条件";
+	[413]="客户端错误/请求实体太大";
+	[414]="客户端错误/请求地址太长";
+	[415]="客户端错误/不支持的媒体类型";
+	[416]="客户端错误/错误的字节区段";
+	[417]="客户端错误/预期结果失败";
+	[451]="客户端错误/法律原因禁止访问";
+	[500]="服务器错误/内部错误";
+	[501]="服务器错误/未实现";
+	[502]="服务器错误/网关故障";
+	[503]="服务器错误/无效服务";
+	[504]="服务器错误/网关超时";
+	[505]="服务器错误/不支持的HTTP协议版本"
+} )
+
+en = {
+	[100] = "Continue";
+	[101] = "Switching Protocols";
+	[200] = "OK";
+	[201] = "Created";
+	[202] = "Accepted";
+	[203] = "Non-Authoritative Information";
+	[204] = "No Content";
+	[205] = "Reset Content";
+	[206] = "Partial Content";
+	[300] = "Multiple Choices";
+	[301] = "Moved Permanently";
+	[302] = "Moved Temporarily";
+	[303] = "See Other";
+	[304] = "Not Modified";
+	[305] = "Use Proxy";
+	[307] = "Redirect Keep Verb";
+	[400] = "Bad Request";
+	[401] = "Unauthorized";
+	[402] = "Payment Required";
+	[403] = "Forbidden";
+	[404] = "Not Found";
+	[405] = "Bad Request";
+	[406] = "Not Acceptable";
+	[407] = "Proxy Authentication Required";
+	[408] = "Request Timed-Out";
+	[409] = "Conflict";
+	[410] = "Gone";
+	[411] = "Length Required";
+	[412] = "Precondition Failed";
+	[413] = "Request Entity Too Large";
+	[414] = "Request, URI Too Large";
+	[415] = "Unsupported Media Type";
+	[416] = "Requested Range not satisfiable";
+	[417] = "Expectation failed";
+	[451] = "Unavailable For Legal Reason";
+	[500] = "Internal Server Error";
+	[501] = "Not Implemented";
+	[502] = "Bad Gateway";
+	[503] = "Server Unavailable";
+	[504] = "Gateway Timed-Out";
+	[505] = "HTTP Version not supported";
+}
+
+format = function(status){
+	if( type(status) == "string" ) return status;
+	status = ..math.floor(status);
+	return ..string.format("%d %s",status,en[status])
+}
+
+/**intellisense(inet.httpStatusCode) 
+continue=@100/*continue*/
+switchingProtocols=@101/*switchingProtocols*/
+ok=@200/*ok*/
+created=@201/*created*/
+accepted=@202/*accepted*/
+non=@203/*non*/-AuthoritativeInformation;
+noContent=@204/*noContent*/
+resetContent=@205/*resetContent*/
+partialContent=@206/*partialContent*/
+multipleChoices=@300/*multipleChoices*/
+movedPermanently=@301/*movedPermanently*/
+found=@302/*found*/
+seeOther=@303/*seeOther*/
+notModified=@304/*notModified*/
+useProxy=@305/*useProxy*/
+useProxy=@306/*Unused*/ 
+temporaryRedirect=@307/*temporaryRedirect*/
+badRequest=@400/*badRequest*/
+unauthorized=@401/*unauthorized*/
+paymentRequired=@402/*paymentRequired*/
+forbidden=@403/*forbidden*/
+notFound=@404/*notFound*/
+methodNotAllowed=@405/*methodNotAllowed*/
+notAcceptable=@406/*notAcceptable*/
+proxyAuthenticationRequired=@407/*proxyAuthenticationRequired*/
+requestTimeout=@408/*requestTimeout*/
+conflict=@409/*conflict*/
+gone=@410/*gone*/
+lengthRequired=@411/*lengthRequired*/
+preconditionFailed=@412/*preconditionFailed*/
+requestEntityTooLarge=@413/*requestEntityTooLarge*/
+request=@414/*request*/-URITooLong;
+unsupportedMediaType=@415/*unsupportedMediaType*/
+requestedRangeNotSatisfiable=@416/*requestedRangeNotSatisfiable*/
+expectationFailed=@417/*expectationFailed*/
+internalServerError=@500/*internalServerError*/
+notImplemented=@501/*notImplemented*/
+badGateway=@502/*badGateway*/
+serviceUnavailable=@503/*serviceUnavailable*/
+gatewayTimeout=@504/*gatewayTimeout*/
+httpVersionNotSupported=@505/*httpVersionNotSupported*/
+en[__] = 状态码英文描述
+format(__) = 状态码数值转为文本
+end intellisense**/

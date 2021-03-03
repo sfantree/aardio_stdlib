@@ -1,0 +1,79 @@
+﻿//ssdp 设备发现
+import wsock.udp.asynClient;
+import wsock.err;
+
+namespace wsock.udp;
+
+class ssdpClient{
+	ctor(ip){
+		if( ip === null ){
+			ip = queryLocalIp()[1];
+		}
+		this.socket = ..wsock.udp.asynClient(); 
+		this.socket.reuseAddress(true);
+		this.socket.setMulticastInterface(ip);
+		this.socket.joinGroup("239.255.255.250");
+		this.socket.bind(ip);  
+		
+		this.socket.onReceive = function(err){
+			if(err){
+				if( this.onError )this.onError (..wsock.err.lasterr(err) ) 
+				return;
+			}
+			
+			var responseLines = this.socket.recvfrom(1024,"239.255.255.250",1900 ); 
+			if(!responseLines) return null,..wsock.err.lasterr();
+		
+			responseLines = ..string.trimright(responseLines);
+			var httpHeaders = ..string.split(responseLines,'<\r\n>');
+			var statusLine = httpHeaders[1] ? ..string.splitEx(httpHeaders[1],"\s+",3); 
+			if(  ..string.startWith(statusLine[1],"HTTP/",true) ){
+			 	
+			 	if( this.onDeviceDiscovered ){
+					var status = statusLine[2];
+					if( status != "200" )return null,"响应状态码错误";
+					..table.shift(httpHeaders,1); 
+					
+					var responseHeaders = {};
+					for(i=#httpHeaders;1;-1){
+						var h = ..string.splitEx(httpHeaders[i],"\:\s*",2);
+						h[1] = ..string.trim(h[1]); h[2] = ..string.trim(h[2]:"");
+						responseHeaders[ ..string.lower(h[1])] = h[2];  
+					}  
+					
+					this.onDeviceDiscovered( responseHeaders );	
+				}
+			}
+			else {
+				
+			}
+		}
+		
+	};
+	discover = function(st,mx){ 
+		var requestLines = ..string.format('M-SEARCH * HTTP/1.1\r\n
+HOST: 239.255.255.250:1900\r\n
+MAN: "ssdp:discover"\r\n
+MX: %d\r\n
+ST: %s\r\n\r\n',mx:5,st : "ssdp:all");
+		this.socket.sendto(requestLines,"239.255.255.250",1900); 
+	}
+}
+
+ssdpClient.queryLocalIp = function(){
+	var ips = { ..wsock.getIp() };
+	var ips2 = ..table.filter(ips,lambda(v) ..string.startWith(v,"192.168.") );
+	if(!#ips2)  ips2 = ..table.filter(ips,lambda(v) ..string.startWith(v,"10.") );
+	if(!#ips2)  ips2 = ..table.filter(ips,lambda(v) ..string.startWith(v,"172.") );
+	if(!#ips2)  ips2 = ..table.filter(ips,lambda(v) !..string.startWith(v,"169.254.") );
+	return #ips2 ? ips2 : ips;
+};
+	
+/**intellisense()
+wsock.udp.ssdpClient() = SSDP - 局域网简单设备发现协议客户端\n!wsock_udp_ssdpClient.
+!wsock_udp_ssdpClient.socket = UDP套接字对象\n!udp_asynClient.
+!wsock_udp_ssdpClient.discover(.(st,mx) = 查询设备\nst为要查询的设备类型,mx为1到5的表示等待秒数的数值\n所有参数都可以省略,
+!wsock_udp_ssdpClient.onDeviceDiscovered(info) = @.onDeviceDiscovered = function(info){
+	__
+}
+end intellisense**/

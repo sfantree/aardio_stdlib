@@ -1,0 +1,332 @@
+//url 网址分析
+namespace inet.url;
+ 
+::Shlwapi := ..raw.loadDll("Shlwapi.dll");
+is = function(url,urlis){
+	if(type(url)!="string") return false;
+	return Shlwapi.UrlIsA(url,urlis : 0);
+}
+
+UrlCombine = Shlwapi.api("UrlCombineW", "int(ustring base,ustring relative,ustring& combined,INT& size, INT flags)" )
+joinpath = function(base,relative,flag=0){ 
+    if(!#relative)return base;
+	var hr,url,cch = UrlCombine(base,relative,0,0,flag);
+	var hr,url = UrlCombine(base,relative,cch,cch,flag);
+	if( !hr) return url;
+}
+
+append = function(base,relative,...){ 
+	if( base[#base] != '/'#  ) base = base + "/"
+	var url = joinpath( base,..string.trimleft(relative,"/\") );
+	if(!...) return url;
+	return append(url,...);
+}
+
+appendExtraInfo = function(url,param){
+    if(type(param)==="table"){param=stringifyParameters(param)}
+	if(!#param) return url;
+	var turl = split(url);
+	if( #turl.extraInfo ) turl.extraInfo = turl.extraInfo + "&" + param;
+	else turl.extraInfo = "?" + param;
+	return tostring(turl);	
+}
+
+UrlCanonicalize = Shlwapi.api("UrlCanonicalizeW","int(ustring url,ustring& out,INT& size, INT flags)" )
+canonicalize = function(url,flag=0){
+	var hr,url = UrlCanonicalize(url,0x1000,0x800,flag)
+	if( !hr ) return url;
+}
+
+hashNum = function(url){
+	var hr,hash = ::Shlwapi.HashData(url,#url,{INT value},4);
+	if(!hr) return hash.value;
+}
+
+encode = function(s,cp){
+	if( cp === null ) cp = 65001;
+	elseif( type(cp) != "number") cp = cp ? 65001 : 0;
+	if( cp != 65001 ) s = ..string.fromto(s,65001,cp);
+	
+	return ..string.hex(s,"%","-._~");
+} 
+
+encodeUri = function(s,cp){
+	if( cp === null ) cp = 65001;
+	elseif( type(cp) != "number") cp = cp ? 65001 : 0;
+	if( cp != 65001 ) s = ..string.fromto(s,65001,cp);
+	
+	return ..string.hex(s,"%","-._~!*'();/?:@&=+$,#[]");	
+}
+
+encodeMbcs = function(s,cp){
+	if(!..string.find(s,":") ) return s;
+	
+	if( cp === null ) cp = 65001;
+	elseif( type(cp) != "number") cp = cp ? 65001 : 0;
+	if( cp != 65001 ) s = ..string.fromto(s,65001,cp);
+	
+	return ..string.hex(s,"%",'\x80');
+}
+
+decodeUnicode = function(s){    
+    s = ..string.replace(s,"\%u(\x\x\x\x)", "\\u\1" );   
+    return decode(..string.unescape(s),true);
+}
+
+decode = function(s,cp){  
+	if(!s) return;
+	if( cp === null ) cp = "test";
+	elseif( type(cp) != "number") cp = cp ? 65001 : 0;
+	
+	s =  ..string.replace(s,"\+"," ");
+	s = ..string.unhex(s,"%");
+	if(!s) return;
+	
+	if(cp === "test"){
+		if( !..string.isUtf8(s) ){
+			return ..string.fromto(s,0,65001);
+		}
+	}
+	elseif( cp != 65001 ) {
+		return ..string.fromto(s,cp,65001); 
+	} 
+	
+	return s;
+}
+
+stringifyParameters = function(param,cp,cmp){ 
+	if( type(param) != "table" ) return param;
+	
+	var lst,k,v = {};
+	for(k,v in ..table.eachName(param,cmp) ){
+		k = encode(k,cp);
+		if(type(v)===type.table){
+			for(i=1;#v;1){
+				..table.push( lst,k,"[]=",( encode(tostring(v[i]),cp) ),"&" )
+			}
+			
+			for p,v in ..table.eachName(v,cmp){
+				..table.push( lst,k,"[",encode(p,cp),"]=",( encode(tostring(v),cp) ),"&" )
+			} 
+		}
+		else {
+			..table.push( lst,k,"=",( encode(tostring(v),cp) ),"&" )
+		} 
+	}
+	
+	if( lst[#lst] == '&' ) ..table.pop(lst)
+	return ..string.join(lst ); 
+} 
+
+splitParameters = function(param,delimiter,cp){ 
+    if( (param[1] == '?'#) && (delimiter===null) ) param = ..string.right(param,-2);
+    
+	var list,k,v = {@{_readonly=false;_type="object"}};
+	for line in ..string.lines(param,delimiter : "\&\s*") { 
+		var kv = ..string.split(line,"=",2);
+		if(#kv==2) {
+			k = decode(kv[1],cp);
+			if( k ){
+				k = ..string.lower(k);
+				v = decode( kv[2],cp );
+				if( k[#k] == ']'# ){
+					var n,p = ..string.match(k,"(.+)\[(.*)\]");
+					if(n){
+						if( type(list[n]) != type.table ){
+							list[n] = {list[n]}
+						}
+						
+						if(#p){
+							list[n][tonumber(p):p] = v;
+						}
+						else {
+							..table.push(list[n],v);
+						} 
+						
+						continue;
+					}
+				}
+				
+				list[k] = v;
+			} 
+		}
+	}
+	return list; 
+}	
+
+::Wininet := ..raw.loadDll("Wininet.dll")
+var _urlinfo ={
+	_tostring = function(){
+		var push = ..table.push;
+		
+		var t = {owner.scheme:"http";'://'};
+		if(owner.user){
+			push(t,encode(owner.user));if(owner.password){ push(t,":",encode(owner.password));} push(t,"@");
+		}
+		
+		push(t,owner.host);
+		if(owner.port){
+			if( ..string.cmp(owner.scheme,"https") == 0 ){
+				if( owner.port != 443 ) push(t,":",owner.port);
+			}
+			elseif( owner.port != 80 ) push(t,":",owner.port); 
+		}
+		
+		if(#owner.path){
+			if( owner.path[1] !='/'#){ push(t,"/"); }
+			push(t,owner.path);
+		}
+		
+		if(type(owner.extraInfo)=="table"){
+			push(t,"?",stringifyParameters(owner.extraInfo));
+		}
+		else {
+			push(t,owner.extraInfo);
+		}
+		
+		if(#owner.location)push(t,"#",encode(owner.location));
+		
+		return ..string.join(t); 
+	}
+}
+
+stringify = function(info){
+	return tostring( ..table.assign( split(),info) );
+}
+
+split = function(url){
+	var info = {
+ 		INT size = 60;
+ 		ptr scheme  ;
+ 		INT schemeLen = 1;
+ 		INT schemeNum;
+ 		ptr host;
+ 		INT hostLen = 1;
+ 		WORD port;
+ 		ptr user;
+ 		INT userLen = 1;
+ 		ptr password;
+ 		INT passwordLen = 1;
+ 		ptr path;
+ 		INT pathLen = 1;
+ 		ptr extraInfo ;
+ 		INT extraInfoLen = 1;
+	};
+	if(!url) return {@_urlinfo};
+	url = ..string.toUnicode(url);
+	var ok = ::Wininet.InternetCrackUrlW(url,#url/2,0,info);
+	if(ok){
+		var v;
+		var r = {@_urlinfo};
+		
+		info.size = null;
+		for(k,len in info){
+			var n = ..string.match(k,"(\w+)Len");
+			if(!n){ if( type(len)=="number") r[k]=len;continue;}
+			
+			v = info[n];
+			if(v) r[n] = ..string.fromUnicode(v,,len);
+		}
+		
+		if(#r.extraInfo){
+			var a,b = ..string.match(r.extraInfo,"(.*)#(.*)$")
+			if(a && b) {
+				r.extraInfo = #a ? a : null;
+				r.location = #b ? b : null;
+			}
+		}
+		return r;
+	}
+}
+
+getFileName = function(url,d = "index.html"){
+	var turl = split(url)
+	var tpath = ..io.splitpath(turl.path) //拆分路径
+	return #tpath.file ? tpath.file : "index.html";
+}
+
+/**intellisense(inet.url)
+is(url,_URLIS__) = 检测URL 
+joinpath( = 当对于当前URL的相对路径转换为完整URL\n注意该函数忽略文件名,简单拼接请使用append函数替代
+joinpath(.("当前URL",相对路径,_URL__) = 当对于当前URL的相对路径转换为完整URL\n相对路径如果为空则直接返回参数@1,\n可选使用参数三指定转换选项
+appendExtraInfo(.(url,附加参数) = 在URL后追加参数\n参数首字符不能是问号\n参数@2也可以指定一个包含多个参数键值对的表
+append( = 拼接URL
+append(.(url目录,url子路径,->->->) = 支持不定个数参数\n第一个参数无论是否以"/"字符结束都认为是一个目录
+canonicalize(__/*URL*/) = URL规范化转换\n扩展和适当置换路径中包含的所有..和.
+canonicalize("当前URL",_URL__) = URL规范化转换\n参数三指定转换选项
+hashNum(__/*url*/) = 返回哈希数值
+split(__/*输入URL*/) = 拆分URL返回包含协议、路径、端口、参数等的表对象\n返回的表对象可以调用tostring重新生成URL\n可传入空值以获取用于拼接URL的表
+split() = !inet_urlcrack. 
+stringify(urlInfo) = @.stringify(\n	scheme = "https";\n	user = "";\n	password ="";\n	host ="__/*使用参数表构建并返回URL字符串*/";\n	location = "";\n	extraInfo = {\n		name = value;\n	};\n)
+splitParameters( = 拆分URL参数并返回名值对组成的表对象\n名字都转换为小写,如果名字尾部有[]或[键名]则值转换为表
+splitParameters(.(URL参数,分隔符,输入UTF8编码) = 拆分URL参数并返回表对象,分隔符支持模式语法,默认为'\&&'\n如果不指定分隔符,并且首字符是?号,此函数自动移除首字符,\n使用URL解码键值文本,参数二指定解码前是否UTF8编码,不指定则自动检测
+stringifyParameters( = 将URL参数表转换为字符串
+stringifyParameters(.(参数表,输出代码页,排序函数) = 使用'='分隔键值对,使用'&&'分隔不同参数,\n如果值为表,则转换为多个键值对,键名后添加[]或[子键名],\n对所有值使用UrlEncode编码,\n参数@2指定输出编码（codepage）,默认为65001（UTF8代码页)\n省略排序函数则使用默认字典序排序
+encode(.(字符串,输出代码页) = 除字母数字以及-_!.~*等非保留字符以外的字符进行URL编码,\n参数二指定输出编码(codepage),默认为65001(UTF8代码页)
+decode(.(字符串,输入代码页) = URL解码并返回文本,失败返回空值,\n参数二指定输入编码(codepage),省略自动检测输入编码\n此函数返回数据转换为UTF8编码
+encodeMbcs(.(字符串,输出代码页) = 如果字符串包含多字节字符,\n使用URL编码其中的汉字和%符号,\n参数二指定输出编码(codepage),默认为65001(UTF8代码页)
+decodeUnicode(.(字符串) = 解码%uXXXX或%uXX编码的字符串\n失败返回空值
+encodeUri(.(字符串,输出代码页) = URL编码,\n字母数字以及URL非保留字符、URL保留字符都不编码,\n参数二指定输出编码(codepage),默认为65001(UTF8代码页)
+getFileName(.(网址,默认文件名) = 获取URL中的文件名\n参数2可选,默认为"index.html"
+end intellisense**/
+
+/*intellisense(!inet_urlcrack)
+scheme = 协议
+schemeNum = 协议(数值)\n重新拼接URL时忽略此参数
+host = 域名
+user = 用户名
+password = 密码
+path = 文件路径;
+extraInfo = 附加参数\n如果有URL参数,这里首字符会是?号\n不包含#号后面的网页位置
+port = 端口
+location = URL中#号后面的网页位置,不包含#号
+end intellisense*/
+                                    
+/**intellisense()
+_URLIS_URL=@0x0/*_URLIS_URL*/
+_URLIS_OPAQUE=@//是否Opaque URL,如邮件地址,Javascript脚本\n0x1/*_URLIS_OPAQUE*/
+_URLIS_NOHISTORY=@//URL是否未曾访问过\n0x2/*_URLIS_NOHISTORY*/
+_URLIS_FILEURL=@//是否指向本机文件\n0x3/*_URLIS_FILEURL*/
+_URLIS_APPLIABLE=@//检测URL指定的协议是否可用\n0x4/*_URLIS_APPLIABLE*/ 
+_URLIS_DIRECTORY=@//检测URL是否指向目录\n0x5/*_URLIS_DIRECTORY*/ 
+_URLIS_HASQUERY=@//检测URL是否有参数(Query String)\n0x6/*_URLIS_HASQUERY*/ 
+_URL_UNESCAPE=@0x10000000/*_URL_UNESCAPE*/
+_URL_ESCAPE_UNSAFE=@0x20000000/*_URL_ESCAPE_UNSAFE*/
+_URL_PLUGGABLE_PROTOCOL=@0x40000000/*_URL_PLUGGABLE_PROTOCOL*/
+_URL_WININET_COMPATIBILITY=@0x80000000/*_URL_WININET_COMPATIBILITY*/
+_URL_DONT_ESCAPE_EXTRA_INFO=@0x2000000/*_URL_DONT_ESCAPE_EXTRA_INFO*/
+_URL_DONT_UNESCAPE_EXTRA_INFO=@0x2000000/*_URL_DONT_UNESCAPE_EXTRA_INFO*/
+_URL_BROWSER_MODE=@0x2000000/*_URL_BROWSER_MODE*/
+_URL_ESCAPE_SPACES_ONLY=@0x4000000/*_URL_ESCAPE_SPACES_ONLY*/
+_URL_DONT_SIMPLIFY=@0x8000000/*_URL_DONT_SIMPLIFY*/
+_URL_NO_META=@0x8000000/*_URL_NO_META*/ 
+_URL_CONVERT_IF_DOSPATH=@0x200000/*_URL_CONVERT_IF_DOSPATH*/
+_URL_UNESCAPE_HIGH_ANSI_ONLY=@0x400000/*_URL_UNESCAPE_HIGH_ANSI_ONLY*/
+_URL_INTERNAL_PATH=@0x800000/*_URL_INTERNAL_PATH*/
+_URL_FILE_USE_PATHURL=@0x10000/*_URL_FILE_USE_PATHURL*/
+_URL_DONT_UNESCAPE=@0x20000/*_URL_DONT_UNESCAPE*/
+_URL_ESCAPE_AS_UTF8=@0x40000/*_URL_ESCAPE_AS_UTF8*/
+_URL_ESCAPE_PERCENT=@0x1000/*_URL_ESCAPE_PERCENT*/
+_URL_ESCAPE_SEGMENT_ONLY=@0x2000/*_URL_ESCAPE_SEGMENT_ONLY*/
+_URL_PARTFLAG_KEEPSCHEME=@0x1/*_URL_PARTFLAG_KEEPSCHEME*/
+_URL_APPLY_DEFAULT=@0x1/*_URL_APPLY_DEFAULT*/
+_URL_APPLY_GUESSSCHEME=@0x2/*_URL_APPLY_GUESSSCHEME*/
+_URL_APPLY_GUESSFILE=@0x4/*_URL_APPLY_GUESSFILE*/
+_URL_APPLY_FORCEAPPLY=@0x8/*_URL_APPLY_FORCEAPPLY*/ 
+_INTERNET_SCHEME_PARTIAL=@0xFFFFFFFE/*_INTERNET_SCHEME_PARTIAL*/
+_INTERNET_SCHEME_UNKNOWN=@0xFFFFFFFF/*_INTERNET_SCHEME_UNKNOWN*/
+_INTERNET_SCHEME_DEFAULT=@0x0/*_INTERNET_SCHEME_DEFAULT*/
+_INTERNET_SCHEME_FTP=@0x1/*_INTERNET_SCHEME_FTP*/
+_INTERNET_SCHEME_GOPHER=@0x2/*_INTERNET_SCHEME_GOPHER*/
+_INTERNET_SCHEME_HTTP=@0x3/*_INTERNET_SCHEME_HTTP*/
+_INTERNET_SCHEME_HTTPS=@0x4/*_INTERNET_SCHEME_HTTPS*/
+_INTERNET_SCHEME_FILE=@0x5/*_INTERNET_SCHEME_FILE*/
+_INTERNET_SCHEME_NEWS=@0x6/*_INTERNET_SCHEME_NEWS*/
+_INTERNET_SCHEME_MAILTO=@0x7/*_INTERNET_SCHEME_MAILTO*/
+_INTERNET_SCHEME_SOCKS=@0x8/*_INTERNET_SCHEME_SOCKS*/
+_INTERNET_SCHEME_JAVASCRIPT=@0x9/*_INTERNET_SCHEME_JAVASCRIPT*/
+_INTERNET_SCHEME_VBSCRIPT=@0xA/*_INTERNET_SCHEME_VBSCRIPT*/
+_INTERNET_SCHEME_RES=@0xB/*_INTERNET_SCHEME_RES*/
+_INTERNET_SCHEME_FIRST=@0x1/*_INTERNET_SCHEME_FIRST*/
+_INTERNET_SCHEME_LAST=@0xB/*_INTERNET_SCHEME_LAST*/
+end intellisense**/

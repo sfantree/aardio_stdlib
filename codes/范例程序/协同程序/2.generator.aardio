@@ -1,0 +1,20 @@
+//2、协程生成器
+import console;  
+
+function fib(max){
+    var a, b = 1, 1;
+    while a < max {
+        fiber.yield( a );
+        a, b = b, a+b;
+    }
+} 
+
+/*
+协程与迭代器都是交换代码控制权、分离代码逻辑的方法,
+而协程生成器则是两者结合的应用,使用fiber.generator将函数自动转换为纤程,并使用该纤程自动生成迭代器。
+*/
+for v in fiber.generator(fib,console.getNumber( "请输入斐波那契数列范围:" )) {
+    console.log( v )    
+}
+
+console.pause()

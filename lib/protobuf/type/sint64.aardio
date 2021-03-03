@@ -1,0 +1,41 @@
+﻿import protobuf.type.int32
+
+namespace protobuf.type;
+ 
+class sint64{ 
+
+	ctor(...) {
+		this = ..protobuf.type.int64(...)
+		this.wiredType = ..protobuf.message.wiredTypeVarint;
+		
+		var base = {
+			deSerialize = this.deSerialize;
+			serialize = this.serialize;
+		}
+	}
+	 
+	deSerialize = function () {
+		base.deSerialize();
+		 
+		var saved = this.value;
+		this.value = ..math.round( this.value / 2 );
+		
+		if ( saved % 2 == 1)
+			this.value = - this.value ; 
+	}
+		 
+	serialize = function ( rec = -1 ) {
+		 
+		var save = this.value;
+		if (this.value < 0) {
+			this.value = ..math.abs(this.value)*2-1;
+		}
+		else {
+			this.value = this.value*2;
+		}
+		var str = base.serialize(rec);
+		this.value = save;
+
+		return str;
+	}
+}

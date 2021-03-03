@@ -1,0 +1,81 @@
+//响应通知/右键菜单
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="richedit 弹出菜单";right=432;bottom=279;parent=...)
+winform.add(
+btnSetFont={cls="button";text="改变选区字体";left=240;top=236;right=343;bottom=263;db=1;dr=1;z=2};
+richedit={cls="richedit";text="richedit 默认没有右键菜单,
+使用 winform.richedit.popMenu() 函数创建弹出菜单.
+请点击这里点击右键测试.";left=28;top=28;right=417;bottom=231;db=1;dl=1;dr=1;dt=1;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+winform.btnSetFont.oncommand = function(id,event){ 
+	/*
+	关于 Text Object Model 请参考MSDN
+	http://msdn.microsoft.com/en-us/library/windows/desktop/bb787607%28v=vs.85%29.aspx
+	*/
+	var textDoc = winform.richedit.getTextObjectModel()
+	textDoc.Selection.Font.Name = "隶书";
+	textDoc.Selection.Font.Bold = textDoc.tomTrue 
+	textDoc.Selection.Font.Size = 18;
+	textDoc.Selection.Font.ForeColor = gdi.RGB(0xff,0xA0,0);
+	
+	/*
+	//也可以用setSelCharformat函数
+	winform.richedit.setSelCharformat( 
+		faceName = "隶书"; 
+		yHeight = 200; //字体大小的计量单位是：缇(Twips)：“磅(也就是pt)”的1/2
+		textColor = gdi.RGB(255,0,0);
+	)
+	*/
+}
+
+winform.richedit.onChange = function(){ 
+	winform.text = "文本发生改变了"
+} 
+
+import win.ui.menu;//如果是edit控件必须导入菜单支持库,richedit会自动导入
+winform.richedit.enablePopMenu({
+    
+	{ /*---分隔线---*/ };
+	
+	{ "自定义菜单项";
+		function(id){
+			
+		} ; 
+	};
+	
+	{ "使用lambda函数控制是否禁用";
+		function(id){
+			
+		} ; lambda()!winform.richedit.canCopy() ? 1/*_MF_GRAYED*/ : 0
+	};
+})
+
+////参数也可以是返回菜单项数组的函数
+winform.richedit.enablePopMenu(
+	function(){
+		var sel = winform.richedit.canCopy();
+		
+		return { 
+			{ /*---分隔线---*/ };
+			
+			{ "自定义菜单项";
+				function(id){
+					
+				} ; 
+			};
+			
+			{ "使用lambda函数控制是否禁用";
+				function(id){
+					
+				} ; lambda()!sel ? 1/*_MF_GRAYED*/ : 0
+			};
+		}
+	}
+)
+
+
+winform.show() 
+win.loopMessage();

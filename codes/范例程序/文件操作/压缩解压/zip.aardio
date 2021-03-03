@@ -1,0 +1,11 @@
+//zip文件压缩
+io.open()
+
+import zlib.zip
+ 
+var zip = zlib.zip("/测试文件.zip"  ); 
+zip.compress( io._exedir + "config",
+	function(len,path){
+		..io.print( len,path )
+	}
+)

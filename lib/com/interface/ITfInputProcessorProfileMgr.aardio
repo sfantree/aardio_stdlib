@@ -1,0 +1,75 @@
+﻿import com.interface; 
+namespace com.interface;
+
+class ITfInputProcessorProfileMgr{
+	ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+    pointer ActivateProfile = "int(INT dwProfileType, WORD langid, struct clsid,struct guidProfile,pointer hkl, INT dwFlags)";
+    pointer DeactivateProfile = "int(INT dwProfileType, WORD langid, struct clsid,struct guidProfile,pointer hkl, INT dwFlags)";
+    pointer GetProfile = "int(INT dwProfileType, WORD langid,struct clsid, struct guidProfile,pointer hkl,struct pProfile)";
+    pointer EnumProfiles = "int(WORD langid,pointer &pEnum)"; 
+    pointer ReleaseInputProcessor = "int(struct rclsid,INT dwFlags)";
+    pointer RegisterProfile = "int(struct rclsid, WORD langid, struct guidProfile,ustring pchDesc, INT cchDesc,ustring pchIconFile, INT cchFile,INT uIconIndex,pointer hklsubstitute,INT dwPreferredLayout, bool bEnabledByDefault,INT dwFlags)";
+    pointer UnregisterProfile = "int(struct rclsid, WORD langid, struct guidProfile, INT dwFlags)"; 
+    pointer GetActiveProfile = "int(struct catid,struct pProfile)";
+    each = function(langid){
+    	var hr,pEnum = owner.EnumProfiles(langid);
+    	if( (hr>=0/*_SUCCEEDED*/) && pEnum){ 
+    		var enum = ..com.interface(pEnum,IEnumTfInputProcessorProfiles);
+    		return function(){
+    			var profile = TF_INPUTPROCESSORPROFILE() 
+    			var hr,profile,cFetch = enum.Next(1,profile,0); 
+    			if( (hr>=0/*_SUCCEEDED*/) && cFetch){ 
+    				return profile;  
+    			}
+    		} ; 
+    	}
+    	return function(){}
+    }
+    
+} 
+
+namespace ITfInputProcessorProfileMgr{
+    IID = "{71c6e74c-0f28-11d8-a82a-00065b84435c}";
+    
+    Create = function(){
+		return  ..com.interface.create( ..win.guid.fromString("{33C53A50-F456-4884-B049-85FD643ECFED}")
+			, ..com.interface.ITfInputProcessorProfileMgr ); 
+	} 
+    
+	class IEnumTfInputProcessorProfiles{
+		ctor(){
+			this = ..com.interface.IUnknown(); 
+		}; 
+		pointer Clone = "int(ptr *pEnum)";
+		pointer Next = "int(INT ulCount,struct &pProfile,INT &cFetch)";
+		pointer Reset = "int()";
+		pointer Skip = "int(INT ulCount)";
+	}
+	IEnumTfInputProcessorProfiles.IID = "{71c6e74d-0f28-11d8-a82a-00065b84435c}";
+	
+	class TF_INPUTPROCESSORPROFILE {
+		INT dwProfileType;
+    	WORD langid;
+    	struct clsid = ..win.guid();
+    	struct guidProfile= ..win.guid();
+    	struct catid= ..win.guid();
+    	pointer hklSubstitute;
+    	INT dwCaps;
+    	pointer hkl;
+    	INT dwFlags;
+	}  
+}
+
+ /**intellisense()
+com.interface.ITfInputProcessorProfileMgr.Create() = 创建TSF输入法语言配置文件管理器对象\n!ITfInputProcessorProfileMgr.
+_TF_PROFILETYPE_INPUTPROCESSOR=@1/*_TF_PROFILETYPE_INPUTPROCESSOR*/
+_TF_PROFILETYPE_KEYBOARDLAYOUT=@2/*_TF_PROFILETYPE_KEYBOARDLAYOUT*/
+end intellisense**/
+
+/**intellisense(!ITfInputProcessorProfileMgr)
+each(langid) = @for( processorProfile in ??.each() ){\n	__/*遍历输入语言配置文件*/\n}  
+end intellisense**/
+
+ 

@@ -1,0 +1,101 @@
+﻿import com.interface.IModalWindow;
+import com.interface.IShellItem;
+
+namespace  com.interface;
+
+class IFileDialog {
+	ctor(  ){
+		this = ..com.interface.IModalWindow(); 
+	}; 
+	ptr $SetFileTypes = "int(INT cFileTypes, struct rgFilterSpec)";
+	ptr SetFileTypeIndex = "int(INT iFileType)"; 
+	ptr GetFileTypeIndex = "int(INT &piFileType)"; 
+	ptr Advise = "int(struct pfde,INT &pdwCookie)"; 
+	ptr Unadvise = "int(INT dwCookie)"; 
+	ptr SetOptions = "int(INT fos)"; 
+	ptr GetOptions = "int(INT &pfos)";
+	ptr SetDefaultFolder = "int(ptr psi)";  
+	ptr SetFolder = "int(ptr psi)"; 
+	ptr GetFolder = "int(ptr &psi)"; 
+	ptr GetCurrentSelection = "int(ptr &ppsi)";
+	ptr SetFileName = "int(ustring pszName)"; 
+	ptr GetFileName = "int(ustring &pszName)";  
+	ptr SetTitle = "int(ustring pszTitle)";
+	ptr SetOkButtonLabel = "int(ustring pszText)"; 
+	ptr SetFileNameLabel = "int(ustring pszLabel)"; 
+	ptr GetResult = "int(ptr &ppsi)"; 
+	ptr AddPlace = "int(ptr psi,int fdap)"; 
+	ptr SetDefaultExtension = "int(ustring pszDefaultExtension)";  
+	ptr Close = "int(int hr)"; 
+	ptr $SetClientGuid = "int(struct guid)"; 
+	ptr ClearClientData = "int()"; 
+	ptr SetFilter = "int(ptr pFilter)"; 
+	setFileTypes = function(strTypes){
+		var filerSpecs = strTypes;
+		if(type(strTypes)==type.string){
+			var types = string.split(strTypes,"|");
+			
+			filerSpecs = {};
+			for(i=1;#types;2){
+				..table.push(filerSpecs,{
+					ustring name = types[i];
+					ustring spec = types[i+1];
+				})
+			}
+		}
+		
+		if(#filerSpec) owner.$SetFileTypes(#filerSpec,{struct arr = filerSpecs});
+	};
+	setClientGuid = function(guid){
+		var guid = ..win.guid.valid(guid);
+		if(!guid) error("错误的GUID参数");
+		return owner.$SetClientGuid(guid) >= 0/*_SUCCEEDED*/;
+	};
+	setFolderPath = function(path){
+		var item = ..com.interface.IShellItem.createFromParsingName(path);
+		if(item){
+			var hr = owner.SetFolder(item);
+			..com.Release(item);
+			return  hr >= 0/*_SUCCEEDED*/
+		}
+	};
+	getDisplayFilePath = function(){
+			var hr,pItem = owner.GetResult()
+			if( hr>=0/*_SUCCEEDED*/){
+				var item = ..com.interface.IShellItem.query(pItem)
+				..com.Release(pItem);
+				
+				var path = item.getDisplayFilePath();
+				..com.Release(item);
+				
+				return path;
+			}
+	} 
+}
+
+namespace IFileDialog{
+	IID = "{42f85136-db7e-439c-85f1-e4075d135fc8}";
+}
+
+/**intellisense()
+_FOS_ALLNONSTORAGEITEMS=@0x80/*_FOS_ALLNONSTORAGEITEMS*/
+_FOS_ALLOWMULTISELECT=@0x200/*_FOS_ALLOWMULTISELECT*/
+_FOS_CREATEPROMPT=@0x2000/*_FOS_CREATEPROMPT*/
+_FOS_DEFAULTNOMINIMODE=@0x20000000/*_FOS_DEFAULTNOMINIMODE*/
+_FOS_DONTADDTORECENT=@0x2000000/*_FOS_DONTADDTORECENT*/
+_FOS_FILEMUSTEXIST=@0x1000/*_FOS_FILEMUSTEXIST*/
+_FOS_FORCEFILESYSTEM=@0x40/*_FOS_FORCEFILESYSTEM*/
+_FOS_FORCESHOWHIDDEN=@0x10000000/*_FOS_FORCESHOWHIDDEN*/
+_FOS_HIDEMRUPLACES=@0x20000/*_FOS_HIDEMRUPLACES*/
+_FOS_HIDEPINNEDPLACES=@0x40000/*_FOS_HIDEPINNEDPLACES*/
+_FOS_NOCHANGEDIR=@8/*_FOS_NOCHANGEDIR*/
+_FOS_NODEREFERENCELINKS=@0x100000/*_FOS_NODEREFERENCELINKS*/
+_FOS_NOREADONLYRETURN=@0x8000/*_FOS_NOREADONLYRETURN*/
+_FOS_NOTESTFILECREATE=@0x10000/*_FOS_NOTESTFILECREATE*/
+_FOS_NOVALIDATE=@0x100/*_FOS_NOVALIDATE*/
+_FOS_OVERWRITEPROMPT=@2/*_FOS_OVERWRITEPROMPT*/
+_FOS_PATHMUSTEXIST=@0x800/*_FOS_PATHMUSTEXIST*/
+_FOS_PICKFOLDERS=@0x20/*_FOS_PICKFOLDERS*/
+_FOS_SHAREAWARE=@0x4000/*_FOS_SHAREAWARE*/
+_FOS_STRICTFILETYPES=@4/*_FOS_STRICTFILETYPES*/
+end intellisense**/

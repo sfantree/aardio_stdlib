@@ -1,0 +1,1559 @@
+//plus配色工具
+import win.ui;
+import fonts.fontAwesome;
+import win.ui.ctrl.pick;
+/*DSG{{*/
+var winform = win.form(text="aardio - plus控件配色工具";right=1126;bottom=782;bgcolor=16777215;border="none";exmode="none";mode="popup")
+winform.add(
+bk={cls="bk";text="   plus 控件配色工具";left=0;top=0;right=1129;bottom=24;align="left";bgcolor=8026746;color=16777215;dl=1;dr=1;dt=1;z=121};
+btnFont={cls="plus";text="文本字体";left=8;top=424;right=69;bottom=447;align="left";color=16711680;dl=1;dt=1;notify=1;z=109};
+btnOpenColorTable={cls="plus";text='\uF090 导出配色表';left=658;top=755;right=817;bottom=777;bgcolor=14935259;db=1;dr=1;font=LOGFONT(h=-13;name='FontAwesome');notify=1;z=124};
+btnUpdateForm={cls="plus";text='\uF08B 导出到窗体设计器选中控件';left=827;top=755;right=1089;bottom=777;bgcolor=-3286072;db=1;dr=1;font=LOGFONT(h=-13;name='FontAwesome');forecolor=-4733773;notify=1;z=120};
+cBdActive={cls="plus";left=389;top=132;right=407;bottom=156;bgcolor=15193170;dl=1;dt=1;edge=1;z=82};
+cBdActiveChecked={cls="plus";left=389;top=322;right=407;bottom=346;bgcolor=5816524;dl=1;dt=1;edge=1;z=93};
+cBdDefault={cls="plus";left=389;top=64;right=407;bottom=88;bgcolor=16775369;dl=1;dt=1;edge=1;z=78};
+cBdDefaultChecked={cls="plus";left=389;top=254;right=407;bottom=278;bgcolor=13414549;dl=1;dt=1;edge=1;z=89};
+cBdDisabled={cls="plus";left=389;top=194;right=407;bottom=218;bgcolor=12430081;dl=1;dt=1;edge=1;z=86};
+cBdDisabledChecked={cls="plus";left=389;top=384;right=407;bottom=408;bgcolor=10581536;dl=1;dt=1;edge=1;z=97};
+cBdFocus={cls="plus";left=389;top=162;right=407;bottom=186;bgcolor=14074940;dl=1;dt=1;edge=1;z=84};
+cBdFocusChecked={cls="plus";left=389;top=352;right=407;bottom=376;bgcolor=10133792;dl=1;dt=1;edge=1;z=95};
+cBdHover={cls="plus";left=389;top=99;right=407;bottom=123;bgcolor=16773785;dl=1;dt=1;edge=1;z=80};
+cBdHoverChecked={cls="plus";left=389;top=289;right=407;bottom=313;bgcolor=9807820;dl=1;dt=1;edge=1;z=91};
+cBgActive={cls="plus";left=20;top=132;right=38;bottom=156;bgcolor=12378323;dl=1;dt=1;edge=1;z=10};
+cBgActiveChecked={cls="plus";left=20;top=322;right=38;bottom=346;bgcolor=6141424;dl=1;dt=1;edge=1;z=43};
+cBgDefault={cls="plus";left=20;top=64;right=38;bottom=88;bgcolor=11580047;dl=1;dt=1;edge=1;notify=1;z=6};
+cBgDefaultChecked={cls="plus";left=20;top=254;right=38;bottom=278;bgcolor=12576767;dl=1;dt=1;edge=1;z=39};
+cBgDisabled={cls="plus";left=20;top=194;right=38;bottom=218;bgcolor=14933183;dl=1;dt=1;edge=1;z=14};
+cBgDisabledChecked={cls="plus";left=20;top=384;right=38;bottom=408;bgcolor=22159;dl=1;dt=1;edge=1;z=47};
+cBgFocus={cls="plus";left=20;top=162;right=38;bottom=186;bgcolor=14935011;dl=1;dt=1;edge=1;z=12};
+cBgFocusChecked={cls="plus";left=20;top=352;right=38;bottom=376;bgcolor=2129597;dl=1;dt=1;edge=1;z=45};
+cBgHover={cls="plus";left=20;top=99;right=38;bottom=123;bgcolor=11766674;dl=1;dt=1;edge=1;z=8};
+cBgHoverChecked={cls="plus";left=20;top=289;right=38;bottom=313;bgcolor=9819132;dl=1;dt=1;edge=1;z=41};
+cFgActive={cls="plus";left=145;top=131;right=163;bottom=155;bgcolor=8882679;dl=1;dt=1;edge=1;z=21};
+cFgActiveChecked={cls="plus";left=145;top=321;right=163;bottom=345;bgcolor=7907412;dl=1;dt=1;edge=1;z=54};
+cFgDefault={cls="plus";left=145;top=63;right=163;bottom=87;bgcolor=14672639;dl=1;dt=1;edge=1;z=17};
+cFgDefaultChecked={cls="plus";left=145;top=253;right=163;bottom=277;bgcolor=12971428;dl=1;dt=1;edge=1;z=50};
+cFgDisabled={cls="plus";left=145;top=193;right=163;bottom=217;bgcolor=4408202;dl=1;dt=1;edge=1;z=25};
+cFgDisabledChecked={cls="plus";left=145;top=383;right=163;bottom=407;bgcolor=4027648;dl=1;dt=1;edge=1;z=58};
+cFgFocus={cls="plus";left=145;top=161;right=163;bottom=185;bgcolor=6645199;dl=1;dt=1;edge=1;z=23};
+cFgFocusChecked={cls="plus";left=145;top=351;right=163;bottom=375;bgcolor=4688384;dl=1;dt=1;edge=1;z=56};
+cFgHover={cls="plus";left=145;top=98;right=163;bottom=122;bgcolor=12040959;dl=1;dt=1;edge=1;z=19};
+cFgHoverChecked={cls="plus";left=145;top=288;right=163;bottom=312;bgcolor=9817192;dl=1;dt=1;edge=1;z=52};
+cPreviewBackground={cls="plus";left=352;top=498;right=657;bottom=742;db=1;dl=1;dt=1;z=3};
+cTxtActive={cls="plus";left=267;top=132;right=285;bottom=156;bgcolor=10263708;dl=1;dt=1;edge=1;z=32};
+cTxtActiveChecked={cls="plus";left=267;top=322;right=285;bottom=346;bgcolor=13994083;dl=1;dt=1;edge=1;z=65};
+cTxtDefault={cls="plus";left=267;top=64;right=285;bottom=88;bgcolor=0;dl=1;dt=1;edge=1;z=28};
+cTxtDefaultChecked={cls="plus";left=267;top=255;right=285;bottom=279;bgcolor=16762792;dl=1;dt=1;edge=1;z=61};
+cTxtDisabled={cls="plus";left=267;top=194;right=285;bottom=218;bgcolor=15132390;dl=1;dt=1;edge=1;z=36};
+cTxtDisabledChecked={cls="plus";left=267;top=384;right=285;bottom=408;bgcolor=9324544;dl=1;dt=1;edge=1;z=69};
+cTxtFocus={cls="plus";left=267;top=162;right=285;bottom=186;bgcolor=12895428;dl=1;dt=1;edge=1;z=34};
+cTxtFocusChecked={cls="plus";left=267;top=352;right=285;bottom=376;bgcolor=11626300;dl=1;dt=1;edge=1;z=67};
+cTxtHover={cls="plus";left=267;top=99;right=285;bottom=123;bgcolor=7171437;dl=1;dt=1;edge=1;z=30};
+cTxtHoverChecked={cls="plus";left=267;top=289;right=285;bottom=313;bgcolor=16624779;dl=1;dt=1;edge=1;z=63};
+cbAlign={cls="combobox";left=268;top=425;right=354;bottom=445;dl=1;dt=1;edge=1;items={"左对齐";"水平居中";"右对齐"};mode="dropdownlist";z=125};
+cbEditor={cls="combobox";left=686;top=425;right=813;bottom=445;dl=1;dt=1;edge=1;items={"禁止编辑";"嵌入edit";"嵌入richedit"};mode="dropdownlist";z=131};
+cbIconAlign={cls="combobox";left=521;top=454;right=607;bottom=474;dl=1;dt=1;edge=1;items={"左对齐";"水平居中";"右对齐"};mode="dropdownlist";z=118};
+cbIconVAlign={cls="combobox";left=609;top=454;right=695;bottom=474;dl=1;dt=1;edge=1;items={"顶对齐";"垂直居中";"底对齐"};mode="dropdownlist";z=119};
+cbIcons={cls="combobox";left=349;top=454;right=515;bottom=479;dl=1;dt=1;edge=1;font=LOGFONT(h=-16;name='FontAwesome');items={};mode="dropdown";z=123};
+cbVAlign={cls="combobox";left=356;top=425;right=442;bottom=445;dl=1;dt=1;edge=1;items={"顶对齐";"垂直居中";"底对齐"};mode="dropdownlist";z=126};
+chkBdActive={cls="plus";text="鼠标按下";left=406;top=127;right=491;bottom=153;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=81};
+chkBdActiveChecked={cls="plus";text="鼠标按下";left=406;top=318;right=491;bottom=344;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=92};
+chkBdDefault={cls="plus";text="默认状态";left=406;top=61;right=491;bottom=87;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=77};
+chkBdDefaultChecked={cls="plus";text="默认状态";left=406;top=254;right=491;bottom=280;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=88};
+chkBdDisabled={cls="plus";text="禁用状态";left=406;top=192;right=491;bottom=218;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=85};
+chkBdDisabledChecked={cls="plus";text="禁用状态";left=406;top=381;right=491;bottom=407;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=96};
+chkBdFocus={cls="plus";text="获得焦点";left=406;top=159;right=491;bottom=185;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=83};
+chkBdFocusChecked={cls="plus";text="获得焦点";left=406;top=349;right=491;bottom=375;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=94};
+chkBdHover={cls="plus";text="鼠标进入";left=406;top=94;right=491;bottom=120;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=79};
+chkBdHoverChecked={cls="plus";text="鼠标进入";left=406;top=286;right=491;bottom=312;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=90};
+chkBgActive={cls="plus";text="鼠标按下";left=38;top=127;right=123;bottom=153;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=9};
+chkBgActiveChecked={cls="plus";text="鼠标按下";left=38;top=318;right=123;bottom=344;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=42};
+chkBgDefault={cls="plus";text="默认状态";left=38;top=61;right=123;bottom=87;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';notify=1;textPadding={left=18};z=5};
+chkBgDefaultChecked={cls="plus";text="默认状态";left=38;top=254;right=123;bottom=280;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=38};
+chkBgDisabled={cls="plus";text="禁用状态";left=38;top=192;right=123;bottom=218;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=13};
+chkBgDisabledChecked={cls="plus";text="禁用状态";left=38;top=381;right=123;bottom=407;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=46};
+chkBgFocus={cls="plus";text="获得焦点";left=38;top=159;right=123;bottom=185;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=11};
+chkBgFocusChecked={cls="plus";text="获得焦点";left=38;top=349;right=123;bottom=375;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=44};
+chkBgHover={cls="plus";text="鼠标进入";left=38;top=94;right=123;bottom=120;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=7};
+chkBgHoverChecked={cls="plus";text="鼠标进入";left=38;top=286;right=123;bottom=312;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=40};
+chkBorderBottom={cls="plus";text="下边框";left=179;top=513;right=244;bottom=539;align="left";disabled=1;dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8 ';textPadding={left=17};z=105};
+chkBorderLeft={cls="plus";text="左边框";left=248;top=513;right=313;bottom=539;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8 ';textPadding={left=17};z=106};
+chkBorderRight={cls="plus";text="左边框";left=111;top=513;right=176;bottom=539;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8 ';textPadding={left=17};z=104};
+chkBorderTop={cls="plus";text="上边框";left=42;top=513;right=107;bottom=539;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8 ';textPadding={left=17};z=103};
+chkFgActive={cls="plus";text="鼠标按下";left=164;top=127;right=247;bottom=153;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=20};
+chkFgActiveChecked={cls="plus";text="鼠标按下";left=164;top=317;right=247;bottom=343;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=53};
+chkFgDefault={cls="plus";text="默认状态";left=164;top=61;right=247;bottom=87;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=16};
+chkFgDefaultChecked={cls="plus";text="默认状态";left=164;top=253;right=247;bottom=279;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=49};
+chkFgDisabled={cls="plus";text="禁用状态";left=164;top=192;right=247;bottom=218;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=24};
+chkFgDisabledChecked={cls="plus";text="禁用状态";left=164;top=381;right=247;bottom=407;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=57};
+chkFgFocus={cls="plus";text="获得焦点";left=164;top=159;right=247;bottom=185;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=22};
+chkFgFocusChecked={cls="plus";text="获得焦点";left=164;top=349;right=247;bottom=375;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=55};
+chkFgHover={cls="plus";text="鼠标进入";left=164;top=94;right=247;bottom=120;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=18};
+chkFgHoverChecked={cls="plus";text="鼠标进入";left=164;top=285;right=247;bottom=311;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=51};
+chkPreviewBackground={cls="plus";text="设置预览窗口背景色";left=415;top=753;right=577;bottom=779;align="left";clipBk=1;db=1;dl=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';notify=1;textPadding={left=18};z=102};
+chkTxtActive={cls="plus";text="鼠标按下";left=286;top=127;right=371;bottom=153;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=31};
+chkTxtActiveChecked={cls="plus";text="鼠标按下";left=286;top=318;right=371;bottom=344;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=64};
+chkTxtDefault={cls="plus";text="默认状态";left=286;top=61;right=371;bottom=87;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=27};
+chkTxtDefaultChecked={cls="plus";text="默认状态";left=286;top=254;right=371;bottom=280;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=60};
+chkTxtDisabled={cls="plus";text="禁用状态";left=286;top=192;right=371;bottom=218;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=35};
+chkTxtDisabledChecked={cls="plus";text="禁用状态";left=286;top=381;right=371;bottom=407;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=68};
+chkTxtFocus={cls="plus";text="获得焦点";left=286;top=159;right=371;bottom=185;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=33};
+chkTxtFocusChecked={cls="plus";text="获得焦点";left=286;top=349;right=371;bottom=375;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=66};
+chkTxtHover={cls="plus";text="鼠标进入";left=286;top=94;right=371;bottom=120;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=29};
+chkTxtHoverChecked={cls="plus";text="鼠标进入";left=286;top=286;right=371;bottom=312;align="left";dl=1;dt=1;iconStyle={align="left";font=LOGFONT(name='FontAwesome');padding={left=3}};iconText='\uF0C8';textPadding={left=18};z=62};
+clrPicker={cls="pick";left=506;top=24;right=1111;bottom=415;bgcolor=16777215;dl=1;dr=1;dt=1;z=99};
+editCheckedIconText={cls="edit";left=271;top=454;right=339;bottom=477;dl=1;dt=1;edge=1;z=73};
+editGradient={cls="edit";left=230;top=486;right=329;bottom=509;dl=1;dt=1;edge=1;multiline=1;z=117};
+editIconSize={cls="edit";left=762;top=454;right=812;bottom=477;dl=1;dt=1;edge=1;multiline=1;num=1;z=133};
+editIconText={cls="edit";left=100;top=454;right=168;bottom=477;dl=1;dt=1;edge=1;z=70};
+editIconTextPadding={cls="edit";text="-0,0,0,0 //左,上,右,下";left=880;top=454;right=1043;bottom=477;dl=1;dt=1;edge=1;multiline=1;z=127};
+editPadding={cls="edit";text="0,0,0,0  //左,上,右,下";left=880;top=425;right=1043;bottom=448;dl=1;dt=1;edge=1;multiline=1;z=110};
+editPreview={cls="richedit";left=677;top=498;right=1105;bottom=742;db=1;dl=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=98};
+editPreviewSize={cls="edit";text="150,50 //宽,高";left=70;top=486;right=163;bottom=509;dl=1;dt=1;edge=1;multiline=1;z=114};
+editText={cls="edit";text="测 试";left=129;top=425;right=259;bottom=448;dl=1;dt=1;edge=1;z=129};
+editTextPadding={cls="edit";text="-0,0,0,0 //左,上,右,下";left=513;top=425;right=676;bottom=448;dl=1;dt=1;edge=1;multiline=1;z=112};
+exampleButton={cls="plus";text="按钮";left=133;top=667;right=232;bottom=697;align="left";bgcolor=14935259;dl=1;dt=1;font=LOGFONT(h=-13);iconStyle={align="left";font=LOGFONT(h=-13;name='FontAwesome');padding={left=20}};iconText='\uF021';notify=1;tabstop=1;textPadding={left=39};z=139};
+exampleCheckbox={cls="plus";text="复选框";left=25;top=707;right=108;bottom=738;align="left";dl=1;dt=1;font=LOGFONT(h=-15);iconStyle={align="left";font=LOGFONT(h=-15;name='FontAwesome')};iconText='\uF0C8 ';notify=1;textPadding={left=24};z=137};
+exampleEdit={cls="plus";left=27;top=741;right=178;bottom=767;align="right";border={bottom=1;color=-6908266};dl=1;dt=1;editable=1;font=LOGFONT(h=-13);tabstop=1;textPadding={top=6;bottom=2};z=136};
+exampleLink={cls="plus";text="超链接";left=249;top=671;right=319;bottom=695;align="left";color=8388608;dl=1;dt=1;font=LOGFONT(h=-13);iconColor=2960685;notify=1;textPadding={left=5};z=141};
+exampleRadio={cls="plus";text="单选框";left=126;top=710;right=226;bottom=741;align="left";dl=1;dt=1;font=LOGFONT(h=-16);iconStyle={align="left";font=LOGFONT(h=-15;name='FontAwesome')};iconText='\uF111 ';notify=1;textPadding={left=24};z=138};
+exampleTransButton={cls="plus";text="透明按钮";left=26;top=670;right=123;bottom=700;align="left";color=3947580;dl=1;dt=1;font=LOGFONT(h=-13);iconColor=2960685;iconStyle={align="left";font=LOGFONT(h=-13;name='FontAwesome');padding={left=8}};iconText='\uF122';notify=1;textPadding={left=25};z=140};
+gbBd={cls="groupbox";text="边框色";left=377;top=38;right=496;bottom=228;bgcolor=16777215;dl=1;dt=1;edge=1;z=76};
+gbBdChecked={cls="groupbox";text="边框色(勾选后)";left=377;top=230;right=496;bottom=420;bgcolor=16777215;dl=1;dt=1;edge=1;z=87};
+gbBg={cls="groupbox";text="背景色";left=8;top=38;right=127;bottom=228;bgcolor=16777215;dl=1;dt=1;edge=1;z=2};
+gbBgChecked={cls="groupbox";text="背景色(勾选后)";left=8;top=230;right=127;bottom=420;bgcolor=16777215;dl=1;dt=1;edge=1;z=37};
+gbFg={cls="groupbox";text="前景色";left=131;top=37;right=250;bottom=227;bgcolor=16777215;dl=1;dt=1;edge=1;z=15};
+gbFgChecked={cls="groupbox";text="前景色(勾选后)";left=131;top=229;right=250;bottom=419;bgcolor=16777215;dl=1;dt=1;edge=1;z=48};
+gbTxtChecked={cls="groupbox";text="文本色(勾选后)";left=256;top=230;right=375;bottom=420;bgcolor=16777215;dl=1;dt=1;edge=1;z=59};
+gbTxtColor={cls="groupbox";text="文本色";left=254;top=38;right=373;bottom=228;bgcolor=16777215;dl=1;dt=1;edge=1;z=26};
+groupbox={cls="groupbox";text="范例";left=8;top=640;right=329;bottom=777;bgcolor=16777215;db=1;dl=1;dt=1;edge=1;z=135};
+groupbox9={cls="groupbox";text="效果预览";left=338;top=481;right=1112;bottom=751;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;edge=1;z=1};
+lbBorderPadding={cls="static";text="边框外边距:";left=39;top=546;right=124;bottom=578;align="right";disabled=1;dl=1;dt=1;transparent=1;z=101};
+lbBorderRadius={cls="static";text="边框圆角:";left=47;top=576;right=124;bottom=608;align="right";disabled=1;dl=1;dt=1;transparent=1;z=75};
+lbBorderWidth={cls="static";text="边框宽度:";left=69;top=601;right=124;bottom=633;align="right";disabled=1;dl=1;dt=1;transparent=1;z=108};
+lbCurrentState={cls="plus";left=446;top=10;right=735;bottom=32;bgcolor=16777215;border={color=-2171170;radius=11;width=1};color=9727;dl=1;dt=1;z=132};
+lbGradient={cls="static";text="渐变角度:";left=168;top=488;right=225;bottom=512;align="right";dl=1;dt=1;transparent=1;z=116};
+lbPadding={cls="static";text="内边距:";left=816;top=427;right=875;bottom=451;align="right";dl=1;dt=1;transparent=1;z=111};
+lbPreviewSize={cls="static";text="控件大小:";left=6;top=488;right=65;bottom=512;align="right";dl=1;dt=1;transparent=1;z=115};
+lbTextPadding={cls="static";text="文本边距:";left=444;top=427;right=508;bottom=448;align="right";dl=1;dt=1;transparent=1;z=113};
+lnkChkIconText={cls="plus";text="勾选图标文本:";left=178;top=453;right=263;bottom=474;align="right";color=16711680;dl=1;dt=1;transparent=1;z=72};
+lnkIconText={cls="plus";text="设置图标文本:";left=8;top=453;right=94;bottom=476;align="left";color=16711680;dl=1;dt=1;notify=1;transparent=1;z=71};
+plusMinimized={cls="plus";left=885;top=-36;right=1006;bottom=83;clipBk=false;font=LOGFONT(h=-13;name='FontAwesome');foreground="\.img\designPlus.png";hide=1;linearGradient=20;notify=1;repeat="center";z=122};
+plusPreview={cls="plus";left=429;top=595;right=579;bottom=645;db=1;dl=1;font=LOGFONT(h=-16);notify=1;z=4};
+static={cls="static";text="图标大小:";left=696;top=457;right=757;bottom=487;align="right";dl=1;dt=1;transparent=1;z=134};
+static3={cls="static";text="图标边距:";left=816;top=457;right=877;bottom=487;align="right";dl=1;dt=1;transparent=1;z=128};
+static4={cls="static";text="控件文本:";left=64;top=427;right=126;bottom=448;align="right";dl=1;dt=1;transparent=1;z=130};
+tbBorderPadding={cls="trackbar";left=123;top=539;right=308;bottom=569;bgcolor=16777215;disabled=1;dl=1;dt=1;max=100;min=0;ntk=1;z=100};
+tbBorderRadius={cls="trackbar";left=123;top=571;right=308;bottom=601;bgcolor=16777215;disabled=1;dl=1;dt=1;max=100;min=0;ntk=1;z=74};
+tbBorderWidth={cls="trackbar";left=123;top=603;right=308;bottom=633;bgcolor=16777215;disabled=1;dl=1;dt=1;max=100;min=0;ntk=1;z=107}
+)
+/*}}*/
+
+winform.btnUpdateForm.skin({
+	background={
+		default=0xFFC8DBCD;
+		hover=0xFFB7B2D2
+	};
+	foreground={
+		default=0xFFB3C4B7;
+		hover=0xFFCAC7DA
+	};
+})
+
+winform.btnOpenColorTable.skin({
+	background={
+		default=0xFFDBE4E3;
+		hover=0xFFB7B2D2
+	};
+	foreground={ 
+		hover=0xFFCAC7DA
+	};
+})
+ 
+import gdip.imageAttributes;
+var miniImgAttr = gdip.imageAttributes();
+miniImgAttr.setRgba(1.05,1.05,1);
+winform.plusMinimized.onStateChange = function(){
+	if(winform.plusMinimized.state.hover){ 
+		winform.plusMinimized.imageAttributes = miniImgAttr;
+	}
+	else {
+		winform.plusMinimized.imageAttributes = null;
+	}
+	winform.plusMinimized.redrawTransparent();
+	
+}
+
+import win.ui.atom;
+var atom,hwnd = winform.atom("0CCD6A28-2296-4C26-9AC7-80AC4B585E27.PLUSAWESOME");
+if(!atom){
+    win.setForeground(hwnd);
+	win.quitMessage();	
+	return;
+}
+
+import win.ui.simpleWindow;
+win.ui.simpleWindow(winform,,,24);
+
+var previewStyle = {}
+
+winform.clrPicker.onColorChange = function(argb){
+	if(winform.currentColorCtrl){
+		winform.currentColorCtrl.background = argb;
+		if(winform.currentChkColorCtrl.checked){
+			winform.onStyleChanged(
+				winform.currentChkColorCtrl.styleCtrlName,
+				winform.currentChkColorCtrl.checked,
+				argb
+				);
+		} 
+	} 
+}
+
+for(name,ctrl in winform.eachControl("plus") ){
+    if(name[1]=='c'#){
+    	if(string.match(name,"^c<Bg>|<Fg>|<Txt>|<Bd>") ){ 
+    		ctrl.onFocusGot = function(wParam,lParam){
+    			if(!owner.checkColorCtrl){
+    				return;
+    			}
+    			winform.currentChkColorCtrl = owner.checkColorCtrl;
+				winform.currentColorCtrl = owner;
+				owner.checkColorCtrl.setFocus();
+				owner.checkColorCtrl.oncommand();
+				return 0;
+    		}
+    		
+    		ctrl.skin( 
+    			border = { 
+    				hover = {width=3;color=0x80FF0000}  
+        			focus = {width=1;color=0xFFFF0000}  
+    			} 
+			) 
+			
+			continue ; 
+    	}
+    	
+    }
+    if(string.startWith(name,"chk") ){
+        if(string.startWith(name,"chkBorder") ){
+           
+     		ctrl.skin(
+    			color = { 
+        			hover = 0xFFFF0000; 
+        			active = 0xFF00FF00;
+        			disabled = 0xFFCCCCCC;
+    			}
+    			checked = {
+    				iconText = '\uF14a'/*_FA_CHECK_SQUARE*/;
+    				color = { 
+        				hover = 0xFFFF0000; 
+        				active = 0xFF00FF00;
+        				disabled = 0xFFCCCCCC;
+    				}
+    			}  
+			) 
+			ctrl.checked = true;
+            ctrl.disabled = true;
+            
+			ctrl.oncommand = function(id,event){ 
+			 	var chkCtrl = winform.currentChkColorCtrl;
+				if(chkCtrl ? string.startWith(chkCtrl.styleCtrlName,"chkBd") ){
+					winform.onStyleChanged(
+						winform.currentChkColorCtrl.styleCtrlName,
+						winform.currentChkColorCtrl.checked,
+						winform.currentColorCtrl.backgroundColor
+						);	
+				}
+			}
+			continue;
+        }
+        
+     	ctrl.skin(
+    		color = { 
+        		hover = 0xFFFF0000; 
+        		active = 0xFF00FF00;
+    		}
+    		checked = {
+    			iconText = '\uF14a'/*_FA_CHECK_SQUARE*/;
+    			border ={
+    				focus = {bottom=1;color=0xFF000000;padding=15;}
+    			};
+    		} 
+    		border ={
+    			focus = {bottom=1;color=0xFF000000;padding=15;};
+    		}
+		) 
+		
+		var clrCtrl = winform["c" + string.right(name,-4) ];  
+		if(!clrCtrl) continue;
+
+		clrCtrl.checkColorCtrl = ctrl;
+		ctrl.styleCtrlName = name;
+		if(string.startWith(name,"chkBd") ){
+		
+			ctrl.oncommand = function(id,event){ 
+				winform.chkBorderTop.disabled = false;
+				winform.chkBorderBottom.disabled = false;
+				winform.chkBorderRight.disabled = false;
+				winform.chkBorderLeft.disabled = false;
+				winform.tbBorderRadius.disabled = false;
+				winform.tbBorderWidth.disabled = false;
+				winform.tbBorderPadding.disabled = false;
+				winform.lbBorderRadius.disabled = false;
+				winform.lbBorderPadding.disabled = false;
+				winform.lbBorderWidth.disabled = false;
+				
+				winform.chkPreviewBackground.checked = false;
+				
+				winform.currentChkColorCtrl = ctrl;
+				winform.currentColorCtrl = clrCtrl;
+				if(clrCtrl.backgroundColor===null)clrCtrl.background = 0xFF00AEFF; 
+				winform.clrPicker.setColor( clrCtrl.backgroundColor : 0xFF00AEFF ); 
+				
+				winform.onStyleChanged(
+					winform.currentChkColorCtrl.styleCtrlName,
+					winform.currentChkColorCtrl.checked,
+					winform.currentColorCtrl.backgroundColor
+					);
+			}
+		}
+		else {
+			ctrl.oncommand = function(id,event){ 
+				winform.chkBorderTop.disabled = true;
+				winform.chkBorderBottom.disabled = true;
+				winform.chkBorderRight.disabled = true;
+				winform.chkBorderLeft.disabled = true;
+				winform.tbBorderRadius.disabled = true;
+				winform.tbBorderPadding.disabled = true;
+				winform.tbBorderWidth.disabled = true;
+				winform.lbBorderRadius.disabled = true;
+				winform.lbBorderPadding.disabled = true;
+				winform.lbBorderWidth.disabled = true;
+				
+				winform.chkPreviewBackground.checked = false;
+				
+				winform.currentChkColorCtrl = ctrl;
+				winform.currentColorCtrl = clrCtrl;
+				if(clrCtrl.backgroundColor===null)clrCtrl.background = 0xFF00AEFF; 
+				winform.clrPicker.setColor( clrCtrl.backgroundColor : 0xFF00AEFF ); 
+				
+				winform.onStyleChanged(
+					winform.currentChkColorCtrl.styleCtrlName,
+					winform.currentChkColorCtrl.checked,
+					winform.currentColorCtrl.backgroundColor
+					);
+			}
+		}
+		
+    } 
+}
+
+import util.table;
+winform.onStyleChanged = function(styleCtrlName,styleCtrlChecked,styleCtrlColor){
+    if(styleCtrlName=="chkPreviewBackground"){
+    	return;
+    }
+    
+    if(styleCtrlColor===null){
+    	styleCtrlChecked = false;
+    	winform[styleCtrlName].checked = false;
+    }
+    
+	var style = previewStyle;
+	var styleStateTitle = ""
+	if( string.endWith(styleCtrlName,"Checked") ){
+		if(!style.checked) style.checked = {} 
+		style = style.checked;
+		styleStateTitle = "(勾选后)"
+	}
+	
+	var styleState = "default";
+	if(string.find(styleCtrlName,"Hover")){
+		styleState = "hover";
+		styleStateTitle = "鼠标进入" + styleStateTitle;
+	}
+	elseif(string.find(styleCtrlName,"Active")){
+		styleState = "active";
+		styleStateTitle = "鼠标按下" + styleStateTitle;
+	}
+	elseif(string.find(styleCtrlName,"Focus")){
+		styleState = "focus";
+		styleStateTitle = "获得焦点" + styleStateTitle;
+	}
+	elseif(string.find(styleCtrlName,"Disabled")){
+		styleState = "disabled";
+		styleStateTitle = "禁用状态" + styleStateTitle;
+	}
+	else {
+		styleStateTitle = "默认状态" + styleStateTitle;
+	}
+		
+	if(string.startWith(styleCtrlName,"chkBg")){
+		if(!style.background)style.background={};
+		style.background[styleState] = styleCtrlChecked ? styleCtrlColor : null
+		winform.lbCurrentState.text = "正在编辑：背景色 " + styleStateTitle;
+		if(!table.count(style.background)){
+			style.background = null;
+		}
+	}
+	elseif(string.startWith(styleCtrlName,"chkFg")){
+		if(!style.foreground)style.foreground={};
+		style.foreground[styleState] = styleCtrlChecked ? styleCtrlColor : null
+		winform.lbCurrentState.text = "正在编辑：背景色 " + styleStateTitle;
+		if(!table.count(style.foreground)){
+			style.foreground = null;
+		}
+	}
+	elseif(string.startWith(styleCtrlName,"chkTxt")){
+		if(!style.color)style.color={};
+		style.color[styleState] = styleCtrlChecked ? styleCtrlColor : null
+		winform.lbCurrentState.text = "正在编辑：文本色 " + styleStateTitle;
+		
+		if(!table.count(style.color)){
+			style.color = null;
+		}
+	}
+	elseif(string.startWith(styleCtrlName,"chkBd")){
+		winform.lbCurrentState.text = "正在编辑：边框色 " + styleStateTitle;
+		
+		if(!style.border)style.border={};
+		if(styleCtrlChecked){
+			var top = winform.chkBorderTop.checked;
+			var bottom = winform.chkBorderBottom.checked;
+			var right = winform.chkBorderRight.checked;
+			var left = winform.chkBorderLeft.checked;
+			var width = winform.tbBorderWidth.pos;
+			width = width : null;
+			
+			var padding = winform.tbBorderPadding.pos;
+			padding = padding : null;
+			
+			var radius = winform.tbBorderRadius.pos;
+			radius = radius : null;		
+			
+			if(top && bottom && right && left){
+				winform.plusPreview.border =  {color=winform.plusPreview.border[["color"]];width=width;radius=radius;padding=padding}
+				if( (styleState=="default") && (previewStyle == style) ){ winform.plusPreview.border.color = width?styleCtrlColor:null }
+				else style.border[styleState] = {color=width?styleCtrlColor:null}
+			}
+			elseif(top || bottom || right || left) {
+				winform.plusPreview.border = {color=winform.plusPreview.border[["color"]];top=top?width:null;bottom=bottom?width:null;right=right?width:null;left=left?width:null;radius=radius;padding=padding}
+				if(  (styleState=="default") && (previewStyle == style) ){ winform.plusPreview.border.color = width?styleCtrlColor:null }
+				else style.border[styleState] = {color=width?styleCtrlColor:null}
+			}
+			else {
+				winform.plusPreview.border = null;
+				style.border[styleState] = null;
+			}
+			 
+			if(!table.count(style.border[styleState])){
+				style.border[styleState] = null;
+			}
+		}
+		else {
+			style.border[styleState] = null;
+		} 
+		
+		if(!table.count(style.border)){
+			style.border = null;
+		} 
+	}
+	
+	if( #winform.editCheckedIconText.text &&  winform.editCheckedIconText.text != winform.editIconText.text){
+		try{
+			var str = string.trim(winform.editCheckedIconText.text);
+			
+			if(!previewStyle.checked) previewStyle.checked = {} 
+			previewStyle.checked.iconText = string.unescape(str); 
+		}
+	}
+	else {
+		if(previewStyle.checked) previewStyle.checked.iconText = null;
+	}
+	
+	if(previewStyle.checked && !table.count(previewStyle.checked)){
+		previewStyle.checked = null;
+	}
+	
+	var styleChecked = previewStyle.checked;
+	var strChecked;
+	if(styleChecked){
+		strChecked = util.table.stringify(styleChecked,'\t',{'background';'foreground';'color';'border';'checked';"text";"iconText"});
+
+		strChecked = string.replace(strChecked,"\n\w+\=\{\};?","");
+		strChecked = string.replace(strChecked,`(\a+\=)(%{})`,function(k,v){
+			return k + '{\n\t' + string.slice(v,2,-2) + '\n}'
+		});
+		strChecked = string.replace(strChecked,`(<default>|<hover>|<active>|<disabled>|<focus>=[^{};]+;)`,function(v){ 
+			return v + '\n\t';
+		});
+		
+		strChecked = string.replace(strChecked,"\n",'\n\t');
+		strChecked = string.replace(strChecked,"\n\t",'\n\t\t');
+		
+		strChecked = string.replace(strChecked,"\-?\d+[\x']?!",function(clr){
+			var n = tonumber(clr);
+			if(n > 0xFFFFFF || n < 0 ){
+				return string.format("0x%08X",n )
+			} 
+		});
+		strChecked = string.replace(strChecked,"\{\s+\}","")
+		if(#strChecked){
+			strChecked = string.replace(strChecked,"\s+\}$",'\n\t}')
+			strChecked = string.replace(strChecked,"\\","\\\\")
+			previewStyle.checked = "${PLUS$SKING$选中状态}"
+		}
+		else {
+			previewStyle.checked = null;
+		} 	
+	}
+	previewStyle.checked = styleChecked;
+	
+	var previewStyle2 = table.clone(previewStyle)
+	if(previewStyle2.checked ){
+		if(previewStyle2.checked.border){
+			if(!table.count(previewStyle2.checked.border)){
+				previewStyle2.checked.border = null;
+			}	
+		}
+		
+		if(previewStyle2.checked.color[["default"]] == previewStyle2.color[["default"]]){
+			if(previewStyle2.checked.color[["default"]]){
+				previewStyle2.checked.color[["default"]] = null;
+			}
+		}
+		
+		if(!table.count(previewStyle2.checked.color)){
+			previewStyle2.checked.color = null;
+		}
+		
+		if(!table.count(previewStyle2.checked)){
+			previewStyle2.checked = null;
+		}
+		
+		if(!table.count(previewStyle2.checked) ) previewStyle2.checked = null;
+	}
+	
+	if(previewStyle2.border && table.count(previewStyle2.border)){
+		previewStyle2.border.default = table.clone(winform.plusPreview.border)
+	}
+	else {
+		previewStyle2.border = null;
+	}
+	
+	
+	winform.plusPreview.background = null;
+	winform.plusPreview.foreground = null;	
+	if(table.count(previewStyle2)){
+		winform.plusPreview.skin(previewStyle2,true);
+		
+		var strDefault = util.table.stringify(previewStyle2,'\t',{'background';'foreground';'color';'border';'checked'});
+		strDefault = string.replace(strDefault,"\n\w+\=\{\};?","");
+		strDefault = string.replace(strDefault,"\-?\d+",function(clr){
+			var n = tonumber(clr);
+			if(n > 0xFFFFFF || n < 0 ){
+				return string.format("0x%08X",n )
+			} 
+		});
+		
+		if(strChecked){
+		 	strDefault = string.replace(strDefault,`@"${PLUS$SKING$选中状态}"`,strChecked);
+		}	
+		
+		strDefault = string.replace(strDefault,"\n\s*\n",'\n');
+		strDefault = string.replace(strDefault,"\s+\}\s*$",'\n}');	
+		winform.editPreview.text = '//前景色、背景色可以都改为图像路径\nwinform.plus.skin(' + strDefault + ")";
+	}
+	else {
+		winform.plusPreview.skin({},true);
+		winform.editPreview.text = '';
+	}
+	
+	winform.plusPreview.redrawTransparent();
+} 
+
+winform.cPreviewBackground.background = 0xFFF5F5F5;
+
+winform.editText.oncommand = function(id,event){
+	if(event == 0x300/*_EN_CHANGE*/){ 
+		try{
+			var str =  string.unescape(owner.text);
+			winform.plusPreview.checked = false; //修改选中前的文本
+			winform.plusPreview.text = string.trim(str:"");
+			winform.onStyleChanged("chkBgDefault",winform.chkBgDefault.checked,winform.cBgDefault.backgroundColor);
+		}
+	}
+	elseif(event==0x100/*_EN_SETFOCUS*/){
+		winform.lastEditText = winform.editText
+	}
+	
+}
+
+winform.editCheckedIconText.oncommand = function(id,event){
+	if(event == 0x300/*_EN_CHANGE*/){
+		try{
+			var str = string.unescape(owner.text)
+			winform.onStyleChanged("chkBgDefaultChecked",winform.chkBgDefaultChecked.checked,winform.cBgDefaultChecked.backgroundColor);
+		}
+	}
+	elseif(event==0x100/*_EN_SETFOCUS*/){
+		winform.lastEditText = winform.editCheckedIconText
+	}	
+}
+
+winform.chkPreviewBackground.oncommand = function(id,event){
+	winform.lbCurrentState.text = "正在编辑预览按钮窗口背景色" ;
+	winform.currentChkColorCtrl = owner;
+	winform.currentColorCtrl = winform.cPreviewBackground; 
+	winform.clrPicker.setColor( winform.cPreviewBackground.backgroundColor : 0xFFF5F5F5 ); 
+	winform.chkBorderTop.disabled = true;
+	winform.chkBorderBottom.disabled = true;
+	winform.chkBorderRight.disabled = true;
+	winform.chkBorderLeft.disabled = true;
+	winform.tbBorderRadius.disabled = true;
+	winform.tbBorderPadding.disabled = true;
+	winform.tbBorderWidth.disabled = true;
+	winform.lbBorderRadius.disabled = true;
+	winform.lbBorderPadding.disabled = true;
+	winform.lbBorderWidth.disabled = true;
+}
+
+winform.tbBorderRadius.oncommand = function(id,event,pos){
+	var chkCtrl = winform.currentChkColorCtrl;
+	if(chkCtrl ? string.startWith(chkCtrl.styleCtrlName,"chkBd") ){
+		winform.onStyleChanged(
+			winform.currentChkColorCtrl.styleCtrlName,
+			winform.currentChkColorCtrl.checked,
+			winform.currentColorCtrl.backgroundColor
+			);	
+	}
+}
+
+winform.tbBorderPadding.oncommand = function(id,event,pos){
+	var chkCtrl = winform.currentChkColorCtrl;
+	if(chkCtrl ? string.startWith(chkCtrl.styleCtrlName,"chkBd") ){
+		winform.onStyleChanged(
+			winform.currentChkColorCtrl.styleCtrlName,
+			winform.currentChkColorCtrl.checked,
+			winform.currentColorCtrl.backgroundColor
+			);	
+	}
+}
+
+winform.tbBorderWidth.oncommand = function(id,event,pos){
+	var chkCtrl = winform.currentChkColorCtrl;
+	if(chkCtrl ? string.startWith(chkCtrl.styleCtrlName,"chkBd") ){
+		winform.onStyleChanged(
+			winform.currentChkColorCtrl.styleCtrlName,
+			winform.currentChkColorCtrl.checked,
+			winform.currentColorCtrl.backgroundColor
+			);	
+	}
+}
+
+winform.plusPreview.text = string.trim(winform.editText.text);
+
+winform.chkBgDefault.checked = true;
+winform.chkBgHover.checked = true;
+winform.chkBgActive.checked = true;
+winform.chkPreviewBackground.checked = false;
+winform.currentChkColorCtrl = winform.chkBgDefault;
+winform.currentColorCtrl = winform.cBgDefault; 
+winform.currentChkColorCtrl = winform.chkBgHover;
+winform.currentColorCtrl = winform.cBgHover; 			
+winform.tbBorderRadius.setRange(0,50);
+winform.tbBorderPadding.setRange(0,50);
+winform.tbBorderWidth.setRange(0,20);
+
+winform.editPreview.enablePopMenu();
+winform.cPreviewBackground.directDrawBackgroundOnly();
+winform.onDrawBackgroundEnd = function(hdc,rc){
+    winform.plusPreview.redrawTransparent();
+}
+
+import win.dlg.font;
+winform.btnFont.oncommand = function(id,event){
+	var dlg = win.dlg.font(winform)
+	dlg.logFont = winform.plusPreview.getFont();
+	var font = dlg.chooseFont(); 
+	if(font){
+		winform.plusPreview.setFont(font);
+		winform.plusPreview.redrawTransparent();
+	}
+}
+
+winform.editPadding.oncommand = function(id,event){
+	var paddings = string.map(owner.text)
+	if(#paddings==4){
+		winform.plusPreview.paddingLeft = paddings[1]; 
+		winform.plusPreview.paddingTop = paddings[2];
+		winform.plusPreview.paddingRight = paddings[3];
+		winform.plusPreview.paddingBottom = paddings[4];
+		winform.plusPreview.redrawTransparent()
+	}
+}
+
+winform.editTextPadding.oncommand = function(id,event){
+	var paddings = string.map(owner.text)
+	if(#paddings==4){
+		winform.plusPreview.textPadding = {
+			left = paddings[1];
+			top = paddings[2];
+			right = paddings[3];
+			bottom = paddings[4];
+		};
+		winform.plusPreview.redrawTransparent();
+	}	
+}
+
+winform.editGradient.oncommand = function(id,event){
+	var value = string.map(owner.text)
+	if(#value==1 && value[1]>-2){
+		winform.plusPreview.linearGradient = value[1];
+		winform.plusPreview.redrawTransparent()
+	}
+	else {
+		winform.plusPreview.linearGradient = null;
+		winform.plusPreview.redrawTransparent()
+	}
+	
+}
+
+winform.editPreviewSize.oncommand = function(id,event){
+	var size = string.map(owner.text)
+	if(#size==2){
+		var cx,cy = size[1],size[2];
+		if(cx>300) cx = 300;
+		if(cy>320) cy = 320;
+		if(cx<32) cx = 32;
+		if(cy<16) cy = 16;
+		var rc = winform.plusPreview.getRect();
+		rc.inflate((cx - rc.width())/2,(cy - rc.height())/2)
+		winform.plusPreview.setRect(rc);
+	}	
+}
+
+winform.cbIconAlign.selIndex = 2;
+winform.cbIconVAlign.selIndex = 2;
+winform.cbAlign.oncommand = function(id,event){
+	winform.plusPreview.align =({"left";"center";"right"})[winform.cbAlign.selIndex];
+	winform.plusPreview.redrawTransparent();
+}
+
+winform.cbVAlign.oncommand = function(id,event){
+	winform.plusPreview.valign  =({"top";"center";"bottom"})[winform.cbVAlign.selIndex];
+	winform.plusPreview.redrawTransparent()
+}
+
+var updateIconStyle = function(iconFont){
+	var iconStyle = winform.plusPreview.iconStyle : {};
+	iconStyle.align = ({"left";"center";"right"})[winform.cbIconAlign.selIndex]; 
+	iconStyle.valign  =({"top";"center";"bottom"})[winform.cbIconVAlign.selIndex]; 
+	
+	
+	if(!iconFont){
+		iconFont = iconStyle.font : winform.plusPreview.getFont();
+	}
+	
+	var iconSize = tonumber(winform.editIconSize.text)
+	if(iconSize){
+		iconFont.h = -iconSize;
+	}
+	elseif(!iconFont.h) {
+		var font = winform.plusPreview.getFont();
+		iconFont.h = font.h;
+	}
+
+	var paddings = string.map(winform.editIconTextPadding.text)
+    iconStyle.padding = {left=paddings[1],top=paddings[2],right=paddings[3],bottom=paddings[4]}
+    iconStyle.font = ::LOGFONT(iconFont);
+    
+	winform.plusPreview.iconStyle = iconStyle;
+	
+	try{ 
+    	winform.plusPreview.iconText = string.unescape(winform.editIconText.text)  
+    }
+    
+	winform.plusPreview.redrawTransparent()
+}
+
+
+winform.cbIconAlign.oncommand = function(id,event){
+    updateIconStyle();
+}
+
+winform.cbIconVAlign.oncommand = function(id,event){
+    updateIconStyle();
+}
+
+winform.cbEditor.oncommand = function(id,event){
+	var selIndex = winform.cbEditor.selIndex;
+	if(selIndex = 2){
+		winform.plusPreview.editable = "edit";
+	}
+	elseif(selIndex = 3){
+		winform.plusPreview.editable = "richedit";
+	}
+	else{
+		winform.plusPreview.editable = null;
+		winform.plusPreview.text = winform.editText.text;
+	}
+}
+
+var pickerSetColor = winform.clrPicker.setColor;
+	winform.clrPicker.setColor  = function(){}
+	
+	import fsys.config;
+	var config = fsys.config( io.appData("/aardio/designPlus9") )
+	winform.bindConfig( config.winform,{
+		plus = {
+			["^c[A-Z]"] = "backgroundColor";
+			["^chk"] = "checked";
+		}; 
+		edit = "text";
+		previewChecked = "pos";
+		plusPreview = "font";
+		combobox = "selIndex";
+		trackbar = "pos";
+		checkbox = "checked";
+	} );
+	
+	if(config.winform.plusPreviewFont){
+		winform.plusPreview.setFont(config.winform.plusPreviewFont);
+	}
+	winform.cbAlign.oncommand();
+	winform.cbVAlign.oncommand();
+	winform.cbEditor.oncommand();
+	winform.editTextPadding.oncommand();
+	winform.editPadding.oncommand();
+	winform.editPreviewSize.oncommand();
+	
+	updateIconStyle(config.winform.plusPreviewIconFont); 
+	
+	for(name,ctrl in winform.eachControl("plus") ){ 
+		if(string.startWith(name,"chk") ){
+    		ctrl.oncommand ();
+		}
+	}
+	
+	winform.plusPreview.redrawTransparent();
+winform.clrPicker.setColor  = pickerSetColor;
+
+winform.onDestroy = function(){
+   config.winform.plusPreviewFont = winform.plusPreview.getFont()
+   config.winform.plusPreviewIconFont = winform.plusPreview.iconStyle[["font"]] 
+   config.winform.save();
+}
+
+import ide;
+winform.btnUpdateForm.oncommand = function(id,event){
+    var formName = ide.getActiveForm();
+	if(!formName){
+		winform.msgboxErr("请在aardio中打开并切换到窗体设计器");
+		return;
+	}
+	
+	var ctrlName = ide.getSelectedControl();
+	if(!ctrlName){
+		winform.msgboxErr("当前窗体设计器中未选定plus控件");
+		return;	
+	}
+	
+	var ctrlParam = ide.getControlParam(ctrlName);
+
+	if(ctrlParam.cls!="plus"){
+		winform.msgboxErr("当前选定的不是plus控件");
+		return;
+	}
+	
+	if(winform.chkBgDefault.checked){
+		ctrlParam.bgcolor = gdi.argbReverse(winform.cBgDefault.backgroundColor) 
+	}
+	else { 
+		ctrlParam.bgcolor = null;
+	}
+	
+	
+	if(winform.chkFgDefault.checked){
+		ctrlParam.forecolor = gdi.argbReverse(winform.cFgDefault.backgroundColor) 
+	}
+	else {
+		ctrlParam.forecolor = null;
+	}
+	
+	
+	if(winform.chkBdDefault.checked){
+		winform.plusPreview.checked = false;
+		ctrlParam.border = table.clone(winform.plusPreview.border);
+	}
+	else {
+		ctrlParam.border = null;
+	}
+	
+	ctrlParam.linearGradient = winform.plusPreview.linearGradient;
+	ctrlParam.textPadding = winform.plusPreview.textPadding;
+	
+	ctrlParam.paddingLeft = winform.plusPreview.paddingLeft;
+	ctrlParam.paddingRight = winform.plusPreview.paddingRight;
+	ctrlParam.paddingTop = winform.plusPreview.paddingTop;
+	ctrlParam.paddingBottom = winform.plusPreview.paddingBottom;
+ 
+	
+	ctrlParam.align  = winform.plusPreview.align;
+	ctrlParam.valign  = winform.plusPreview.valign : "center";
+	
+	if(winform.cbEditor.selIndex==2){
+		ctrlParam.editable  = "edit"
+	}
+	elseif(winform.cbEditor.selIndex==3){
+		ctrlParam.editable  = "richedit"
+	}
+	else {
+		ctrlParam.editable = null;
+	}
+	
+	var rect = winform.plusPreview.getRect();
+	if(ctrlParam.left){
+		ctrlParam.right = ctrlParam.left + rect.width()
+	}
+	if(ctrlParam.top){
+		ctrlParam.bottom = ctrlParam.top + rect.height()
+	}
+	
+	var newText;
+	try{
+		newText = string.unescape(winform.editText.text)	
+	}
+	
+	var font = winform.plusPreview.getFont();
+	if(font.name == "Segoe UI"){
+		font.name = "Tahoma";
+	}
+	elseif(_WINE && (font.name == "MS Shell Dlg") ){
+		font.name = "Tahoma";
+	}
+	font.charset = null;
+	
+	if(!#ctrlParam.text){
+		ctrlParam.font = font;
+		if(#newText)ctrlParam.text = newText;
+	}
+	elseif(#newText){
+		ctrlParam.font = font;
+	} 
+	
+	if(winform.chkTxtDefault.checked){
+		winform.plusPreview.checked = false;
+		ctrlParam.color = gdi.rgbReverse(winform.plusPreview.argbColor)
+		ctrlParam.font.color = ctrlParam.color  
+	}
+	
+	var iconText = string.unescape(winform.editIconText.text) 
+	if(iconText){
+		ctrlParam.iconText = iconText;
+		ctrlParam.iconStyle = winform.plusPreview.iconStyle;
+	}
+	
+	if(!ide.setControlParam(ctrlName,ctrlParam)){
+		winform.msgboxErr("更新窗体设计器中选定控件参数失败");
+		return;
+	} 
+	
+	var frmCode = ide.getActiveCode();
+	if(frmCode){
+		frmCode = string.replace(frmCode,formName + "\." + ctrlName+"\.skin\s*(\s*%\(\)\s*)\s*[\r\n]*","");
+		
+		var skinPreview = winform.editPreview.text;
+		if(#skinPreview){
+			skinPreview = string.replace(skinPreview,"\w+\.\w+\.skin(%\(\))",formName + "." + ctrlName+ ".skin\1");
+			skinPreview = string.replace(skinPreview,"//\N+[\r\n]+","");
+			
+			frmCode = string.replace(frmCode,"(/\*DSG\{\{\*/(.+?)/\*\}\}\*/)",function(dsg){
+				return dsg + '\r\n' + ..string.trim(skinPreview);
+			},1)			
+		}
+		 
+		if(#iconText || ( font.name && (  font.name!= "Tahoma" ) ) ){
+			if( !string.find(frmCode,"@" + winform.strImport) ){
+				frmCode = winform.strImport +'\r\n'+ frmCode ;	
+			} 	
+		} 
+		
+		ide.setActiveCode(frmCode);
+		ide.setSelectedControl(ctrlName);
+	} 
+}
+
+winform.btnUpdateForm.onMouseEnter = function(wParam,lParam){
+    winform.transparent(0)
+}
+
+winform.btnUpdateForm.onMouseLeave = function(wParam,lParam){
+	winform.transparent(false)
+}
+
+winform.btnUpdateForm.orphanWindow(false)
+
+winform.plusMinimized.onMouseDown = function(wParam,lParam){
+    if(winform.plusMinimized.hide){
+    	return;
+    }
+    winform.plusMinimized.show(false);
+    
+    var rc = winform.getRect();
+    var rcWork = win.getMonitorInfo(winform.hwnd).rcWork;
+    if(rc.right>rcWork.right){
+    	rc.offset(rcWork.right-rc.right,0);
+    }
+    if(rc.bottom>rcWork.bottom){
+    	rc.offset(0,rcWork.bottom-rc.bottom);
+    }
+    winform.setRect(rc);
+    
+	winform.transparent(false);
+	winform.btnUpdateForm.show(4/*_SW_SHOWNOACTIVATE*/);
+	win.setActive(winform.hwnd);
+	
+	if(winform.plusMinimized.state.hover){
+		winform.hitCaption()
+		
+	}
+}
+
+winform.onActivateApp = function(activated,threadId){
+	if(!activated){
+		winform.transparent(0)
+		winform.plusMinimized.show(4/*_SW_SHOWNOACTIVATE*/);
+		winform.btnUpdateForm.show(false);
+	}
+	else {
+		winform.plusMinimized.onMouseDown();
+	}
+	
+}
+winform.plusMinimized.orphanWindow(true);
+
+winform.onMinimize = function(lParam){
+	winform.btnUpdateForm.show(false);
+	winform.transparent(0)
+	winform.plusMinimized.show(4/*_SW_SHOWNOACTIVATE*/);
+	return true;	
+}
+
+winform.cbIcons.items ={
+	'\uF0C8 \\uF0C8 \uF14A \\uF14A';
+	'\uF204 \\uF204 \uF205 \\uF205';
+	'\uF04B \\uF04B \uF04C \\uF04C';
+	'\uF026 \\uF026 \uF027 \\uF027';
+	'\uF111 \\uF111 \uF058 \\uF058';
+	'\uF10C \\uF10C \uF05D \\uF05D';
+	'\uF10C \\uF10C \uF192 \\uF192';
+	'\uF273 \\uF273 \uF274 \\uF274';
+	'\uF096 \\uF096 \uF046 \\uF046';
+}
+
+winform.cbIcons.oncommand = function(id,event){
+	if(event==1/*_CBN_SELCHANGE*/){
+		var str = winform.cbIcons.selText;
+		var a,b = string.match(str,"(\\u\x\x\x\x).+(\\u\x\x\x\x)");
+		if(a && b ){
+			winform.editIconText.text = a;
+			winform.editCheckedIconText.text = b;
+			updateIconStyle({name=winform.cbIcons.getFont().name}); 
+		}
+	}
+}
+
+winform.btnOpenColorTable.oncommand = function(id,event){
+	
+	var clrName,clrNameEn;
+	var bg,fg,txt,border = {chk={}},{chk={}},{chk={}},{chk={}};
+	
+	for(name,ctrl in winform.eachControl("plus") ){
+		var clr = ctrl.backgroundColor;
+		if(!clr){
+			continue;
+		}
+		
+		var tab;
+		if( string.startWith(name,"cBg") ){
+			clrName = "背景"
+			clrNameEn = "background"
+			tab = bg;
+		}
+		elseif( string.startWith(name,"cFg") ){
+			clrName = "前景"
+			clrNameEn = "foreground"
+			tab = fg;
+		}
+		elseif( string.startWith(name,"cTxt") ){
+			clrName = "文本"
+			clrNameEn = "text"
+			tab = txt;
+		}
+		elseif( string.startWith(name,"cBd") ){
+			clrName = "边框"
+			clrNameEn = "border"
+			tab  = border;
+		}
+		else{
+			continue ;
+		}
+		
+		if( string.endWith(name,"Checked") ){
+			clrName = clrName+"/勾选"
+			clrNameEn = clrNameEn + "/checked"
+			tab = tab.chk;
+		}
+		
+		if(string.find(name,"Hover")){
+			clrNameEn = clrNameEn + "/hover";
+			clrName = clrName+"/鼠标进入"
+		}
+		elseif(string.find(name,"Active")){
+			clrNameEn = clrNameEn + "/active";
+			clrName = clrName+"/鼠标按下"
+		}
+		elseif(string.find(name,"Focus")){
+			clrNameEn = clrNameEn + "/focus";
+			clrName = clrName+"/获得焦点"
+		}
+		elseif(string.find(name,"Disabled")){
+			clrNameEn = clrNameEn + "/disabled";
+			clrName = clrName+"/禁用状态"
+		}
+		else {
+			clrNameEn = clrNameEn + "/default";
+			clrName = clrName+"/默认状态"
+		}
+		
+		table.push(tab,{
+			clrName;clrNameEn;color.rgbReverse(clr);
+		});	
+	}
+	 
+	var clrTable = {}
+	var tab ={bg;fg;txt;border}
+	for i,v in table.eachIndex(tab){
+		table.sort(v,function(b){
+			var a,b = owner[1],b[1]; 
+			return a < b;
+		})	
+		table.append(clrTable,v);
+	}
+ 	for i,v in table.eachIndex(tab){
+		table.sort(v.chk,function(b){
+			var a,b = owner[1],b[1]; 
+			return a < b;
+		})	
+		table.append(clrTable,v.chk)
+	}
+	winform.clrPicker.openColorTable(clrTable); 
+}
+
+winform.onDropFiles = function(files){
+	var path = files[1];
+	if(!..string.endWith(path,".colors")){
+		return;
+	}
+	
+	var str = ..string.load(path);
+	if(#str && str[1]=='{'#){
+		var tab = eval(str)
+		winform.clrPicker.openColorTable(tab); 
+	}
+}
+
+winform.lnkIconText.skin(
+    color = {
+        hover = 0xFFFF0000; 
+        active = 0xFF00FF00; 
+    }
+)
+
+winform.lnkChkIconText.skin(
+    color = {
+        hover = 0xFFFF0000; 
+        active = 0xFF00FF00; 
+    }
+)
+    
+winform.btnFont.skin(
+    color = {
+        hover = 0xFFFF0000; 
+        active = 0xFF00FF00; 
+    }
+)
+
+winform.editIconTextPadding.oncommand = function(id,event){
+	var paddings = string.map(owner.text)
+	if(#paddings==4){ 
+		updateIconStyle();
+	}
+}
+
+winform.strImport = 'import fonts.fontAwesome;'
+winform.lnkIconText.oncommand = function(id,event){
+	var fontAwesome = winform.loadForm("~\tools\界面\fontAwesome.aardio");
+	fontAwesome.onSetIcon = function(text,font,strImport){
+	 
+		winform.editIconText.text = string.escape(text,true,true);
+		
+		if(font.name=="FontAwesome"){
+			winform.cbIcons.setFont(name=font.name);
+			winform.cbIcons.items ={
+				'\uF0C8 \\uF0C8 \uF14A \\uF14A';
+				'\uF204 \\uF204 \uF205 \\uF205';
+				'\uF04B \\uF04B \uF04C \\uF04C';
+				'\uF026 \\uF026 \uF027 \\uF027';
+				'\uF111 \\uF111 \uF058 \\uF058';
+				'\uF10C \\uF10C \uF05D \\uF05D';
+				'\uF10C \\uF10C \uF192 \\uF192';
+				'\uF273 \\uF273 \uF274 \\uF274';
+				'\uF096 \\uF096 \uF046 \\uF046';
+			}
+		}
+	 
+		winform.strImport = strImport;
+		winform.plusPreview.iconText = text;
+		
+		updateIconStyle({name=font.name}) 
+	}
+}
+
+winform.lnkChkIconText.oncommand = function(id,event){
+	var fontAwesome = winform.loadForm("~\tools\界面\fontAwesome.aardio");
+	fontAwesome.onSetIcon = function(text,font,strImport){
+	 
+		winform.editCheckedIconText.text = string.escape(text,true,true);
+		
+		if(font.name=="FontAwesome"){
+			winform.cbIcons.setFont(name=font.name);
+			winform.cbIcons.items ={
+				'\uF0C8 \\uF0C8 \uF14A \\uF14A';
+				'\uF204 \\uF204 \uF205 \\uF205';
+				'\uF04B \\uF04B \uF04C \\uF04C';
+				'\uF026 \\uF026 \uF027 \\uF027';
+				'\uF111 \\uF111 \uF058 \\uF058';
+				'\uF10C \\uF10C \uF05D \\uF05D';
+				'\uF10C \\uF10C \uF192 \\uF192';
+				'\uF273 \\uF273 \uF274 \\uF274';
+				'\uF096 \\uF096 \uF046 \\uF046';
+			}
+		}
+	 
+		winform.strImport = strImport && string.trim(strImport); 
+		
+		updateIconStyle({name=font.name}) 
+	}
+}
+
+winform.editGradient.setCueBannerText("负数为径向渐变");
+
+winform.editIconText.oncommand = function(id,event){
+	updateIconStyle();
+	winform.onStyleChanged("chkBgDefault",winform.chkBgDefault.checked,winform.cBgDefault.backgroundColor);
+}
+
+var loadExampleStyle = function(exampleCtrl){
+
+	for(name,ctrl in winform.eachControl("combobox") ){ 
+		if(string.startWith(name,"chk") ){
+    		ctrl.selIndex = 1;
+		}
+	}
+	
+	for(name,ctrl in winform.eachControl("edit") ){ 
+		ctrl.text = "";
+	}
+	
+	winform.editPadding.text = "0,0,0,0  //左,上,右,下";
+	winform.editTextPadding.text = "0,0,0,0  //左,上,右,下";
+	winform.editIconTextPadding.text = "0,0,0,0  //左,上,右,下";
+	
+	for(name,ctrl in winform.eachControl("plus") ){ 
+		if(string.startWith(name,"chk") ){
+    		ctrl.checked = false;
+		}
+	}
+	
+	winform.plusPreview.setFont(exampleCtrl.getFont());
+	winform.editText.text = exampleCtrl.text;
+	
+	if(exampleCtrl.iconText){ 
+		winform.editIconText.text = string.escape(exampleCtrl.iconText,true,true);
+		winform.plusPreview.iconText = exampleCtrl.iconText;
+		
+		if(exampleCtrl[["(checked-iconText)"]] && exampleCtrl[["(unchecked-iconText)"]]){
+			winform.editCheckedIconText.text = string.escape(exampleCtrl[["(checked-iconText)"]],true,true);
+			winform.editIconText.text = string.escape(exampleCtrl[["(unchecked-iconText)"]],true,true);
+		}
+		
+		if(exampleCtrl.iconStyle){
+			winform.plusPreview.iconStyle = table.clone(exampleCtrl.iconStyle);
+			
+			var fontSize = winform.plusPreview.iconStyle[["font"]][["h"]];
+			if(fontSize){
+				winform.editIconSize.text = math.abs(fontSize )
+			}
+			else {
+				winform.editIconSize.text = ""
+			}
+			
+				
+			var align = exampleCtrl.iconStyle.align;
+			var valign = exampleCtrl.iconStyle.valign;	
+			winform.cbIconAlign.selIndex = ({left=1;center=2;right=3})[align:"left"]
+		 	winform.cbIconVAlign.selIndex = ({top=1;center=2;bottom=3})[valign:"center"]
+		 	
+		 	var padding = exampleCtrl.iconStyle.padding;
+		 	if(padding) {
+		 		winform.editIconTextPadding.text = string.format("%d,%d,%d,%d",padding.left:0,padding.top:0,padding.right:0,padding.bottom:0 ) 
+		 	}
+		}
+	}
+	
+	var textPadding = exampleCtrl.textPadding;
+	if(textPadding) {
+		winform.editTextPadding.text = string.format("%d,%d,%d,%d",textPadding.left:0,textPadding.top:0,textPadding.right:0,textPadding.bottom:0 );
+		winform.editTextPadding.oncommand();
+	}
+	
+	winform.editPadding.text = string.format("%d,%d,%d,%d",winform.plusPreview.paddingLeft:0
+		,winform.plusPreview.paddingTop:0
+		,winform.plusPreview.paddingRight:0
+		,winform.plusPreview.paddingBottom :0 );
+		
+	var align = exampleCtrl.align;
+	var valign = exampleCtrl.valign;	
+	winform.cbAlign.selIndex = ({left=1;center=2;right=3})[align:"left"]
+	winform.cbVAlign.selIndex = ({top=1;center=2;bottom=3})[valign:"center"]
+	winform.plusPreview.align = align;
+	winform.plusPreview.valign = valign;
+
+	previewStyle = {};
+	previewStyle.border={};
+	winform.plusPreview.border = table.clone(exampleCtrl.border);
+	if(exampleCtrl.border && exampleCtrl.border.color){
+		winform.chkBdDefault.checked = true;
+		winform.cBdDefault.background = exampleCtrl.border.color; 
+		
+		if(exampleCtrl.border.width){
+			winform.chkBorderLeft.checked = true;
+			winform.chkBorderTop.checked = true;
+			winform.chkBorderBottom.checked = true;
+			winform.chkBorderRight.checked = true;
+			winform.tbBorderWidth.pos = exampleCtrl.border.width;
+		}
+		else {
+			winform.chkBorderLeft.checked = exampleCtrl.border.left;
+			winform.chkBorderTop.checked = exampleCtrl.border.top;
+			winform.chkBorderBottom.checked = exampleCtrl.border.bottom;
+			winform.chkBorderRight.checked = exampleCtrl.border.right;
+			winform.tbBorderWidth.pos = exampleCtrl.border.left || exampleCtrl.border.top || exampleCtrl.border.right || exampleCtrl.border.bottom : 0;
+		}
+		
+		winform.tbBorderRadius.pos = exampleCtrl.border.radius : 0;
+		winform.tbBorderPadding.pos = exampleCtrl.border.padding : 0;
+		//previewStyle.border.default = ..table.clone(exampleCtrl.border)
+	}
+	
+	winform.editPreviewSize.text =  exampleCtrl.width + "," + exampleCtrl.height + "//宽,高"
+	winform.editPreviewSize.oncommand()
+	
+	var style = exampleCtrl[["(skin-setting)"]]
+	if(style){ 
+		
+		if(style.background){
+			if(style.background.default){
+				winform.chkBgDefault.checked = true;
+				winform.cBgDefault.background = style.background.default;
+				winform.chkBgDefault.oncommand();
+			}
+			if(style.background.hover){
+				winform.chkBgHover.checked = true;
+				winform.cBgHover.background = style.background.hover;
+				winform.chkBgHover.oncommand();
+			}
+			if(style.background.active){
+				winform.chkBgActive.checked = true;
+				winform.cBgActive.background = style.background.active;
+				winform.chkBgActive.oncommand();
+			}
+			if(style.background.disabled){
+				winform.chkBgDisabled.checked = true;
+				winform.cBgDisabled.background = style.background.disabled;
+				winform.chkBgDisabled.oncommand();
+			}
+			if(style.background.focus){
+				winform.chkBgFocus.checked = true;
+				winform.cBgFocus.background = style.background.focus;
+				winform.chkBgFocus.oncommand();
+			}
+		}
+		
+		if(style.foreground){
+			if(style.foreground.default){
+				winform.chkFgDefault.checked = true;
+				winform.cFgDefault.background = style.foreground.default;
+				winform.chkFgDefault.oncommand();
+			}
+			if(style.foreground.hover){
+				winform.chkFgHover.checked = true;
+				winform.cFgHover.background = style.foreground.hover;
+				winform.chkFgHover.oncommand();
+			}
+			if(style.foreground.active){
+				winform.chkFgActive.checked = true;
+				winform.cFgActive.background = style.foreground.active;
+				winform.chkFgActive.oncommand();
+			}
+			if(style.foreground.disabled){
+				winform.chkFgDisabled.checked = true;
+				winform.cFgDisabled.background = style.foreground.disabled;
+				winform.chkFgDisabled.oncommand();
+			}
+			if(style.foreground.focus){
+				winform.chkFgFocus.checked = true;
+				winform.cFgFocus.background = style.foreground.focus;
+				winform.chkFgFocus.oncommand();
+			}
+		}
+		
+		if(style.color){
+			if(style.color.default){
+				winform.chkTxtDefault.checked = true;
+				winform.cTxtDefault.background = style.color.default;
+				winform.chkTxtDefault.oncommand();
+			}
+			if(style.color.hover){
+				winform.chkTxtHover.checked = true;
+				winform.cTxtHover.background = style.color.hover;
+				winform.chkTxtHover.oncommand();
+			}
+			if(style.color.active){
+				winform.chkTxtActive.checked = true;
+				winform.cTxtActive.background = style.color.active;
+				winform.chkTxtActive.oncommand();
+			}
+			if(style.color.disabled){
+				winform.chkTxtDisabled.checked = true;
+				winform.cTxtDisabled.background = style.color.disabled;
+				winform.chkTxtDisabled.oncommand();
+			}
+			if(style.color.focus){
+				winform.chkTxtFocus.checked = true;
+				winform.cTxtFocus.background = style.color.focus;
+				winform.chkTxtFocus.oncommand();
+			}
+		}
+	}
+	
+	
+ 	if(exampleCtrl.editable){
+		if(exampleCtrl.editable == "edit"){
+			winform.cbEditor.selIndex = 2;
+		}
+		else {
+			winform.cbEditor.selIndex = 3;
+		}
+	}
+	else {
+		winform.cbEditor.selIndex = 1;
+	}
+	
+
+	winform.plusPreview.editable = exampleCtrl.editable;
+	winform.plusPreview.setCueBannerText( exampleCtrl["(cueBanner)"] );
+	winform.plusPreview.text = exampleCtrl.text;
+	
+	winform.onStyleChanged("chkBgDefaultChecked",winform.chkBgDefaultChecked.checked,winform.cBgDefaultChecked.backgroundColor);
+	updateIconStyle();
+}
+
+
+winform.exampleButton.skin({
+	background={
+		default=0x668FB2B0;
+		hover=0xFF928BB3;
+		disabled=0xFFCCCCCC; 
+	}
+})
+winform.exampleButton.oncommand = function(id,event){
+	loadExampleStyle(owner);
+}
+
+winform.exampleTransButton.skin({
+		color = { 
+			default = 0xFF3C3C3C;
+			hover = 0xFFFF0000; 
+			active = 0xFF00FF00; 
+		}
+	})
+winform.exampleTransButton.oncommand = function(id,event){
+	loadExampleStyle(owner);	
+}
+
+winform.exampleLink.skin({
+	color = { 
+		default = 0xFF000080;
+		hover = 0xFFFF0000; 
+		active = 0xFF00FF00; 
+	}
+})
+winform.exampleLink.oncommand = function(id,event){
+	loadExampleStyle(owner);	
+}
+
+winform.exampleCheckbox.skin( {
+	color = { 
+		hover = 0xFFFF0000; 
+		active = 0xFF00FF00;
+		disabled = 0xEE666666;
+	}
+	checked = {
+		color = { 
+			hover = 0xFFFF0000; 
+			active = 0xFF00FF00;
+			disabled = 0xEE666666;
+		}
+		iconText = '\uF14a'/*_FA_CHECK_SQUARE*/
+	} 	
+})
+winform.exampleCheckbox.oncommand = function(id,event){
+	loadExampleStyle(owner);	
+}
+
+winform.exampleRadio.skin({
+	group = "GroupName";
+	color = { 
+		hover = 0xFFFF0000; 
+		active = 0xFF00FF00;
+	}
+	checked = {  
+		iconText = '\uF058'/*_FA_CHECK_CIRCLE*/
+	} 	
+})
+winform.exampleRadio.oncommand = function(id,event){
+ 	loadExampleStyle(owner);    
+}
+
+winform.exampleEdit.editBox.oncommand = function(id,event){
+    if(event== 0x100/*_EN_SETFOCUS*/){
+    	loadExampleStyle(winform.exampleEdit); 
+    }	
+}
+
+winform.exampleEdit.setCueBannerText("请输入");
+
+
+import win.image;
+var hico = win.image.loadIconFromFile("/.img/designPlus.ico");
+winform.setIcon( hico );
+
+winform.show();
+win.setTopmost(winform.hwnd);
+winform.plusPreview.redrawTransparent();
+
+win.loopMessage();

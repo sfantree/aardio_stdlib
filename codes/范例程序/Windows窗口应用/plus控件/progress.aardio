@@ -1,0 +1,24 @@
+//进度条动画
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="plus控件 - 进度条动画";right=759;bottom=469)
+winform.add(
+button={cls="button";text="测试进度条动画";left=159;top=356;right=325;bottom=409;z=2};
+plus={cls="plus";left=161;top=282;right=707;bottom=316;bgcolor=6447459;forecolor=9959653;hide=1;notify=1;z=1}
+)
+/*}}*/
+
+//设置进度区间，可自动切换到进度条显示模式
+winform.plus.setProgressRange(1,50);
+
+winform.button.oncommand = function(id,event){
+	winform.button.disabledText = "测试一下"
+	winform.plus.startProgress(50); 
+	
+	win.delay(5000);
+	winform.plus.stopProgress();
+	winform.button.disabledText = null;
+}
+
+winform.show() 
+win.loopMessage();

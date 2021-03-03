@@ -1,0 +1,42 @@
+//监视窗口创建销毁
+
+import win.ui;
+/*DSG{{*/
+var winform = win.form(parent=...; text="aardio form";right=448;bottom=249 )
+winform.add( 
+edit={ dr=1;dl=1;bottom=239;vscroll=1;right=437;left=8;multiline=1;top=13;text="";z=1;db=1;dt=1;edge=1;cls="edit" }
+)
+/*}}*/
+
+
+//导入shellhook支持库
+import win.util.shellhook 
+
+//创建shellhook窗口
+shellhook = win.util.shellhook(winform)
+shellhook.onShellHook=function(hshell,hwnd){ 
+
+	//获取线程ID,进程ID
+	var tid,pid = win.getThreadProcessId(hwnd)
+	if(tid== thread.getId()){
+		/*return 如果不想临视本线程在这里退出*/
+	}
+	
+	//判断钩子拦截到的消息类型
+    select(hshell ) {
+		case 0x1/*_HSHELL_WINDOWCREATED*/ {  
+			winform.edit.text +=   "一个窗口创建"+hwnd+"进程ID：" + pid + "线程ID:" +tid + '\r\n    标题:' + win.getText(hwnd) + '\r\n\r\n'
+		}
+		case 0x2/*_HSHELL_WINDOWDESTROYED*/{
+			winform.edit.text += "一个窗口销毁"+hwnd+"进程ID：" + pid + "线程ID:" +tid  + '\r\n   标题:' + win.getText(hwnd) + '\r\n\r\n'
+		}   
+		case 0x4/*_HSHELL_WINDOWACTIVATED*/{
+			winform.edit.text += "一个窗口激活"+hwnd+"进程ID：" + pid + "线程ID:" +tid  + '\r\n   标题:' + win.getText(hwnd) + '\r\n\r\n'
+		}
+		
+     }	
+}
+
+winform.show() 
+win.loopMessage();
+

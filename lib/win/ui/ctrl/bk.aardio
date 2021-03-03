@@ -1,0 +1,167 @@
+﻿//bk 背景贴图
+import gdi;
+import com.picture;
+import util.metaProperty;
+
+namespace win.ui.ctrl;
+class bk{
+	ctor(parent,tParam){
+		if(tParam.bkImage){
+			this.bitmap = ..com.picture.loadBitmap(tParam.bkImage)
+		}
+		
+		this.text = tParam.text;
+		this.rect = ::RECT();
+		this.paddingRight = tParam.paddingRight : 0;
+		this.paddingBottom = tParam.paddingBottom : 0;
+		this.paddingLeft = tParam.paddingLeft : 0;
+		this.paddingTop = tParam.paddingTop : 0;
+		this.onlyDirectDrawBackground = true;//禁止创建窗口
+		this.align = tParam.align : "center";
+		this.valign = tParam.valign : "center";
+	};
+	onDirectDrawBackground = function(hdc){
+		var rc = this.rect;
+		
+		if( (this.bgcolor!==null) && (this.linearGradient== null) ){
+			..gdi.fillRect(hdc,this.bgcolor,rc);
+		}
+		
+		if(owner[["(background)"]]){
+			if(!this.repeat || this.repeat =="expand"){
+				..gdi.drawBitmap(hdc,owner[["(background)"]],rc,this.bkTop:0,this.bkRight:0,this.bkBottom:0,this.bkLeft:0);
+			}
+			else {
+				..gdi.drawBitmap(hdc,owner[["(background)"]],rc);
+			} 
+		}
+		
+		var rcContent = rc.copy();
+		rcContent.right = rcContent.right - this.paddingRight;
+		rcContent.bottom = rcContent.bottom - this.paddingBottom;
+		rcContent.left = rcContent.left + this.paddingLeft;
+		rcContent.top = rcContent.top + this.paddingTop;
+		
+		if(this.forecolor!==null){
+			if(this.linearGradient!== null && this.bgcolor !== null ){
+				if(this.linearGradient>=0){
+					..gdi.fillGradient(hdc,rc,this.bgcolor,this.forecolor,this.linearGradient?1:0)
+				} 
+			}
+			else { 
+				..gdi.fillRect(hdc,this.forecolor,rcContent);
+			}
+		}
+		
+		if(this.onDrawBackground)this.onDrawBackground(hdc,rc);
+		
+		if(this.text && this.font){
+			var flags = 0x20/*_DT_SINGLELINE*/;
+			
+			if( this.align =="center"){
+				flags = flags | 1/*_DT_CENTER*/;
+			}
+			elseif( this.align =="right"){
+				flags = flags | 2/*_DT_RIGHT*/;
+			} 
+			
+			if( this.valign =="center"){
+				flags = flags | 4/*_DT_VCENTER*/ ;
+			}
+			elseif( this.valign =="bottom"){
+				flags = flags | 8/*_DT_BOTTOM*/;
+			} 
+			
+			if( this.drawTextFlags ) flags = flags | this.drawTextFlags;
+			if(this.color!==null)::SetTextColor(hdc,this.color);
+			..gdi.drawText(hdc,this.font,this.text,rc,flags);
+		}
+	};
+	setPos = function(x,y,cx,cy){
+		this.rect.ltrb(x,y,cx,cy);
+	};
+	getPos = function(){
+		return this.rect.xywh();
+	};
+	redraw = function(){
+		owner[["_parentForm"]].redrawBackground(owner.rect);
+	};
+	setBitmap = function(bmp){
+		if(owner[["(background)"]]){
+			::DeleteObject(owner[["(background)"]]);
+			owner[["(background)"]] = null;
+		}
+		owner[["(background)"]] = bmp;
+	};
+	setFont = function(logfont){
+		this.font = logfont;
+	}; 
+	getFont = function(){
+		return this.font;
+	}; 
+	enableDpiScaling = function(scaleX,scaleY){
+		if( scaleX === false ){  return; } 
+		if(!( scaleX && scaleY ) ) { return; 	}  
+		
+		if( !owner[["dpiScaleX"]] ) {
+			owner[["dpiScaleX"]] = 1;
+			owner[["dpiScaleY"]] = 1;
+		}
+		var origScaleX,origScaleY = owner[["dpiScaleX"]],owner[["dpiScaleY"]];
+		owner[["dpiScaleX"]] = scaleX;
+		owner[["dpiScaleY"]] = scaleY;
+		
+		var font = owner.getFont();
+		if( font ){
+			font.h = ( font.h / origScaleY ) * scaleY;
+			owner.setFont(font);
+		}
+	};
+	_onDestroy = function(){
+		if(this.bitmap){
+			::DeleteObject(this.bitmap);
+			this.bitmap = null;
+		}
+	};
+	@_metaProperty;
+}
+
+bk._metaProperty = ..util.metaProperty(
+
+	background = {
+		_get = function () {
+			return owner[["(background)"]];
+		}
+		_set = function (v) {
+			if(owner[["(background)"]] ){
+				::DeleteObject(owner[["(background)"]]);
+				owner[["(background)"]] = null;
+			}
+			owner[["(background)"]] = ..com.picture.loadBitmap(v)
+		}
+	};
+	foreground = {
+		_get = function () {
+			return owner.forecolor;
+		}
+		_set = function (v) {
+			owner.forecolor = v;
+		}
+	}; 
+)
+/**intellisense()
+win.ui.ctrl.bk() = 无窗口控件,仅用于背景贴图,不建议用于频繁刷新绘图\n!winuictrlbk.
+end intellisense**/
+
+/**intellisense(!winuictrlbk)
+redraw() = 刷新,会导致背景窗口重建背景图缓存\n不建议频繁调用
+setBitmap(__) = 参数指定位图句柄,重设背景位图\n控件负责销毁位图句柄
+background  = 参数指定图像路径，重设背景图像,\n仅支持gif,jpg等，不支持png,\npng贴图请改用bkplus控件
+forecolor = 前景色,RGB格式数值
+bgcolor = 背景色,RGB格式数值
+linearGradient = 线程渐变方向,0为水平方向，其他数值为垂直方向渐变
+getPos（） = 返回x,y,cx,cy,\nx,y为控件坐标,cx,cy为控件宽、高
+onDrawBackground = @.onDrawBackground(hdc,rc){
+	/*背景绘图以后触发此回调,\nhdc为当前绘图设备句柄,rc为控件位置*/
+}
+end intellisense**/

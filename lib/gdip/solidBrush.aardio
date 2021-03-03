@@ -1,0 +1,63 @@
+//solidBrush 单色笔刷
+import gdip.core;
+namespace gdip;
+
+//创建类
+class solidBrush {
+
+	ctor( argb=0 ){ 
+		var err,handle = gdip.CreateSolidFill(argb);
+		if(err) return null,gdip.errMsg[err]; 
+		this.pBrush = handle; 
+		
+		..table.gc(this,"delete");
+	}
+
+	@_metaProperty//元表指向属性表
+}
+
+
+
+namespace solidBrush {
+
+	self.gdip = ..gdip;
+	var gdip = gdip; 
+	
+	_metaProperty = ..util.metaProperty(  
+		
+		color = {
+			_get = function(){ 
+				return gdip.assert2(  gdip.GetSolidFillColor(owner[["pBrush"]], 0) ); 
+			} 
+			_set = function(v){ 
+				gdip.assert2( gdip.SetSolidFillColor(owner[["pBrush"]], v) );
+			}  	
+		}; 
+		delete = function(){
+			if( owner[["pBrush"]] ){
+				::Gdiplus.GdipDeleteBrush(owner[["pBrush"]])
+				owner[["pBrush"]] = null;
+			}
+		}
+		
+		//自动转换为API指针
+		_topointer = function(){
+			return owner[["pBrush"]];
+		}
+	)  
+}
+
+var $ = _dll;  
+/*intellisense(gdip)*/
+CreateSolidFill = $.api("GdipCreateSolidFill","int(int argb,pointer& Brush)")
+SetSolidFillColor = $.api("GdipSetSolidFillColor","int(PTR brush,int argb)")
+GetSolidFillColor = $.api("GdipGetSolidFillColor","int(PTR brush,int& argb)")
+/*end intellisense*/
+ 
+/**intellisense()
+gdip.solidBrush = 单色笔刷
+gdip.solidBrush(.(颜色值) = 创建单色笔刷
+!gdipsolidbrush.color = 获取或修改笔刷颜色
+!gdipsolidbrush.delete() = 释放笔刷对象
+gdip.solidBrush()= !gdipsolidbrush.
+end intellisense**/

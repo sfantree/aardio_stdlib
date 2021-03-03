@@ -1,0 +1,79 @@
+﻿//glob 模式匹配
+namespace string;
+
+class glob{
+	ctor( pattern ){
+		this.push = function(pattern){
+			if(type(pattern) === "table"){
+				pattern = ..table.unique(pattern);
+				for(i=1;#pattern;1){
+					..table.push(this, convert(pattern[i]) )
+				}
+			}
+			else {
+				..table.push(this,convert(pattern))
+			} 		
+		}
+		
+		if(pattern){
+			this.push(pattern)	
+			pattern = null;
+		}	
+	}; 
+	load = function(path){
+		if(..io.exist(path)){
+			for(line in ..io.lines(path)){ 
+				line = ..string.trim(line);
+				line = ..string.replace(line,"/","\\");
+				
+				if(!#line) continue;
+				if(line[1]!='#'#) ..table.push(this,convert(line))
+			} 
+		}
+	};
+	clear = function(){
+		if(#this){
+			..table.splice(this,1,#this);	
+		}
+	};
+	test = function(str){
+		for(i=1;#this;1){
+			if( ..string.find(str,this[i] ) )return true;
+		}
+	};
+}
+
+namespace glob{
+	
+	convert = function(pattern){
+		if(pattern[1]==='^'){
+			return pattern
+		}
+		
+		var set = false;
+		return "^" + ..string.replace(pattern,"<\*\*>|\p",function(c) {
+			if(set) {
+				if( c==="]" ) { set = false; }
+				return c;
+			}
+			if( c==="*" ) return "[^\\]*?";
+			if( c==="**" ) return ".*?";
+			if( c==="?" ) return "[^\\]";
+			if( c==="[" ) { 
+				set = true;
+				return c;
+			}
+			
+			return "\"+c;
+		}) + "$" 
+	} 
+}
+
+/**intellisense()
+string.glob(__) = glob模式匹配工具,\n参数可以是符合glob语法的模式文本，或包含模式文本的数组\n可省略参数
+string.glob() = !string_blog.
+!string_blog.test(__) = 测试一个字符串是否匹配
+!string_blog.push(__) = 添加模式,\n参数可以是符合glob语法的模式文本，或包含模式文本的数组
+!string_blog.load(__) = 自文件加载并添加模式,不清空之前的模式,\n每行文本指定一个模式,#字符开头的为注释,\n忽略首尾空格，忽略空行
+!string_blog.clear() = 清空所有模式
+end intellisense**/

@@ -1,0 +1,75 @@
+//自定义控件
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="Sciter 自定义控件";right=1014;bottom=523;parent=...)
+winform.add()
+/*}}*/
+
+import web.sciter;
+var wbSciter = web.sciter( winform );
+
+import web.form; 
+namespace web.sciter.behavior.webbrowser {  
+	onAttach = function (scOwner) { 
+		var ltCtrl = scOwner.addCtrl();
+		wb = ..web.form( ltCtrl,0x4/*_UIFLAG_NO3DBORDER*/  , , ,true/*securityTrusted*/ ) 
+	 
+		ltCtrl.translateAccelerator = function( msg ){
+			var message,vk = msg.message,msg.wParam;
+    		if (   (message == 0x100/*_WM_KEYDOWN*/) || (message== 0x101/*_WM_KEYUP*/) ) { 
+        		if( /**( vk == 0x74/*_VK_F5*/ )
+            		|| **/( ( vk == 'N'# ) && ( ( ::GetKeyState(0x11/*_VK_CTRL*/) & 0x8000 ) == 0x8000 ) ) ) 
+        		{
+            		return true;   
+        		} 
+    		}  
+    		return wb._host.tranacc(msg)
+		}
+		if( !_STUDIO_INVOKED ){
+			wb.noScriptErr = true;
+		}
+		var homepage = scOwner.getCustomAttribute("homepage");
+		if( #homepage ) wb.go(  scOwner.getCustomAttribute("homepage"))   
+		scOwner.sendEvent("onBrowserCreated",1);
+	}
+	onDetach = function( scOwner ){
+		scOwner.delCtrl();
+	}
+	onSize = function (scOwner) {
+		scOwner.adjustCtrl();
+	} 
+}
+
+//在HTML中引用的控件,需要使用import语句导入aardio 
+import win.ui.ctrl.static;
+import win.ui.ctrl.richedit; 
+wbSciter.html =/*** 
+<body>
+	<span style="font:system">
+	自定义控件可以象HTMLayout那样,在input,object,widget三种节点中使用cls属性指定控件类名来启用custom这个内建behavior,<br />
+	使用此方法时可选在data-table属性中使用一个table对象指定控件初始化参数，示例： <br /><br />
+	</span> 
+	
+	<span style="font:system">
+	在Sciter中也可以新建一个behavior，使用节点提供的 addCtrl函数直接创建自定义控件
+	</span> 
+	<widget  #browser style="width:100%%;height:100%%;"></widget> 
+	widget可以指定相对高度,input,object因为被包含在匿名节点中,无法指定相对高度 <? = " | ",time()," 这里也是可以使用模板语法的" ?>
+</body>
+***/
+
+wbSciter.css = /**
+body{ 
+	margin:20px;
+	height:100%%;
+	font:system;
+} 
+
+#browser {
+	behavior: webbrowser; 
+	-homepage:"http://www.aardio.com";
+}
+**/
+
+winform.show() 
+win.loopMessage();

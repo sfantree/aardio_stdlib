@@ -1,0 +1,25 @@
+//自动缩放
+import fonts.fontAwesome
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="plus控件 - 自动缩放";right=759;bottom=469)
+winform.add(
+plus={cls="plus";text='\uF06C';left=299;top=143;right=456;bottom=230;color=16737536;font=LOGFONT(h=-48;name='FontAwesome';charset=0);z=1}
+)
+/*}}*/
+
+winform.plus.skin({ 
+	color={
+		active=0xFF65FF00;
+		default=0xFF0065FF;
+		hover=0xFFFF9A00
+	}; 
+	scale ={
+		active=1.3;  //放大130%
+		hover=1.5; //放大150%
+		default=0.6;//默认缩小60%
+	}; 
+})
+
+winform.show() 
+win.loopMessage();

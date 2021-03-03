@@ -1,0 +1,26 @@
+﻿//文本框汽泡提示
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add(
+btnError={cls="button";text="错误";left=280;top=306;right=390;bottom=353;z=2};
+btnWarning={cls="button";text="警告";left=410;top=306;right=520;bottom=353;z=3};
+btnInfo={cls="button";text="提示";left=539;top=306;right=649;bottom=353;z=4};
+edit={cls="edit";text="Edit";left=129;top=179;right=394;bottom=218;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+winform.btnError.oncommand = function(id,event){
+	winform.edit.showErrorTip("这是标题","这是要显示的错误信息")
+}
+
+winform.btnWarning.oncommand = function(id,event){
+	winform.edit.showWarningTip("这是标题","这是要显示的错误信息")	
+}
+
+winform.btnInfo.oncommand = function(id,event){
+	winform.edit.showInfoTip("这是标题","这是要显示的错误信息",true)	
+}
+
+winform.show();
+win.loopMessage();

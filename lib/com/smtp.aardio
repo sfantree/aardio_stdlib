@@ -1,0 +1,380 @@
+//smtp 邮件发送
+import com;
+import util.metaProperty;
+
+namespace com; 
+
+var _configUrl = "http://schemas.microsoft.com/cdo/configuration/";
+
+class smtp{
+	ctor(){
+		this.objEmail = ..com.CreateObject("CDO.Message"); 
+		this.objEmail.Configuration = ..com.CreateObject("CDO.Configuration");
+		
+		with( this.objEmail.Configuration.Fields ) {
+			Item(_configUrl + "smtpserverport").Value = 25;
+			Item(_configUrl + "sendusing").Value  = 2;
+			Item(_configUrl + "smtpauthenticate").Value  = 1;//cdoAuthentication.cdoBasic
+		}
+	};
+	@_metaProperty;
+}
+
+namespace smtp{  
+	
+    _metaProperty = ..util.metaProperty(
+		get = function(k){
+			return owner[["objEmail"]][k];
+		};
+		set = function(k,v){
+			owner[["objEmail"]][k] = v;
+		}; 
+		from = {
+			_get = function(){  
+				return owner[["objEmail"]].From;
+			}
+			_set = function( value ){  
+		  
+				owner[["objEmail"]].From =  value; 
+			} 	
+		};
+		to = {
+			_get = function(){  
+				return owner[["objEmail"]].To;
+			}
+			_set = function( value ){
+				owner[["objEmail"]].To =  value; 
+			} 	
+		};
+		cc = {
+			_get = function(){  
+				return owner[["objEmail"]].Cc;
+			}
+			_set = function( value ){
+				owner[["objEmail"]].Cc =  value; 
+			} 	
+		};
+		bcc = {
+			_get = function(){  
+				return owner[["objEmail"]].Bcc;
+			}
+			_set = function( value ){
+				owner[["objEmail"]].Bcc =  value; 
+			} 	
+		};
+		subject = {
+			_get = function(){  
+				return owner[["objEmail"]].Subject;
+			}
+			_set = function( value ){
+				owner[["objEmail"]].Subject =  value; 
+			} 	
+		};
+		text = {
+			_get = function(){  
+				return owner[["objEmail"]].Textbody;
+			}
+			_set = function( value ){
+				owner[["objEmail"]].Textbody =  value; 
+				if(value)owner[["objEmail"]].TextBodyPart.Charset = "utf-8"
+			} 	
+		};
+		html = {
+			_get = function(){  
+				return owner[["objEmail"]].HTMLBody;
+			}
+			_set = function( value ){
+				owner[["objEmail"]].HTMLBody =  value;  
+				if(value)owner[["objEmail"]].BodyPart.Charset = "utf-8";
+			} 	
+		};
+		addfile = function(...){
+			var t = {...}
+			for(i,attachfile in t){
+				owner[["objEmail"]].AddAttachment( ..io.fullpath(attachfile) )
+			}
+		
+		}
+		gethtml = function(url){
+			if(url[1]=="/" || url[1]=="\")
+				url = ..io.fullpath(url)
+				
+			if(url[2]==':'#)
+				url = "file://"+url;
+				
+			return owner[["objEmail"]].CreateMHTMLBody( url,31 ) 
+		}; 
+		username = {
+			_get = function(){ 
+				return owner.getConfig("sendusername");
+			}
+			_set = function( value ){
+				owner.setConfig("sendusername",value); 
+			} 	
+		};
+		password = {
+			_get = function(){  
+				return owner.getConfig("sendpassword");
+			}
+			_set = function( value ){
+				owner.setConfig("sendpassword",value);
+			} 
+		};
+		ssl = { 
+			_get = function(){  
+				return owner.getConfig("smtpusessl");
+			}
+			_set = function( value ){
+				owner.setConfig("smtpusessl",value); 
+			}  
+		}
+		server = {  
+			_get = function(){  
+				return owner.getConfig("smtpserver");
+			}
+			_set = function( value ){
+				owner.setConfig("smtpserver",value);
+			} 
+		}
+		port = {  
+			_get = function(){  
+				return owner.getConfig("smtpserverport");
+			}
+			_set = function( value ){
+				assert(type(value)==type.number,"端口必须是一个整数值")
+				owner.setConfig("smtpserverport",value); 
+			} 
+		}
+		authenticate = {  
+			_get = function(){  
+				return owner.getConfig("smtpauthenticate");
+			}
+			_set = function( value ){ 
+				owner.setConfig("smtpauthenticate",value); 
+			}
+		}
+		timeout = {   
+			_get = function(){  
+				return owner.getConfig("smtpconnectiontimeout");
+			}
+			_set = function( value ){ 
+				owner.setConfig("smtpconnectiontimeout",value); 
+			} 
+		}
+		sendusing = {   
+			_get = function(){  
+				return owner.getConfig("sendusing");
+			}
+			_set = function( value ){ 
+				owner.setConfig("sendusing",value);
+			}
+		}  
+		reply = {   
+			_get = function(){  
+				return owner.getConfig("smtpuserreplyemailaddress");
+			}
+			_set = function( value ){ 
+				owner.setConfig("smtpuserreplyemailaddress",value);
+			}
+		};
+		getConfig = function(k){  
+			return owner[["objEmail"]].Configuration.Fields.Item(_configUrl  + k ).Value ; 
+		};
+		setConfig = function(k,v){ 
+			owner[["objEmail"]].Configuration.Fields.Item(_configUrl  + k ).Value = v; 	
+		}; 
+		updateConfig = function(){
+			owner[["objEmail"]].Configuration.Fields.Update();
+			return owner;
+		}; 
+		setMailHeader = function(tHeader){
+			var f = owner[["objEmail"]].Fields;
+			for(k,v in tHeader){
+				f.Item("urn:schemas:mailheader:"+k).Value = v; 
+			};
+			owner[["objEmail"]].Fields.Update();
+		}; 
+		send = function( updateConfig=true ){ 
+			if(updateConfig) 
+				owner[["objEmail"]].Configuration.Fields.Update();
+				
+    		return owner[["objEmail"]].Send();
+		}; 
+		charset = {
+			_get = function(){
+				return owner["objEmail"].BodyPart.Charset;
+			}
+			_set = function( value ){
+				owner[["objEmail"]].BodyPart.Charset = value;
+			}
+		};
+		textCharset = {
+			_get = function(){
+				return owner["objEmail"].TextBodyPart.Charset;
+			}		
+			_set = function( value ){
+				owner[["objEmail"]].TextBodyPart.Charset = value;
+			}
+		}
+
+	) 
+}
+
+ 
+/**intellisense()
+!cdo_smtp.from = 发件人
+!cdo_smtp.to = 收件人
+!cdo_smtp.reply = "Another" <another@example.com>
+!cdo_smtp.server = smtp服务器
+!cdo_smtp.username = 用户名
+!cdo_smtp.password = 密码
+!cdo_smtp.textCharset = 文本编码
+!cdo_smtp.charset = 编码
+!cdo_smtp.subject = 邮件标题
+!cdo_smtp.html = html邮件内容
+!cdo_smtp.text = 文本邮件内容
+!cdo_smtp.gethtml("__/*请输入html文件地址*/")  = html邮件内容
+!cdo_smtp.addfile("__") = 添加附件,支持多参数
+!cdo_smtp.Attachments = 已添加的附件
+!cdo_smtp.Attachments.Delete(1) = //删除附件,参数指定索引,起始索引为1
+!cdo_smtp.Attachments.DeleteAll() = 删除全部附件
+!cdo_smtp.Configuration.Fields.Item(.("配置名") = 配置属性
+!cdo_smtp.Configuration.Fields.Item().Value = 配置值
+!cdo_smtp.Fields.Item(.("配置名") = 配置属性
+!cdo_smtp.Fields.Item().Value = 配置值 
+!cdo_smtp.port = smtp端口
+!cdo_smtp.authenticate = 认证设置\n默认值为com.smtp.cdoAuthentication.cdoBasic
+!cdo_smtp.timeout = 超时值,以秒为单位
+!cdo_smtp.sendusing = 发送方式
+!cdo_smtp.send() = 发送邮件,\n可选使用一个false参数禁止更新配置参数
+!cdo_smtp.cc = 抄送
+!cdo_smtp.bcc = 密送
+!cdo_smtp.ssl = 是否支持SSL
+!cdo_smtp.setMailHeader = @.setMailHeader(\n	["return-receipt-to"] = "回执电邮地址";\n	["disposition-notification-to"] = "回执电邮地址";\n) 
+!cdo_smtp.updateConfig() = 更新配置\n!cdo_smtp.
+com.smtp() = 使用CDO.Message创建SMTP邮箱发送客户端\n[CDO.Message]( https://msdn.microsoft.com/en-us/library/ms526130%28v%3Dexchg.10.aspx%29 )\n!cdo_smtp.
+end intellisense**/
+
+/**intellisense(!cdo_smtp)
+cdoWestCentralAfrica=69;
+cdoGreenland=60;
+cdoTehran=25;
+cdoIndiana=34;
+cdoFiji=40;
+cdoFloating=52;
+cdoAtlanticCanada=9;
+cdoPrivate=2;
+cdoDefaults=-1;
+cdoHigh=2;
+cdoBrisbane=18;
+cdoBaghdad=26;
+cdoNormal=1;
+cdoKrasnoyarsk=64;
+cdoOutlookExpress=2;
+cdoTonga=67;
+cdoDSNDefault=0;
+cdoPostUsingPickup=1;
+cdoDSNNever=1;
+cdoMelbourne=57;
+cdoEkaterinburg=58;
+cdoMidAtlantic=30;
+cdoDSNFailure=2;
+cdoPerth=73;
+cdoHarare=50;
+cdoDSNSuccess=4;
+cdoDSNDelay=8;
+cdoPostMessage=1;
+cdoHawaii=15;
+cdoHobart=42;
+cdoMagadan=41;
+cdoArab=74;
+cdoDSNSuccessFailOrDelay=14;
+cdoSkipRemainingSinks=1;
+cdoMoscow=51;
+cdoUTC=0;
+cdoSuppressBGSounds=2;
+cdoAlaska=14;
+cdoProcessModerator=4;
+cdoSeoul=72;
+cdoDarwin=44;
+cdoStatAbortDelivery=2;
+cdoEastern=10;
+cdoMidwayIsland=16;
+cdoCapeVerde=53;
+cdoIslamabad=47;
+cdoAthens=7;
+cdoStatBadMail=3;
+cdoTokyo=20;
+cdoRangoon=61;
+cdoSuppressNone=0;
+cdoSuppressImages=1;
+cdoStatSuccess=0;
+cdoSuppressFrames=4;
+cdoAdelaide=19;
+cdoParis=3;
+cdoAbuDhabi=24;
+cdoPriorityNonUrgent=-1;
+cdoCaracas=33;
+cdoGMT=1;
+cdoWellington=17;
+cdoSuppressAll=31;
+cdoBangkok=22;
+cdoEasternEurope=5;
+cdoPostUsingPort=2;
+cdoPriorityNormal=0;
+cdoBuenosAires=32;
+cdoCaucasus=54;
+cdoBasic=1;
+cdoSaskatchewan=36;
+cdoCentralAmerica=55;
+cdoSantiago=65;
+cdoPriorityUrgent=1;
+cdoAnonymous=0;
+cdoNepal=62;
+cdoIsrael=27;
+cdoKabul=48;
+cdoNTLM=2;
+cdoHelsinki=59;
+cdoSensitivityNone=0;
+cdoSuppressObjects=8;
+cdoRefTypeLocation=1;
+cdoSendUsingPickup=1;
+cdoSendUsingPort=2;
+cdoArizona=38;
+cdoPersonal=1;
+cdoLow=0;
+cdoMonrovia=31;
+cdoSarajevo=2;
+cdoSriLanka=66;
+cdoAlmaty=46;
+cdoCompanyConfidential=3;
+cdoCairo=49;
+cdoDhaka=71;
+cdoSuppressStyleSheets=16;
+cdoRefTypeId=0;
+cdoBerlin=4;
+cdoIrkutsk=63;
+cdoProcessControl=2;
+cdoEniwetok=39;
+cdoPrague=6;
+cdoBrasilia=8;
+cdoBogota=35;
+cdoCentral=11;
+cdoEastAfrica=56;
+cdoMountain=12;
+cdoSingapore=21;
+cdoPacific=13;
+cdoVladivostok=68;
+cdoRunNextSink=0;
+cdoMexicoCity=37;
+cdoTaipei=75;
+cdoGuam=43;
+cdoInvalidTimeZone=78;
+cdoBombay=23;
+cdoNewfoundland=28;
+cdoSydney2000=76;
+cdoAzores=29;
+cdoYakutsk=70;
+cdoIIS=1;
+cdoBeijing=45 
+end intellisense**/

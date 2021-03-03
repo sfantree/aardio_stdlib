@@ -1,0 +1,117 @@
+//生成DLL 
+
+//必须使用最新版tcc扩展库才能支持UTF8,UTF16字符串
+var codeUtf8 = /** 
+	#include <windows.h>
+	
+	/*
+	入口函数,该函数可以有也可以没有。
+	
+	入口函数会自动加锁以保证线性调用,要避免在DllMain内调用下列函数:
+	1、调用LoadLibrary或其他可能加载DLL的API函数( CreateProcess等 )
+	2、可能再次触发DllMain的函数,例如 CreateThread,ExitThread
+	3、GetModuleFileName, GetModuleHandle 等其他可能触发系统锁的API函数
+	总之在DllMain最好不要调用API函数.
+	*/
+	int __stdcall DllMain(void * hinstDLL, unsigned long fdwReason, void * lpvReserved) {
+	
+		if (fdwReason == 1/*DLL_PROCESS_ATTACH*/ ){ 
+			
+		}
+		return 1;
+	}
+	
+	//__declspec(dllexport) 声明导出函数 
+	__declspec(dllexport) int Msgbox( HWND hwnd ) 
+	{     
+		//定义一个结构体
+		struct { const char * utf8message;int id; } argument = { 
+			.utf8message = "测试消息来自C语言", 
+			.id = GetCurrentThreadId()
+		};
+	 
+	 	/*
+		_WM_THREAD_CALLBACK 使所有回调安全的转发到UI线程。
+		_WM_THREAD_CALLBACK 可以跨线程跨语言并且不需要创建回调线程,适用任何普通winform对象。
+		
+		与其他回调方案的比较：
+    	raw.tocdecl raw.tostdcall 不能跨线程使用, 
+    	thread.tocdecl,thread.tostdcall 需要创建回调线程。
+    	thread.command 则只能在aardio代码中使用,需要将窗体转换为thread.command对象。
+    	*/
+		SendMessage(
+			hwnd,0xACCE/*_WM_THREAD_CALLBACK*/, 
+			"onMessageChange( { string utf8message;int id } )", //要调用的窗体函数名( 结构体原型声明 ); 结构体原型声明应使用aardio语法
+			&argument //将前面定义的结构体作为调用参数
+		);
+		return 0;
+	}  
+**/
+ 
+import tcc; 
+vm = tcc();//创建TCC编译器 
+
+/*
+加载需要用到的动态库,或静态库
+在"~\lib\tcc\.res\lib" 目录下查找 "动态库名.def" "静态库名.a"
+也可以使用 vm.addLibPath() 函数添加搜索库的目录,
+其实下面的DLL已经默认加载,这里仅用于演示。 
+*/
+vm.addLib( 
+	"user32",
+	"kernel32",
+	"gdi32"
+) 
+vm.output( "/bin.dll", codeUtf8 ) //编译C源码,生成DLL
+vm.close(); //收工
+
+//创建一个窗体以处理_WM_THREAD_CALLBACK线程回调命令。
+import win.ui;
+var winform = ..win.form({})
+winform.messageOnly(); //窗体仅用于处理消息
+winform.onMessageChange = function(param){ 
+	winform.msgbox("调用:" + param.utf8message )  
+	win.quitMessage()
+} 
+
+//加载生成的DLL
+var dll = raw.loadDll( "/bin.dll" );
+
+//导入API,记住第二个参数需要指定cdecl调用约定(也就是C语言调用约定)
+Msgbox = dll.api( "Msgbox","int(addr str)", "cdecl" ); 
+Msgbox( winform.hwnd ); 
+
+win.loopMessage()
+
+/*
+
+附：编写DLL避免导出函数名乱码（出现修饰名）的几种方法：
+--------------------------------------------------------------------
+1、C语言的导出函数使用默认的cdecl调用约定，不要用stdcall调用约定，就不会有修饰名，示例：
+
+	__declspec(dllexport) int Add( int a,int b ) 
+	{     
+		return a + b;
+	} 
+	
+2、C++编写DLL在导出函数在前面加上extern "C" 使用cdecl导出就不会有修饰名，例如：
+
+    extern "C" __declspec(dllexport) int  Add(int a,int b) 
+    { 
+        return a + b;
+    }
+
+3、如果上面的方法都不用，就只能添加def文件来避免这个问题了。
+
+
+如果你调用的是别人编写的DLL出现修饰名了怎么办呢？！
+--------------------------------------------------------------------
+
+1、这样的DLL不用可能并不是坏事。
+
+2、用查看导出函数的工具把修饰名复制出来使用就可以了。
+
+*/
+
+
+ 

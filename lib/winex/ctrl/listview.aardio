@@ -1,0 +1,394 @@
+import win;
+import process;
+import win.ui.ctrl.listview;
+namespace winex.ctrl
+
+class listview{
+	ctor( hwnd ){
+		this = ..win.ui.ctrl.listview();
+		this.hwnd = hwnd;
+		
+		threadId,processId = ..win.getThreadProcessId(this.hwnd )
+		process = ..process( processId ) 
+		var process = process;
+		 
+		var SendMessageByStruct_c = function(hwnd,message,wParam,lParam){
+			var lParam_c = process.writeStruct(,lParam);
+			if( !lParam_c ) return 0;
+			
+			var ret = ::User32.SendMessageW(hwnd,message,wParam,lParam_c)
+			process.readStruct( lParam_c,lParam)
+			process.mfree( lParam_c );
+			return ret;
+		}
+		
+		var LVITEM,LVCOLUMN,LVFINDINFO = LVITEM64,LVCOLUM64,LVFINDINFO64;
+		if( process.isWow64() ){
+			LVITEM = LVITEM32;
+			LVCOLUMN = LVCOLUMN32;
+			LVFINDINFO = LVFINDINFO32;
+		} 
+		
+	};
+	getItemText = function ( row,col=1,len=100 ) {
+    	var item = LVITEM();
+    	item.mask = 0x1/*_LVIF_TEXT*/;
+    	item.iSubItem = col-1;
+    	item.text =  process.malloc( len * 2 ) ; //在对方进程分配内存
+    	item.cchTextMax = len  
+    	
+    	var len = SendMessageByStruct_c(owner.hwnd, 0x1073/*_LVM_GETITEMTEXTW*/, row-1, item);  
+    	var str = process.readStringUtf16(item.text,len)
+    	process.mfree( item.text );   
+    	return str;
+	}
+	setItemText = function (text,row=1,col=1 ) {
+		var item = LVITEM();
+		item.mask = 0x1/*_LVIF_TEXT*/;
+		row--;
+		if(type(text)!="table"){
+			item.iSubItem = col - 1;
+			item.text = process.writeStringUtf16(  ,text,#text + 1 );
+			var ret = SendMessageByStruct_c(owner.hwnd, 0x1074/*_LVM_SETITEMTEXT*/, row, item);
+			process.mfree( item.text );  
+		}
+		else{
+			for (i = 1; #text) {
+				item.iSubItem = i-1; 
+				item.text = process.writeStringUtf16(  ,text[i],#text[i] + 1 )
+				SendMessageByStruct_c(owner.hwnd, 0x1074/*_LVM_SETITEMTEXT*/, row, item);
+				process.mfree( item.text );  
+			}
+		} 
+	}
+	getItemRect = function(row,col,rc,code=0/*_LVIR_BOUNDS*/){ 
+		rc := ::RECT();
+		if(col){ rc.top = col-1; }
+		rc.left = code;  
+		var ret = SendMessageByStruct_c(owner.hwnd,(col!==null)?0x1038/*_LVM_GETSUBITEMRECT*/ : 0x100E/*_LVM_GETITEMRECT*/,(row : owner.selIndex)-1,rc); 
+		return rc;
+	};
+	findItem = function(str,start=-1,sub=true,wrap=true){
+		var info = LVFINDINFO()  
+		info.psz  = process.writeStringUtf16( ,str,#str + 1 ); 
+			
+		info.flags  = 2/*_LVFI_STRING*/ 
+		if(sub) info.flags |= 4/*_LVFI_SUBSTRING*/ 
+		if(wrap) info.flags |= 0x20/*_LVFI_WRAP*/
+		var ret = SendMessageByStruct_c(owner.hwnd,0x1053/*_LVM_FINDITEM*/,start,info) + 1;
+		process.mfree( info.psz );  
+		return ret;
+	};
+	hitTest = function(x,y,screen=false){
+		if( !(x && y) ){
+			x,y = ..win.getMessagePos();
+			screen = true;
+		}
+		var hinfo = ..win.ui.ctrl.listview.LVHITTESTINFO();
+		if(screen) x,y = ..win.toClient(owner.hwnd,x,y)
+		hinfo.pt.x = x; hinfo.pt.y = y; 
+		if( SendMessageByStruct_c(owner.hwnd,0x1012/*_LVM_HITTEST*/,0,hinfo) )
+			return hinfo.iItem,hinfo.iSubItem,hinfo.flags;
+	};
+	setItemState = function(row,state=0,mask){
+		var item = LVITEM();
+		item.mask = 0x8/*_LVIF_STATE*/; 
+		item.stateMask = mask===null?state:mask;
+		item.state = state
+		return SendMessageByStruct_c(owner.hwnd, 0x102B/*_LVM_SETITEMSTATE*/, row-1, item); 
+	}
+	setTileViewInfo = function(inf){
+		if(! inf[["rcLabelMargin"]])
+			error("参数不是合法的LVTILEVIEWINFO()结构体",2)
+			
+		SendMessageByStruct_c(owner.hwnd,0x10A2/*_LVM_SETTILEVIEWINFO*/,0,inf);
+	}
+	getTileViewInfo = function(){
+		var inf = ..win.ui.ctrl.listview.LVTILEVIEWINFO();
+		SendMessageByStruct_c(owner.hwnd,0x10A3/*_LVM_GETTILEVIEWINFO*/,0,inf);
+		return inf;
+	}  
+	getColumn= function(col,ind){
+		if(type(col)!=type.table){
+			col = LVCOLUMN(); 
+		}
+		elseif(!col._struct)
+			col = ..table.assign( LVCOLUMN(), col )
+			
+		if(!col.mask){
+			col.mask = 0x2/*_LVCF_WIDTH*/ | 0x10/*_LVCF_IMAGE*/ | 0x1/*_LVCF_FMT*/
+		}
+		if( col.cchTextMax ){
+			col.mask |= 0x4/*_LVCF_TEXT*/ 
+		} 
+		if(col.mask & 0x4/*_LVCF_TEXT*/ ){
+			if( ! col.cchTextMax )
+				col.cchTextMax = 100;
+				
+			col.text = process.malloc(col.cchTextMax)
+		}    
+		
+		if( SendMessageByStruct_c(owner.hwnd, 0x105F/*_LVM_GETCOLUMNW*/, ind - 1, col) ){ 
+			if(col.text){ 
+				var str = process.readStringUtf16(col.text,col.cchTextMax)
+    			process.mfree( col.text  );   
+    			col.text = ..string.str(str);
+			};
+			return col;
+		}
+	}; 
+	setColumn = function(col,ind){
+		if(!col._struct)
+			col = ..table.assign( LVCOLUMN(), col  )
+			
+		col.iSubItem = ind
+		if( !col.iSubItem ){
+			col.iSubItem = owner.columnCount; 
+		} 
+		
+		col.iSubItem--; 
+		lvColumnUpdateMask(col);
+		if(!col.mask)return;
+		
+		if( col.text ){
+			col.text = process.writeStringUtf16( ,col.text ,#col.text  + 1 ); 
+		}
+		var ret = SendMessageByStruct_c(owner.hwnd, 0x101A/*_LVM_SETCOLUMN*/, col.iSubItem, col); 
+		if(col.text){  
+    		process.mfree( col.text  );    
+		};
+		return ret;
+	};
+	insertColumn = function (text /* 文本 */,width /* 列宽 */, ind /* 插入位置 */,fmt){
+		ind := owner.columnCount + 1;
+		var col = LVCOLUMN();
+		col.mask = 0x8/*_LVCF_SUBITEM*/;  
+		col.iSubItem = ind;
+		col.cx	= width>0?width:0;
+		col.fmt	= fmt;
+		
+		var t = type(text);
+		if( t=="string" ){
+			col.text = text; 
+		}
+		elseif( t=="number" ){
+			col.iImage = text; 
+		}
+		elseif( t=="table" ){
+			..table.assign(col,text); 
+		}
+		lvColumnUpdateMask(col); 
+		
+		if( col.text ){
+			col.text = process.writeStringUtf16( ,col.text ,#col.text  + 1 ); 
+		}
+		var ret = SendMessageByStruct_c(owner.hwnd, 0x1061/*_LVM_INSERTCOLUMNW*/,ind - 1, col);
+		if(col.text){  
+    		process.mfree( col.text  );    
+		};
+		
+		if( width < 0 ){
+			owner.fillParent(ind);
+		}
+	}; 
+	getItem = function(item,iSubItem){
+		if(type(item)!=type.table){
+			item = ..table.assign( LVITEM(), { iItem = item;iSubItem=iSubItem} )
+			item.mask = 1/*_TVIF_TEXT*/ 
+		}
+		elseif(!item._struct)
+			item = ..table.assign( LVITEM(), item )
+			
+		if(item.mask & 0x1/*_LVIF_TEXT*/ ){
+			if( ! item.cchTextMax )
+				item.cchTextMax = 100;
+				
+			item.text = process.malloc(item.cchTextMax)
+		} 
+		
+		if(!item.iItem){
+			item.iItem = owner.getFocused();
+			if(!item.iItem)
+				return;
+		}
+		item.iItem--;
+		item.iSubItem--;
+		
+		if( SendMessageByStruct_c(owner.hwnd,0x1005/*_LVM_GETITEM*/,0,item) ){ 
+			item.iItem++;
+			item.iSubItem++;
+			
+			if(item.text){ 
+				var str = process.readStringUtf16(item.text,item.cchTextMax)
+    			process.mfree( item.text  );   
+    			item.text = ..string.str(str);
+			};
+			return item;
+		}
+	}; 
+	setItem = function(item,iItem,iSubItem){
+		if(!item._struct)
+			item = ..table.assign( LVITEM(), item , { iItem = item;iSubItem=iSubItem} )
+			
+		if(!item.iItem){
+			item.iItem = owner.getFocused();
+			if(!item.iItem)
+				return;
+		}
+		item.iItem--;
+		item.iSubItem--;
+			
+		lvItemUpdateMask(item);
+		
+		if( item.text ){
+			item.text = process.writeStringUtf16( ,item.text ,#item.text  + 1 ); 
+		}
+		var ret = !!( SendMessageByStruct_c(owner.hwnd,0x1006/*_LVM_SETITEM*/,0,item) ) 
+		if(item.text){  
+    		process.mfree( item.text  );    
+		};
+		
+		item.iItem++;
+		item.iSubItem++;
+		return ret;
+	};
+	addItem = function(text, ind, image = -1, state = -1, indent = 0, lParam = 0) {
+		ind := owner.count + 1; 
+		var item = LVITEM();
+		item.iItem = ind-1; 
+		item.iSubItem = 0
+		item.iImage = image;
+		item.state = (state + 1) * 4096;
+		item.stateMask = 0xF000/*_LVIS_STATEIMAGEMASK*/ | 0x8/*_LVS_SHOWSELALWAYS*/;
+		item.iIndent = indent;
+		item.lParam	 = lParam;
+		
+		var textList;
+		if( type(text) == "table" ){ 
+			if(#text){
+				textList = text
+				item.text = textList[1]; 
+			}
+			else {
+				..table.assign(item,text); 
+				if(type(item.text) == "table" ){
+					textList = item.text;
+					item.text = textList[1];
+				}
+			};
+		}
+		else {
+			item.text = text;
+		}
+		
+		lvItemUpdateMask(item); 
+		
+		if( item.text ){
+			item.text = process.writeStringUtf16( ,item.text ,#item.text  + 1 ); 
+		}
+		var rowIndex = SendMessageByStruct_c(owner.hwnd, 0x104D/*_LVM_INSERTITEM*/, 0, item);
+		if(item.text){  
+    		process.mfree( item.text  );    
+		};
+		
+		if ( textList ) { 
+			item.mask = 0x1/*_LVIF_TEXT*/;
+			for (i = 2; #textList) {
+				item.iSubItem = i - 1;
+				item.text = textList[i];
+				if( item.text ){
+					item.text = process.writeStringUtf16( ,item.text ,#item.text  + 1 ); 
+				}
+				SendMessageByStruct_c(owner.hwnd, 0x1074/*_LVM_SETITEMTEXT*/, rowIndex, item);
+				if(item.text){  
+    				process.mfree( item.text  );    
+				};
+			}
+		}
+		return rowIndex+1;
+	}
+}
+
+namespace listview{
+
+	LVITEM32 = class {  
+    		INT    mask = 0; 
+    		int    iItem = 1;  
+    		int    iSubItem = 1;  
+    		INT    state; 
+    		INT    stateMask; 
+    		int    text; 
+    		int    cchTextMax; 
+    		int    iImage; 
+    		int    lParam;
+    		int    iIndent;
+    		int    iGroupId;
+    		INT    cColumns;
+    		struct  puColumns = ::POINT();
+	} 
+	LVCOLUMN32 = class {
+		INT mask = 0;
+		int fmt; 
+		int cx; 
+		int text; 
+		int cchTextMax; 
+		int iSubItem = 1; 
+		int iImage;
+		int iOrder;
+	}
+	LVFINDINFO32 = class {
+  		INT flags ;
+  		int psz;
+  		int lParam;
+  		struct pt = ::POINT();
+  		INT vkDirection;
+	} 
+	if( ..process().isWow64() ){  
+		LVITEM64 = class {  
+    		INT    mask = 0; 
+    		int    iItem = 1;  
+    		int    iSubItem = 1;  
+    		INT    state; 
+    		INT    stateMask; 
+    		long   text;  
+    		int    cchTextMax; 
+    		int    iImage; 
+    		int    lParam;
+    		int    iIndent;
+    		int    iGroupId;
+    		INT    cColumns;
+    		struct  puColumns = ::POINT();
+		} 
+		LVCOLUM64 = class {
+			INT mask = 0;
+			int fmt; 
+			int cx; 
+			long text; 
+			int cchTextMax; 
+			int iSubItem = 1; 
+			int iImage;
+			int iOrder;
+		}
+		LVFINDINFO64 = class {
+  			INT flags; 
+  			long psz;
+  			int lParam;
+  			struct pt = ::POINT();
+  			INT vkDirection;
+		} 
+	}
+	else {
+		LVITEM64 = LVITEM32;
+		LVCOLUM64 = LVCOLUMN32;
+		LVFINDINFO64 = LVFINDINFO32;
+	} 
+	
+	lvItemUpdateMask = ..win.ui.ctrl.listview.lvItemUpdateMask;
+	lvColumnUpdateMask = ..win.ui.ctrl.listview.lvColumnUpdateMask;
+}
+
+/**intellisense()
+winex.ctrl.listview = 用于控制外部进程列表视图
+winex.ctrl.listview(.(外部进程列表控件句柄) = 绑定外部外部进程列表控件
+winex.ctrl.listview() = !listview.
+end intellisense**/

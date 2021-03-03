@@ -1,0 +1,32 @@
+//atom 全局原子量
+import process;
+namespace process.atom 
+
+GlobalAddAtom = ::Kernel32.api("GlobalAddAtom","word(ustring str)") 
+add = function(name){
+    
+	if( type(name) == type.string ){
+		name = ..string.toUnicode(name);
+		if(#name < 255){
+			return GlobalAddAtom( name );
+		}
+	}	
+	
+	error("参数必须是小于256字节的字符串",2);
+}
+
+find = ::Kernel32.api("GlobalFindAtom","word(ustring str)"); 
+delete = ::Kernel32.api("GlobalDeleteAtom","word(word)");
+	
+GlobalGetAtomName = ::Kernel32.api("GlobalGetAtomName","INT(word atom,ustring &buf,int size)");   
+getName = function(atom){ 
+	var size,str = GlobalGetAtomName(tonumber(atom),512,255); 
+	if(size) return str;// ..string.left(str,size); 
+} 
+	 
+/**intellisense(process.atom) 
+add("__") = 添加字符串到全局原子表\n字符串转换为UTF-16编码以后长度必须小于255字节\n返回原子数值
+find("__") = 在全局原子表查找字符串\n忽略大写小全串匹配\n返回原子数值
+delete(__/*原子值*/) = 减少原子引用计数\n当引用计数为0时删除原子
+getName(__/*原子值*/) = 返回原子字符串
+end intellisense**/

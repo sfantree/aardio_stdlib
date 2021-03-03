@@ -1,0 +1,292 @@
+﻿//simpleMain 启动入口
+import fsys.update.app;	
+import fsys.update.dlMgr; 
+import win.dlg.message;
+import process.file;
+import process;
+
+namespace fsys.update;
+
+class simpleMain {
+    
+	ctor(appName,updateUrl,saveDir,onStatusChanged,httpHeaders,removable){
+		{
+		 if(!appName){appName = "软件"; }
+		 
+		 var dlMgr = initDownloadManger(appName,updateUrl,saveDir,onStatusChanged,httpHeaders);
+		 if(!dlMgr){
+		 	error("参数错误!",2);
+		 }
+		 
+		 if(_STUDIO_INVOKED){ return; } 
+		 
+		 if( _ARGV.updated ){ 
+		 	saveLastStatusInfo({ 
+				version = _ARGV.version:"";
+				description = _ARGV.description:"";
+				status = "complete";
+			})
+			
+			return;
+		 }
+		 elseif(  _ARGV.update ) { 
+        	var oldmain = _ARGV.oldmain;
+        	if( oldmain ){
+            	if( ..process.file.test(oldmain) ){ 
+                	var msgDlg = ..win.dlg.message(); 
+                	msgDlg.icon = '\uF059'
+					msgDlg.iconColor = 0xD4883B;
+					
+					var form = msgDlg.create('正在更新' + appName + ',\n' + "请退出以下程序：" 
+						+ oldmain + ', \n点「确定」强行关闭进程, 点「取消」退出更新.',true);
+						
+					form.setInterval(1000, 
+						function(){
+							if( ..process.file.test(oldmain) ) form.endModal(true)
+						} 
+					) 
+
+                	if( form.doModal() ){
+                		..process.file.terminate(oldmain);
+                	}
+                	else {
+                		return true;
+                	}  
+            	}  
+        	}
+        	
+        	var updater,err = ..fsys.update.app( _ARGV.src, _ARGV.dst,false,false);
+        	if(!updater){
+        		if(err){
+        			var msgDlg = ..win.dlg.message(); 
+        			msgDlg.err('更新' +appName + '遇到错误,\n' + err)	
+        		}
+        		
+        		return true;
+        	}
+        	
+        	var msgDlg = ..win.dlg.message(..mainForm); 
+        	var frmUpdater = msgDlg.create('正在更新' + appName + '到版本:\n        ' + updater.updateInfo.version + '\n',,true);
+        	frmUpdater.progress.setProgressRange(1,100);
+        	
+        	updater.onError = function(err,filename){
+            	frmUpdater.message.text = '更新' +appName + '遇到错误,\n' + err + '\n' + filename;
+        	}
+        	
+        	var totalFiles = 100;
+        	updater.onCopyBegin = function(total){
+        		totalFiles = total;
+        	}
+        	
+        	updater.onCopyFile = function(path,count){ 
+            	frmUpdater.message.text = '正在更新' + appName +'\n' + path;
+            	frmUpdater.progress.progressPercentage = count/totalFiles * 100;
+        	}
+         	
+        	updater.onCopyFailed = function(path){
+        		frmUpdater.message.text = '更新' + appName + '遇到错误,\n' + err + '\n' + filename;
+        		return frmUpdater.valid;
+        	}
+        	
+        	updater.onProcessFailed = function(paths){
+        		frmUpdater.show(false);
+        		
+             	var msgDlg = ..win.dlg.message(..mainForm); 
+                if( msgDlg.ask('正在更新' +appName + ',\n' + '请退出以下程序：\n' + paths[1] + ', \n点击确定强行关闭进程, 点击取消退出更新.')  ){
+                	..process.file.terminate(paths[1]);
+                	frmUpdater.show(true);
+                	return true;
+                }
+                else {
+                	return false;
+                } 
+        	}
+        	
+        	updater.onEnd = function(path){
+        		frmUpdater.close();
+        		saveLastStatusInfo({
+        			version = updater.updateInfo.version:"";
+        			description = updater.updateInfo.description:"";
+        			status = "updated"
+        		})
+        		
+        		if(onStatusChanged){
+        			if( false === onStatusChanged(updater.updateInfo.version,updater.updateInfo.description,"updated") ){
+        				..win.quitMessage();
+        				return;
+        			}
+        		} 
+        		
+        		var mainPath = _ARGV.main;
+        		import fsys.fileInfo;
+    			if(!fsys.fileInfo.same(_ARGV.main,_ARGV.oldmain)){
+    				if(..io.exist(_ARGV.oldmain)){
+    					mainPath = _ARGV.oldmain;
+    					..fsys.copy(_ARGV.main,_ARGV.oldmain); 
+    					..fsys.delete(_ARGV.main);
+    				}
+        		}
+        		
+        		..process.execute( mainPath
+        			,{"/updated","/version",updater.updateInfo.version,"/description",updater.updateInfo.description} 
+        		);
+        		 
+             	..win.quitMessage();
+        	}
+        	
+        	updater.apply();
+        	..win.loopMessage();
+        	return true;
+		 }
+		 elseif(!_STUDIO_INVOKED) {
+			if(!dlMgr){
+				error("fsys.update.simpleMain() 只能在 main.aardio 中调用一次！",2);
+				return true;
+			}
+			
+    		//如果之前已下载新版本完成，启动自动更新，成功返回true
+			if(dlMgr.startUpdate(10000)){
+				return true;
+			}
+		 } 
+    	
+    	return null;
+	} };
+}
+
+namespace simpleMain{
+    
+    var lastStatusInfo;
+    saveLastStatusInfo = function(statusInfo){
+    	..publish("fsys.update.simpleMain.onStatusChanged",statusInfo.version:"",statusInfo.description:"",statusInfo.status);
+    	lastStatusInfo = statusInfo;
+    }
+    
+    onStatusChanged = function(onStatusChanged){
+    	..subscribe("fsys.update.simpleMain.onStatusChanged",onStatusChanged);
+    	
+    	if(lastStatusInfo){
+    		..publish("fsys.update.simpleMain.onStatusChanged",
+    			lastStatusInfo.version:"",
+    			lastStatusInfo.description:"",
+    			lastStatusInfo.status,
+    		)
+    	}
+    } 
+    
+    getReadyStatusInfo = function(){
+    	return lastStatusInfo[["status"]] = "ready" ? ..table.assign(,lastStatusInfo);
+    }
+    
+    checkUpdate = function(startUpdate){
+		var dlMgr = initDownloadManger();
+		if(!dlMgr){  return ; }
+		
+		if(_STUDIO_INVOKED){ 
+			saveLastStatusInfo({
+				status="failed";
+				description="必须发布后才能使用自动更新功能!";
+				version="";
+			});
+			return; 
+		}
+		
+		if(startUpdate){
+			return dlMgr.startUpdate();
+		}
+		else {
+			dlMgr.prepareUpdate();
+		} 
+    }
+    
+    var downloading;
+    initDownloadManger = function(appName,updateUrl,saveDir,onStatusChanged,httpHeaders){ 
+		if(downloading){ return; }
+		if(!updateUrl){ error("必须在 main.aardio 中提前调用 fsys.update.simpleMain函数！",2) }
+		
+		var downloadManger = function(){
+    		var dlMgr = ..fsys.update.dlMgr(updateUrl,saveDir);
+    		dlMgr.httpHeaders = httpHeaders;
+    		
+    		downloading = true;
+    		dlMgr.onConfirmDownload = function(isUpdated,appVersion,latestVersion,description){ 
+    			dlMgr[["latestVersion"]] = latestVersion;
+    			dlMgr[["updateDescription"]] = description;
+    			
+    			if(!isUpdated){
+    				
+    				saveLastStatusInfo( { 
+						version = latestVersion;
+						description = description; 
+						status = "latest";
+					} )	
+					
+					if(onStatusChanged){
+						onStatusChanged(latestVersion,description,"latest");
+					}
+					
+					downloading = false;
+    			}
+    			
+				return isUpdated; 
+			} 
+			
+			dlMgr.onEnd = function(updater,saveDir,appDir,mainPath){ 
+				if(updater){
+					if(onStatusChanged){
+						onStatusChanged(dlMgr[["latestVersion"]]:"",dlMgr[["updateDescription"]]:"","ready");
+					}
+					
+					saveLastStatusInfo( { 
+						version = dlMgr[["latestVersion"]];
+						description = dlMgr[["updateDescription"]]; 
+						status = "ready";
+					} )
+				}
+				
+				downloading = false;
+			};
+			
+			dlMgr.onError = function(err,filename){
+				err = ..string.concat("更新遇到错误:",err,'\r\n文件:',filename);
+				
+				saveLastStatusInfo( { 
+					version = dlMgr[["latestVersion"]];
+					description = err; 
+					status = "failed";
+				} )
+				
+				if(onStatusChanged){
+        			onStatusChanged(dlMgr[["latestVersion"]]:"",err,"failed" );
+        		} 
+				..io.stderr.write("更新遇到错误:",err,filename,'\n');
+				
+				downloading = false;
+			}
+			
+			return dlMgr;
+		}
+		
+		//通过 fsys.update.simpleMain.checkUpdate() 调用
+		initDownloadManger = function(appName,updateUrl){
+			if(updateUrl){ error("fsys.update.simpleMain() 只能且必须在 main.aardio 中带参数调用一次！",3);}
+			return downloadManger();
+		}
+		
+		return downloadManger();	 
+    }
+    
+}
+
+/**intellisense()
+fsys.update.simpleMain = 自动更新启动程序简化版,\n更新程序与软件主程序合并到同一个程序中,\n必须在 main.aardio 中调用此构造函数,\n如果此函数返回true则必须退出程序，且不应显示任何其他窗口,\n
+fsys.update.simpleMain(appName,updateUrl,downloadDir,onStatusChanged,httpHeaders,removable) = @import fsys.update.simpleMain;\nif( fsys.update.simpleMain(\n	"__/*软件产品名称*/",\n	"http:",\n	"/download/update-files",\n	function(version,description,status){\n		/*回调函数参数与 fsys.update.simpleMain.onStatusChanged 的回调函数参数相同*/;\n	})){\n	return 0;	\n}
+fsys.update.simpleMain.onStatusChanged(订阅回调函数) = @.onStatusChanged(function(version,description,status){\n	/*注意此回调可捕获到调用前或调用后的更新状态变更*/\n	if(status=="ready"){\n		__/*新版本已下载完成，更新已准备就绪\nversion参数为新版本号,description为更新说明*/\n	}\n	elseif(status=="updated"){\n		/*已更新到新版本并准备启动新版,可使用_ARGV.oldmain获得更新之前的主程序路径,_ARGV.main取得更新后主程序路径*/\n	}\n	elseif(status=="complete"){\n		/*当前已启动新版本主程序*/\n	}\n	elseif(status=="latest"){\n		/*当前已经是新版本*/\n	} \n})
+fsys.update.simpleMain.checkUpdate(.(startUpdate) = 检查更新,\n参数@startUpdate指定下载新版后是否启动更新程序,\n调用此函数之前必须在main.aardio中提前调用过fsys.update.simpleMain函数。
+fsys.update.simpleMain.getReadyStatusInfo() = 如果当前已下载好新版并准备更新就绪,\n返回statusInfo对象,包含version,description,status等属性。
+end intellisense**/
+
+/**intellisense(fsysUpdateSimpleStatusInfo)
+version = 新版本号
+description = 版本信息
+end intellisense**/

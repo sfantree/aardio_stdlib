@@ -1,0 +1,843 @@
+
+import web.json; 
+
+namespace console;
+
+if( _WINE ){
+	import console.wine;
+	return;
+}
+
+getWindow = ::Kernel32.api( "GetConsoleWindow", "int()"); 
+
+getOutPutHandle = function(){
+	return topointer( ::Kernel32.GetStdHandle(-11/*_STD_OUTPUT_HANDLE*/) );
+}
+
+getInputHandle = function(){
+	return topointer( ::Kernel32.GetStdHandle(-10/*_STD_INPUT_HANDLE*/) );
+}
+
+getErrorHandle = function(){
+	return topointer( ::Kernel32.GetStdHandle(-12/*_STD_ERROR_HANDLE*/) );
+}
+
+modifyMode = function(h,remove=0,add=0 ){
+	if(h===null) h = getOutPutHandle();
+	var mode ={INT value}
+	var _,mode = ::Kernel32.GetConsoleMode(h,mode); 
+	mode.value = ( mode.value & ~remove ) | add ;
+	if( ::Kernel32.SetConsoleMode(h,mode.value) ) return mode;
+}
+
+class INPUT_RECORD{
+	WORD eventType;
+	union event = {
+		struct keyEvent = {
+			int bKeyDown;
+			WORD wRepeatCount;
+			WORD wVirtualKeyCode;
+			WORD wVirtualScanCode;
+			union uChar = {
+				WORD unicodeChar;
+				BYTE asciiChar;
+			} ;
+			INT dwControlKeyState;
+			isShiftPressed = function(){
+				return owner.dwControlKeyState & 0x10 
+			};  
+			isScrLkOn = function(){
+				return owner.dwControlKeyState & 0x40 
+			};
+			isRightCtrlPressed = function(){
+				return owner.dwControlKeyState & 0x4 
+			};
+			isRightAltPressed = function(){
+				return owner.dwControlKeyState & 0x1 
+			};
+			isLeftCtrlPressed = function(){
+				return owner.dwControlKeyState & 0x8 
+			};
+			isLeftAltPressed = function(){
+				return owner.dwControlKeyState & 0x2 
+			};
+			isNumLkOn = function(){
+				return owner.dwControlKeyState & 0x20 
+			}; 
+			isCapsLkOn = function(){
+				return owner.dwControlKeyState & 0x80 
+			}; 
+			isEnhanced = function(){
+				return owner.dwControlKeyState & 0x100 
+			};
+		}
+		struct mouseEvent = {
+			struct dwMousePosition = {word x;word y}
+			INT dwButtonState;
+			INT dwControlKeyState;
+			INT dwEventFlags;
+		}
+		struct windowBufferSizeEvent={
+			struct dwSize = {word x;word y}
+		}
+		struct menuEvent={
+			INT dwCommandId;
+		}
+		struct focusEvent={
+			bool bSetFocus;
+		}
+	} 
+}
+	
+GetNumberOfConsoleInputEvents = ::Kernel32.api( "GetNumberOfConsoleInputEvents", "bool(pointer hIn,INT & numEvt)");
+kbHit = function(){
+	var ret,nums = GetNumberOfConsoleInputEvents(getInputHandle(),0)
+	return ret ? nums : 0;
+}
+
+peek = function(){
+	if(kbHit() ) return kbRead(false);
+}
+
+kbRead = function(wait){
+	var input,ke;
+	if(!wait){
+		input = readInput(1,0x1/*_KEY_EVENT*/);
+		if(#input){
+			return input[1].keyEvent; 
+		}
+	}
+	else {
+		while( getInputHandle() ){ 
+			sleep(100);
+			if( kbHit() ){
+				input = readInput(1,0x1/*_KEY_EVENT*/);
+				if(!#input) continue;
+				ke = input[1].keyEvent;
+				if( ke.bKeyDown) return ke;
+			};
+		}
+	} 
+}
+
+getch = function(){ 
+	var chr;
+	do{ 
+		chr = kbRead(true).uChar.asciiChar;
+	}while(!chr);
+	
+	if( chr & 0x80 ) 
+		return chr,kbRead(true).uChar.asciiChar;
+		
+	return chr;
+} 
+	
+getche = function(mask){
+	var c = ..string.pack( getch() );
+	writeText( c == '\r'?'\n':(mask:c) );
+	return c;
+}
+
+getPassword = function(mask="*"){
+	
+	var s = {};
+	var c = getche(mask)
+	while( c != '\r' ){
+		..table.push( s,c);
+		c = getche( mask )
+	} 
+	return ..string.join(s)
+}
+
+clearInputBuffer = function(){
+	::Kernel32.FlushConsoleInputBuffer(getInputHandle());
+}
+
+var moreLines = 1;
+more = function(count){
+	count = count : 1;
+	moreLines = moreLines % count;
+	if(!moreLines){
+		pause(,"-- 请按任意键显示更多 ---","---------- More -----------");
+	}
+	moreLines++;
+};
+
+askYesNo  = function(title){
+	log( "[Y/N] " + (title : "按Y键继续,按N键取消") )
+		while(true){ 
+		if( kbHit() ){
+			var kb = kbRead();
+			if(!kb) continue;
+			if(kb.bKeyDown) continue;
+			
+			var vk = kb.wVirtualKeyCode;
+			if( vk == 'Y'#){
+				return true;
+			}
+			elseif( vk ==  'N'#){
+				return false;
+			}
+		}
+	}	
+}
+
+pause = function(close,msg,erase){ 
+	open();
+	
+	var x,y = getPos();
+	if(x) writeText( '\n' );
+	clearInputBuffer();
+	
+	msg := "请按任意键继续 ... "; 
+	writeText( msg );
+	
+	var chr = kbRead(true).wVirtualKeyCode; 
+	clearInputBuffer();
+	
+	eraseLine(erase);
+	if(erase)  {
+		writeText('\n'); 
+	}
+	
+	if(close)..io.close();
+	return chr;
+}
+
+mapEventType2FieldName = {
+	[0x10/*_FOCUS_EVENT*/] = "focusEvent";
+	[0x1/*_KEY_EVENT*/] = "keyEvent";
+	[0x2/*_MOUSE_EVENT*/] = "mouseEvent";
+	[0x8/*_MENU_EVENT*/] = "menuEvent";
+	[0x4/*_WINDOW_BUFFER_SIZE_EVENT*/] = "windowBufferSizeEvent";
+}
+	
+ReadConsoleInput = Kernel32.api( "ReadConsoleInput", "bool(pointer hIn,struct& brf,INT len,INT &Reads)"); 
+readInput = function(len=1,eventType){
+	if( len < 1)return;
+	var buf = ..raw.toarray( len,"struct","array" );
+	buf.array = { INPUT_RECORD() }
+	var ok,buf,len = ReadConsoleInput( getInputHandle(),buf,len,len); 
+	
+	if( ok && len){ 
+		var ret = {}
+		for(k,input in buf.array){
+			if(input.eventType){
+				if( eventType && eventType!= input.eventType )
+					continue;
+					
+				var name = mapEventType2FieldName[input.eventType]
+				if(name){
+					..table.push(ret,{[name] = input.event[name];eventType=input.eventType;eventName = name } )
+				}
+			}
+		} 
+		return ret;
+	}
+} 
+
+_ctrlHandlerThreads = {}
+setCtrlHandlerThread = function(handle,add){
+	open();
+	if( add || (add === null) ){
+		var pfunc = _ctrlHandlerThreads[handle] : ..thread.tostdcall(handle,"bool(int ctrlType)");
+		::Kernel32.SetConsoleCtrlHandler(pfunc,true );
+		_ctrlHandlerThreads[handle] = pfunc;
+	
+	}
+	else{ 
+		var pfunc = _ctrlHandlerThreads[handle];
+		if(pfunc){
+			::Kernel32.SetConsoleCtrlHandler(pfunc,false );
+			_ctrlHandlerThreads[handle] = null;
+		}
+	}
+}
+..subscribe("beforeUnload",function(){
+	for(k,v in _ctrlHandlerThreads){ k();} 
+} );
+
+var init;
+var openConsole = function(utf8){
+	if( utf8!== null ) self.utf8 = true;
+	if(self.utf8!==null) ..io.utf8 = self.utf8;
+	
+	return ..thread.lock("std.console.open",function(){
+			var hwnd = getWindow(); 
+		if( ( !hwnd ) || ( !::User32.IsWindowVisible(hwnd) ) ){
+			..io.open(); 
+			hwnd = getWindow();
+		}
+		elseif(!init){
+			if( ..io.utf8 && ::Kernel32.SetCurrentConsoleFontEx ){
+				if( ::Kernel32.GetConsoleCP()!=65001 ){
+					..io.open();
+				}
+			}
+		}
+		
+		if( !init ){
+			modifyMode( getInputHandle(),0x10/*_ENABLE_MOUSE_INPUT*/,);
+			
+			var ansion;
+			if( _WIN10_LATER ){
+				ansion = null !== modifyMode( getOutPutHandle(),,4/*ENABLE_VIRTUAL_TERMINAL_PROCESSING*/) 
+			}
+			
+			init = true;
+	
+			if( ..win[["title"]] ){
+				setTitle(..win[["title"]]);
+			}
+		}
+		return hwnd;   	
+	})
+}
+
+open = function(utf8){
+	if( utf8!== null ) self.utf8 = true;
+	if(self.utf8!==null) ..io.utf8 = self.utf8;
+	
+	showLoading(false);
+	openConsole(utf8);
+	..console.setCursorVisible(true); 
+}
+
+import thread.event;
+var eventLoading = thread.event(,true);
+var eventLoadingRunning = thread.event(,true,true);
+var loadingMessage = thread.var();
+var loadingDotColor = thread.var();
+var loadingDotChanged = thread.var();
+var loadingDots = thread.var(,{"▏";"▎";"▍";"▌";"▋";"▊";"▆";"▅";"▄";"▃";"▁";"▃";"▄";"▅";"▆";"▇";"▉";"▊";"▋";"▌";"▍";"▎"});
+
+setLoadingDots = function(dots,endDots,interval){
+	if( endDots !== null ) dots.endDots = true;
+	if( interval !== null ) dots.interval = true;
+	loadingDots.set(dots);
+	loadingDotChanged.set(true);
+}
+
+showLoading = function(msg,dotColor){
+	openConsole();
+	
+	if(!msg) {
+		eventLoading.set()
+		eventLoadingRunning.waitOne(); 
+		return;
+	}
+	
+	loadingDotColor.set(type(dotColor)!=type.number ? 0xF : dotColor);
+	loadingMessage.set(type(msg)==type.string ? msg : "");
+	if(!eventLoadingRunning.waitOne(100)){
+		return;
+	}
+	
+	openConsole();
+	eventLoading.reset();
+	eventLoadingRunning.reset();
+	thread.invoke( 
+		function(eventLoading,eventLoadingRunning,loadingMessage,loadingDots,loadingDotChanged,loadingDotColor){  
+			
+			import console;
+			var cursorVisible = console.isCursorVisible();
+			console.setCursorVisible(false);
+			var outHandle = console.getOutPutHandle();
+				
+			var written = {INT size};
+			var dots = loadingDots.get();
+			var interval = loadingDots.interval : 120;
+			var endDots = dots.endDots;
+			while(!eventLoading.wait(interval)){
+				for(i=1;#dots;1){
+					console.writeText('\r')
+					if(endDots){
+						console.writeText(loadingMessage.get())	
+						console.writeColorText(dots[i],loadingDotColor.get())
+					}
+					else {
+						console.writeColorText(dots[i],loadingDotColor.get())
+						console.writeText(loadingMessage.get())
+					}
+					
+					console.eraseToEndOfLine();
+					if( eventLoading.wait(interval) ) break;
+					if( loadingDotChanged.get() ){
+						dots = loadingDots.get();
+						interval = loadingDots.interval : 120;
+						endDots = dots.endDots;
+						loadingDotChanged.set(false);
+						break;
+					}
+				}  	
+			}
+			
+			console.eraseLine();
+			console.setCursorVisible(cursorVisible);
+			eventLoadingRunning.set();
+		},eventLoading,eventLoadingRunning,loadingMessage,loadingDots,loadingDotChanged,loadingDotColor
+	)
+}
+
+fullscreen = function(){
+	var hwnd = open();
+	var s = ::User32.MapVirtualKey(0xD/*_VK_ENTER*/, 0) << 16 | 1 | 0x20000000;
+	::User32.PostMessage(hwnd,0x104, 0xD/*_VK_ENTER*/ ,s );
+	::User32.PostMessage(hwnd,0x105 ,0xD/*_VK_ENTER*/ ,s| 0xC0000000);
+}
+
+getText = function(s,len){
+	open();
+	if( s ) writeText( s );
+	return  ..io.getText(len) ;	
+}
+
+writeText = function(s,...){
+	var written = {INT size}; 
+	s = tostring(s);
+	if( (!..string.isUtf8(s)) && (!..string.isUnicode(s)) ){
+		..string.setUtf(s,1);
+	}
+	
+	s = ..string.toUnicode(s); 
+	if( ::Kernel32.WriteConsoleB( 
+		::Kernel32.GetStdHandle(-11/*_STD_OUTPUT_HANDLE*/),
+		s,#s/2,written,null) ) {
+			if(!#{...}) return written.size;
+			return writeText(...);
+	}
+	else {
+		var e,c = ..lasterr();
+		if( c == 0x8/*_ERROR_NOT_ENOUGH_MEMORY*/){
+			return ..io.print(s,...));
+		}
+	}
+}
+
+print = function(...){ 
+	open();
+	var args = {...};
+	var output = {};
+	for(i,v in ..table.eachArgs(args) ){ 
+		if(i>1)writeText('\t'); 
+		writeText(tostring(v)); 
+	}
+	writeText('\n');
+} 
+
+log = print;
+
+logPause = function(...){
+	log(...);
+	pause();
+}
+
+printf = function(s,...){
+	if( ...!== null ) s = ..string.format(s,... )
+	log( s )
+}
+
+hex = function(s){
+	print( ..string.hex(s," ") )
+}
+
+writeBack = function( s,... ){
+	if( ... !== null  ) s =  ..string.format(s,... );
+	writeText( ..string.repeat(#(..string.fromto(s,,::Kernel32.GetConsoleOutputCP())),'\b') );
+	writeText( s );
+}
+
+debug = function(x,...){
+	if( _STUDIO_INVOKED ) open();
+	stderr.write( tostring(x) ,'\t');
+	if(...===null){ stderr.write('\n');return } 
+	return debug(...);
+}
+
+class CONSOLE_SCREEN_BUFFER_INFO {
+	struct size = {word x;word y};
+	struct cursorPosition = {word x;word y}; 
+	WORD attributes;
+	struct srWindow = {word left;word top;word right;word bottom};
+	struct maximumWindowSize = {word x;word y}; 
+}
+
+clearScreen = function(){
+	var csbi = CONSOLE_SCREEN_BUFFER_INFO();
+	var hConsole = getOutPutHandle(); 
+	
+	::Kernel32.GetConsoleScreenBufferInfo(hConsole,csbi)
+	var size = csbi.size.x * csbi.size.y;
+	var cCharsWritten = { INT cChars = 0}
+	::Kernel32.FillConsoleOutputCharacter(hConsole,' '#,  size,0, cCharsWritten );
+		
+	::Kernel32.GetConsoleScreenBufferInfo(hConsole,csbi);
+	::Kernel32.FillConsoleOutputAttribute(hConsole, csbi.wAttributes, size, 0, cCharsWritten);
+	::Kernel32.SetConsoleCursorPosition(hConsole, 0);
+	::Kernel32.SetConsoleTextAttribute(getOutPutHandle(),15);
+}  
+
+eraseToEndOfLine = function(){
+	var x,y = getPos();
+	var width = getSize();
+	
+	if(!width) return;
+		
+	var line = ..string.toUnicode(..string.repeat(width-y," ") );
+	::Kernel32.WriteConsoleW(getOutPutHandle(),line,#line/2,{INT size},null);
+	setPos(x,y);
+}
+
+eraseLine = function(...){
+	var x,y = getPos();
+	setPos(0,y);
+	eraseToEndOfLine(...);
+	if(#{...}) writeText(...);
+}
+
+getScreenBufferInfo = function(x,y){
+	var csbi = CONSOLE_SCREEN_BUFFER_INFO();
+	if( ::Kernel32.GetConsoleScreenBufferInfo(getOutPutHandle(),csbi) )
+		return csbi;
+} 
+
+getCursorInfo = function(){
+	var hConsole = getOutPutHandle();
+	var info = {INT size; bool  visible};
+	::Kernel32.GetConsoleCursorInfo(hConsole,info);
+	return info;
+}
+
+setCursorInfo = function(newInfo){ 
+	var hConsole = getOutPutHandle();
+	var info = {INT size; bool visible};
+	::Kernel32.GetConsoleCursorInfo(hConsole,info);
+	..table.assign(info,newInfo);
+	::Kernel32.SetConsoleCursorInfo(hConsole,info); 
+}
+
+isCursorVisible = function(visible){
+	return getCursorInfo()[["visible"]];
+}
+
+setCursorVisible = function(visible){
+	setCursorInfo(visible=visible);
+}
+
+getSize = function(){
+	var csbi = CONSOLE_SCREEN_BUFFER_INFO();
+	if( ::Kernel32.GetConsoleScreenBufferInfo(getOutPutHandle(),csbi) )
+		return  csbi.size.x,csbi.size.y;
+}
+
+getPos = function(){
+	openConsole();
+	var csbi = CONSOLE_SCREEN_BUFFER_INFO();
+	if( ::Kernel32.GetConsoleScreenBufferInfo(getOutPutHandle(),csbi) )
+		return csbi.cursorPosition.x,csbi.cursorPosition.y;
+}
+
+setPos = function(x,y){
+	openConsole();
+	var x2,y2 = getPos();
+	if( x === null ) x = x2;
+	if( y === null ) y = y2;
+	return !!::Kernel32.SetConsoleCursorPosition( getOutPutHandle(),::MAKELONG(x,y) )
+}
+
+getTextAttribute = function(){
+	var csbi = CONSOLE_SCREEN_BUFFER_INFO();
+	if( ::Kernel32.GetConsoleScreenBufferInfo(getOutPutHandle(),csbi) ) return csbi.attributes;
+} 
+
+setTextAttribute = function(fore,back){
+	if(fore===null) fore = 0xF;
+	if( type(fore) != type.number ) error("参数必须是数值",2)
+	if( type(back) == type.number ) fore = back * 0x10 + fore;
+	return ::Kernel32.SetConsoleTextAttribute(getOutPutHandle(),fore);
+} 
+
+setColor = function(fore,back){ 
+	execute("color " + ..string.format("%x%x",back:0, fore:0xF))	
+}
+
+writeColorText = function(txt,fore,back){
+	var a = getTextAttribute();
+	setTextAttribute(fore,back);
+	writeText(txt);
+	setTextAttribute(a);
+}
+
+box = function(x,y,x2,y2,clr,title){
+	open(); 
+	var csbi = CONSOLE_SCREEN_BUFFER_INFO();
+	::Kernel32.GetConsoleScreenBufferInfo(getOutPutHandle(),csbi);
+	if(!x) {
+		x = ..math.floor( ( csbi.srWindow.right - csbi.srWindow.left - x2 ) / 2 );
+		x2 = x + x2;
+	}
+	if(!y) {
+		y = ..math.floor( ( csbi.srWindow.bottom - csbi.srWindow.top - y2 ) / 2 );
+		y2 = y + y2;
+	}
+	x2 = x2 + ( 2 -( ( x2 - x ) % 2 ) ) 
+	if(clr===null) return x,y,x2,y2;
+	setTextAttribute(clr);  
+	for(y=y;y2;1){
+		for(x=x;x2-1){
+			setPos(x,y);writeText(" ");
+		}
+	} 
+	
+	if( title ){
+		title = title;
+		setPos(x,y);writeText("┌")  
+		setPos(x2-2,y);writeText("┐")  
+		setPos(x,y2);writeText("└")  
+		setPos(x2-2,y2);writeText("┘")  
+		
+		for (i=x+2;x2-4;2){
+			setPos(i,y);writeText("─");
+			setPos(i,y2);writeText("─");
+		}
+	
+		for (i=y+1;y2-1){
+			setPos(x,i);writeText("│");
+			setPos(x2-2,i);writeText("│");
+		}
+	
+		setPos(x+4,y);writeText(title);
+		setPos(x+4,y+2);
+	}
+	else {
+		setPos(x+2,y+1);
+	}
+	
+	
+	return x,y,x2,y2;
+}
+
+readOutputCharacter = function(){
+	var buffer = {WORD value[1000]}
+	var ok = ::Kernel32.ReadConsoleOutputCharacterW( getOutPutHandle(),buffer,1000,0,{INT charsRead})
+	return ..string.trim(buffer.value);
+}
+
+dump = function(v,...){
+	open();
+	if( type(v) == type.table ) writeText( ..table.tostring(v) )
+	else writeText( (tostring(v) ) )  
+	if(...===null ){
+		writeText('\n');
+		return;
+	}
+	writeText('\t')
+	return dump(...);
+} 
+
+dumpTable = function(t){
+	open();
+	writeText( ..table.tostring(t) )
+}
+
+setTitle = function(title){
+	if(!::Kernel32.SetConsoleTitleW(title) ){
+		open();
+		return !!::Kernel32.SetConsoleTitleW(title);
+	}
+}
+
+GetConsoleTitle = ::Kernel32.api( "GetConsoleTitleW", "INT(ustring& buf,INT size)");
+getTitle = function(){
+	var len,title = GetConsoleTitle(2000,1000);
+	return title; 
+}
+
+getNumber = function( s,len ){
+	var n;
+	while( 
+		var _;
+		n = tonumber( getText(s,len),10 );
+		n === null
+	) { 
+		s = "请重新输入有效的数值: "
+	}
+	return n;
+}
+
+getCodePage = function(){
+	return ::Kernel32.GetConsoleCP(),::Kernel32.GetConsoleOutputCP()
+}
+
+setCodePage = function(icp,ocp){
+	return ::Kernel32.SetConsoleCP(icp) && ( ocp === null || ::Kernel32.SetConsoleOutputCP(ocp) );
+}
+
+dumpJson = function(v){ 
+	log( ..web.json.stringify(v,true,false) );
+}
+
+close = ..io.close;
+stdout = ..io.stdout;
+stderr = ..io.stderr;
+stdin = ..io.stdin; 
+	
+varDump = function(...){
+	open();
+	var args = {...};
+	var b,e = ..table.range(args);
+	for(i=b;e){
+		var arg = args[i];
+		var t = type(arg);
+		print("参数位置:" ++ i);
+		print("数据类型:" ++ t);
+		if( t != type.table ){
+			print("变量值:" ++ tostring(arg),'\n');
+		}
+		else { 
+			print("变量值: {" ); 
+			
+			var logged = { _struct = 1 };
+			for k,v in ..table.eachName(arg){
+				logged[k] = true;
+				writeText('    ', k,' = ',tostring(v) ,'\n');     
+			}
+			for(i=1;#arg;1){
+				logged[i] = true; 
+				writeText('    [', i,'] = ',tostring(arg[i]) ,'\n'); 
+			}
+			for(k,v in arg){
+				if( !logged[k] ){
+					writeText('    [', tostring(k),'] = ',tostring(v) ,'\n'); 
+				} 
+			}
+				
+			print('}');
+			
+			if(#arg){
+				print("序列数组长度:",#arg);
+			}
+			if(arg[["_struct"]]){
+				try{
+					print("结构体大小:",..raw.sizeof(arg) );
+				}
+				catch(e){
+					print("结构体大小:未知(包含动态数组)");
+				}
+			}
+			print('\n');
+		}  
+	} 
+}
+
+color =  {  
+	/*intellisense(console.color)*/
+	black = 0; //黑色
+	darkBlue = 1; //暗蓝色
+	darkGreen = 2; //暗绿色
+	darkCyan = 3; //暗青色
+	darkRed = 4; //暗红色
+	darkMagenta = 5; //暗紫色
+	darkYellow = 6; //暗黄色
+	gray = 7; //灰色
+	darkGray = 8; //深灰色
+	blue = 9; //蓝色
+	green = 0xA; //绿色
+	cyan = 0xB; //青色
+	red = 0xC; //红色
+	magenta = 0xD; //紫色
+	yellow = 0xE; //黄色
+	white = 0xF //白色
+	/*end intellisense*/
+}
+
+/**intellisense(console)
+open() = 打开控制台窗口,\n如果控制台窗口已打开,该函数不进行任何操作\n如果参数为true，则将console.utf8设为true,具体请参考console.utf8的说明
+utf8 = 控制台是否启用UTF-8编码,\n启用这个选项在win10以下系统可能出现显示不正常的问题\n但有一些程序，例如electron主进程输出默认需要打开此选项\n一般建议关闭,aardio会自动将UTF8转换为ANSI并输出到控制台
+setLoadingDots(.(动画字符数组,是否显示在尾部,动画间隔毫秒数) = 指定showLoading函数使用的默认动画字符数组\n除参数@1必须指定之外，其他参数可选
+showLoading( = 显示进度动画
+showLoading(.(状态文本,动画颜色) = n所有参数都可以省略,状态文本为false关闭动画,\n调用console.open,console.log等函数都能自动关闭动画\n参数@2只能使用 console.color 的成员值
+getNumber( "请输入数值:__" ) = 读取用户输入的数值,\n如果用户输入错误的数值则显示错误提示并重新读取输入直到成功,\n可选在参数@2中指定缓冲区大小
+getText( "请输入文本:__" ) = 此函数内部调用io.getText自控制台读取用户输入,\n可选在参数@2中指定缓冲区大小\n此函数不调用io.stdin.read等标准输入函数
+writeText(__) = 直接写入控制台，\n参数支持UTF8/UTF16/ANSI字符串，\n支持1个或多个参数，但遇到null参数会停止输出后面的参数,\n注意这个函数不会自动打开控制台，\n此函数不调用io.stdout.write,io.print等标准输出函数\n并且可以支持更多的Unicode字符
+writeColorText( = 调用 console.writeText 输出指定颜色文本,\n此函数不会自动打开控制台窗口
+writeColorText(.(文本,前景色,背景色) =  参数@2、参数@3只能使用 console.color 的成员值\n背景色可以省略
+log(__) = 调用console.writeText在控制台输出信息,支持多参数\n多个参数间使用制表符分隔，并且在最后输入一个换行,\n参数支持UTF8/UTF16/ANSI字符串，\n该函数可自动打开控制台窗口,而无需事先调用io.open();\n注意console.log与console.print指向同一函数\n如果是输出调试信息,建议大家使用console.debug函数
+logPause(__) = 调用 console.log 函数输入所有参数,\n然后调用 console.pause 函数暂停
+print("__") = 调用console.writeText在控制台输出信息,支持多参数\n多个参数间使用制表符分隔，并且在最后输入一个换行,\n参数支持UTF8/UTF16/ANSI字符串，\n该函数可自动打开控制台窗口,而无需事先调用io.open();\n注意console.log与console.print指向同一函数\n如果是输出调试信息,建议大家使用console.debug函数
+printf("%s__", ) = 自动打开控制台\n调用console.log函数输出格式化字符串,\n格式化语法与string.format相同
+hex(__) = 调用console.log以16进制输出字符串、或缓冲区的所有字节码
+writeBack(__) = 控制台输出字符串并覆盖最后显示的等长字符\n如果有多个参数则调用string.format格式化后输出
+fullscreen() = 控制台窗口全屏切换
+modifyMode(.(输入输出句柄,移除模式,添加模式) = 设置控制台的显示模式\n参数用法参考 WINAPI SetConsoleMode\n参数@1如果省略则默认为标准输出句柄\n成功返回当前模式,失败返回null
+debug("__") = 使用标准错误输出流(io.stderr)输出，可以重定向，\n用法类似io.print,该函数在开发环境中会自动打开控制台\n发布后的程序不会自动打开控制台
+more(__/*分页大小*/) = 用于在循环语句中分页显示\n省略参数时则参数默认为1
+askYesNo("按Y键继续,按N键取消") = 等待用户按Y或N键
+kbHit() = 检测键盘有没有输入
+peek() = 测试键盘有没有输入\n有则读取并返回keyEvent对象,否则返回空\n!console_kbevent.
+clearInputBuffer() = 刷新控制台输入缓冲区\n丢弃缓冲区的所有输入
+kbRead() = 读取用户按键返回keyEvent对象\n!console_kbevent.
+kbRead(true) = 等待用户按任意键并返回keyEvent对象(不包含释放按键事件)
+getch() = 读取输入字节码,中文字返回两个字节码\n控制台不回显字符
+getche() = 读取输入字符\n控制台回显字符
+getPassword() = 读取密码\n可选使用参数一指定控制台回显掩码,默认显示星号
+getWindow() =  返回控制台窗口句柄\n使用此函数可判断当前是否已打开控制台窗口;
+getOutPutHandle() = 标准输出句柄
+getInputHandle() = 标准输入句柄
+getErrorHandle() = 错误输出句柄
+getCodePage() = 获取输入代码页,输出代码页
+setCodePage(.(输入代码页,输出代码页) = 设置代码页\n应在打开控制台后使用该函数
+readOutputCharacter() = 读取标准输出缓冲区文本
+setColor(.(前景色,背景色) = 设置控制台前景色与背景色\n参数必须使用 console.color 的成员值\n无参数恢复默认颜色
+getTextAttribute() = 获取控制台文本颜色,\n返回颜色值为 背景色 * 0x10 + 前景色
+setTextAttribute( = 设置文本前景色与背景色,\n设置整个窗口的背景色请使用 console.setColor;
+setTextAttribute(.(颜色) = 颜色值必须为 背景色 * 0x10 + 前景色,\n前景色,背景色必须使用 console.color 的成员值 
+setTextAttribute(.(前景色,背景色) = 参数必须使用 console.color 的成员值\n无参数恢复默认颜色 
+isCursorVisible() =控制台当前是否显示光标
+setCursorVisible(.(visible) = 设置控制台是否显示光标
+setCursorInfo(.(info) = 修改光标信息,\n用法请参考此函数源码
+getCursorInfo() = 返回光标信息,\n用法请参考此函数源码
+varDump(__/*变量*/) = 此函数显示一个或多个参数的类型与值
+dump(__/*变量*/) = 显示变量的值,支持多参数\n注意仅显示普通table,string,number等类型的值,不显示函数等\ntable对象仅显示键名为字符串的值，以及数值索引自1开始的顺序数组
+dumpJson(__/*变量*/) = 将对像转换为格式化的JSON文本并输出到控制台\n对象如果包含数值索引自1开始的顺序数组成员则转换为JSON数组\nJSON数组会忽略其他索引不在数组范围内的成员
+dumpTable(__/*表对象*/) = 使用table.tostring转换表对象为文本然后输出到控制台,\n循环引用的成员将显示为null值
+close() = 关闭控制台
+pause( = 暂停,\n按任意键继续
+pause(.(按键后是否关闭控制台,提示) = 返回用户按键键码 
+setTitle("__") = 设置控制台标题
+getTitle() = 获取控制台标题
+clearScreen() = 清屏
+eraseLine() = 清除当前行\n可选指定要在当前行输出的一个或多个参数
+eraseToEndOfLine() = 清除当前输入光标到行尾的所有字符\n注意用‘\r’虽然能回退光标到行首，但并不擦除已输出的字符
+getScreenBufferInfo() = 返回屏幕缓冲区信息
+getSize() = 返回控制台屏幕缓冲区每行可输入的字符数,\n以及可输入的字符行数
+getPos() = 返回光标坐标
+setPos(.(列,行)= 设置光标坐标
+box(.(列,行,终止列,终止行,背景色,边框标题) = 在控制台画一个色块,边框标题可省略,\n参数@1,@2省略则自动居中\n返回列,行,终止列,终止行
+stderr = 标准错误输出\n!file.
+stdin =  标准输入\n!file.
+stdout = 标准输出\n!file.
+setCtrlHandlerThread(hander,add) = @.setCtrlHandlerThread( function(ctrlType){
+	__/*控制台程序退出前在触发此线程函数\nctrlType为null表示控制台正常关闭*/
+});
+end intellisense**/ 
+
+/**intellisense()
+console = 控制台扩展函数库
+!console_kbevent.bKeyDown = 按键是否释放
+!console_kbevent.wRepeatCount = 重复次数
+!console_kbevent.wVirtualKeyCode = 虚拟键码
+!console_kbevent.wVirtualScanCode = 扫描码
+!console_kbevent.uChar.unicodeChar = Unicode字节码
+!console_kbevent.uChar.asciiChar = ASCII字节码
+!console_kbevent.uChar.dwControlKeyState = 控制键状态码
+!console_kbevent.isShiftPressed = 是否按下SHIFT键
+!console_kbevent.isScrLkOn = 是否打开ScrLk键 
+!console_kbevent.isRightCtrlPressed = 是否按下右CTRL键
+!console_kbevent.isRightAltPressed = 是否按下右ALT键
+!console_kbevent.isLeftCtrlPressed = 是否按下左CTRL键
+!console_kbevent.isLeftAltPressed = 是否按下左ALT键
+!console_kbevent.isNumLkOn = 是否打开NumLk键
+!console_kbevent.isCapsLkOn = 是否打开大写
+!console_kbevent.isEnhanced = 是否扩展键
+end intellisense**/

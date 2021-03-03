@@ -1,0 +1,878 @@
+
+class crypt{
+	ctor( provider/*"Microsoft Base Cryptographic Provider v1.0"*/,provType=0x1/*_PROV_RSA_FULL*/ ){ {
+			var ret,hCryptProv = AcquireContext( ,/*当前用户*/, provider,provType, 0xF0000000/*_CRYPT_VERIFYCONTEXT*/ || 0x20/*_CRYPT_MACHINE_KEYSET*/);
+			if (!ret) {
+				ret, hCryptProv = AcquireContext( , /*当前用户*/,provider,provType, 0x8/*_CRYPT_NEWKEYSET*/ || 0x20/*_CRYPT_MACHINE_KEYSET*/);	
+			}
+			if (!ret) return;
+			this.hCryptProv = hCryptProv;
+			
+			..table.gc(this,"release"); 
+		};
+		
+		this.blockSize = 8;
+		var m_hKey; 
+	}; 
+	release = function () {
+		this.setKey(null);
+		if( this.lastHash ){
+			this.lastHash.destroy();
+			this.lastHash = null;
+		} 
+		if (this.hCryptProv ) {
+			ReleaseContext(this.hCryptProv , 0);
+			this.hCryptProv = null
+		} 
+	};  
+	genKey = function(algId=1/*_AT_KEYEXCHANGE*/,flags=1/*_CRYPT_EXPORTABLE*/,len){ 
+		if(len){
+			flags = (len << 16) | flags;
+		}
+		
+		var ret,hKey = GenKey(this.hCryptProv,algId,flags); 
+		if( ret && hKey ){
+			this.setKey(hKey);
+			return true;
+		}
+	};
+	getUserKey = function(keySpec){
+		if(!keySpec) keySpec = 2/*_AT_SIGNATURE*/;
+		var ret,hKey = GetUserKey(this.hCryptProv,keySpec); 
+		if( ret && hKey ){
+			this.setKey(hKey);
+			return true;
+		}
+	};
+	duplicateKey = function(flags){
+		if(!m_hKey) return null,"密钥尚未创建";
+		return duplicateKey(m_hKey,flags);
+	};
+	hasKey = function(){
+		return !!m_hKey;
+	};
+	setKey = function(hNewKey){
+		if( m_hKey == hNewKey ) return;
+		
+		if( m_hKey ){
+			DestroyKey(m_hKey) 
+		} 
+		
+		if( type( hNewKey ) == type.buffer ){
+			var r,hOutKey = DuplicateKey( hNewKey, ,0);
+			if(!r) return null,..lasterr(,"setKey()->DuplicateKey()");
+			m_hKey = hOutKey;
+		}
+		else{
+			m_hKey = hNewKey;
+		}
+	}; 
+	setKeyParam = function(dwParam,data,flag){
+		if(!m_hKey) error("密钥尚未创建",2);
+		if( type(data) == "number" ) data = {INT v = data};
+		return  !!::Advapi32.CryptSetKeyParam(m_hKey,dwParam,data,flag:0);
+	};
+	setKeyParamMode = function(mode){
+		this.setKeyParam(4/*KP_MODE*/,mode);
+	};
+	setKeyParamPadding = function(padding){
+		this.setKeyParam(3/*KP_PADDING*/,padding);	
+	};
+	getKeyParam = function(dwParam,data){
+		if(!m_hKey) error("密钥尚未创建",2); 
+		var cbSize ={INT value = ..raw.sizeof(data)}
+		if( ::Advapi32.CryptGetKeyParam(m_hKey,dwParam,data,cbSize,0) ){
+			return data;
+		}
+		
+		if(data===null && cbSize.value){
+			data = ..raw.buffer(cbSize.value);
+			if( ::Advapi32.CryptGetKeyParam(m_hKey,dwParam,data,cbSize,0) ){
+				return data;
+			}
+		}
+	};
+	getKeyParamNumber = function(){
+		return this.getKeyParam(dwParam,{INT value})[["value"]]
+	};
+	getKeyBlockLen  = function(){
+		return this.getKeyParam(8/*KP_BLOCKLEN*/,{INT value})[["value"]]
+	};
+	setInitVector = function(iv,flag){
+		return this.setKeyParam(1/*_KP_IV*/,iv,flag);
+	};
+	importKey = function(blob,flag=1/*_CRYPT_EXPORTABLE*/,hPubKey){
+		var ret,hKey;
+		if(type(blob) == type.table)
+			ret,hKey = ImportKey(this.hCryptProv,blob,..raw.sizeof(blob),hPubKey,flag);
+		elseif(#blob){
+			ret,hKey = ImportStringKey(this.hCryptProv,blob,#blob,hPubKey,flag)
+		}
+		else {
+			return null,"参数错误";
+		}
+
+		if(!ret) return null,..lasterr(,"importKey");
+		this.setKey(hKey);
+		return true;
+	};
+	exportKey = function(blobType,flags,hExpKey){
+		var r,_,size = ExportKey(m_hKey,hExpKey,blobType,flags:0,0, 0);
+		if(r){ 
+			var r,blob = ExportKey(m_hKey,hExpKey,blobType,flags:0,size,size);
+			if(r) return blob;
+		}
+		return null,..lasterr(,"exportKey")
+	};
+	exportPlainTextKey = function(flags,hExpKey){
+		return this.exportKey(8/*_PLAINTEXTKEYBLOB*/,flags,hExpKey)
+	};
+	exportPrivateKey = function(flags,hExpKey){
+		return this.exportKey(7/*_PRIVATEKEYBLOB*/,flags,hExpKey)
+	};
+	exportPublicKey = function(flags,hExpKey){
+		return this.exportKey(6/*_PUBLICKEYBLOB*/,flags,hExpKey)
+	};
+	exportPublicKeyInfo = function(keySpec,encodingType){
+		var cbSize = {INT value};
+		::Crypt32.CryptExportPublicKeyInfo(this.hCryptProv,keySpec,encodingType,null,cbSize); 
+		if(cbSize.value){
+			var info = ..raw.buffer(cbSize.value);
+			if( ::Crypt32.CryptExportPublicKeyInfo(this.hCryptProv,keySpec,encodingType,info,cbSize) ){
+				return info;;
+			}
+		}
+	};
+	importPublicKeyInfo = function(info/*CERT_PUBLIC_KEY_INFO*/,encodingType){
+		var result = {ptr hKey};
+		if( ::Crypt32.CryptImportPublicKeyInfo(this.hCryptProv,encodingType,info,result) ){
+			this.setKey(result.hKey);
+			return true;;
+		}
+	};
+	importPrivateKeyInfo = function(info/*CRYPT_PRIVATE_KEY_INFO*/,encodingType,structType){
+		var privateKey = ..raw.convert(info,{INT size;ptr data},16);
+		if(privateKey.size){
+			var derData = ..raw.buffer(privateKey.size,privateKey.data);  
+			var keyData = this.decodeObject(derData,encodingType,structType); 
+			if(#keyData) return this.importKey(keyData)	
+		}
+    };
+    exportPkcs8 = function(keySpec,objId){
+		var result = {ptr hKey};
+		
+		var cbSize = {INT value};
+		::Crypt32.CryptExportPKCS8(this.hCryptProv,keySpec,objId,0,null,null,cbSize); 
+		if(cbSize.value ){
+			var privateKeyBlob = ..raw.buffer(cbSize.value);
+			if( ::Crypt32.CryptExportPKCS8(this.hCryptProv,keySpec,objId,0x8000,null,privateKeyBlob,cbSize) ){
+				return privateKeyBlob;;
+			}
+		}
+	};
+	exportPlainTextKeyBlob = function(flags,hExpKey){
+		var buf = this.exportKey(8/*_PLAINTEXTKEYBLOB*/,flags,hExpKey);
+		if(buf){
+			var size = ..raw.convert(buf,{INT size},8).size;
+			if(size){
+				return ..raw.convert(buf,{ 
+            		struct hdr ={BYTE bType;BYTE bVersion;WORD reserved;INT aiKeyAlg;};
+            		INT cbKeySize;BYTE rgbKeyData[] = ..raw.buffer(size); 
+            		_struct_aligned = 1;
+        		} )
+			}
+		}
+	};
+	setPlainPassword = function(key,algId=0x6801/*_CALG_RC4*/,flags=0){
+        var r,e = this.importKey({
+            struct hdr ={BYTE bType = 8/*_PLAINTEXTKEYBLOB*/;BYTE bVersion = 2/*_CUR_BLOB_VERSION*/;WORD reserved;INT aiKeyAlg = algId};
+            INT cbKeySize = #key;
+            BYTE rgbKeyData[] = key;
+        },flags)
+        if( r ) return this;
+        return null,e;
+	};
+	setHashPassword = function(str,hashAlgId = 0x8003/*_CALG_MD5*/,algId,flag){
+		var h,err = this.createHash(hashAlgId,str);
+		if(!h) return null,err;
+		var r,err = h.deriveKey(algId,flag);
+		h.destroy();
+		
+		if(!r) return null,err;
+		return this;
+	};
+	setPassword = this.setHashPassword;
+	decodeObject = function(encoded,encodingType,structType){
+		var cbSize = {INT value}
+		::Crypt32.CryptDecodeObjectEx(encodingType,structType,encoded,#encoded,flags,null,null,cbSize);
+		if(cbSize.value){
+			var structInfo = ..raw.buffer(cbSize.value);
+			if( ::Crypt32.CryptDecodeObjectEx(encodingType,structType,encoded,#encoded,flags,null,structInfo,cbSize) ){
+				return structInfo;
+			}
+		}
+	};
+	encodeObject = function(structInfo,encodingType,structType){
+		var cbSize = {INT value}
+		::Crypt32.CryptEncodeObjectEx(encodingType,structType,structInfo,flags,null,null,cbSize);
+		if(cbSize.value){
+			var encoded = ..raw.buffer(cbSize.value);
+			if( ::Crypt32.CryptEncodeObjectEx(encodingType,structType,structInfo,flags,null,encoded,cbSize) ){
+				return encoded;
+			}
+		}
+	};
+	createHashByKey = function( algid ){ 
+		if(!m_hKey) error("未指定正确的密钥",2);
+		if( type(algid) != type.number ) error("参数未指定正确的算法ID",2);
+		
+		var h,err = hash(this,0x8009/*_CALG_HMAC*/,m_hKey); 
+		if( !h ) return null,err; 
+		this.lastHash = h;
+		return h;
+	}
+	createHash = function( algid = 0x8003/*_CALG_MD5*/,data ){ 
+		var h,err = hash(this,algid);
+		if( !h ) return null,err; 
+		if( data ){
+			h.hashData(data)
+		}
+		this.lastHash = h;
+		return h;
+	};
+	createHashByMd2 = function(data) {
+		return this.createHash( 0x8001/*_CALG_MD2*/,data);
+	};
+	createHashByMd4 = function(data) {
+		return this.createHash( 0x8002/*_CALG_MD4*/,data);
+	};
+	createHashByMd5 = function(data) {
+		return this.createHash( 0x8003/*_CALG_MD5*/,data);
+	};
+	createHashBySha1 = function(data) {
+		return this.createHash( 0x8004/*_CALG_SHA1*/,data);
+	};
+	hash = function(data,upper,b16,algId){
+		var h = this.createHash( algId,data ); 
+		if(!h) return null,..lasterr();
+		
+		var r = h.getHexValue(upper ); 
+		h.destroy();
+		if(b16){
+			return ..string.slice(r,9,24);
+		}
+		return r;
+	}; 
+	hashFile = function(path,upper,algId,bufSize = 0x100000){  
+		var h = this.createHash(algId);
+		var f,err =  ..io.open(path, "rb");
+		if(!f)
+			return null,err; 
+   	
+		do { 
+			var data = f.read(bufSize); 
+			h.hashData(data);  
+		} while ( data );
+		f.close(); 
+		
+		var r = h.getHexValue(upper); 
+		h.destroy();
+		return r;
+	}; 
+	verifySignature = function(sign,sDescription,flags=0){
+		if(!m_hKey) error("密钥尚未创建",2);
+		if(!this.lastHash) error("哈希尚未创建",2);
+		return CryptVerifySignature( this.lastHash,sign,#sign,m_hKey,sDescription,flags);
+	};
+	allocBuffer = function(size,blockSize,str){
+		if( blockSize === null ) blockSize = this.blockSize;
+		size = ( size - ( size % blockSize) ) + blockSize; 
+		this.buffer = ..raw.buffer(size,str ) 
+	};
+	encrypt = function(str,final=true,hHash,flags=0){
+		if(!m_hKey) error("未指定正确的密钥",2)
+		
+		if( (!this.buffer) || ( #str > #this.buffer) ){
+			this.allocBuffer(#str+1000,this.blockSize,str);
+		}
+		else { 
+			::CopyMemory(this.buffer,str,#str);
+		} 
+		var ret,len = Encrypt(m_hKey,hHash,final,flags,this.buffer,#str,#this.buffer) 
+		if(ret){
+			return ..raw.tostring(this.buffer,1,len);
+		}
+		else{
+			if( ::GetLastError() == 0xEA/*_ERROR_MORE_DATA*/ ){
+				this.allocBuffer(len);
+				return this.encrypt(str,final,hHash,flags);
+			}
+		}
+	};
+	decrypt = function(str,final=true,hHash,flags=0){
+		if(!m_hKey) error("未指定正确的密钥",2)
+		
+		if( (!this.buffer) || ( #str > #this.buffer) ){
+			this.allocBuffer(#str,this.blockSize,str);
+		}
+		else { 
+			::CopyMemory(this.buffer,str,#str);
+		} 
+		var ret,len = Decrypt(m_hKey,hHash,final,flags,this.buffer,#str ) 
+		if(ret){
+			return ..raw.tostring(this.buffer,1,len);
+		}
+	};
+	eachEncrypt = function(str,stepSize,final=true,hHash,flags ){
+		if( !str ) error("参数@1错误",2)
+		if( stepSize <= 0 ) error("参数@2错误",2)
+		if(!m_hKey) error("未指定正确的密钥",2)
+		return this.__eachCrpyt(Encrypt,str,stepSize,final,hHash,flags ); 
+	};
+	eachDecrypt = function(str,stepSize,final=true,hHash,flags ){
+		if( !str ) error("参数@1错误",2)
+		if( stepSize <= 0 ) error("参数@2错误",2)
+		if(!m_hKey) error("未指定正确的密钥",2)
+		return this.__eachCrpyt(Decrypt,str,stepSize,final,hHash,flags ); 
+	};
+	__eachCrpyt = function( cpt,str,stepSize,finalAll,hHash,flags=0 ){
+		var len = #str;
+		var safePtr = ..raw.convert( { pointer p = str } ,{ pointer p }).p; 
+		
+		if( (!this.buffer) || ( stepSize > #this.buffer) ){
+			this.allocBuffer( stepSize + 1000 ,this.blockSize );
+		}
+		
+		var pos = -stepSize;
+		var writeSize;
+		var raw_tostring = ..raw.tostring;
+		var buffer = this.buffer;
+		var bufferLen = #buffer;
+		return function(){
+			pos = pos + stepSize;
+			if( pos > len ) return;
+			var final =  pos+stepSize > len ;
+			writeSize = (!final) ? stepSize : len % stepSize ;
+			::CopyMemory(buffer,topointer(safePtr,pos),writeSize);
+			var ret,len = cpt(m_hKey,hHash,final && finalAll,flags,buffer,writeSize,bufferLen) 
+			if(ret){
+				return raw_tostring(buffer,1,len);
+			}
+		}  
+	} 
+};
+
+namespace crypt{
+	::Advapi32 := ..raw.loadDll("advapi32.dll");
+	AcquireContext = ::Advapi32.api("CryptAcquireContext", "int(pointer& hProv,ustr szContainer,ustr szProvider,INT provType,INT flags)");
+	ReleaseContext = ::Advapi32.api("CryptReleaseContext", "int(POINTER hProv, int flags)"); 
+	Encrypt = ::Advapi32.api("CryptEncrypt", "bool(POINTER hKey,pointer hHash,bool final,INT flags,pointer pbData,INT &len,INT bufLen)");
+	Decrypt = ::Advapi32.api("CryptDecrypt", "bool(POINTER hKey,pointer hHash,bool final,INT flags,pointer pbData,INT &len)");
+	CryptVerifySignature = ::Advapi32.api("CryptVerifySignatureW","bool(POINTER hHash,pointer sign,INT sigLen,pointer hPubKey,ustring sDesc,INT flags)");
+ 	GenKey = ::Advapi32.api("CryptGenKey", "bool(POINTER hProv,INT Algid,INT dwFlags,pointer &phKey)"); 
+	GetUserKey = ::Advapi32.api("CryptGetUserKey", "bool(POINTER hProv,INT dwKeySpec,pointer &phKey)");  
+ 	ExportKey = ::Advapi32.api("CryptExportKey", "bool(POINTER hKey,pointer hExpKey,INT blobType,INT flags,string &pbData,INT &dataLen)");
+	ImportKey = ::Advapi32.api("CryptImportKey", "bool(POINTER hProv,struct pbData,INT dataLen,pointer hPubKey,INT flags,pointer &phKey)");  
+	ImportStringKey = ::Advapi32.api("CryptImportKey", "bool(POINTER hProv,pointer pbData,INT dataLen,pointer hPubKey,INT flags,pointer &phKey)");  
+	DestroyKey = ::Advapi32.api("CryptDestroyKey", "bool(POINTER hKey)");
+	DuplicateKey = ::Advapi32.api("CryptDuplicateKey", "bool(POINTER hKey,pointer r,INT flags,pointer &outKey)");
+	
+	::Crypt32  := ..raw.loadDll("Crypt32.dll");
+	CryptBinaryToString = ::Crypt32.api("CryptBinaryToStringA", "bool(ptr bin,INT size,INT flags,string& str,INT &cchStr)");
+	CryptStringToBinary = ::Crypt32.api("CryptStringToBinaryA", "bool(ptr str,INT size,INT flags,string& bin,INT &cbBin,INT &skip,INT &pFlags)");
+   	
+	encodeBin = function(bin,len,flags = 0x40000001/*_CRYPT_STRING_BASE64*/ ){
+		if(!bin) error("参数无效",2);
+		if(!len) len = #bin;
+		if(!len) return "";
+		
+		var ok,,size = CryptBinaryToString(bin,len,flags,0,0)
+		if(ok){
+			var ok,str,size = CryptBinaryToString(bin,len,flags,size-1,size);
+			if( ok && str) {
+				if( _WINXP && (flags & 0x40000000/*_CRYPT_STRING_NOCRLF*/) ) str = ..string.trimright(str);
+				return str;
+			}
+		}
+	}
+	
+	decodeBin  = function(bin,len,flags=7/*_CRYPT_STRING_ANY*/){
+		if(!bin) error("参数无效",2);
+		if(!len) len = #bin;
+		if(!len) return "";
+		
+		var ok,,size = CryptStringToBinary(bin,len,flags,0,0,0,0) 
+		if(ok){
+			var ok,str,size = CryptStringToBinary(bin,len,flags,size,size,0,0);
+			return str;
+		}
+	}
+	
+	pem = function(bin,header){
+		if(bin) return ..string.format('-----BEGIN %s-----\r\n%s-----END %s-----',header,encodeBin(bin,,1/*_CRYPT_STRING_BASE64*/),header);
+	}
+	
+	duplicateKey = function(hkey,flags){
+		if(!hkey) error("密钥不能为空",2)
+		var r,hOutKey = DuplicateKey( hkey, ,flags:0);
+		if(r){
+			return ..gcdata(  
+				_topointer =  hOutKey;
+				_gc = function(){
+					if(hOutKey){
+						DestroyKey(hOutKey);
+						hOutKey = null;
+					}
+				};
+				_get = {
+					destroy = function(){
+						if(hOutKey){
+							DestroyKey(hOutKey); 
+							hOutKey = null;
+						}
+					}
+					duplicate = function(){
+						if(hOutKey){ return duplicateKey(hOutKey) }
+					}
+				} 
+			)
+		}
+	};
+	
+	import crypt.hash;
+	
+	md5 = function(data,upper,b16) { 
+		return ..crypt().hash( data,upper,b16,0x8003/*_CALG_MD5*/ );   
+	}; 
+	md2 = function(data,upper,b16) {
+		return ..crypt().hash( data,upper,b16,0x8001/*_CALG_MD2*/ );   
+	};
+	md4 = function(data,upper,b16) {
+		return ..crypt().hash( data,upper,b16,0x8002/*_CALG_MD4*/ );   
+	};
+	sha1 = function(data,upper) {
+		return ..crypt().hash( data,upper, ,0x8004/*_CALG_SHA1*/ );   
+	};
+	sha512 = function(data,upper) {
+		return ..crypt(,0x18/*_PROV_RSA_AES*/).hash( data,upper, ,0x800E/*_CALG_SHA_512*/ );   
+	};
+	sha384 = function(data,upper) {
+		return ..crypt(,0x18/*_PROV_RSA_AES*/).hash( data,upper, ,0x800D/*_CALG_SHA_384*/);   
+	};
+	sha256 = function(data,upper) {
+		return ..crypt(,0x18/*_PROV_RSA_AES*/).hash( data,upper, ,0x800C/*_CALG_SHA_256*/);   
+	};
+}
+
+/**intellisense()
+crypt() = !crypt.
+crypt(.(CSP名称,CSP类型) = 获取密钥容器.\n所有参数可选,CSP类型使用 _PROV_前缀常量指定
+!crypt_key.duplicate() = 复制密钥\n!crypt_key.
+!crypt_key.destroy() = 删除密钥
+!plaintextkeyblob.hdr.aiKeyAlg =  密钥使用的算法ID
+!plaintextkeyblob.rgbKeyData = 密钥,buffer类型数据
+end intellisense**/
+
+/**intellisense(!crypt)
+createHash() = !crypt_hash.
+createHashByKey() = !crypt_hash.
+createHashByKey(.(算法ID) = 使用当前密钥创建哈希
+createHashByMd2() = 创建MD2算法哈希对象\n可选使用一个字符串参数指定哈希数据\n!crypt_hash.
+createHashByMd4() = 创建MD4算法哈希对象\n可选使用一个字符串参数指定哈希数据\n!crypt_hash.
+createHashByMd5() = 创建MD5算法哈希对象\n可选使用一个字符串参数指定哈希数据\n!crypt_hash.
+createHashBySha1() = 创建Sha1算法哈希对象\n可选使用一个字符串参数指定哈希数据\n!crypt_hash.
+createHashByHmac() = !crypt_hash.
+createHashByHmac(.(哈希数据,哈希算法) = 所有参数可选,\n哈希算法默认为_CALG_SHA1
+genKey(.(algid,flags,size) = 产生一个随机的会话密钥或者公/私钥对,\n所有参数可选,algid指定算法,flags指定选项,size指定密钥长度
+getUserKey(.(keySpec) = 获取密钥,并设置为默认密钥\n参数指定密钥类型，例如 _AT_SIGNATURE\n成功返回true
+hasKey() = 检测是否已设置密钥
+setKey(.(密钥句柄) = 设置新的默认密钥句柄,\n该密钥将由密钥容器管理,不需要释放该密钥\n参数为null则删除密钥
+setKeyParam(.(类型,数据值,选项) = 设置加密参数\n数据值可以是结构体,字符串，或缓冲区\n如果数据值一个数值参数,则转换为表示32位整型数值地址的结构体指针\n成功返回true,失败请使用 ..lasterr()获取错误信息
+setKeyParamMode(_CRYPT_MODE__) = 设置加密模式\n成功返回true,失败请使用 ..lasterr()获取错误信息
+setKeyParamPadding(_PKCS5__) = 设置加密填充方式\n成功返回true,失败请使用 ..lasterr()获取错误信息
+getKeyParam(.(类型,数据值) = 获取密钥参数\n数据值应当指定一个结构体\n不指定数据值则自动分配buffer对象存储返回值\n失败返回null
+getKeyParamNumber(.(类型) = 获取数值类型密钥参数
+getKeyBlockLen() = 获取密钥块长度
+setInitVector(.(字符串向量,选项) = 设置初始化向量,成功返回true,\n参数2可选
+duplicateKey() = 获取并复制当前使用的密钥,\n该密钥必须调用 destroy 成员函数手动销毁\n!crypt_key.
+importKey(.(密钥,选项,公钥句柄) = 导入密钥,\n密钥可以是结构体或字符串格式,\n参数2可选,参数3可选\n成功返回true,失败返回null,错误信息
+exportKey(.(导出密钥类型,选项,加密密钥句柄) = 导出密钥,除参数一以外其他参数可选\n参数1为密钥类型,参数三为导出密钥可为空
+exportPlainTextKey(.(选项,加密密钥句柄) = 导出文本密钥,参数可选
+exportPrivateKey(.(选项,加密密钥句柄) = 导出私钥,参数可选
+exportPublicKey(.(选项,加密密钥句柄) = 导出公钥,参数可选
+exportPlainTextKeyBlob(.(flags,hExpKey) = 导出密钥为PLAINTEXTKEYBLOB结构体,所有参数可选,\n注意创建或导入密钥时指定了 _CRYPT_EXPORTABLE 才能导出密钥
+setPlainPassword(.(明文密码,算法ID,选项) = 参数@1使用字符串或buffer指定密码,\n其他参数可选,算法ID默认为_CALG_RC4\n成功返回密码容器对象,失败返回null,错误信息
+setHashPassword(.("__/*密码*/",HASH算法ID,加密算法ID,选项) = 设置会话密钥\n成功返回密码容器对象,失败返回null,\n默认哈希算法为_CALG_MD5,加密算法为 _CALG_RC4
+setHashPassword() = !crypt.
+setPlainPassword() = !crypt.
+exportPlainTextKeyBlob() = !plaintextkeyblob.
+hash(.(字符串,是否大写,返回16位结果,算法) = 计算哈希值,\n除第一个参数以外,其他参数可选\n默认使用MD5算法
+hashFile(.(文件路径,是否大写,算法) = 计算哈希值,\n除第一个参数以外,其他参数可选\n默认使用MD5算法
+lastHash = 最后一次调用createHashXXX() 系列函数创建的哈希对象
+decrypt(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回解密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+encrypt(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回加密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+allocBuffer(.(大小,块大小) = 分配加解密需要用到的缓冲区\n如果不手动分配,程序将会自动按需分配缓冲区\n参数2可选,可使用对象的blockSize属性指定默认块大小
+blockSize = 加密填充的块大小，默认为8
+verifySignature(.(sign,sDescription,flags) = 验证签名,\n参数@1为签名字符串,其他参数可选\n验证签名以前必须首先导入公钥,并创建哈希
+exportPublicKeyInfo(.(keySpec,encodingType) = 导出公钥信息(CERT_PUBLIC_KEY_INFO),返回值为buffer类型,\n用法参考 crypt.rsa中相关函数
+importPublicKeyInfo(.(certPublicKeyiNFO,encodingType) = 导入公钥信息(CERT_PUBLIC_KEY_INFO),参数@1为buffer或字符串,\n用法参考 crypt.rsa中相关函数,\n成功返回true
+importPrivateKeyInfo(.(certPrivateKeyInfo,encodingType,structType) = 导入私钥信息(CRYPT_PRIVATE_KEY_INFO),参数@1为buffer或字符串,\n用法参考 crypt.rsa中相关函数,\n成功返回true
+exportPkcs8(.(keySpec,objId) = 导出PKCS#8格式私钥,返回值为buffer类型,\n用法参考 crypt.rsa中相关函数
+decodeObject(.(encoded,encodingType,structType) = 解码对象,\n参数@1为buffer或字符串,返回值为buffer类型,\n用法参考 crypt.rsa中相关函数
+encodeObject(.(structInfo,encodingType,structType) = 编码对象,\n参数@1为buffer或字符串,返回值为buffer类型,\n用法参考 crypt.rsa中相关函数
+release() = 释放密码服务对象(CSP)\n此函数可在对象析构时自动调用 
+end intellisense**/
+
+/**intellisense(crypt)
+md5(.(字符串,是否大写,返回16位结果) = 计算哈希值,\n参数2可选,默认大写\n参数3可选,默认返回32位结果
+md4(.(字符串,是否大写,返回16位结果) = 计算哈希值,\n参数2可选,默认大写\n参数3可选,默认返回32位结果
+md2(.(字符串,是否大写,返回16位结果) = 计算哈希值,\n参数2可选,默认大写\n参数3可选,默认返回32位结果
+sha1(.(字符串,是否大写) = 计算sha1哈希值,\n参数2可选,默认大写
+sha512(.(字符串,是否大写) = 计算sha512哈希值,\n参数2可选,默认大写
+sha384(.(字符串,是否大写) = 计算sha384哈希值,\n参数2可选,默认大写
+sha256(.(字符串,是否大写) = 计算sha256哈希值,\n参数2可选,默认大写
+encodeBin(.(字符串,长度,选项) = Base64或hex编码,\n可选参数3使用 _CRYPT_STRING_ 前缀常量指定选项\n参数@3默认为_CRYPT_STRING_BASE64
+decodeBin(.(字符串,长度,选项) = Base64或hex解码,\n可选参数3使用 _CRYPT_STRING_ 前缀常量指定选项\n参数@3默认为_CRYPT_STRING_ANY
+pem(.(字符串,标题) = PEM编码字符串,\n如果参数@1是空值时不操作直接返回null
+end intellisense**/
+
+ /**intellisense()
+_PROV_RSA_FULL=@1/*_PROV_RSA_FULL*/
+_PROV_RSA_SIG=@2/*_PROV_RSA_SIG*/
+_PROV_DSS=@3/*_PROV_DSS*/
+_PROV_FORTEZZA=@4/*_PROV_FORTEZZA*/
+_PROV_MS_EXCHANGE=@5/*_PROV_MS_EXCHANGE*/
+_PROV_SSL=@6/*_PROV_SSL*/
+_PROV_RSA_SCHANNEL=@0xC/*_PROV_RSA_SCHANNEL*/
+_PROV_DSS_DH=@0xD/*_PROV_DSS_DH*/
+_PROV_EC_ECDSA_SIG=@0xE/*_PROV_EC_ECDSA_SIG*/
+_PROV_EC_ECNRA_SIG=@0xF/*_PROV_EC_ECNRA_SIG*/
+_PROV_EC_ECDSA_FULL=@0x10/*_PROV_EC_ECDSA_FULL*/
+_PROV_EC_ECNRA_FULL=@0x11/*_PROV_EC_ECNRA_FULL*/
+_PROV_DH_SCHANNEL=@0x12/*_PROV_DH_SCHANNEL*/
+_PROV_SPYRUS_LYNKS=@0x14/*_PROV_SPYRUS_LYNKS*/
+_PROV_RNG=@0x15/*_PROV_RNG*/
+_PROV_INTEL_SEC=@0x16/*_PROV_INTEL_SEC*/
+_PROV_REPLACE_OWF=@0x17/*_PROV_REPLACE_OWF*/
+_PROV_RSA_AES=@0x18/*_PROV_RSA_AES*/ 
+_ALG_CLASS_ANY=@0/*_ALG_CLASS_ANY*/
+_ALG_CLASS_SIGNATURE=@0x2000/*_ALG_CLASS_SIGNATURE*/
+_ALG_CLASS_MSG_ENCRYPT=@0x4000/*_ALG_CLASS_MSG_ENCRYPT*/
+_ALG_CLASS_DATA_ENCRYPT=@0x6000/*_ALG_CLASS_DATA_ENCRYPT*/
+_ALG_CLASS_HASH=@0x8000/*_ALG_CLASS_HASH*/
+_ALG_CLASS_KEY_EXCHANGE=@0xA000/*_ALG_CLASS_KEY_EXCHANGE*/
+_ALG_CLASS_ALL=@0xE000/*_ALG_CLASS_ALL*/
+_ALG_TYPE_ANY=@0/*_ALG_TYPE_ANY*/
+_ALG_TYPE_DSS=@0x200/*_ALG_TYPE_DSS*/
+_ALG_TYPE_RSA=@0x400/*_ALG_TYPE_RSA*/
+_ALG_TYPE_BLOCK=@0x600/*_ALG_TYPE_BLOCK*/
+_ALG_TYPE_STREAM=@0x800/*_ALG_TYPE_STREAM*/
+_ALG_TYPE_DH=@0xA00/*_ALG_TYPE_DH*/
+_ALG_TYPE_SECURECHANNEL=@0xC00/*_ALG_TYPE_SECURECHANNEL*/
+_ALG_SID_ANY=@0/*_ALG_SID_ANY*/
+_ALG_SID_RSA_ANY=@0/*_ALG_SID_RSA_ANY*/
+_ALG_SID_RSA_PKCS=@1/*_ALG_SID_RSA_PKCS*/
+_ALG_SID_RSA_MSATWORK=@2/*_ALG_SID_RSA_MSATWORK*/
+_ALG_SID_RSA_ENTRUST=@3/*_ALG_SID_RSA_ENTRUST*/
+_ALG_SID_RSA_PGP=@4/*_ALG_SID_RSA_PGP*/
+_ALG_SID_DSS_ANY=@0/*_ALG_SID_DSS_ANY*/
+_ALG_SID_DSS_PKCS=@1/*_ALG_SID_DSS_PKCS*/
+_ALG_SID_DSS_DMS=@2/*_ALG_SID_DSS_DMS*/
+_ALG_SID_ECDSA=@3/*_ALG_SID_ECDSA*/
+_ALG_SID_DES=@1/*_ALG_SID_DES*/
+_ALG_SID_3DES=@3/*_ALG_SID_3DES*/
+_ALG_SID_DESX=@4/*_ALG_SID_DESX*/
+_ALG_SID_IDEA=@5/*_ALG_SID_IDEA*/
+_ALG_SID_CAST=@6/*_ALG_SID_CAST*/
+_ALG_SID_SAFERSK64=@7/*_ALG_SID_SAFERSK64*/
+_ALG_SID_SAFERSK128=@8/*_ALG_SID_SAFERSK128*/
+_ALG_SID_3DES_112=@9/*_ALG_SID_3DES_112*/
+_ALG_SID_CYLINK_MEK=@0xC/*_ALG_SID_CYLINK_MEK*/
+_ALG_SID_RC5=@0xD/*_ALG_SID_RC5*/
+_ALG_SID_AES_128=@0xE/*_ALG_SID_AES_128*/
+_ALG_SID_AES_192=@0xF/*_ALG_SID_AES_192*/
+_ALG_SID_AES_256=@0x10/*_ALG_SID_AES_256*/
+_ALG_SID_AES=@0x11/*_ALG_SID_AES*/
+_ALG_SID_SKIPJACK=@0xA/*_ALG_SID_SKIPJACK*/
+_ALG_SID_TEK=@0xB/*_ALG_SID_TEK*/
+_ALG_SID_RC2=@2/*_ALG_SID_RC2*/
+_ALG_SID_RC4=@1/*_ALG_SID_RC4*/
+_ALG_SID_SEAL=@2/*_ALG_SID_SEAL*/
+_ALG_SID_DH_SANDF=@1/*_ALG_SID_DH_SANDF*/
+_ALG_SID_DH_EPHEM=@2/*_ALG_SID_DH_EPHEM*/
+_ALG_SID_AGREED_KEY_ANY=@3/*_ALG_SID_AGREED_KEY_ANY*/
+_ALG_SID_KEA=@4/*_ALG_SID_KEA*/
+_ALG_SID_ECDH=@5/*_ALG_SID_ECDH*/
+_ALG_SID_MD2=@1/*_ALG_SID_MD2*/
+_ALG_SID_MD4=@2/*_ALG_SID_MD4*/
+_ALG_SID_MD5=@3/*_ALG_SID_MD5*/
+_ALG_SID_SHA=@4/*_ALG_SID_SHA*/
+_ALG_SID_SHA1=@4/*_ALG_SID_SHA1*/
+_ALG_SID_MAC=@5/*_ALG_SID_MAC*/
+_ALG_SID_RIPEMD=@6/*_ALG_SID_RIPEMD*/
+_ALG_SID_RIPEMD160=@7/*_ALG_SID_RIPEMD160*/
+_ALG_SID_SSL3SHAMD5=@8/*_ALG_SID_SSL3SHAMD5*/
+_ALG_SID_HMAC=@9/*_ALG_SID_HMAC*/
+_ALG_SID_TLS1PRF=@0xA/*_ALG_SID_TLS1PRF*/
+_ALG_SID_HASH_REPLACE_OWF=@0xB/*_ALG_SID_HASH_REPLACE_OWF*/
+_ALG_SID_SHA_256=@0xC/*_ALG_SID_SHA_256*/
+_ALG_SID_SHA_384=@0xD/*_ALG_SID_SHA_384*/
+_ALG_SID_SHA_512=@0xE/*_ALG_SID_SHA_512*/
+_ALG_SID_SSL3_MASTER=@1/*_ALG_SID_SSL3_MASTER*/
+_ALG_SID_SCHANNEL_MASTER_HASH=@2/*_ALG_SID_SCHANNEL_MASTER_HASH*/
+_ALG_SID_SCHANNEL_MAC_KEY=@3/*_ALG_SID_SCHANNEL_MAC_KEY*/
+_ALG_SID_PCT1_MASTER=@4/*_ALG_SID_PCT1_MASTER*/
+_ALG_SID_SSL2_MASTER=@5/*_ALG_SID_SSL2_MASTER*/
+_ALG_SID_TLS1_MASTER=@6/*_ALG_SID_TLS1_MASTER*/
+_ALG_SID_SCHANNEL_ENC_KEY=@7/*_ALG_SID_SCHANNEL_ENC_KEY*/
+_ALG_SID_ECMQV=@1/*_ALG_SID_ECMQV*/
+_ALG_SID_EXAMPLE=@0x50/*_ALG_SID_EXAMPLE*/
+_CALG_MD2=@0x8001/*_CALG_MD2*/
+_CALG_MD4=@0x8002/*_CALG_MD4*/
+_CALG_MD5=@0x8003/*_CALG_MD5*/
+_CALG_SHA=@0x8004/*_CALG_SHA*/
+_CALG_SHA1=@0x8004/*_CALG_SHA1*/
+_CALG_MAC=@0x8005/*_CALG_MAC*/
+_CALG_RSA_SIGN=@0x2400/*_CALG_RSA_SIGN*/
+_CALG_DSS_SIGN=@0x2200/*_CALG_DSS_SIGN*/
+_CALG_NO_SIGN=@0x2000/*_CALG_NO_SIGN*/
+_CALG_RSA_KEYX=@0xA400/*_CALG_RSA_KEYX*/
+_CALG_DES=@0x6601/*_CALG_DES*/
+_CALG_3DES_112=@0x6609/*_CALG_3DES_112*/
+_CALG_3DES=@0x6603/*_CALG_3DES*/
+_CALG_DESX=@0x6604/*_CALG_DESX*/
+_CALG_RC2=@0x6602/*_CALG_RC2*/
+_CALG_RC4=@0x6801/*_CALG_RC4*/
+_CALG_SEAL=@0x6802/*_CALG_SEAL*/
+_CALG_DH_SF=@0xAA01/*_CALG_DH_SF*/
+_CALG_DH_EPHEM=@0xAA02/*_CALG_DH_EPHEM*/
+_CALG_AGREEDKEY_ANY=@0xAA03/*_CALG_AGREEDKEY_ANY*/
+_CALG_KEA_KEYX=@0xAA04/*_CALG_KEA_KEYX*/
+_CALG_HUGHES_MD5=@0xA003/*_CALG_HUGHES_MD5*/
+_CALG_SKIPJACK=@0x660A/*_CALG_SKIPJACK*/
+_CALG_TEK=@0x660B/*_CALG_TEK*/
+_CALG_CYLINK_MEK=@0x660C/*_CALG_CYLINK_MEK*/
+_CALG_SSL3_SHAMD5=@0x8008/*_CALG_SSL3_SHAMD5*/
+_CALG_SSL3_MASTER=@0x4C01/*_CALG_SSL3_MASTER*/
+_CALG_SCHANNEL_MASTER_HASH=@0x4C02/*_CALG_SCHANNEL_MASTER_HASH*/
+_CALG_SCHANNEL_MAC_KEY=@0x4C03/*_CALG_SCHANNEL_MAC_KEY*/
+_CALG_SCHANNEL_ENC_KEY=@0x4C07/*_CALG_SCHANNEL_ENC_KEY*/
+_CALG_PCT1_MASTER=@0x4C04/*_CALG_PCT1_MASTER*/
+_CALG_SSL2_MASTER=@0x4C05/*_CALG_SSL2_MASTER*/
+_CALG_TLS1_MASTER=@0x4C06/*_CALG_TLS1_MASTER*/
+_CALG_RC5=@0x660D/*_CALG_RC5*/
+_CALG_HMAC=@0x8009/*_CALG_HMAC*/
+_CALG_TLS1PRF=@0x800A/*_CALG_TLS1PRF*/
+_CALG_HASH_REPLACE_OWF=@0x800B/*_CALG_HASH_REPLACE_OWF*/
+_CALG_AES_128=@0x660E/*_CALG_AES_128*/
+_CALG_AES_192=@0x660F/*_CALG_AES_192*/
+_CALG_AES_256=@0x6610/*_CALG_AES_256*/
+_CALG_AES=@0x6611/*_CALG_AES*/
+_CALG_SHA_256=@0x800C/*_CALG_SHA_256*/
+_CALG_SHA_384=@0x800D/*_CALG_SHA_384*/
+_CALG_SHA_512=@0x800E/*_CALG_SHA_512*/
+_CALG_ECDH=@0xAA05/*_CALG_ECDH*/
+_CALG_ECMQV=@0xA001/*_CALG_ECMQV*/
+_CALG_ECDSA=@0x2203/*_CALG_ECDSA*/
+_SIGNATURE_RESOURCE_NUMBER=@0x29A/*_SIGNATURE_RESOURCE_NUMBER*/
+_CRYPT_VERIFYCONTEXT=@0xF0000000/*_CRYPT_VERIFYCONTEXT*/
+_CRYPT_NEWKEYSET=@8/*_CRYPT_NEWKEYSET*/
+_CRYPT_DELETEKEYSET=@0x10/*_CRYPT_DELETEKEYSET*/
+_CRYPT_MACHINE_KEYSET=@0x20/*_CRYPT_MACHINE_KEYSET*/
+_CRYPT_SILENT=@0x40/*_CRYPT_SILENT*/
+_CRYPT_DEFAULT_CONTAINER_OPTIONAL=@0x80/*_CRYPT_DEFAULT_CONTAINER_OPTIONAL*/
+_CRYPT_EXPORTABLE=@1/*_CRYPT_EXPORTABLE*/
+_CRYPT_USER_PROTECTED=@2/*_CRYPT_USER_PROTECTED*/
+_CRYPT_CREATE_SALT=@4/*_CRYPT_CREATE_SALT*/
+_CRYPT_UPDATE_KEY=@8/*_CRYPT_UPDATE_KEY*/
+_CRYPT_NO_SALT=@0x10/*_CRYPT_NO_SALT*/
+_CRYPT_PREGEN=@0x40/*_CRYPT_PREGEN*/
+_CRYPT_RECIPIENT=@0x10/*_CRYPT_RECIPIENT*/
+_CRYPT_INITIATOR=@0x40/*_CRYPT_INITIATOR*/
+_CRYPT_ONLINE=@0x80/*_CRYPT_ONLINE*/
+_CRYPT_SF=@0x100/*_CRYPT_SF*/
+_CRYPT_CREATE_IV=@0x200/*_CRYPT_CREATE_IV*/
+_CRYPT_KEK=@0x400/*_CRYPT_KEK*/
+_CRYPT_DATA_KEY=@0x800/*_CRYPT_DATA_KEY*/
+_CRYPT_VOLATILE=@0x1000/*_CRYPT_VOLATILE*/
+_CRYPT_SGCKEY=@0x2000/*_CRYPT_SGCKEY*/
+_CRYPT_ARCHIVABLE=@0x4000/*_CRYPT_ARCHIVABLE*/
+_CRYPT_FORCE_KEY_PROTECTION_HIGH=@0x8000/*_CRYPT_FORCE_KEY_PROTECTION_HIGH*/
+_RSA1024BIT_KEY=@0x4000000/*_RSA1024BIT_KEY*/
+_CRYPT_SERVER=@0x400/*_CRYPT_SERVER*/
+_KEY_LENGTH_MASK=@0xFFFF0000/*_KEY_LENGTH_MASK*/
+_CRYPT_Y_ONLY=@1/*_CRYPT_Y_ONLY*/
+_CRYPT_SSL2_FALLBACK=@2/*_CRYPT_SSL2_FALLBACK*/
+_CRYPT_DESTROYKEY=@4/*_CRYPT_DESTROYKEY*/
+_CRYPT_BLOB_VER3=@0x80/*_CRYPT_BLOB_VER3*/
+_CRYPT_IPSEC_HMAC_KEY=@0x100/*_CRYPT_IPSEC_HMAC_KEY*/
+_CRYPT_DECRYPT_RSA_NO_PADDING_CHECK=@0x20/*_CRYPT_DECRYPT_RSA_NO_PADDING_CHECK*/
+_CRYPT_SECRETDIGEST=@1/*_CRYPT_SECRETDIGEST*/
+_CRYPT_OWF_REPL_LM_HASH=@1/*_CRYPT_OWF_REPL_LM_HASH*/
+_CRYPT_LITTLE_ENDIAN=@1/*_CRYPT_LITTLE_ENDIAN*/
+_CRYPT_NOHASHOID=@1/*_CRYPT_NOHASHOID*/
+_CRYPT_TYPE2_FORMAT=@2/*_CRYPT_TYPE2_FORMAT*/
+_CRYPT_X931_FORMAT=@4/*_CRYPT_X931_FORMAT*/
+_CRYPT_MACHINE_DEFAULT=@1/*_CRYPT_MACHINE_DEFAULT*/
+_CRYPT_USER_DEFAULT=@2/*_CRYPT_USER_DEFAULT*/
+_CRYPT_DELETE_DEFAULT=@4/*_CRYPT_DELETE_DEFAULT*/
+_SIMPLEBLOB=@1/*_SIMPLEBLOB*/
+_PUBLICKEYBLOB=@6/*_PUBLICKEYBLOB*/
+_PRIVATEKEYBLOB=@7/*_PRIVATEKEYBLOB*/
+_PLAINTEXTKEYBLOB=@8/*_PLAINTEXTKEYBLOB*/
+_OPAQUEKEYBLOB=@9/*_OPAQUEKEYBLOB*/
+_PUBLICKEYBLOBEX=@0xA/*_PUBLICKEYBLOBEX*/
+_SYMMETRICWRAPKEYBLOB=@0xB/*_SYMMETRICWRAPKEYBLOB*/
+_KEYSTATEBLOB=@0xC/*_KEYSTATEBLOB*/
+_AT_KEYEXCHANGE=@1/*_AT_KEYEXCHANGE*/
+_AT_SIGNATURE=@2/*_AT_SIGNATURE*/
+_CRYPT_USERDATA=@1/*_CRYPT_USERDATA*/
+_KP_RP=@0x17/*_KP_RP*/
+_KP_PRECOMP_MD5=@0x18/*_KP_PRECOMP_MD5*/
+_KP_PRECOMP_SHA=@0x19/*_KP_PRECOMP_SHA*/
+_KP_PUB_EX_LEN=@0x1C/*_KP_PUB_EX_LEN*/
+_KP_PUB_EX_VAL=@0x1D/*_KP_PUB_EX_VAL*/
+_KP_KEYVAL=@0x1E/*_KP_KEYVAL*/
+_KP_ADMIN_PIN=@0x1F/*_KP_ADMIN_PIN*/
+_KP_KEYEXCHANGE_PIN=@0x20/*_KP_KEYEXCHANGE_PIN*/
+_KP_SIGNATURE_PIN=@0x21/*_KP_SIGNATURE_PIN*/
+_KP_PREHASH=@0x22/*_KP_PREHASH*/
+_KP_ROUNDS=@0x23/*_KP_ROUNDS*/
+_KP_CMS_KEY_INFO=@0x25/*_KP_CMS_KEY_INFO*/
+_KP_CMS_DH_KEY_INFO=@0x26/*_KP_CMS_DH_KEY_INFO*/
+_KP_PIN_ID=@0x2B/*_KP_PIN_ID*/
+_KP_PIN_INFO=@0x2C/*_KP_PIN_INFO*/
+_RANDOM_PADDING=@2/*_RANDOM_PADDING*/
+_ZERO_PADDING=@3/*_ZERO_PADDING*/
+_CRYPT_ENCRYPT=@1/*_CRYPT_ENCRYPT*/
+_CRYPT_DECRYPT=@2/*_CRYPT_DECRYPT*/
+_CRYPT_EXPORT=@4/*_CRYPT_EXPORT*/
+_CRYPT_READ=@8/*_CRYPT_READ*/
+_CRYPT_WRITE=@0x10/*_CRYPT_WRITE*/
+_CRYPT_MAC=@0x20/*_CRYPT_MAC*/
+_CRYPT_EXPORT_KEY=@0x40/*_CRYPT_EXPORT_KEY*/
+_CRYPT_IMPORT_KEY=@0x80/*_CRYPT_IMPORT_KEY*/
+_CRYPT_ARCHIVE=@0x100/*_CRYPT_ARCHIVE*/
+_HP_ALGID=@1/*_HP_ALGID*/
+_HP_HASHVAL=@2/*_HP_HASHVAL*/
+_HP_HASHSIZE=@4/*_HP_HASHSIZE*/
+_HP_HMAC_INFO=@5/*_HP_HMAC_INFO*/
+_HP_TLS1PRF_LABEL=@6/*_HP_TLS1PRF_LABEL*/
+_HP_TLS1PRF_SEED=@7/*_HP_TLS1PRF_SEED*/
+_CRYPT_FAILED=@0/*_CRYPT_FAILED*/
+_CRYPT_SUCCEED=@1/*_CRYPT_SUCCEED*/
+_PP_ENUMALGS=@1/*_PP_ENUMALGS*/
+_PP_ENUMCONTAINERS=@2/*_PP_ENUMCONTAINERS*/
+_PP_IMPTYPE=@3/*_PP_IMPTYPE*/
+_PP_NAME=@4/*_PP_NAME*/
+_PP_VERSION=@5/*_PP_VERSION*/
+_PP_CONTAINER=@6/*_PP_CONTAINER*/
+_PP_CHANGE_PASSWORD=@7/*_PP_CHANGE_PASSWORD*/
+_PP_KEY_TYPE_SUBTYPE=@0xA/*_PP_KEY_TYPE_SUBTYPE*/
+_PP_PROVTYPE=@0x10/*_PP_PROVTYPE*/
+_PP_KEYSTORAGE=@0x11/*_PP_KEYSTORAGE*/
+_PP_APPLI_CERT=@0x12/*_PP_APPLI_CERT*/
+_PP_SYM_KEYSIZE=@0x13/*_PP_SYM_KEYSIZE*/
+_PP_SESSION_KEYSIZE=@0x14/*_PP_SESSION_KEYSIZE*/
+_PP_UI_PROMPT=@0x15/*_PP_UI_PROMPT*/
+_PP_ENUMALGS_EX=@0x16/*_PP_ENUMALGS_EX*/
+_PP_ENUMMANDROOTS=@0x19/*_PP_ENUMMANDROOTS*/
+_PP_ENUMELECTROOTS=@0x1A/*_PP_ENUMELECTROOTS*/
+_PP_KEYSET_TYPE=@0x1B/*_PP_KEYSET_TYPE*/
+_PP_ADMIN_PIN=@0x1F/*_PP_ADMIN_PIN*/
+_PP_KEYEXCHANGE_PIN=@0x20/*_PP_KEYEXCHANGE_PIN*/
+_PP_SIGNATURE_PIN=@0x21/*_PP_SIGNATURE_PIN*/
+_PP_SIG_KEYSIZE_INC=@0x22/*_PP_SIG_KEYSIZE_INC*/
+_PP_KEYX_KEYSIZE_INC=@0x23/*_PP_KEYX_KEYSIZE_INC*/
+_PP_UNIQUE_CONTAINER=@0x24/*_PP_UNIQUE_CONTAINER*/
+_PP_SGC_INFO=@0x25/*_PP_SGC_INFO*/
+_PP_USE_HARDWARE_RNG=@0x26/*_PP_USE_HARDWARE_RNG*/
+_PP_KEYSPEC=@0x27/*_PP_KEYSPEC*/
+_PP_ENUMEX_SIGNING_PROT=@0x28/*_PP_ENUMEX_SIGNING_PROT*/
+_PP_CRYPT_COUNT_KEY_USE=@0x29/*_PP_CRYPT_COUNT_KEY_USE*/
+_PP_USER_CERTSTORE=@0x2A/*_PP_USER_CERTSTORE*/
+_PP_SMARTCARD_READER=@0x2B/*_PP_SMARTCARD_READER*/
+_PP_SMARTCARD_GUID=@0x2D/*_PP_SMARTCARD_GUID*/
+_PP_ROOT_CERTSTORE=@0x2E/*_PP_ROOT_CERTSTORE*/
+_CRYPT_FIRST=@1/*_CRYPT_FIRST*/
+_CRYPT_NEXT=@2/*_CRYPT_NEXT*/
+_CRYPT_SGC_ENUM=@4/*_CRYPT_SGC_ENUM*/
+_CRYPT_IMPL_HARDWARE=@1/*_CRYPT_IMPL_HARDWARE*/
+_CRYPT_IMPL_SOFTWARE=@2/*_CRYPT_IMPL_SOFTWARE*/
+_CRYPT_IMPL_MIXED=@3/*_CRYPT_IMPL_MIXED*/
+_CRYPT_IMPL_UNKNOWN=@4/*_CRYPT_IMPL_UNKNOWN*/
+_CRYPT_IMPL_REMOVABLE=@8/*_CRYPT_IMPL_REMOVABLE*/
+_CRYPT_SEC_DESCR=@1/*_CRYPT_SEC_DESCR*/
+_CRYPT_PSTORE=@2/*_CRYPT_PSTORE*/
+_CRYPT_UI_PROMPT=@4/*_CRYPT_UI_PROMPT*/
+_CRYPT_FLAG_PCT1=@1/*_CRYPT_FLAG_PCT1*/
+_CRYPT_FLAG_SSL2=@2/*_CRYPT_FLAG_SSL2*/
+_CRYPT_FLAG_SSL3=@4/*_CRYPT_FLAG_SSL3*/
+_CRYPT_FLAG_TLS1=@8/*_CRYPT_FLAG_TLS1*/
+_CRYPT_FLAG_IPSEC=@0x10/*_CRYPT_FLAG_IPSEC*/
+_CRYPT_FLAG_SIGNING=@0x20/*_CRYPT_FLAG_SIGNING*/
+_CRYPT_SGC=@1/*_CRYPT_SGC*/
+_CRYPT_FASTSGC=@2/*_CRYPT_FASTSGC*/
+_PP_CLIENT_HWND=@1/*_PP_CLIENT_HWND*/
+_PP_CONTEXT_INFO=@0xB/*_PP_CONTEXT_INFO*/
+_PP_KEYEXCHANGE_KEYSIZE=@0xC/*_PP_KEYEXCHANGE_KEYSIZE*/
+_PP_SIGNATURE_KEYSIZE=@0xD/*_PP_SIGNATURE_KEYSIZE*/
+_PP_KEYEXCHANGE_ALG=@0xE/*_PP_KEYEXCHANGE_ALG*/
+_PP_SIGNATURE_ALG=@0xF/*_PP_SIGNATURE_ALG*/
+_PP_DELETEKEY=@0x18/*_PP_DELETEKEY*/
+_PP_PIN_PROMPT_STRING=@0x2C/*_PP_PIN_PROMPT_STRING*/
+_PP_SECURE_KEYEXCHANGE_PIN=@0x2F/*_PP_SECURE_KEYEXCHANGE_PIN*/
+_PP_SECURE_SIGNATURE_PIN=@0x30/*_PP_SECURE_SIGNATURE_PIN*/
+_PROV_RSA_FULL=@1/*_PROV_RSA_FULL*/
+_PROV_RSA_SIG=@2/*_PROV_RSA_SIG*/
+_PROV_DSS=@3/*_PROV_DSS*/
+_PROV_FORTEZZA=@4/*_PROV_FORTEZZA*/
+_PROV_MS_EXCHANGE=@5/*_PROV_MS_EXCHANGE*/
+_PROV_SSL=@6/*_PROV_SSL*/
+_PROV_RSA_SCHANNEL=@0xC/*_PROV_RSA_SCHANNEL*/
+_PROV_DSS_DH=@0xD/*_PROV_DSS_DH*/
+_PROV_EC_ECDSA_SIG=@0xE/*_PROV_EC_ECDSA_SIG*/
+_PROV_EC_ECNRA_SIG=@0xF/*_PROV_EC_ECNRA_SIG*/
+_PROV_EC_ECDSA_FULL=@0x10/*_PROV_EC_ECDSA_FULL*/
+_PROV_EC_ECNRA_FULL=@0x11/*_PROV_EC_ECNRA_FULL*/
+_PROV_DH_SCHANNEL=@0x12/*_PROV_DH_SCHANNEL*/
+_PROV_SPYRUS_LYNKS=@0x14/*_PROV_SPYRUS_LYNKS*/
+_PROV_RNG=@0x15/*_PROV_RNG*/
+_PROV_INTEL_SEC=@0x16/*_PROV_INTEL_SEC*/
+_PROV_REPLACE_OWF=@0x17/*_PROV_REPLACE_OWF*/
+_PROV_RSA_AES=@0x18/*_PROV_RSA_AES*/
+_PROV_STT_MER=@7/*_PROV_STT_MER*/
+_PROV_STT_ACQ=@8/*_PROV_STT_ACQ*/
+_PROV_STT_BRND=@9/*_PROV_STT_BRND*/
+_PROV_STT_ROOT=@0xA/*_PROV_STT_ROOT*/
+_PROV_STT_ISS=@0xB/*_PROV_STT_ISS*/
+_MAXUIDLEN=@0x40/*_MAXUIDLEN*/
+_MS_DEF_PROV=@"Microsoft Base Cryptographic Provider v1.0" 
+_MS_ENHANCED_PROV=@"Microsoft Enhanced Cryptographic Provider v1.0" 
+_MS_STRONG_PROV=@"Microsoft Strong Cryptographic Provider" 
+_MS_DEF_RSA_SIG_PROV=@"Microsoft RSA Signature Cryptographic Provider" 
+_MS_DEF_RSA_SCHANNEL_PROV=@"Microsoft RSA SChannel Cryptographic Provider" 
+_MS_DEF_DSS_PROV=@"Microsoft Base DSS Cryptographic Provider" 
+_MS_DEF_DSS_DH_PROV=@"Microsoft Base DSS and Diffie-Hellman Cryptographic Provider"  
+_MS_ENH_DSS_DH_PROV=@"Microsoft Enhanced DSS and Diffie-Hellman Cryptographic Provider"  
+_MS_DEF_DH_SCHANNEL_PROV=@"Microsoft DH SChannel Cryptographic Provider" 
+_MS_SCARD_PROV=@"Microsoft Base Smart Card Crypto Provider" 
+_MS_ENH_RSA_AES_PROV=@"Microsoft Enhanced RSA and AES Cryptographic Provider" 
+_EXPO_OFFLOAD_REG_VALUE=@"ExpoOffload"
+_EXPO_OFFLOAD_FUNC_NAME=@"OffloadModExpo" 
+_szKEY_CRYPTOAPI_PRIVATE_KEY_OPTIONS=@"Software\\Policies\\Microsoft\\Cryptography" 
+_szFORCE_KEY_PROTECTION=@"ForceKeyProtection"
+_szKEY_CACHE_ENABLED=@"CachePrivateKeys"
+_szKEY_CACHE_SECONDS=@"PrivateKeyLifetimeSeconds"
+_szPRIV_KEY_CACHE_PURGE_INTERVAL_SECONDS=@"PrivKeyCachePurgeIntervalSeconds"
+_szPRIV_KEY_CACHE_MAX_ITEMS=@"PrivKeyCacheMaxItems"
+_CRYPT_MODE_CBC=@1/*_CRYPT_MODE_CBC*/
+_CRYPT_MODE_ECB=@2/*_CRYPT_MODE_ECB*/
+_CRYPT_MODE_OFB=@3/*_CRYPT_MODE_OFB*/
+_CRYPT_MODE_CFB=@4/*_CRYPT_MODE_CFB*/
+_CRYPT_MODE_CTS=@5/*_CRYPT_MODE_CTS*/
+_PKCS5_PADDING=@1/*_PKCS5_PADDING*/
+_RANDOM_PADDING=@2/*_RANDOM_PADDING*/
+_ZERO_PADDING=@3/*_ZERO_PADDING*/
+_X509_PKCS_7_ASN_ENCODING=@0x10001/*_X509_PKCS_7_ASN_ENCODING*/
+end intellisense**/

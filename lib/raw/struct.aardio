@@ -1,0 +1,91 @@
+//struct 原始结构体
+namespace raw
+
+class struct {
+	ctor( cls,ptr ) {{ 
+		var tcls = type(cls);
+		if(ptr){
+			var tptr = type(ptr);
+			if( tptr!==type.pointer && tptr!==type.buffer ){
+				error("参数@2类型错误",2)
+			} 
+			
+			if( tcls = "class"){
+				this[["_structObject"]] = cls()
+			}
+			else {
+				this[["_structObject"]] = ..table.assign({},cls);
+			}
+			
+			this[["_structPointer"]] = ptr;
+			this@ = _meta;
+			return this;
+		}
+		
+		var struct = class {
+			ctor( ... ){
+				if( tcls = "class"){
+					this[["_structObject"]] = cls( ... )
+				}
+				else {
+					this[["_structObject"]] = ..table.assign({},cls,...);
+				}
+				
+				this[["_structPointer"]] = ..raw.buffer(this[["_structObject"]])
+			};
+			@_meta;
+		}
+		struct._meta =  _meta;
+		return struct;
+	}};  
+}
+	
+namespace struct{
+	var convert = ..raw.convert;
+	var copy = ..raw.copy;
+	
+	_meta = {
+		_topointer = function(){  
+			return owner[["_structPointer"]]; 
+		}
+		_get = function(k){ 
+			if(type(k)!=="string") return;
+			
+			var struct = owner[["_structObject"]]; 
+			convert(owner[["_structPointer"]],struct);
+			
+			if(type(struct["get_"+k])==="function"){
+				return invoke(struct["get_"+k],struct);
+			}
+			else {
+				return struct[k];
+			}
+		}
+		_set = function( k, v ){ 
+			if(type(k)!=="string") return;
+			
+			if(type(v) === "function"){
+				owner[[k]] = v;
+				return;
+			}
+			
+			var struct = owner[["_structObject"]]; 
+			convert(owner[["_structPointer"]],struct); 
+			
+			if(type(struct["set_"+k])==="function"){
+				invoke(struct["set_"+k],struct,v);
+			}
+			else {
+				struct[k] = v;	
+			}
+			
+			copy(owner[["_structPointer"]],struct); 
+		} 
+	} 
+} 
+
+/**intellisense()
+raw.struct =   创建原始结构体\n默认的 aardio 静态结构体在与静态接口交互时分配临时的指针\n但原始结构体可以绑定结构体到固定不变的内存指针\n读写结构体字段时直接自内存读写
+raw.struct(.(结构体类) = 创建返回原始结构体的类对象,\n创建原始结构体时自动分配内存缓冲区并绑定该指针,\n参数可以是定义了静态类型的结构体基类，也可以是原型结构体,\n如果参数是原型结构体,返回类的构造函数默认混入参数和原型并返回新的结构体,\n结构体可使用get_,set_前缀的函数名自定义属性读写器
+raw.struct(.(结构体类,内存指针) = 创建返回原始结构体实例,并绑定参数@2指定的内存指针,\n参数@1可以是定义了静态类型的结构体基类，也可以是原型结构体,\n结构体可使用get_,set_前缀的函数名自定义属性读写器
+end intellisense**/

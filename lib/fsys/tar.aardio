@@ -1,0 +1,181 @@
+//tar 文件打包
+import zlib;
+import fsys;
+import fsys.file;
+import fsys.time;
+namespace fsys;
+
+class tar {
+
+	ctor( tarPath,rootDir ){
+	
+		var tarFile;
+		if( rootDir ){
+			rootDir = ..io.exist(rootDir);
+			if(!rootDir) return null,"错误的根目录路径";
+		} 
+		 
+		if( ! (tarPath?..fsys.createParentDir(tarPath) ) )
+			return null,"存储路径错误";
+		 
+		if( ..string.match(tarPath,"<.gz>|<.tgz>$") ){
+			tarFile = ..zlib.gzFile(tarPath,"wb")
+		}
+		else {
+			tarFile = ..io.open(tarPath,"w+b",0x10)
+		}
+		
+		if(!tarFile) return null,"创建tar文件失败";
+
+		var tarHeader = tar_header();
+		var buffer = ..raw.buffer(512);
+		var zeroBuffer = ..raw.buffer(512,0);
+		
+		..table.gc(this,"close");
+	};
+	
+	addFile = function(path) {
+	
+		path = ..io.exist(path);
+		if(!rootDir) rootDir = ..fsys.getParentDir(path);
+		
+		var name = path ? ..fsys.path.relative(path,rootDir,false);
+		if(!name) error("文件路径错误",2); 
+		name = ..string.replace( name,"@\", "/" ); 
+
+		tarHeader.name = this.utf8 ? name : ..string.fromto(name,65001,0);
+
+		var file = ..fsys.file(path,"rb");
+		if(!file) error("读取文件失败:" + path,2)
+		
+		tarHeader.linkflag = '0'#; 
+		var size = file.size(1);
+		tarHeader.size = ..string.format('% 11o ',( file.size(1) )  );
+		tarHeader.mtime = ..string.format('% 10o \0',tonumber( file.getFileTime().write.toSystemTime().local() ) ); 
+		tarHeader.mode =  ..string.format('% 6o \0',0100777);
+		
+		tarHeader.chksum = checksum(tarHeader);
+		tarFile.write(tarHeader);
+		if( this.onWriteFile) this.onWriteFile(name); 
+		
+		var readSize = file.readBuffer(buffer,512);
+		while( readSize ){
+			if( this.onWriteFileBock ) this.onWriteFileBock(name,readSize,size);
+			
+			tarFile.writeBuffer( buffer,readSize );
+			if( readSize < 512 ){
+				tarFile.writeBuffer( zeroBuffer,512 - readSize ); 
+				break;
+			}
+			readSize = file.readBuffer(buffer,512);
+		} 
+		
+		file.close();
+	}
+	addFolder = function(path){
+		
+		path = ..io.exist(path); 
+		if(!rootDir) rootDir = ..fsys.getParentDir(path);
+	
+		var name = path ? ..fsys.path.relative(path,rootDir,false);
+ 		if(!name) error("文件路径错误",2); 
+		name = ..string.replace( name,"@@\", "/" ); 
+		
+		if( name[#name] != '/'# ) name = name + "/"; 
+		tarHeader.name = this.utf8 ? name : ..string.fromto(name,65001,0);
+		
+		tarHeader.linkflag = '5'#;
+		tarHeader.size = ..string.format('% 11o ',0); 
+		tarHeader.mode =  ..string.format('% 6o \0',040777); 
+		var file = ..fsys.file(path,,,,0x2000000/*_FILE_FLAG_BACKUP_SEMANTICS*/);
+		tarHeader.mtime = ..string.format('% 10o \0',tonumber( file.getFileTime().write.toSystemTime().local() ) ); 
+		file.close();
+		  
+		tarHeader.chksum = checksum(tarHeader);
+		tarFile.write(tarHeader); 
+		if( this.onWriteDir) this.onWriteDir(name); 
+	} 
+	pack = function(path,pattern,selfName=true){
+		if( !rootDir ){
+			if(selfName){
+				rootDir = ..fsys.getParentDir(path);
+				this.addFolder(path);
+			}
+			else {
+				rootDir = path;	
+			}
+		}
+		
+		..fsys.enum( path,pattern,function(dir,filename,fullpath,findData){ 
+			..io.print(fullpath)
+			if(filename) this.addFile(fullpath);
+			else this.addFolder(fullpath);
+		} );
+	};
+	close = function(){
+		if( tarFile ){
+			if( tarFile.seek() ){
+				tarFile.writeBuffer( zeroBuffer,512 );
+				tarFile.writeBuffer( zeroBuffer,512 );
+			}
+			tarFile.close();
+			tarFile = null;
+		}
+	}
+}
+
+namespace tar {
+
+	class tar_header{
+	
+		byte name[100];
+		byte mode[8];
+		byte uid[8] = '     \x30 \0';
+		byte gid[8] = '     \x30 \0';
+		byte size[12];
+		byte mtime[12];
+		byte chksum[8];
+		byte linkflag;
+		byte linkname[100];
+		byte magic[8];
+		byte uname[32];
+		byte gname[32];
+		byte devmajor[8];
+		byte devminor[8];
+		byte prefix[155];
+		byte data[12]
+	}
+	
+	var __nchkshum_fileds = { byte chksum[8]={};byte linkflag = 1 }
+	checksum = function(tarHeader){ 
+		var chksum = 0x100 + tarHeader.linkflag ;
+		for(k,v in tarHeader){
+			if( v ? ( ! __nchkshum_fileds[k] ) ){
+				for(i=1;#v ){
+					chksum = chksum + v[i];
+				} 
+			} 
+		} 
+		return ..string.format('% 6o \0', chksum  )
+	}
+}
+
+/**intellisense()
+fsys.tar = tar文件打包
+fsys.tar(.("tar文件路径","打包根目录") = 参数一可以是tar文件或tar.gz文件路径,\n如果省略根目录参数,打包首个文件则取其父目录为根目录
+fsys.tar() = !fsys_tarfile.
+!fsys_tarfile.utf8 = 是否使用UTF8编码文件名
+!fsys_tarfile.pack(.(目录路径,文件通配符,是否添加该目录名字) = 打包目录下的所有文件
+!fsys_tarfile.addFile(.("文件路径") = 添加文件,\n必须是指定根目录下的文件
+!fsys_tarfile.addFolder(.("文件路径") = 添加文件,\n必须是指定根目录下的子目录
+!fsys_tarfile.close() = 关闭文件
+!fsys_tarfile.onWriteFileBock = @.onWriteFileBock = function( filename,writeSize,fileSize){
+	io.print( filename,writeSize,fsys.formatSize(fileSize) );__/*写入文件块回调函数*/
+}
+!fsys_tarfile.onWriteDir = @.onWriteDir = function( filename ){
+	__/*添加目录回调函数*/
+}
+!fsys_tarfile.onWriteFile = @.onWriteFile = function( filename ){
+	__/*添加目录回调函数*/
+}
+end intellisense**/

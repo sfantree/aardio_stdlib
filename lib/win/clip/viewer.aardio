@@ -1,0 +1,44 @@
+//viewer 剪贴板监视
+import win.clip;
+namespace win.clip; 
+
+class viewer {
+
+    ctor(winform ){
+        this = winform;
+        //注册加入成为监视窗口,nextClipboardViewer为上一个监视窗口
+        var nextClipboardViewer  =  SetClipboardViewer( this.hwnd );
+        
+        //窗口消息回调函数,在设计器中鼠标左键双击窗体会自动生成下面的函数
+        this.wndproc = function(hwnd,message,wParam,lParam){
+            select(message) {//判断消息类型
+                case  0x308/*_WM_DRAWCLIPBOARD*/  { 
+                    if(this[["onDrawClipboard"]])
+                        this.onDrawClipboard(); 
+                    ::SendMessageInt( nextClipboardViewer,message,wParam,lParam );
+                } 
+                case  0x30D/*_WM_CHANGECBCHAIN*/ { 
+                    if (wParam == nextClipboardViewer)
+                        nextClipboardViewer = lParam;
+                    else
+                        ::SendMessageInt( nextClipboardViewer,message,wParam,lParam );
+                
+                }
+            } 
+        } 
+    }
+}
+
+namespace viewer{
+    //声明剪贴板监视器用到的API
+    SetClipboardViewer = ::User32.api( "SetClipboardViewer", "int(int hWndNewViewer)") 
+    ChangeClipboardChain = ::User32.api( "ChangeClipboardChain", "int(int hWndRemove,int hWndNewNext)")   
+} 
+
+/**intellisense()
+?win.clip.viewer = !clipviewer.
+win.clip.viewer(__/*输入winform对象*/) = 将窗口注册为剪贴板监视器\n写入剪贴板时,自动触发onDrawClipboard()函数
+!clipviewer.onDrawClipboard = @.onDrawClipboard=function(){
+    __    
+}
+end intellisense**/

@@ -1,0 +1,22 @@
+//collapsibleByIcon 下拉按钮
+namespace web.layout.behavior.collapsibleByIcon;
+
+onMouseDown = function (ltTarget,ltOwner, x,y,mouseParams) { 
+	// find first element with class "icon"
+	var eleIcon = ltOwner.querySelector(".icon" /*css selector, sic!*/);  
+	
+	if( eleIcon != ltTarget)
+ 		return true; // event is not targeted to element having class "icon"
+	
+	// ok, we've got here targeted to icon. then get open/closed state. 
+	var is_closed = ltOwner.getAttribute("state") == "close"; 
+	
+	// toggle value of attribute "state" and 
+	// correspondent state flag - this is needed to play animation
+	ltOwner.setAttribute("state",is_closed ? "open" : "close");
+	
+	// as it is ours then stop event bubbling
+	return true; 
+} 
+
+onMouseDblClick = onMouseDown;

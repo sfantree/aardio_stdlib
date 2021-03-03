@@ -1,0 +1,58 @@
+﻿//aes 加密算法
+import crypt;
+namespace crypt
+
+class aes {
+
+    ctor( initVector ) {  
+        this = ..crypt(
+        	 ::Kernel32.QueryFullProcessImageName ?"Microsoft Enhanced RSA and AES Cryptographic Provider" : "Microsoft Enhanced RSA and AES Cryptographic Provider (Prototype)"
+        	 ,0x18/*_PROV_RSA_AES*/
+        );  
+        this.initVector = initVector; 
+    };
+    setPassword = function( key,flags=0 ) {
+    
+    	if( type(key) != type.string ) error("请指定正确的密钥",2);
+    	
+    	var algId;
+    	var keyLen = #key;
+    	if( #key <= 16 ){
+    		if( keyLen < 16 ) key = ..raw.buffer(16,key);
+    		algId = 0x660E/*_CALG_AES_128*/;
+    	}
+    	elseif( #key <= 24 ){
+    		if( keyLen < 24 ) key = ..raw.buffer(24,key);
+    		algId = 0x660F/*_CALG_AES_192*/;
+    	}
+    	elseif( #key <= 32 ){
+    		if( keyLen < 32 ) key = ..raw.buffer(32,key);
+    		algId = 0x6610/*_CALG_AES_256*/;
+    	}
+    	else {
+    		return this.setHashPassword(key,0x8003/*_CALG_MD5*/,0x6610/*_CALG_AES_256*/,flags);
+    	} 
+    	
+    	var ret,err  = this.setPlainPassword(key,algId,flags);
+		if(!ret) return null,err;
+
+		this.blockSize = 16;
+		this.setKeyParamMode(1/*_CRYPT_MODE_CBC*/);
+		this.setKeyParamPadding(1/*_PKCS5_PADDING*/)
+		return this.setInitVector( this.initVector or key );
+    }
+}
+ 
+/**intellisense()
+crypt.aes = AES加密算法支持库加密模式CBC，填充模式PKCS5，如果与其他编程语言互通要保持一致\n[各编程语言兼容的AES兼容写法参考](http://bbs.aardio.com/forum.php?mod=viewthread&tid=13818)\n\n演示代码:\n\n```\nimport crypt.aes;\nvar aes = crypt.aes();\n\n//设置密钥\naes.setPassword("12345678");\n\n//加密\nvar sstr = aes.encrypt("Test String");\n\n//解密\nvar str = aes.decrypt(sstr);\n```
+crypt.aes() = 返回AES加密容器,\n可选使用一个字符串参数指定密钥向量\n如果要与其他编程语言有相同加解密结果,建议不要设置该参数\n!crypy_aes.
+!crypy_aes.setPassword(.("密钥",选项) = 支持128位(16字节)、192位(24字节) 和 256位(32字节)密钥\n如果密钥长度不足指定位数自动填充'\0'到最适合的密钥长度,\n超过24字节使用使用MD5算法创建转换为24位密钥,\n参数@2不需要指定
+!crypy_aes.decrypt(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回解密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+!crypy_aes.encrypt(.(字符串,是否已输入全部数据,哈希对象,选项) = 除第一个参数以外,其他参数都是可选参数\n成功返回加密文本,失败返回空,\n可使用..lasterr()函数获取错误信息
+!crypy_aes.setKeyParam(.(类型,数据值,选项) = 设置加密参数\n数据值可以是结构体,字符串，或缓冲区\n如果数据值一个数值参数,则转换为表示32位整型数值地址的结构体指针\n成功返回true,失败请使用 ..lasterr()获取错误信息
+!crypy_aes.setKeyParamMode(_CRYPT_MODE__) = 设置加密模式\n成功返回true,失败请使用 ..lasterr()获取错误信息
+!crypy_aes.setKeyParamPadding(_PKCS5__) = 设置加密填充方式\n成功返回true,失败请使用 ..lasterr()获取错误信息
+!crypy_aes.setInitVector(.(字符串向量,选项) = 设置初始化向量,成功返回true,\n参数2可选
+!crypy_aes.hasKey() = 检测是否已设置密钥
+!crypy_aes.blockSize = 加密填充的块大小，默认为16
+end intellisense**/

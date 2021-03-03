@@ -1,0 +1,15 @@
+//命令按钮
+import win.ui;
+/*DSG{{*/
+var winform = ..win.form(text="命令按钮演示程序";right=599;bottom=399)
+winform.add(
+button={cls="button";text="测试按钮";left=131;top=162;right=360;bottom=241;note="按钮显示为commandlink样式";z=1}
+)
+/*}}*/
+
+winform.button.oncommand = function(id,event){ 
+	winform.msgbox("可在button的创建参数中使用note属性添加按钮注释,vista以后系统自动切换为命令链接样式,XP系统忽略该属性");
+} 
+
+winform.show() 
+win.loopMessage(); 

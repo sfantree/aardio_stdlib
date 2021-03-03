@@ -1,0 +1,115 @@
+//table 表
+namespace util.table;
+
+var pop = ..table.pop;	
+var push = ..table.push;
+var escape = ..string.escape;
+var math = ..string.match;
+var next = ..table.next;
+var eachName = ..table.eachName;
+var mixin = ..table.assign;
+var join = ..string.join;
+
+var stringfyValue, stringifyTable;
+stringfyValue = function(v,keys,objreferences,prettyPrintLevel,prettyPrintIndent){
+	var tv = type(v); 
+	
+	if( tv == "table" ){
+		if( ! objreferences[[v]] ){
+			objreferences[[v]] = true;
+			if( v@ ? v@._tostring ) {
+				v = tostring(v);
+				if(!v) return;
+				tv = "string"; 
+			}
+			else{
+				return stringifyTable(v,keys,prettyPrintLevel,prettyPrintIndent,objreferences);
+			}
+		}
+		else {
+			return "{ /*...*/ }";
+		}
+		
+	}
+	
+	select(tv) {
+		case "string" {
+			var es = escape(v);
+			if(es) return "'" + es + "'"; 
+			return '"' ++ v ++ '"';
+		}
+		case "number"{
+			var n,f = ..math.modf(v)
+			if(f){ return ..string.trimright( ..string.format("%f",v),"0"); }
+			return tostring(v);
+		} 
+		case "boolean"{
+			return tostring(v);
+		} 
+		case "null"{
+			return "null"
+		}
+	}	 
+}  
+
+var strRepeat = ..string.repeat;
+stringifyTable = function(t,keys,prettyPrintLevel,prettyPrintIndent,objreferences){
+	if( t@ ? t@._tostring ) return tostring(t);
+	
+	if( ! next(t) ) return "{}";
+	
+	var LFCR = "";
+	var curIndent = "";
+	if( prettyPrintLevel !== null ){
+		if(prettyPrintLevel>=0){
+			prettyPrintLevel++;
+			LFCR = '\r\n';
+			curIndent = strRepeat(prettyPrintLevel,prettyPrintIndent);	
+		} 
+	}
+	else {
+		LFCR = '\r\n';
+		prettyPrintLevel = -1;
+	}
+
+ 	var s = { "{";LFCR };
+	for k,v in eachName(t, ,keys ? mixin({},keys) ){
+		if( ! ( math(k,"^[\a_]\w*$")  || math(k,"^:+\w*$") ) ){
+			var es = escape(k);
+			k = es ? "['" + es + "']" : '["' + k + '"]'
+		}
+		v = stringfyValue(v,keys,objreferences,prettyPrintLevel,prettyPrintIndent);
+		if(v){  push( s,curIndent,k,"=",v,";",LFCR); }
+	}
+	
+	for(i=1;#t;1){ 
+		push( s,curIndent,stringfyValue(t[i],keys,objreferences,prettyPrintLevel,prettyPrintIndent),";",LFCR);
+	}
+	
+	if( s[#s-1] == ";" ) pop(s,2);
+	
+	if(prettyPrintLevel > 0 ){
+		prettyPrintLevel--;
+		curIndent = strRepeat(prettyPrintLevel,prettyPrintIndent);
+	}
+	push( s,LFCR,curIndent,"}");
+	
+	return join(s);
+}
+
+stringify = function(t,prettyPrint,keys){  
+    if(!prettyPrint){
+    	return stringifyTable(t,keys,-1,null,{t=true});
+    }
+    else if(type.isString(prettyPrint)) {
+    	return stringifyTable(t,keys,0,prettyPrint,{t=true}); 
+    }
+    else if(prettyPrint){
+    	return stringifyTable(t,keys,null,null,{t=true}); 
+    }
+}
+
+/**intellisense(util.table)
+stringify( = 将表中的字面值转换为代码文本格式\n仅转换文本、数值、布尔值、表对象,\n小数精度最大为6位、并自动清除小数尾部多余的0,\n如果表定义了tostring元方法、则转换为字符串\n忽略其他类型,忽略递归引用的表
+stringify(.(表对象,格式化选项,默认排序表) = 格式化选项为true仅第一级键值添加换行,\n格式化选项指定缩进字符串时,则对所有下级键值添加换行与缩进\n,默认排序表为可选参数,指定一个键名排序数组\n不在默认排序表中的名字按默认字典序排序输出
+end intellisense**/

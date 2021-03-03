@@ -1,0 +1,502 @@
+﻿import process;
+import win.reg;
+import wsock;
+import web.socket.jsonServer;
+import web.rpc.jsonServer;
+import string.aasdl;
+import winex;
+import winex.key;
+import chrome.path;
+import win.ui;
+import fsys.environment; 
+
+namespace chrome;
+
+class app {
+	ctor(winform,chromePath){
+		if(_WINE) winform = null;
+		this._form = winform;
+		if(this._form){
+			if( this._form.isForm ? this._form.onEraseBkgnd === null ){
+				this._form.onEraseBkgnd  = function(hwnd,message,wParam,lParam){
+    				return 0;
+				}
+			}
+			else {
+				this._form.modifyStyle(0x20/*_WS_EX_TRANSPARENT*/,0x2000000/*_WS_CLIPCHILDREN*/);
+			}
+		}
+		
+		this.ws = ..web.socket.server(); 
+		this.ws.heartbeatInterval = 10;
+		this.rpc = ..web.socket.jsonServer(this.ws);
+		this.http = this.ws.httpServer;
+		
+		this.ws.onUpgradeToWebsocket = function(hSocket,request,response,protocol,origin){ 
+    		if( request.path == "/rpc/ws" ){
+        		return this.rpc.start(hSocket);
+    		} 
+    		response.close();
+		}
+		
+		this.ws._onClientClosed = function(hSocket){
+			
+		}
+		
+		this.ws.onOpen = function(hSocket){
+			this.rpc.notify(hSocket,"rpcClientId",tonumber(hSocket) );
+		}
+		
+		this.ws.onError = function(hSocket,err){
+			if(this.onError){
+				return this.onError(hSocket,err);
+			}
+			errput(err,"chrome/rpc error");
+		}
+		
+		this.ws.onClose = function(hSocket,err){
+			if ( this.hwndChrome && ( !..win.isWindow(this.hwndChrome) ) ){
+				if(this._form)this._form.close();
+				this.onQuit();
+			}
+			
+			if(this.onClose){
+				return this.onClose(hSocket,err);
+			}
+		}
+		
+		this.httpHandler = {
+			["/aardio.js" ] = function(response,request){
+				var ip,port = this.ws.getLocalIp();
+				var js = ..string.replace($"~\lib\electron\app\.build\aardio\index.js"
+    				,"@{{{$rpcServerPort}}}",tostring(port));
+    			js = ..string.replace(js,"@{{{$rpcAasdl}}}",this.$aasdl);
+    			
+    			response.contentType = "text/javascript";
+    			response.write(js) 
+			}
+			["/favicon.ico" ] = function(response,request){
+				if(this.favicon){
+    				response.contentType = "image/x-icon";
+    				response.write( ..string.loadBuffer(this.favicon) ) 
+    			}
+			}
+			["/rpc/http"] = function(response,request){
+				var jsonServer = ..web.rpc.jsonServer(); 
+				jsonServer.rpc.external = this.rpc.external;
+				jsonServer.rpc.onError = this.onHttpRpcError;
+				
+				var rpcSocket = topointer( request.headers["rpc-client-id"] );
+    			if(rpcSocket) {
+    				this.hActiveSocket = rpcSocket;
+					jsonServer.rpc.run(rpcSocket);
+				}
+				else {
+    				error("错误的RPC请求，请求头缺少：rpc-client-id",2)
+    			}
+			}
+		}
+		this.http.run( 
+    		function(response,request){
+    			response.headers["Access-Control-Allow-Origin"] = "*";
+    			response.headers["Access-Control-Allow-Headers"] = "Content-Type, Rpc-Client-Id, *";
+    			if(request.method != "OPTIONS"){
+					var handler = this.httpHandler[request.path];
+    				if( handler ) return handler(response,request);
+        			response.loadcode( request.path  );
+				}
+    		} 	
+		);
+		
+		this.serverIp = "127.0.0.1";
+		this.serverPort = null;
+		
+		if(!chromePath){
+			if( !self.path ){
+				self.path  = ..chrome.path(true);
+				
+				if(!self.path){
+					return null,"系统未安装chrome";
+				}
+			}
+			chromePath = self.path;	
+		}
+		
+		this.chromePath = chromePath;
+		this.$indexReadyCallbacks = {}; 
+	};
+	publish = function(...){
+		this.rpc.publish(...)
+	};
+	survey = function(...){
+		this.rpc.survey(...)
+	};
+	xcall = function($,method,...){
+		if( type($) == "string" )return this.rpc.xcall(this.getActiveSocket(),method,...);
+		return this.rpc.xcall($ : this.getActiveSocket(),method,...);
+	};
+	notify = function($,method,...){
+		if( type($) == "string" )return this.rpc.notify(this.getActiveSocket(),method,...);
+		return this.rpc.notify($ : this.getActiveSocket(),method,...);
+	};
+	doScript = function($,js,...){
+		if( ... !== null ) js = ..string.format(js,...);
+		return this.notify($,"doScript",js);
+	};
+	callback = function(name,func){
+		if( type(name) != type.string ) error("参数@1必须是字符串",2);
+		if( (func!==null) && (type(func) != type.function )  )error("参数@2必须是函数对象",2);
+		this.rpc.xcallback[name] = func;
+	}; 
+	getActiveSocket = function(){
+		return this.hActiveSocket;
+	};
+	msgbox = function(str,title,style){
+		return ..win.msgbox(str,title,style,this.hwndChrome )
+	};
+	msgboxTest = function(str,title){
+		return ..win.msgboxTest(str,title,this.hwndChrome )
+	}; 
+	msgboxErr = function(str,title){
+		return ..win.msgboxErr(str,title,this.hwndChrome  )
+	}; 
+	setPos = function(...){
+		if(this.hwndChrome) ..win.setPos(this.hwndChrome,...);
+	};
+	center = function(target){
+		if(this.hwndChrome) ..win.center(this.hwndChrome,target);
+	};
+	addArguments = function(...){
+		if( !this.chromeArguments )this.chromeArguments ={};
+		if( type(...) == type.table ) ..table.append(this.chromeArguments,...)
+		else ..table.push( this.chromeArguments,... );
+	};
+	getUrl = function(url){
+		return this.http.getUrl(url);
+	};
+	close = function(){
+		var hwnd = this.hwndChrome;
+		if(!hwnd){
+			if(this.process && (!_WINE) ){
+				return ..win.close( ..win.wait( lambda() this.hwndChrome ) );	
+			} 
+		}
+		else {..win.close(this.hwndChrome);}
+	};
+	onQuit = function(){
+		if(!this._form){
+			..win.quitMessage()
+		}
+	};
+	indexReady = function(proc){
+		if(this.$indexReady){proc();}
+		else {..table.push(this.$indexReadyCallbacks,proc);} 
+	};
+	start = function(indexUrl,laucher){
+		this.external = ..table.mix( this.external,{
+			$onUrlReady = function($,url){
+				if(!this.$indexReady){
+					if(this.hwndChrome && this._form){ 
+						var rc = this._form.getRect(true); 
+						..win.setRect(this.hwndChrome,rc,true) 	
+					}
+					 
+					this.$indexReady = true;
+					if( this.onIndexReady ) this.onIndexReady();
+					
+					var $indexReadyCallbacks = this.$indexReadyCallbacks;
+					for(i=1;#$indexReadyCallbacks;1){
+						var p = $indexReadyCallbacks[i]
+						p();
+					}
+					this.$indexReadyCallbacks = {};					
+				} 
+				
+				if(this.onUrlReady){ this.onUrlReady($,url); }
+			};
+			quit = function(){
+				if(this.hwndChrome){
+					var hwnd = ..win.getRoot(this.hwndChrome);
+					if(hwnd) ::PostMessage(hwnd,0x10/*_WM_CLOSE*/,0,0);	
+				}
+				this.onQuit();
+			};
+			hitClose = function(){
+				if(this.hwndChrome){
+					var hwnd = ..win.getRoot(this.hwndChrome);
+					if(hwnd) ::PostMessage(hwnd,0x10/*_WM_CLOSE*/,0,0);	
+				}
+			};
+			hitCaption = function(){
+				if( this._form ){
+					error("禁止跨窗口发送标题栏拖动指令",2);
+					return;
+				}
+				
+				if(!this.hwndChrome)return;
+				var hwnd = ..win.getRoot(this.hwndChrome);
+				if(  ..win.isZoomed(hwnd) ) return; 
+				
+				..win.releaseCapture();
+				::PostMessage(hwnd,0x112/*_WM_SYSCOMMAND*/,0xF010/*_SC_MOVE*/ | 2/*_HTCAPTION*/,0)
+			};
+			isZoomed = function(){
+				return ..win.isZoomed(hwnd);
+			}; 
+			hitMax = function(){
+				if(!this.hwndChrome)return;
+				var hwnd = ..win.getRoot(this.hwndChrome);
+				var zoomed = ..win.isZoomed(hwnd);
+				
+    			if(zoomed)
+					::PostMessage(hwnd,0x112/*_WM_SYSCOMMAND*/,0xF120/*_SC_RESTORE*/, 0);  
+				else
+					::PostMessage(hwnd,0x112/*_WM_SYSCOMMAND*/,0xF030/*_SC_MAXIMIZE*/,0);
+				
+				return !!zoomed;
+			};
+			hitMin = function(){
+				if(!this.hwndChrome)return;
+				var hwnd = ..win.getRoot(this.hwndChrome);
+    			::PostMessage(hwnd,0x112/*_WM_SYSCOMMAND*/,0xF020/*_SC_MINIMIZE*/, 0);
+			}; 
+			hitmax = function(){ return owner.hitMax(); };
+			hitmin = function(){ return owner.hitMin(); };
+			print = function(){
+				if(!this.hwndChrome)return;
+   				..winex.key.combine(this.hwndChrome,"CTRL","P")
+			};   
+			showDevTools = function(){
+				if(!this.hwndChrome)return;
+				..winex.key.click(this.hwndChrome,"F12")
+			};
+			zoom = function(n){
+				if(!this.hwndChrome)return;
+				
+				if( n > 0 ){
+					..winex.key.combine(this.hwndChrome,"CTRL","+")	
+				}
+				elseif(n < 0 ){
+					..winex.key.combine(this.hwndChrome,"CTRL","-")
+				}
+				else {
+					..winex.key.combine(this.hwndChrome,"CTRL","0")
+				}
+			};
+			copy = function(){
+				if(!this.hwndChrome)return;
+				..winex.key.combine(this.hwndChrome,"CTRL","C")
+			}; 
+ 			paste = function(){
+ 				if(!this.hwndChrome)return;
+				..winex.key.combine(this.hwndChrome,"CTRL","V")
+			}; 
+			find = function(){
+				if(!this.hwndChrome)return;
+				..winex.key.combine(this.hwndChrome,"CTRL","F")
+			}; 
+			fullscreen = function(){
+				if(!this.hwndChrome)return;
+				..winex.key.click(this.hwndChrome,"F11")
+			};
+			$onLoadUrl = function($,url){};
+		});
+		
+		this.rpc.external = this.external;
+		this.ws.start(this.serverIp,this.serverPort);
+		
+		var chromeWins = {}
+		for hwnd,title,threadId,processId in ..winex.each( "<Chrome_WidgetWin_\d+>|<CEFCLIENT>") { 
+			chromeWins[hwnd] = processId;
+		} 
+
+		if( ! ( ..string.startWith(indexUrl,"http:",true) 
+			|| ..string.startWith(indexUrl,"https:",true) ) ){
+			indexUrl = this.http.getUrl(indexUrl); 
+			if(!this.favicon){
+				this.favicon = ..io.joinpath(..io.splitpath(indexUrl).dir,"favicon.ico");
+			}
+		} 
+		
+		var ip,port = this.ws.getLocalIp();
+		this.$aasdl = ..string.aasdl(this.external);
+		this.indexUrl = ..inet.url.appendExtraInfo(indexUrl
+			,"rpcServerPort=" + port +"&rpcAasdl=" + ..inet.url.encode(this.$aasdl) );
+		var chromeArguments = { "--app=" + this.indexUrl;"--url=" + this.indexUrl;"--hide-controls" };
+	 
+		..table.append(chromeArguments,this.chromeArguments);
+		
+		if( this.remoteDebuggingPort != null ){
+			if(!this.remoteDebuggingPort) this.remoteDebuggingPort = ..wsock.getFreePort();
+			..table.push(chromeArguments," --remote-debugging-port=" + this.remoteDebuggingPort);
+		}
+		
+		if( this.disableWebSecurity ){ 
+			..table.push(chromeArguments,` --disable-web-security`);
+			
+			if( !this.userDataDir ){
+				this.userDataDir = "%LocalAppData%\aardio\chrome.app.userdata";
+			}
+		}
+		
+		if( this.userDataDir != null ){ 
+			..table.push(chromeArguments,` --user-data-dir=` + ..fsys.environment.expand(this.userDataDir));
+		}
+		
+		var threadLocked;
+		if( laucher ){
+			var ok,err = laucher(chromeArguments);
+			if(!ok) return null,err;
+		}
+		else { 
+			if(!_WINE) ..thread.lock("chrome.app.38C889D9-440E-48E8-9002-9B51D069902A");
+			var pid = ..process.execute(this.chromePath,chromeArguments); 
+			if( !pid  ){
+				return false;
+			}  
+		}
+		
+		if(!_WINE){
+			while( ..win.peekPumpMessage()!==null ){
+				for hwnd,title,threadId,processId in ..winex.each( "<Chrome_WidgetWin_\d+>|<CEFCLIENT>") { 
+					if(!chromeWins[hwnd]){
+						if( !..win.isVisible(hwnd) ) continue;
+						if( ..win.getOwner(hwnd) ) continue; 
+				  		
+						if( this._form ){
+							..win.setPos(hwnd,-9000,-9000);
+							
+							..win.modifyStyle( hwnd
+								,0x400000/*_WS_DLGFRAME*/ | 0x40000/*_WS_THICKFRAME*/ |0x800000/*_WS_BORDER*/ | 0xC00000/*_WS_CAPTION*/ |0x80000/*_WS_SYSMENU*/ |0x20000/*_WS_MINIMIZEBOX*/ |0x10000/*_WS_MAXIMIZEBOX*/ |0x20000/*_WS_GROUP*/ |0x10000/*_WS_TABSTOP*/ |0x4000000/*_WS_CLIPSIBLINGS*/ 
+								,0x40000000/*_WS_CHILD*/
+								); 
+								
+							..win.modifyStyleEx( hwnd
+								,8/*_WS_EX_TOPMOST*/ |0x40000/*_WS_EX_APPWINDOW*/ | 0x100/*_WS_EX_WINDOWEDGE*/
+								,_WS_EX_TRANSPARENT
+								);
+								
+			 				..win.setParent(hwnd,this._form.hwnd);
+	
+			 				this._form.adjust = function(){ 
+			 					var rc = this._form.getRect(true); 
+					 			..win.setRect(hwnd,rc,true) 
+			 				}
+						} 
+						else {
+							if(!..win.isZoomed(hwnd)){
+								..win.center(hwnd);
+							} 
+						}
+						 
+						::User32.AttachThreadInput( ..thread.getId(),threadId,true);
+						this.hwndChrome = hwnd;
+						this.chromeProcessId = processId;
+						this.chromeThreadId = threadId;
+						break 2;
+					}
+				} 
+			}
+		}
+		if(threadLocked) ..thread.unlock("chrome.app.38C889D9-440E-48E8-9002-9B51D069902A"); 			
+		
+ 		if( !this._form ){
+ 			var isWindow = ..win.isWindow;
+ 			this.messageOnly = ..win._form().messageOnly();
+ 			
+ 			if(this.hwndChrome){
+ 				this.messageOnly.setInterval( 3000,
+					function(){
+						if( !isWindow(this.hwndChrome) ){
+							if(this._form)this._form.close();
+							this.onQuit();
+							return false;
+						}
+					} 
+				)	
+ 			}
+			else {
+				this.messageOnly.setInterval( 3000,
+					function(){
+						if( this.ws.clientCount() < 1 ){
+							for(i=1;10;1){
+								 ..win.delay(1000);
+								if( this.ws.clientCount() ){
+									return;
+								} 
+							}
+							
+							this.onQuit();
+							return false;
+						}
+					} 
+				)
+			}
+			
+ 		}
+		
+	};
+}
+
+/**intellisense()
+chrome.app = 调用系统已安装的chrome创建应用程序，\n支持chrome兼容的edge、2345、360等浏览器，\n\n如果没有找到可用的浏览器会下载安装Microsoft Edge (Chromium)
+chrome.app(.(父窗口,chrome启动程序路径) = 调用系统已安装的chrome创建应用程序\n所有参数可选，参数@2也可以指定CEF3启动程序cefclient.exe的路径\n使用CEF3支持在参数@1指定父窗口并嵌入浏览器到该窗口,\n原版Chrome嵌入父窗口会出现兼容性问题,\n\n!processchromeapp.
+chrome.app.path = 自定义Chrome.exe位置,\n支持Chrome,兼容Chrome启动参数的Chrome内核浏览器,\n也可以指定CEF3启动程序cefclient.exe
+chrome.app() = !processchromeapp.
+end intellisense**/
+
+/**intellisense(!processchromeapp)
+_form = 创建chrome.app时指定的父窗口\n!static.
+ws = aardio创建的WebSocket服务器\n!stdwebsocketserver.
+rpc = aardio创建的JSON-RPC服务端\n!stdwebsocketjsonserver.
+http = aardio创建的HTTP服务器\n!stdasynHttpServer.
+serverIp = 指定嵌入服务器的监听IP\n默认值为 "127.0.0.1",仅限本机可以访问\n如果希望外网可以访问,可以赋值为null即可\n在调用start函数以前指定此属性才有效
+serverPort = 指定嵌入服务器的监听端口\n建议保持默认值null\n不指定端口可以随机分配空闲端口，不会出现端口冲突的问题\n在调用start函数以前指定此属性才有效
+publish(.(method,->->->) = 主动向所有客户端发送通知\nmethod指定网页客户端方法名,\n可添加任意个调用参数
+survey(.(method,->->->) = 发起调查任务,\n调用所有网页客户端的同名函数,\nmethod指定客户端方法名,\n可添加任意个调用参数\n\n请使用callback函数指定调查结束后客户端回调的函数
+notify(.($,"method",->->->) = 调用指定chrome函数,但不需要客户端回调反馈,\n\n参数@1指定客户端套接字句柄,\nRPC服务端远程回调函数名首字符为$时,\n第一个回调$参数即为当前客户端套接字句柄,\n除非熟悉getActiveSocket函数导致的潜在问题,请不要省略$参数
+xcall(.($,"method",->->->) = 调用chrome函数,\n参数@1指定客户端套接字句柄,\nRPC服务端远程回调函数名首字符为$时,第一个回调$参数即为当前客户端套接字句柄,\n除非熟悉getActiveSocket函数导致的潜在问题,请不要省略$参数\n\n在chrome的js代码使用 aardio.on("method")\n添加允许aardio调用的js回调函数.\n\n可选使用callback函数指定一个同名回调函数按收本次调用chrome的返回值 
+callback(name,callback) = @.callback("__/*要接收返回值的JS函数名,\n回调叁数$为RPC客户端套接字句柄\n成功result为返回值,失败err为错误信息*/",function($,result,err){\n	\n})
+doScript(.($,js,->->->) = 在chrome中执行javascript代码,忽略返回值,\n在js参数后可选指定多个字符串格式化参数用于调用string.form格式化代码,\n\n参数@1指定客户端套接字句柄,\nRPC服务端远程回调函数名首字符为$时,\n第一个回调$参数即为当前客户端套接字句柄,\n除非熟悉getActiveSocket函数导致的潜在问题,请不要省略$参数
+external = @.external = {
+    __/*可以在这里指定允许chrome访问的对象和函数\n在chrome里引用虚拟的"/aardio.js"导入aardio对象即可访问这里的成员函数,\n必须在调用start函数以前设置此对象才能生效*/
+}
+getActiveSocket() = 获取RPC服务端当前活动套接字句柄\n,任何触发消息处理、异步套接字处理程序的代码都有可能改变这个函数的返回值\n任何时候都不推荐使用此函数\n\n更好的替代方案是在RPC函数名前添加$字符,用于通知aardio在回调参数中添加$参数\n回调$参数可以稳定可靠的获取当前套接字
+chromeProcessId = chrome进程ID\n注意chrome可能会使用一个进程启动多个独立的应用
+chromeThreadId = chrome启动线程ID
+chromePath = chrome启动exe文件路径
+hwndChrome =chrome窗口句柄\n如果在wine环境下运行，此窗口句柄为空值,依赖此句柄的部分chrome窗口操作函数将无效
+getUrl("/__") = 参数指定资源文件路径,\n转换并返回为可以通过内嵌HTTP服务端访问的网址
+start(__) = 启动chrome应用\n参数@1可以指定资源目录下的aardio文件,\naardio会自动使用嵌入HTTP服务器调用该文件\n\n如果要在参数@1中指定远程网址，\n将"~\lib\electron\app\.build\aardio\index.js"放到网站上,并在页面中引用该JS文件才能调用本地接口\n\n可选在参数@2中指定一个函数对象用于自定义启动Chrome的代码,\n此启动函数唯一的回调参数是一个包含Chrome启动参数的数组\n自定义启动函数成功应返回true
+msgbox("__") = 弹出对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n此函数调用win.msgbox,但设定父窗口为当前chrome窗体
+msgbox("__","标题") = 弹出对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n此函数调用win.msgbox,但设定父窗口为当前chrome窗体
+msgboxErr("__") = 弹出错误对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n此函数调用win.msgbox,但设定父窗口为当前chrome窗体
+msgboxErr("__","标题") = 弹出错误对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n此函数调用win.msgbox,但设定父窗口为当前chrome窗体
+msgboxTest("__") = 弹出询问对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n此函数调用win.msgbox,但设定父窗口为当前chrome窗体
+close() = 关闭chrome窗口
+remoteDebuggingPort = 指定远程调试端口\n如果指定为0，则自动分配1025以后的空闲端口\n此属性启动后更新为实际开始的调试端口号
+userDataDir = 设置用户数据目录,\n使用 fsys.environment自动转换%LocalAppData%等路径环境变量\n远程调试以及全屏功能，都要求使用同一用户数据目录时只有一个正在运行的chrome进程
+indexReady = @.indexReady(\n	function(){\n		__/*如果加载首页已完成,\n并且页面上的DOM内容、aardio模块都已准备就绪,\n将立即执行在此注册的回调函数,\n可重复添加回调，并保证按添加的前后顺序调用且仅调用一次*/\n	} \n)
+onIndexReady = @.onIndexReady = function(){
+	__/*主窗口首次加载完成startEnviron.indexUrl指定的首页,\n并且页面上的DOM内容、aardio模块都已准备就绪*/
+}
+onUrlReady = @.onUrlReady = function(hSocket,url){
+    __/*页面加载完成并且页面上的DOM内容、aardio模块都已准备就绪*/
+}
+onQuit = @.onQuit = function(){
+	..win.quitMessage();__/*Chrome关闭网页客户端触发此代码\n此事件触发以后hwndChrome会变为空值*/
+}
+onError = @.onError = function($hSocket,err){
+    errput(err,"chrome/rpc error");__/*自定义RPC错误处理*/
+}
+onClose = @.onClose = function($hSocket,err){
+    __/*一个网页窗口断开连接触发此事件*/
+}
+httpHandler = @.httpHandler["/test.js" ] = function(response,request){
+	__/*自定义HTTP处理程序\n键为请求的路径,值为处理函数*/
+}
+favicon = 指定窗口图标路径\n默认为/res/favicon.ico
+setPos(.(x坐标,y坐标,宽,高,插入位置,选项) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置<句柄或_HWND前缀常量>则调整Z序\n选项不用指定，可参考此函数源码了解细节
+center(.(目标窗口句柄) = 居中窗口,并调整以保证显示在可见范围内\n目标窗口句柄如果为空则取父窗口或所有者窗口,为0表示桌面
+addArguments(__) = 添加一个或多个Chrome启动参数,\n参数也可以是一个包含多个启动参数的数组\n注意参数中不必要使用引号,多个参数应分开写不要拼接成一个参数\n每个启动参数都是使用两个横杠开始的字符串\n[chrome启动参数大全]( https://peter.sh/experiments/chromium-command-line-switches/ )
+end intellisense**/

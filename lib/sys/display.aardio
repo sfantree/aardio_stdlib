@@ -1,0 +1,49 @@
+﻿//display 显卡
+import com.interface.IDirect3D9;
+import fsys.version;
+import sys.monitor;
+
+namespace sys.display;
+
+getAdapter = function(adapter,flags){
+    var d3d = ..com.interface.IDirect3D9.Create(32);
+	var di = d3d.GetAdapterIdentifier(adapter:0,flags:0);
+	..com.Release(d3d);
+	return di;
+}
+
+enumAdapters = function(proc){
+	var d3d = ..com.interface.IDirect3D9.Create(32);
+	for(i=0;d3d.GetAdapterCount()-1;1){
+		var di = d3d.GetAdapterIdentifier(i,0);
+		di.caps = d3d.GetDeviceCaps(i,1/*_D3DDEVTYPE_HAL*/) 
+			|| d3d.GetDeviceCaps(i,2/*_D3DDEVTYPE_REF*/)
+			|| d3d.GetDeviceCaps(i,4/*_D3DDEVTYPE_NULLREF*/)
+			|| d3d.GetDeviceCaps(i,0x7FFFFFFF/*_D3DDEVTYPE_FORCE_DWORD*/);
+
+		var drv = ..fsys.version(
+			major = ::HIWORD(di.DriverVersion.HighPart );
+			minor = ::LOWORD(di.DriverVersion.HighPart );
+			build = ::HIWORD(di.DriverVersion.LowPart );
+			revision = ::LOWORD(di.DriverVersion.LowPart );
+		);
+		
+		if( proc(di,di.Description,tostring(drv)) ) return false;
+	}
+
+	..com.Release(d3d);
+	return true;
+}
+
+eachMode = ..sys.monitor.eachMode
+
+/**intellisense()
+sys.display.enumAdapters(回调函数) = @.enumAdapters(\nfunction(info,description,driverVersion){\n	__/*枚举显卡,info为显卡信息,description为显卡名称\n第一个显卡是默认显示\n返回true退出枚举*/\n})
+sys.display.eachMode(flags,idx) = @for( devMode in sys.display.eachMode() ){
+	if( devMode.pelsWidth > (devMode.pelsWidth > devMode.pelsHeight ? 640 : 480) ){
+		__/*列出显卡支持的分辨率*/
+	}
+}
+sys.display.eachMode() = !DEVMODE_DISPLAY_DEVICE.
+sys.display.getAdapter() = 获取显卡信息\n!D3DADAPTER_IDENTIFIER9.
+end intellisense**/

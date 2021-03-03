@@ -1,0 +1,17 @@
+//GDI+ 图像剪切
+import gdip;
+import inet.http;
+var pngData = inet.http().get("http://www.baidu.com/img/baidu_logo.gif");
+
+var bitmap = gdip.bitmap( pngData )
+var bitmapNew = bitmap.clone(30,30,50,50)
+
+/*
+var bitmapNew = gdip.bitmap(50,50);
+bitmapNew.graphics.drawImageRectRect(bitmap,0,0,50,50,30,30,50,50)
+*/
+
+bitmapNew.save("/crop.jpg")
+
+import process.imageView;
+process.imageView("/crop.jpg")

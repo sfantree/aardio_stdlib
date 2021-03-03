@@ -1,0 +1,10 @@
+﻿//调用PowerShell
+
+import console;
+import dotNet.ps;
+
+console.showLoading(" 正在执行PowerShell命令");
+//console.log(dotNet.ps("Get-Command -Name *Process"));
+console.log(dotNet.ps.command("Get-Command",{Name="*Process"}));
+
+console.pause();

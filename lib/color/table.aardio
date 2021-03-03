@@ -1,0 +1,374 @@
+﻿//table 色表
+import color;
+namespace color;
+
+class table{
+	{"纯白";"White";0xFFFFFF};
+	{"烟白/雾白";"WhiteSmoke";0xF5F5F5};
+	{"浅灰";"LightGrey";0xD3D3D3};
+	{"银白";"Silver";0xC0C0C0};
+	{"深灰";"DarkGray";0xA9A9A9};
+	{"灰色";"Gray";0x808080};
+	{"暗灰";"DimGray";0x696969};
+	{"玫瑰棕";"RosyBrown";0x8F8FBC};
+	{"浅珊瑚红";"LightCoral";0x8080F0};
+	{"印地安红";"IndianRed";0x5C5CCD};
+	{"棕色";"Brown";0x2A2AA5};
+	{"胭脂红";"CrimsonLake";0x3626E3};
+	{"镉红";"CadmiumRed";0x2200E3};
+	{"深镉红";"CadmiumRedDeep";0x2B1EB6};
+	{"深红";"DarkRed";0x00008B};
+	{"栗色/暗红";"Maroon";0x000080};
+	{"玫瑰红";"RoseMadder";0x0016A0};
+	{"砖红";"FireBrick";0x2222B2};
+	{"大红";"Crimson";0x3C14DC};
+	{"纯红";"Red";0x0000FF};
+	{"橙红";"OrangeRed";0x0045FF};
+	{"蕃茄红";"Tomato";0x4763FF};
+	{"珊瑚红";"Coral";0x507FFF};
+	{"鲑红/淡橙红";"Salmon";0x7280FA};
+	{"深鲑红";"DarkSalmon";0x7A96E9};
+	{"浅鲑红";"LightSalmon";0x7AA0FF};
+	{"浅玫瑰红";"MistyRose";0xE1E4FF};
+	{"海贝色";"Seashell";0xEEF5FF};
+	{"深橙";"DarkOrange";0x008CFF};
+	{"巧克力色";"Chocolate";0x1E69D2};
+	{"土赭/深黄褐";"Sienna";0x2D52A0};
+	{"马鞍褐";"SaddleBrown";0x13458B};
+	{"土黄";"YellowOchre";0x2277CC};
+	{"秘鲁褐";"Peru";0x3F85CD};
+	{"黄褐";"SandyBrown";0x60A4F4};
+	{"深黄褐";"Tan";0x8CB4D2};{"原木色";"BurlyWood";0x87B8DE};
+	{"粉桃红";"PeachPuff";0xB9DAFF};
+	{"亚麻黄";"Linen";0xE6F0FA};
+	{"古董白";"AntiqueWhite";0xD7EBFA};
+	{"杏仁白";"BlanchedAlmond";0xCDEBFF};
+	{"粉木瓜橙";"PapayaWhip";0xD5EFFF};
+	{"旧布黄";"OldLace";0xE6F5FD};
+	{"花白";"FloralWhite";0xF0FAFF};
+	{"小麦色";"Wheat";0xB3DEF5};
+	{"鹿皮黄";"Moccasin";0xB5E4FF};
+	{"橙色/橘色";"Orange";0x00A5FF};
+	{"深金黄";"DarkGoldenrod";0x0B86B8};
+	{"金黄";"Goldenrod";0x20A5DA};
+	{"金色";"Gold";0x00D7FF};
+	{"玉米穗黄";"Cornsilk";0xDCF8FF};
+	{"粉黄";"LemonChiffon";0xCDFAFF};
+	{"淡金黄";"PaleGoldenrod";0xAAE8EE};
+	{"卡其色";"Khaki";0x8CE6F0};
+	{"深卡其色";"DarkKhaki";0x6BB7BD};
+	{"象牙白";"Ivory";0xF0FFFF};
+	{"米黄";"Beige";0xDCF5F5};
+	{"浅黄";"LightYellow";0xE0FFFF};
+	{"浅金黄";"LightGoldenrodYellow";0xD2FAFA};
+	{"柠檬黄";"LemonYellow";0x4FF4FF};
+	{"纯黄";"Yellow";0x00FFFF};
+	{"橄榄绿";"Olive";0x008080};
+	{"深橄榄绿";"DarkOliveGreen";0x2F6B55};
+	{"橄榄褐";"OliveDrab";0x238E6B};
+	{"黄绿";"YellowGreen";0x32CD9A};
+	{"绿黄";"GreenYellow";0x2FFFAD};
+	{"草绿";"LawnGreen";0x00FC7C};
+	{"薄荷乳白";"MintCream";0xFAFFF5};
+	{"蜜瓜绿";"HoneyDew";0xF0FFF0};
+	{"深海藻绿";"DarkSeaGreen";0x8FBC8F};
+	{"淡绿";"PaleGreen";0x98FB98};
+	{"浅绿";"LightGreen";0x90EE90};
+	{"暗绿";"LimeGreen";0x32CD32};
+	{"森林绿";"ForestGreen";0x228B22};
+	{"深绿";"DarkGreen";0x006400};
+	{"纯绿";"Green";0x008000};
+	{"亮绿";"Lime";0x00FF00};
+	{"海藻绿";"SeaGreen";0x578B2E};
+	{"暗海藻绿";"MediumSeaGreen";0x71B33C};
+	{"翠绿";"Viridian";0x6D8240};
+	{"嫩绿";"SpringGreen";0x7FFF00};
+	{"暗嫩绿";"MediumSpringGreen";0x9AFA00};
+	{"暗草绿";"MediumAquamarine";0xAACD66};
+	{"青绿";"Aquamarine";0xD4FF7F};
+	{"松石绿";"Turquoise";0xD0E040};
+	{"浅海藻绿";"LightSeaGreen";0xAAB220};
+	{"深松石绿";"DarkTurquoise";0xD1CE00};
+	{"中松石绿";"MediumTurquoise";0xCCD148};
+	{"白松石绿";"PaleTurquoise";0xEEEEAF};
+	{"淡青";"LightCyan";0xFFFFE0};
+	{"蔚蓝";"Azure";0xFFFFF0};
+	{"树绿";"SapGreen";0x273610;0xC1B6FF};
+	{"孔雀蓝";"PeacockBlue";0x584900};
+	{"深青灰";"DarkSlateGray";0x4F4F2F};
+	{"青色/水绿";"Aqua/Cyan";0xFFFF00};
+	{"深青绿";"DarkCyan";0x8B8B00};
+	{"蓝绿";"Teal";0x808000;0xC1B6FF};
+	{"普鲁士蓝";"PrussianBlue";0x533100};
+	{"军蓝/藏青";"CadetBlue";0xA09E5F};
+	{"浅灰蓝";"PowderBlue";0xE6E0B0};
+	{"浅蓝";"LightBlue";0xE6D8AD};
+	{"天蓝色";"SkyBlue";0xEBCE87};
+	{"浅天蓝";"LightSkyBlue";0xFACE87};
+	{"深天蓝";"DeepSkyBlue";0xFFBF00};
+	{"浅石板灰";"LightSlateGray";0x998877};
+	{"石板灰";"SlateGray";0x908070};
+	{"湖蓝";"DodgerBlue";0xFF901E};
+	{"矢菊花蓝";"CornflowerBlue";0xED9564};
+	{"宝蓝";"RoyalBlue";0xE16941};
+	{"钢蓝";"SteelBlue";0xB48246};
+	{"淡钢蓝";"LightSteelBlue";0xDEC4B0};
+	{"艾莉斯蓝";"AliceBlue";0xFFF8F0};
+	{"苍白";"GhostWhite";0xFFF8F8};
+	{"淡紫";"Lavender";0xFAE6E6};
+	{"深群青";"UltramarineDeep";0x98283A};
+	{"群青";"Ultramarine";0xFF0040};
+	{"纯蓝";"Blue";0xFF0000};
+	{"暗蓝";"MediumBlue";0xCD0000};
+	{"深蓝";"DarkBlue";0x8B0000};
+	{"黑蓝";"MidnightBlue";0x701919};
+	{"海军蓝";"Navy";0x800000};
+	{"钴蓝";"CobaltBlue";0xAB4700};
+	{"深石蓝";"DarkSlateBlue";0x8B3D48};
+	{"石蓝";"SlateBlue";0xCD5A6A};
+	{"暗石蓝";"MediumSlateBlue";0xEE687B};
+	{"暗紫";"MediumPurple";0xDB7093};
+	{"靛蓝";"Indigo";0x82004B};
+	{"蓝紫";"BlueViolet";0xE22B8A};
+	{"深兰花紫";"DarkOrchid";0xCC3299};
+	{"深紫红";"DarkViolet";0xD30094};
+	{"暗兰花紫";"MediumOrchid";0xD355BA};
+	{"梅红";"Plum";0xDDA0DD};
+	{"紫罗兰";"Violet";0xEE82EE};
+	{"洋红/紫红";"Magenta/Fuchsia";0xFF00FF};
+	{"深洋红";"DarkMagenta";0x8B008B};
+	{"紫色";"Purple";0x800080};
+	{"兰花紫";"Orchid";0xD670DA};
+	{"暗紫红";"MediumVioletRed";0x8515C7};
+	{"深粉红";"DeepPink";0x9314FF};
+	{"暗粉红";"HotPink";0xB469FF};
+	{"淡紫红";"LavenderBlush";0xF5F0FF};
+	{"浅紫红";"PaleVioletRed";0x9370DB};
+	{"粉红";"Pink";0xCBC0FF};
+	{"浅粉红";"LightPink";0xC1B6FF};
+}
+
+namespace table{
+    
+    insert = function(clrTable,clrInfo,index){
+        if(type(clrInfo[[3]])!=type.number){
+        	error("参数@2指定的色卡信息不正确",2);
+        }
+        if( ! #(clrInfo[[1]]) ){
+        	var r,g,b = ..color.getRgb(clrInfo[[3]]);
+        	clrInfo[[1]] = ..string.format("#%02X%02X%02X",r,g,b);
+        }
+        
+    	return ..table.insert(clrTable,init({clrInfo})[1],index===null?#clrTable+1:index);
+    }
+    
+	init = function(clrTable){
+		var clr;
+		var r,g,b;
+    	for(i=1;#clrTable;1){
+			clr = clrTable[i];
+			clr.rgb = clr[3];
+			clr.name = clr[1];
+			clr.ename = clr[2];
+			clr.html = ..color.stringify(clr.rgb)
+			clr.fullname = clr.name +" " + clr.ename +" " + clr.html;
+			r,g,b = ..color.getRgb(clr[3]);	
+			clr.argb = ..color.argb(r,g,b);
+			if(clr[4]) clr.argbColor = ..color.rgbReverse(clr[4]) | 0xFF000000;;
+			if(clr.argbColor) continue;
+			
+			var h, s, v = ..color.rgb2hsb(r,g,b);
+			var lightness = v +  (v/2 *-s);
+			
+			if(v==0){
+				v=94; s=0;
+			}
+			elseif(s>0.9 && v>0.9){
+				clr.argbColor = ..color.argb(255-r,255-g,255-b);
+				continue ;
+			}
+			elseif( s < 0.4) {
+				if( v > 0.5  ) v = v-(v/1.5);
+				else v = v+(v/1.5)	 
+			}
+			elseif( s > 0.5 && v > 0.25){
+				h,s,v = ..color.rgb2hsb(255-r,255-g,255-b);
+				if(v<0.5){
+					v=v+0.5;
+					s=s-0.5;
+				}
+				else {
+					if( (r > g || b > g) ) v = v +  0.4;
+					else v = v - 0.4;
+				}
+			}
+			else if( v> s ){ 
+				h = h + 120; 
+				v = v - 0.5;
+				s = s - 0.5
+			}
+			else {
+				h = h + 120; 
+				s = s + 0.5;
+				v = v + 0.5	
+			}
+			
+			if(lightness>=0.5){
+				v= lightness-0.4;
+			}
+
+			if(s>1)s = 1
+			elseif( s< 0 ){ s = 0;}
+			
+			if(v<0 ){ v = 0;}
+			elseif(v>1 ){v = 1;} 
+			
+			r,g,b = ..color.hsb2rgb(h%360,s,v);
+			clr.argbColor = ..color.argb(r,g,b);
+		}
+		 
+		return clrTable;	
+	}
+	
+	complementaryColor  = function(clr,gdi){
+		var h,s,b = ..color.getHsb(clr,gdi);
+		var hc = (h+180)%360;
+		return init({
+			{"主色";"Primary Color";..color.hsb(h,s,b,true);};
+			{"补色";"Complementary Color";..color.hsb(hc,s,b,true);}
+		})
+	}
+	
+	splitComplementaryColor = function(clr,gdi){
+		var h,s,b = ..color.getHsb(clr,gdi);
+		var hc = (h+180)%360;
+		return init({
+			{"主色";"Primary Color";..color.hsb(h,s,b,true);};
+			{"补色";"Complementary Color";..color.hsb((hc-30)%360,s,b,true);}
+			{"补色";"Complementary Color";..color.hsb((hc+30)%360,s,b,true);}
+		})
+	}
+	
+	analogousColor = function(clr,gdi){
+		var h,s,b = ..color.getHsb(clr,gdi); 
+		return init({
+			{"主色";"Primary Color";..color.hsb(h,s,b,true);};
+			{"近似色";"Analogous Color";..color.hsb((h-30)%360,s,b,true);}
+			{"近似色";"Analogous Color";..color.hsb((h+30)%360,s,b,true);}
+		})
+	}
+	
+	triadicColor = function(clr,gdi){
+		var h,s,b = ..color.getHsb(clr,gdi); 
+		return init({
+			{"主色";"Primary Color";..color.hsb(h,s,b,true);};
+			{"配色";"Secondary Color";..color.hsb((h-120)%360,s,b,true);}
+			{"配色";"Secondary Color";..color.hsb((h+120)%360,s,b,true);}
+		})
+	}
+	
+	tetradicColor = function(clr,gdi){
+		var h,s,b = ..color.getHsb(clr,gdi); 
+		var hc = (h-60)%360;
+		return init({
+			{"配色";"Secondary Color";..color.hsb(hc,s,b,true);};
+			{"主色";"Primary Color";..color.hsb(h,s,b,true);};
+			{"主色补色";"Complementary Color";..color.hsb((hc+180)%360,s,b,true);}
+			{"配色补色";"Complementary Color";..color.hsb((h+180)%360,s,b,true);}
+		})
+	}
+	
+	squareColor = function(clr,gdi){
+		var h,s,b = ..color.getHsb(clr,gdi); 
+		return init({
+			{"主色";"Primary Color";..color.hsb(h,s,b,true);};
+			{"配色";"Secondary Color";..color.hsb((h+90)%360,s,b,true);};
+			{"主色补色";"Complementary Color";..color.hsb((h+180)%360,s,b,true);}
+			{"配色补色";"Complementary Color";..color.hsb((h+270)%360,s,b,true);}
+		})
+	}
+	
+	lightColor = function(clr,gdi){
+		var h,s,b = ..color.getHsb(clr,gdi); 
+		var tab = {};
+		
+		for(b=0.1;1;0.1) ..table.push(tab
+			,{"单色(亮度"+ ..math.round( ..color.lightHsb(h,1,b)*100 ) +"%)";"Light Color";..color.hsb(h,1,b,true);}
+			);
+			
+		for(s=1;0.1;-0.1) ..table.push(tab
+			,{"单色(亮度"+ ..math.round( ..color.lightHsb(h,s,b)*100 ) +"%)";"Light Color";..color.hsb(h,s,1,true);}
+			);
+
+		return init(tab);
+	} 
+	
+	monochromaticColor = function(clr,gdi){
+		var h,s,b = ..color.getHsb(clr,gdi); 
+		var lightness = ..color.lightHsb(h,s,b);
+		var tab = {
+			{"主色(亮度"+ ..math.round(lightness*100) +"%)";"";..color.hsb(h,s,b,true);};
+		}
+		
+		if(lightness<0.5){
+			for(i=0;lightness;0.1){
+				h,s,b = ..color.lightHsb(h,s,b,0.1);
+				..table.push(tab,{"单色(亮度"+ ..math.round(lightness*100) +"%)";"Monochromatic Color";..color.hsb(h,s,b,true);});
+			}	
+		}
+		else {
+			for(i=lightness;0;-0.1){
+				h,s,b = ..color.lightHsb(h,s,b,-0.1);
+				..table.push(tab,{"单色(亮度"+ ..math.round(lightness*100) +"%)";"Monochromatic Color";..color.hsb(h,s,b,true);});
+			}		
+		}
+		
+		return init(tab)
+	} 
+	
+	var defaultTable,defaultMap;
+    find = function(clr){
+    	if(!defaultTable){
+    		defaultTable = ..color.table();
+    		..table.push(defaultTable,{"纯黑";"Black";0;});
+    		init(defaultTable);
+    		
+    		defaultMap = {};
+    		for i,v in ..table.eachIndex(defaultTable){ 
+				defaultMap[ v.argb ] = v;
+			}
+    	}
+    	
+    	var inf = defaultMap[clr]; 
+    	if(inf){
+    		return inf;
+    	}
+    	 
+    	..table.sort(defaultTable,function(b){
+    		var d1 = ..color.distance(clr,owner.argb);
+    		var d2 = ..color.distance(clr,b.argb);
+    		return d1 < d2;
+    	});
+    	
+    	return defaultTable[1];
+    }
+}
+
+
+/**intellisense()
+color.table() = 创建色表,用于color.view,\n返回常用标准色组成的数组,\n每个数组成员由色彩中文名、英文名、RGB值3个元素组成
+end intellisense**/
+
+/**intellisense(color.table)
+init(__) = 净色彩数组转换为color.table标准格式
+insert(.(clrTable,clrInfo,index) = 在参数@1指定的色表中添加色卡,\nclrInfo必须是一个数组,索引1放成员名,索引2放英文名,索引3放RGB格式颜色数值\n可选用参数@3指定插入位置,默认添加到尾部
+find(__) = 参数@1指定一个ARGB格式颜色数值,\n在色表中查找并返回色卡信息
+complementaryColor(.(clr,gdi) = 创建补色表,\n突出对比效果,\n参数@1使用ARGB格式颜色值指定主色,如果颜色为gdi的rgb格式请将参数@2指定为true
+splitComplementaryColor(.(clr,gdi)= 创建分散补色表,\n对比色,但比补色降低了对比强度\n即有较好的对比效果,也不会显得太突兀,\n参数@1使用ARGB格式颜色值指定主色,如果颜色为gdi的rgb格式请将参数@2指定为true
+analogousColor(.(clr,gdi)= 创建类似色表,\n类似色是在色相环上邻近的颜色,会给人带来和谐、舒服的视觉效果,\n参数@1使用ARGB格式颜色值指定主色,如果颜色为gdi的rgb格式请将参数@2指定为true
+monochromaticColor(.(clr,gdi)= 创建单色调方案,\n单色调是色相不变,但亮度发生变化的配色方案,\n参数@1使用ARGB格式颜色值指定主色,如果颜色为gdi的rgb格式请将参数@2指定为true
+triadicColor(.(clr,gdi)= 创建三色表,\n三色在色相环上平均分布,应当用一个做主色,处理好色彩间的平衡\n参数@1使用ARGB格式颜色值指定主色,如果颜色为gdi的rgb格式请将参数@2指定为true
+tetradicColor(.(clr,gdi)= 创建四色表,\n由两对在色相环上的互补色组成,色彩丰富,\n但要注意选定主色,处理好色彩间的平衡\n参数@1使用ARGB格式颜色值指定主色,如果颜色为gdi的rgb格式请将参数@2指定为true
+squareColor(.(clr,gdi) = 创建矩形色表,\n在色相环上平均分布,并组成两对互补色,\n色彩丰富,要注意选定主色,处理好色彩间的平衡\n参数@1使用ARGB格式颜色值指定主色,如果颜色为gdi的rgb格式请将参数@2指定为true
+lightColor(.(clr,gdi) = 创建亮度色表,\n色相不变,亮度从0%到1%的变化色表,\n参数@1使用ARGB格式颜色值指定主色,如果颜色为gdi的rgb格式请将参数@2指定为true
+end intellisense**/

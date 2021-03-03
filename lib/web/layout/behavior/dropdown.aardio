@@ -1,0 +1,15 @@
+//dropdown 下拉选框
+namespace web.layout.behavior.dropdown;
+
+onMouseUp = function (ltTarget,ltOwner,x,y,mouseParams) {
+	var elPopup = ltOwner.querySelector(".popup,popup"); // either class or element <popup>
+	if( ltTarget.isParent(elPopup) ){
+		return true;
+	}
+	 
+	if( elPopup && ltOwner && !ltOwner.state.owns_popup  ) { 
+		// you can use :popup and :owns-popup pseudo-classes in CSS now.   
+		elPopup.popupAnchor(ltOwner,2); // show it below 
+	}
+	return true;
+}

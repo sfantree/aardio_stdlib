@@ -1,0 +1,48 @@
+import win.ui;
+/*DSG{{*/
+var mainForm = win.form(text="选项卡控件演示";right=663;bottom=387)
+mainForm.add(
+tab={cls="tab";left=14;top=16;right=645;bottom=360;db=1;dl=1;dr=1;dt=1;z=1}
+)
+/*}}*/
+
+/*
+tab选项卡的子页面可以直接加载一个窗体文件，例如：
+mainForm.tab.loadForm("\res\frmTabPage1.aardio")
+
+实际开发软件的时候建议用这种方法，详细的教程请参考教程：
+http://bbs.aardio.com/forum.php?mod=viewthread&tid=13156&from=portal
+
+也可以用 mainForm.tab.add() 直接创建窗口。
+mainForm.tab.add()的参数与 win.form的参数完全相同，直接从窗体设计器生成的代码中复制过来就可以。
+
+tab子窗口并不需要与tab控件保持大小完全一致，不需要去计算坐标。
+aardio窗体设计器可以通过控件的【固定边距】【自适应大小】等属性设置控件在运行时位置保持不变、或自动调整适应窗口大小。 
+*/
+ 
+//添加一个子页面
+var frmTabPage1 = mainForm.tab.add( text="选项"; bottom=140;right=325 )
+frmTabPage1.add( 
+	button={ bottom=49;text="你好";left=36;right=135;top=21;z=1;cls="button" } 
+) 
+frmTabPage1.button.oncommand = function(id,event){
+	frmTabPage1.msgbox( frmTabPage1.button.text,"也可以使用回调函数" ); 
+} 
+
+//添加一个子页面
+var frmTabPage2 = mainForm.tab.add( text="点这里";bottom=140;right=325  )
+frmTabPage2.add( 
+button={ bottom=49;text="Hello";left=36;right=135;top=21;z=1;cls="button" }
+) 
+frmTabPage2.button.oncommand = function(id,event){
+	frmTabPage2.msgbox( frmTabPage2.button.text,"Hello!" ); 
+} 
+
+//切换选项卡时触发此事件
+mainForm.tab.onnotify = function(id,code,ptr){
+	if(code==0xFFFFFDD9/*_TCN_SELCHANGE*/) 
+		mainForm.msgbox("切换选项卡") 
+} 
+
+mainForm.show(true) 
+win.loopMessage();

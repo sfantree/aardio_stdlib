@@ -1,0 +1,123 @@
+import fsys;
+import process.popen;
+namespace fsys.cab;
+
+::Setupapi := ..raw.loadDll("Setupapi.dll") 
+SetupIterateCabinet =  ::Setupapi.api("SetupIterateCabinetW","bool(ustring cabinetFile,INT reserved,pointer msgHandler,pointer context)")
+
+class FILE_IN_CABINET_INFO {
+    ptr NameInCabinet;
+    INT FileSize;
+    INT Win32Error;
+    WORD DosDate;
+    WORD DosTime;
+    WORD DosAttribs;
+    WORD FullTargetName[0x104/*_MAX_PATH*/];
+}  
+class FILEPATHS {
+    ustring Target;
+    ustring Source;  
+    INT Win32Error;
+    INT Flags;  
+} 
+
+class CABINET_INFO {
+  ustring CabinetPath;
+  ustring CabinetFile;
+  ustring DiskName;
+  WORD SetId;
+  WORD CabinetNumber;
+} 
+ 
+var callback = ..raw.tostdcall(  
+	function(targetDir,notification,param1,param2){
+		var lRetVal = 0x0/*_NO_ERROR*/;  
+ 		select(notification) {
+ 			case 0x11/*_SPFILENOTIFY_FILEINCABINET*/{
+  				var info =  ..raw.convert( param1,FILE_IN_CABINET_INFO() ) 
+  				var filename = ..string.fromUnicode(info.NameInCabinet,,true);
+  				info.FullTargetName =  ..fsys.joinpath(targetDir,filename);
+  				..raw.mixin( param1, info );
+  				
+  				if( onFileInCabinet ){
+  					var ret = onFileInCabinet(filename,targetDir,info.FullTargetName );
+  					if( ret !== null && ret != 1/*_FILEOP_DOIT*/ )
+  						return ret; 
+  				}
+  				
+  				..fsys.createParentDir(info.FullTargetName)
+  				lRetVal = 1/*_FILEOP_DOIT*/;  // Extract the file.
+  			}
+ 			case 0x13/*_SPFILENOTIFY_FILEEXTRACTED*/{ 
+				var paths = ..raw.convert(param1,FILEPATHS() ) 
+				if( onFileExtracted ){
+  					return onFileExtracted(paths.Target,paths.Source,paths.Win32Error,paths.Flags); 
+  				} 
+  			}
+ 			case 0x12/*_SPFILENOTIFY_NEEDNEWCABINET*/{
+				if( onNeedNewCabinet ){
+					var cabInfo = ..raw.convert(param1,CABINET_INFO() ) 
+  					return onNeedNewCabinet(cabInfo.CabinetPath,cabInfo.CabinetFile,cabInfo.DiskName,cabInfo.SetId,cabInfo.CabinetNumber); 
+  				} 
+			} 
+ 		}
+ 		return lRetVal;
+
+	},"INT(string context,INT notification,pointer param1,pointer param2)"
+)
+
+
+extract = function(path,targetDir){  
+	if(! ..io.exist(path,4) )
+		error("cab文件路径错误",2)
+	
+	if(!targetDir){
+		targetDir = ..string.match(path,"(.+)\.[^.]+$")
+	}	
+	if(!targetDir)
+		error("解压目录错误",2)
+	  
+	..fsys.createDir(targetDir); 
+	if( SetupIterateCabinet(..io.fullpath(path),0,callback,..io.fullpath(targetDir)) ){
+		var ret = true;
+		..fsys.enum(  targetDir,  "*.cab", 
+			function(dir,file,fullpath,findData){ 
+				if(file){ 
+	           		if( extract(fullpath) ) {
+	           			 ..io.remove(fullpath) ;
+	           		}
+	           		else {
+	           			ret = false;
+	           			return false;
+	           		}
+	           		
+				} 
+			}  
+		)
+		return ret;
+	}
+}
+
+/**intellisense(fsys.cab)
+onFileInCabinet = @.onFileInCabinet = function(filename,targetDir,fullTargetName){
+	__
+}
+onFileExtracted = @.onFileExtracted = function(target,source,winError,flags){
+	__	
+}
+onNeedNewCabinet = @.onNeedNewCabinet =  function(path,fileName,diskName,setId,cabinetNumber){
+	__		
+}
+extract("\filename->cab","\tagetDir") = 解压cab文件,参数一指定cab文件,\n如果cab文件中包含cab文件,自动展开为子文件夹,\n参数二为可选参数,指定解压目录
+end intellisense**/
+
+/**intellisense()
+_FILEOP_COPY=@0/*_FILEOP_COPY*/
+_FILEOP_RENAME=@1/*_FILEOP_RENAME*/
+_FILEOP_DELETE=@2/*_FILEOP_DELETE*/
+_FILEOP_ABORT=@0/*_FILEOP_ABORT*/
+_FILEOP_DOIT=@1/*_FILEOP_DOIT*/
+_FILEOP_SKIP=@2/*_FILEOP_SKIP*/
+_FILEOP_RETRY=@1/*_FILEOP_RETRY*/
+_FILEOP_NEWPATH=@4/*_FILEOP_NEWPATH*/
+end intellisense**/

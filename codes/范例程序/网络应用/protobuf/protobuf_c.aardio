@@ -1,0 +1,5 @@
+import ide;
+import fsys;
+
+var path = fsys.joinpath(io._exedir,"Tools\其他编译器\Protobuf\main.aardio")
+ide.createThread( path );

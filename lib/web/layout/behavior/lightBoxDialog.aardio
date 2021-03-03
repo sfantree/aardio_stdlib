@@ -1,0 +1,76 @@
+//lightBoxDialog 高亮对话框效果
+namespace web.layout.behavior;
+
+class lightBoxDialog{
+
+	ctor( ltOwner,wbLayout ){
+		var savedParent;
+		var savedIdx;
+		var focusUid;
+	};
+	show = function( ltOwner ) {
+		if( savedParent )
+			return; // already shown
+
+		savedParent = ltOwner.parent();
+		savedIdx  = ltOwner.index();
+		var root = ltOwner.root();//root <html> element
+
+		// saving focus
+		var focus = root.querySelector(":focus");
+		if( focus )
+			focusUid = focus.uid;
+
+		var shim = ..web.layout.createEle("div");//create shim
+		shim.setAttribute("class", "shim");
+		root.append(shim);//adding shim to DOM
+
+		shim.insert(ltOwner, 1);//make dialog a child of the shim
+ 
+		ltOwner.style.display = "block";	//make it visible
+ 
+		var body = root.querySelector("body");
+		body.state.disabled = true; // disable body. 
+	}
+	hide = function( ltOwner ) {
+		if( !savedParent ) 
+			return; // already hidden
+ 
+		savedParent.insert(ltOwner,savedIdx); //move it back to original position in the DOM
+
+		var root = ltOwner.root(); //root <html> element
+		var shim = root.querySelector("div.shim"); //get shim
+		shim.detach();//detaching shim from DOM
+		
+		ltOwner.style.display = null  //clearing display set in showDialog()
+ 
+		var body = root.querySelector("body");
+		body.state.disabled = false; //enable it again
+  
+		var focus = root.getElementByUid(focusUid) 
+		savedParent = null;
+		savedIdx = null;
+	} 
+ 	onKeyDown = function (ltTarget,ltOwner, keyCode, altState, keyParams) { 
+  		select( code ) {
+    		case 0xD/*_VK_RETURN*/ {
+				var default = ltOwner.querySelector("[role='ok-button']");
+				if( default ) {
+					return default.click(); 
+				}
+            }
+    		case 0x1B/*_VK_ESCAPE*/ {
+    			var default = ltOwner.querySelector("[role='cancel-button']");
+				if( default ) {
+					return default.click(); 
+				}
+    		} 
+  		}
+  		return false; 
+	}   
+	onButtonClick = function (ltTarget,ltOwner,reason,behaviorParams) {  
+		if( ltTarget.test("[role=""ok-button""]") || ltTarget.test("[role=""cancel-button""]") )
+			this.hide(ltOwner); 
+	} 
+} 
+

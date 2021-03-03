@@ -1,0 +1,244 @@
+﻿//view 色表视图
+import color;
+import color.table;
+
+namespace color;
+class view{
+	ctor( plusCtrl ){
+		this = plusCtrl;
+		this.notify = true; 
+	};
+	loadColorTable = function(clrTable,startIndex,endIndex,rows){
+		if(!clrTable){
+			clrTable = this.colorTable : ..color.table();
+		}
+
+		this.colorStartIndex = startIndex : 1;
+		this.colorEndIndex = endIndex : #clrTable;
+		if(this.colorEndIndex>#clrTable){
+			this.colorEndIndex=#clrTable;
+		}
+		if(this.colorStartIndex>this.colorEndIndex){
+			this.colorStartIndex=this.colorEndIndex;
+		}
+		
+		if(rows===null){
+			this.colorRows = clrTable.rows : 12;
+		}
+		else {
+			this.colorRows = rows;
+		} 
+		clrTable.rows = this.colorRows;
+		var count = this.colorEndIndex-this.colorStartIndex+1; 
+		if(this.colorRows>#clrTable){
+			this.colorRows=#clrTable;
+		}
+		
+		if(this.colorEndIndex<1 || count <1){
+			this.background = 0xFFFFFFFF;
+			this.redraw();
+			
+			return; 
+		}
+		..color.table.init( clrTable );
+		
+		this.colorTable = clrTable;
+		this.drawColorTable ();
+		this.redraw();
+	};
+	drawColorTable = function(){
+		var clrs = this.colorTable;
+		var count = this.colorEndIndex-this.colorStartIndex+1; 
+		if(count<1 || this.colorEndIndex < 1){
+			this.background = 0xFFFFFFFF;
+			return;
+		}
+		
+		var rc = this.getClientRect();
+		this.colorHeight = rc.height()/this.colorRows;
+		this.colorWidth = rc.width() / ..math.ceil( ((this.colorEndIndex-this.colorStartIndex+1)/this.colorRows) );
+		
+		var bmp = ..gdip.bitmap(rc.width(),rc.height());
+		var graphics = bmp.getGraphics();
+		
+		
+		var rcf = ::RECTF(0,0,this.colorWidth,this.colorHeight);
+		
+		var brush = ..gdip.solidBrush(0);
+		var j = 1;
+		
+		for(i=this.colorStartIndex;this.colorEndIndex;1){
+			var clr = clrs[i];
+			if(!clr){ return;}
+			
+			brush.color = clr.argb;
+			graphics.fillRectangle(brush,rcf.x,rcf.y,rcf.width,rcf.height);
+			brush.color = clr.argbColor;
+			
+			rcf.y = rcf.y + this.colorHeight;
+			if(j%this.colorRows==0){
+				rcf.x = rcf.x+this.colorWidth;
+				rcf.y =0;
+			};
+			j++;
+		}
+		
+		brush.delete();	
+		this.background = bmp;
+	};
+	onDrawString = function(graphics,text,font,rectf,strformat,textBrush){
+		var clrTable = this.colorTable;
+		var count = this.colorEndIndex-this.colorStartIndex+1;
+		if(count<1 || this.colorEndIndex < 1)return;
+		
+		var rcf = ::RECTF(0,0,this.colorWidth,this.colorHeight);
+		var showText = this.colorHeight > 20 && this.colorWidth > 40;
+		
+		var j = 1;
+		for(i=this.colorStartIndex;this.colorEndIndex;1){
+			var clr = clrTable[i];
+			if(i!=owner.hoverIndex){
+				if(showText){
+					textBrush.color = clr.argbColor;
+					graphics.drawString(clr.name,font,rcf,strformat,textBrush); 	
+				}
+			}
+			else {
+				if( ::GetKeyState(0x1/*_VK_LBUTTON*/)<0){
+					var r,g,b = ..color.getRgb(clr.rgb);
+					textBrush.color = clr.argbColor;
+					graphics.fillRectangle(textBrush,rcf.x,rcf.y,rcf.width,rcf.height);
+					textBrush.color = clr.argb;
+					graphics.drawString(..color.stringify( ..color.rgb(r,g,b) ),font,rcf,strformat,textBrush); 
+				}
+				else {
+					textBrush.color = clr.argbColor;
+					graphics.drawString(clr.ename,font,rcf,strformat,textBrush); 
+				}
+			}
+			
+			rcf.y = rcf.y + this.colorHeight;
+			if(j%this.colorRows==0){
+				rcf.x = rcf.x+this.colorWidth;
+				rcf.y = 0
+			}
+			j++;
+		}
+	 	
+		return true;
+	};
+	getColorTable = function(){
+		return this.colorTable;
+	};
+	addItem = function(rgb,name){
+		var n,ename = ..string.match(name,"(.+)\((.+)\)");
+		if(n)name = n;
+		..color.table.insert(this.colorTable,{name:"颜色";ename:"color";rgb},this.colorEndIndex+1 );
+		this.colorEndIndex = this.colorEndIndex + 1;
+		this.drawColorTable ();
+		this.redraw();
+	};
+	delItem = function(index){
+		if(index<1 || index > #this.colorTable) return;
+		..table.remove(this.colorTable,index);
+		if(index <= this.colorEndIndex ) this.colorEndIndex = this.colorEndIndex-1;
+		if(index < this.colorStartIndex ) this.colorStartIndex = this.colorStartIndex-1;
+		this.drawColorTable ();
+		this.redraw();
+		return true;
+	};
+	getItemRect = function(index,screen){
+		if(index<this.colorStartIndex || index > this.colorEndIndex)return;
+		var col = ..math.floor( index / this.colorRows );
+		var rows = (index - col * this.colorRows)
+		if(!rows){
+			rows = 	this.colorRows;
+			col = col-1;
+		}
+		
+		var rc = this.getClientRect();
+		rc.left = rc.left + (this.colorWidth * col);
+		rc.top = rc.top + ( (rows -1) * this.colorHeight )
+		rc.bottom = rc.top + this.colorHeight;
+		rc.right = rc.left + this.colorWidth;
+		if(screen) ..win.toScreenRect(owner.hwnd,rc)
+		return rc;
+	};
+	onMouseMove = function(wParam,lParam){
+		var x,y = ..win.getMessagePos(lParam);
+		var row = ..math.ceil(y / this.colorHeight);
+		var col = ..math.ceil(x / this.colorWidth);
+		if(row>this.colorRows){
+			owner.hoverIndex = 0;
+			owner.redraw();
+			if( this.onItemLeave ) this.onItemLeave();
+			return;
+		}
+		
+		var i = (this.colorStartIndex-1) + (col-1) *this.colorRows + row;
+		if(owner.hoverIndex != i){
+			owner.hoverIndex = i;
+			owner.redraw();
+			
+			if( this.onItemHover ){
+				var clr = this.colorTable[owner.hoverIndex];
+				if(clr) this.onItemHover(owner.hoverIndex,clr.rgb,clr.argb,clr.name,clr.ename);
+				else {
+					if( this.onItemLeave ) this.onItemLeave();
+				}
+				
+			}
+		}
+	};
+	onMouseLeave = function(wParam,lParam){
+		if( this.onItemLeave ) this.onItemLeave();
+		owner.hoverIndex = null;
+		owner.redraw();
+	};
+	onMouseDown = function(wParam,lParam){
+		this.redraw();
+	};
+	onMouseClick = function(wParam,lParam){
+		this.redraw();
+		if( this.onItemClick ){
+			var clr = this.colorTable[owner.hoverIndex];
+			if(clr) this.onItemClick(owner.hoverIndex,clr.rgb,clr.argb,clr.name,clr.ename);
+		}
+	};
+	onMouseDoubuleClick = function(wParam,lParam){
+   		if( this.onItemDoubuleClick ){
+			var clr = this.colorTable[owner.hoverIndex];
+			if(clr) this.onItemDoubuleClick(owner.hoverIndex,clr.rgb,clr.argb,clr.name,clr.ename);
+		}
+	}
+	adjust = function( cx,cy,wParam ) {
+		this.drawColorTable();
+	};
+}
+
+/**intellisense()
+color.view = 用于显示color.table色表的视图控件
+color.view(.(plusCtrl) = 创建色表视图,\n参数必须指定一个plus控件
+color.view() = !stdcolorview.
+end intellisense**/
+
+/**intellisense(!stdcolorview)
+getColorTable() = 返回色表数据
+getItemRect(__) = 返回指定项所在区块的::RECT结构体,\n参数@1使用数值指定索引,如果索引超出范围返回null,\n可选指定参数@2为true返回屏幕坐标\n!rect.
+addItem(.(rgb,name) = 添加色卡,rgb为RGB格式颜色数值,name为颜色名,\n名称中的英文名或副名称应放在括号内
+delItem(.(index) = 删除色卡,参数指定索引
+loadColorTable( = 加载色表
+loadColorTable(.(clrTable,startIndex,endIndex,rows) = 所有参数可选,\n参数@1指定色表,不指定则自动创建默认色表,\nstartIndex,endIndex指定当前页开始、结束索引,\nrows指定色卡行数,默认为12
+onItemHover() = @.onItemHover = function(index,rgb,argb,name,ename){
+	__/*鼠标移动到色卡上触发此事件\nindex为色卡索引,rgb为GDI颜色值,argb为GDI+颜色值,\nname为颜色中文名字,ename为英文名字*/
+}
+onItemClick() = @.onItemClick = function(index,rgb,argb,name,ename){
+	__/*鼠标点击色卡触发此事件\nindex为为色卡索引,rgb为GDI颜色值,argb为GDI+颜色值,\nname为颜色中文名字,ename为英文名字*/	
+}
+onItemDoubuleClick() = @.onItemDoubuleClick = function(index,rgb,argb,name,ename){
+	__/*鼠标双击击色卡触发此事件\nindex为色卡索引,rgb为GDI颜色值,argb为GDI+颜色值,\nname为颜色中文名字,ename为英文名字*/	
+}
+onItemLeave = @.onItemLeave = function(){
+	__/*鼠标离开色卡且未移动到其他色卡时触发此事件*/	
+}
+end intellisense**/

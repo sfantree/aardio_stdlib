@@ -1,0 +1,26 @@
+//进制转换
+//用格式化函数可以实现数字的进制转换
+
+io.open()
+
+//数字转换为二进制字符串
+str = string.format("%b",23 );
+io.print(str)
+
+//二进制字符串转换为数字
+n = tonumber(str,2)
+
+//数字转换为八进制字符串
+str = string.format("%o",23 );
+io.print(str)
+
+//八进制字符串转换为数字
+n = tonumber(str,8)
+
+//数字转换为十六进制字符串
+str = string.format("%x",23 );
+io.print(str)
+
+//十六进制字符串转换为数字
+n = tonumber(str,16)
+execute("pause")

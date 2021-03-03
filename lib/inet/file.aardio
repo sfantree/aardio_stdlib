@@ -1,0 +1,62 @@
+//file 网络文件流
+//仅供 inet.http,inet.ftp 调用
+ 
+namespace inet.file;
+
+InternetReadFile = ::Wininet.api("InternetReadFile"
+,"bool(POINTER hFile, string &lpBuffer, INT bytes, INT &bytesRead)"); 
+
+InternetWriteFile = ::Wininet.api("InternetWriteFile"
+	,"bool(POINTER hFile, string lpBuffer, INT len, INT &bytesWritten)") 
+InternetReadFileByBuffer = ::Wininet.api("InternetReadFile"
+,"bool(POINTER hFile,POINTER lpBuffer, INT bytes, INT &bytesRead)");  
+		
+write = function( hFile, str,...){
+	var ok,len = InternetWriteFile(hFile,str,#str,0);
+	if(!ok)return;
+	if(!...)return len;
+	var len2 = write( hFile,... );
+	if(len2) return len + len2;
+};
+
+read = function( hFile, bufferSize = 10240 ){ 
+	var ok,str,size = InternetReadFile(hFile,bufferSize ,bufferSize,0);
+	if(!ok){
+		return null,..lasterr(,"InternetReadFile") 
+    }
+    
+	if ( size ) 
+		return ..string.left(str,size),size; 
+};  
+ 
+writeBuffer = function( hFile,buffer,l ){
+	var m = #buffer;
+	if( l=== null ) l = m;
+	elseif( l > m ) l = m;
+	elseif( l < 0 ) return 0;
+		
+	var ok,len = InternetWriteFile(hFile,buffer,l,0);
+	if(ok) return len; 
+};
+
+readBuffer = function( hFile, buffer,l ){
+	var m = 0;
+	if(type.isString(buffer)) m = #buffer;
+	elseif type(buffer) !== type.pointer{
+		error("参数@1必须指定buffer对象!",2)
+	}
+	else {
+		m = l;
+	}
+		
+	if( l=== null ) l = m;
+	elseif( l > m ) l = m;
+	
+	if( l <= 0 ) return 0;
+	var ok,size = InternetReadFileByBuffer(hFile,buffer ,l,0);  
+	if(!ok){
+		return null,..lasterr(,"InternetReadFile") 
+    }
+    
+	if ( size ) return size; 
+};  

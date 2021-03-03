@@ -1,0 +1,25 @@
+
+import console;
+import fsys.dlg.dir;
+import fsys.tar;
+
+var fullpath = fsys.dlg.dir(,,'请选择要打包的目录')
+if(!fullpath) return;
+
+//tar打包
+var tarPath = fsys.path.removeBackslash(fullpath) + ".tar"
+var tarFile = fsys.tar(tarPath);
+tarFile.onWriteFile = function( filename ){
+	console.log("已打包",filename)
+}
+tarFile.pack(fullpath);
+tarFile.close();
+
+//压缩为 tar.lzma 格式
+import sevenZip.lzma;
+console.log("正在压缩为lzma文件")
+sevenZip.lzma.encodeFile(tarPath,tarPath + ".lzma"); 
+console.log("打包完成")
+console.pause();
+
+import fsys.dlg.dir;

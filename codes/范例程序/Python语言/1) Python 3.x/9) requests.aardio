@@ -1,0 +1,12 @@
+//9)requests
+
+import console;
+ 
+import py;  
+var requests = py.import("requests");
+var ses = requests.Session();
+
+var res = ses.get("http://www.aardio.com");
+ 
+console.log( res );
+console.pause()

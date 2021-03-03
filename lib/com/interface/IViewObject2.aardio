@@ -1,0 +1,38 @@
+ 
+import com.interface;
+namespace  com.interface;
+
+class IViewObject2{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer Draw = "int(INT dwDrawAspect,int lindex,pointer pvAspect,struct ptd, pointer hdcTargetDev,pointer hdcDraw
+              ,struct lprcBounds,struct lprcWBounds,pointer pfnContinue,INT dwContinue)"; 
+    pointer GetColorSet = "int(INT dwDrawAspect,int lindex,pointer pvAspect,struct ptd,pointer hicTargetDev,pointer &ppColorSet)"; 
+    pointer Freeze = "int(INT dwDrawAspect,int lindex,pointer pvAspect,INT &pdwFreeze)"; 
+    pointer Unfreeze = "int(INT dwFreeze)"; 
+    pointer SetAdvise = "int(INT aspects, INT advf,pointer pAdvSink)"; 
+    pointer GetAdvise = "int(INT &pAspects,INT &pAdvf,pointer &ppAdvSink)"; 
+    pointer GetExtent = "int(INT dwDrawAspect,int lindex,struct ptd,struct &lpsizel)"; 
+}
+IViewObject2.IID = "{00000127-0000-0000-C000-000000000046}";
+
+IViewObject2.Query = function(obj){
+		return ..com.interface(obj,IViewObject2)
+} 
+
+IViewObject2.DVTARGETDEVICE = class {
+	INT tdSize;
+	WORD tdDriverNameOffset;
+	WORD tdDeviceNameOffset;
+	WORD tdPortNameOffset;
+	WORD tdExtDevmodeOffset;
+	BYTE tdData[ 1 ];
+}
+    
+ /**intellisense()
+_DVASPECT_CONTENT=@0x1/*_DVASPECT_CONTENT*/
+_DVASPECT_THUMBNAIL=@0x2/*_DVASPECT_THUMBNAIL*/
+_DVASPECT_ICON=@0x4/*_DVASPECT_ICON*/
+_DVASPECT_DOCPRINT=@0x8/*_DVASPECT_DOCPRINT*/
+end intellisense**/

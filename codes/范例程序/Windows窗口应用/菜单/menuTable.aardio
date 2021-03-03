@@ -1,0 +1,92 @@
+//窗口菜单
+import win.ui;
+import win.ui.menu;
+/*DSG{{*/
+var winform = win.form(text="菜单用法演示";right=349;bottom=249)
+winform.add()
+/*}}*/
+
+//------------------------------------
+var menuFile = win.ui.popmenu(winform);//创建弹出菜单
+menuFile.add(
+	"打开",
+	function(id){
+			winform.msgbox("打开文件")
+	} 
+) 
+
+//------------------------------------
+var menuHelp = win.ui.popmenu(winform);//创建弹出菜单
+menuHelp.add(
+	"关于",
+	function(id){
+			winform.msgbox("关于")
+	} 
+)
+menuHelp.add(); //添加分隔线
+
+menuHelp.addTable( {
+	{ "帮助";
+		function(id){
+			winform.msgbox("帮助")
+		} 
+	};
+	{ /*---分隔线---*/ };
+	{ "退出";
+		function(id){
+			winform.close()
+		} 
+	};
+} )
+
+var menuRadio = win.ui.popmenu(winform);//创建弹出菜单
+menuRadio.onMenuItemClick = function(id){
+	menuRadio.selId = id;
+	winform.msgbox( menuRadio.selText )
+}
+
+menuRadio.add("a" ) 
+menuRadio.add("b" ) 
+menuRadio.add("c" ) 
+
+var menu = win.ui.menu(winform);//创建主菜单
+menu.add('文件',menuFile) 
+menu.add('帮助',menuHelp) 
+menu.add('选择其中一个',menuRadio)
+
+//主菜单构建完成后要用下面这句更新,menu.addTable()会自动调用redraw()
+//menu.redraw(); 
+
+menu.addTable( {
+    { "测试菜单"; 
+    		{ 
+    			{   "子菜单";
+    				function(id){
+            			winform.msgbox("测试菜单->子菜单")
+        			} 
+        		};
+        		{   "子菜单2";
+    				function(id){
+            			winform.msgbox("测试菜单->子菜单2")
+        			} 
+        		}   
+    		} 
+    }; 
+    { "测试菜单2"; 
+    		{ 
+    			{   "子菜单";
+    				function(id){
+            			winform.msgbox("测试菜单2->子菜单")
+        			} 
+        		};
+        		{   "子菜单2";
+    				function(id){
+            			winform.msgbox("测试菜单2->子菜单2")
+        			} 
+        		}   
+    		} 
+    }; 
+} )
+
+winform.show() 
+win.loopMessage();

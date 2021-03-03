@@ -1,0 +1,449 @@
+﻿//json 编解码
+
+namespace web.json
+var push = ..table.push;
+var indexAny = ..string.indexAny;
+var find = ..string.find;
+var slice = ..string.slice;
+var match = ..string.match;
+var replace = ..string.replace;
+var concat = ..string.concat;
+var join = ..string.join;
+var format = ..string.format;
+var repeat = ..string.repeat;
+var fromUnicode = ..string.fromUnicode;
+var toUnicode = ..string.toUnicode;
+
+var scanComment = function(str,pos){ 
+	var endPos = find(str,"*/",pos+2);
+	assert(endPos != null,"注释格式错误 "+slice(str,pos,pos+10));
+	return endPos+2;
+}
+
+var scanCommentLine = function(str,pos){ 
+	var endPos = find(str,'\n',pos+2);
+	if(endPos)return endPos+1;
+	return #str;
+}
+
+var scanSpace = function(s,pos){
+	if(!#s)return;
+	var sp = '\t \n\r';
+ 
+ 	var c;
+	while(pos<=#s){
+		c = s[pos];
+	    if( not indexAny(  sp ,c)  ){
+  		   if(c == '/'#  ){
+	    		if(s[pos+1] == '*'#) {
+	    			pos = scanComment(s,pos);
+	    			continue ;
+	    		}
+	    		elseif (s[pos+1] == '/'#){
+	    			pos = scanCommentLine(s,pos);
+	    			continue ;
+	    		}
+		   }  
+		   elseif(c == '#'#  ){
+	    		pos = scanCommentLine(s,pos);
+	    		continue ;
+		   }  
+	       break;
+	    }
+	    pos ++;
+	}
+
+	return pos;
+}
+
+
+var scanObject = function(str,unescape,pos){ 
+	var object = { @{ _defined = {};_type="object";_readonly = false } };
+	var len = #str;
+	var key,value; 
+	pos++;
+	
+	do{
+		pos = scanSpace(str,pos);
+			
+		if( str[pos] == ','# || str[pos] == ';'# )
+			pos = scanSpace(str,pos+1);
+	
+	 	if( str[pos] == '}'# ){
+			return object,pos+1;
+		}
+		
+	    if(pos > len )error("json格式错误 - 溢出",2)
+	 
+		key,pos = scanAny(str,unescape,pos,true);
+		if(pos>len || (key===null) )
+			error("json格式错误 - 读取key时溢出" ,2)
+	    	
+	    pos = scanSpace(str,pos);	    
+	    if( str[pos] != ':'# && str[pos] != '='#)
+	    	error("json格式错误 - 预期':',靠近:" + slice(str,pos,pos+10),2)
+	
+	    pos = scanSpace(str,pos+1);	 
+	    value,pos = scanAny(str,unescape,pos);
+	    object[key] = value;  
+	    push( object@._defined,key );
+	}while(true)
+}
+
+var ind=0;
+var scanArray = function(str,unescape,pos){ 
+	var array = { @{_type="array"} }; 
+	var strLen = #str; 	
+	pos ++; 
+	
+	var length = 0;
+	while(pos <= strLen ){
+		pos = scanSpace(str,pos); 
+		if( str[pos] == ','# || str[pos] == ';'# ){
+			pos = scanSpace(str,pos+1);
+	    } 
+	    if( str[pos] == ']'# ){ 
+	    	array@.length = length;
+			return array,pos+1;
+		} 
+	    
+	    object,pos = scanAny(str,unescape,pos);
+	    length++; 
+	    array[length] = object;
+	}
+	error("json格式错误 - 溢出",2)
+}
+
+var scanString = function(str,unescape,pos=1){
+	if(str[pos+1]== '"'#) return "",pos+2;
+	
+	var e=pos+1;   
+	var chr;
+	var escaped;
+	for(i=pos+1;#str;1){ 
+		chr = str[i] 
+		if(chr=='\\'#){ 
+			if(str[i+1]<0x80){ i++;escaped=true; };
+		}
+		elseif(chr == '"'#){
+			break;
+		}
+		
+		e = i;
+	}
+	
+	var s = slice(str,pos+1,e);
+	if( escaped ? unescape ){
+		s = ..string.unescape(s);
+	} 
+	
+	return s,e+2;
+}
+
+var scanRawString = function(str,pos=1){ 
+	if(str[pos+1]== '\''#) return "",pos+2;
+	
+	var e=pos+1;    
+	var ret = "";
+ 
+	for(i=pos+1;#str;1){  
+		if(str[i] == '\''#){ 
+			if( str[i+1]== '\''# ){
+				ret = ret + slice(str,pos+1,i);
+				i++;
+				continue;
+			}
+			
+			ret = ret + slice(str,pos+1,i-1); 
+			e = i;
+			break;
+		}
+		
+		
+	} 
+	
+	return ret,e+1;
+}
+
+var consts = {
+	["true"] = true;
+	["false"] = false; 
+	["null"] = null;
+	["~"] = null;
+	["undefined"] = null;
+	["Infinity"] = 1/0;
+	["+Infinity"] = 1/0;
+	["-Infinity"] = -1/0;
+	["NaN"] = 0/0;
+};  
+
+var scanConstant = function(str,pos,isKey){ 
+	if(str[pos]==','#)
+		return null,pos;
+	  	
+	var n,l = tonumber( str,,pos );
+    if(n!==null){
+        if(l>=#str || match(str,"^[\s\,\;\}\]]",pos+l) ){
+        	if( (l>14) && (n>99999999999999) && (..math.floor(n) === n) ) {
+        		n = ..math.size64( slice(str,pos,pos + l) );
+        	}
+        	
+     		return n,pos+l;        	
+        } 
+	}
+	
+    var token = match(str,"^[+-]?[\~_$\a][\w\-\_]*",pos); 
+    if( token ){ 
+    	if( isKey ) return token,pos+#token;
+    
+    	var const = consts[token];  
+    	if( const!==null || (token=="null" || token=="undefined"|| token=="~" )){ 
+    		return const,pos+#token;
+    	} 
+   }  
+    
+    var i,j = find(str,"[^\r\n,\}\]]+",pos);
+    if(j) {
+        var ret = slice(str,i,j);
+        if(match(ret,"^\s*\d+\-\d+-\d+\s*$") || match(ret,"^\s*\d+\-\d+-\d+T\d+\:\d+\:\d+$")){
+        	ret = ..time.iso8601(ret) : ret;
+        }
+        
+    	return ret,j+1;
+    }
+     
+	error("json格式错误 - 常量"+slice(str,pos),3)
+}
+
+
+var encode = function(v,prettyPrint,unicodeEscaped,objreferences){
+    select(type(v)) {
+    	case "string"{
+    		v = ..string.escape(v,true,unicodeEscaped);
+    	    return v ?  ('"'+ v + '"') : "null";
+    	}
+    	case "number"{ 
+    		return  tostring(v);
+    	}
+    	case "table" {
+    		if( ( v[["year"]]!==null)  &&  ..time.istime(v) ) return tostring(v.utc(true),`"%Y-%m-%dT%H:%M:%SZ"`);
+    		 
+    		if(!objreferences) objreferences = {};
+    		if(objreferences[v]) return "{}";
+    		objreferences[v] = true;
+        	var ret,err = stringify(v,prettyPrint,unicodeEscaped,objreferences);
+        	objreferences[v] = null;
+        	return ret;
+    	}
+    	case "boolean"{ 
+    		return  tostring(v);
+    	}
+    	case "null"{ 
+    		return  tostring(v);
+    	} 
+    	case "buffer"{ 
+    		var data ={};
+    		for(i=1;#v;1){ data[i] = v[i]; }
+    		return concat(`{"data":[`, join( data, "," ), `],"type":"Buffer"}`);
+    	}
+    	else{
+    		if( ..math.isSize64(v) ) return tostring(v);
+        	return '"'+ ..string.escape(tostring(v),true,unicodeEscaped) + '"';
+    	} 
+    
+    }
+}
+
+var levels = 0;
+var indent = '\32\32\32\32';
+stringify = function(tab,prettyPrint,unicodeEscaped,objreferences) {
+	if( unicodeEscaped === null ) unicodeEscaped = !prettyPrint; 
+	if( tab@[["_json"]] ) tab = invoke(tab@[["_json"]],tab);
+	if( type(tab) != "table" ) return ( encode(tab) ) ;
+	
+	var LFCR = "";
+	var curIndent;
+	if(prettyPrint){
+		levels++;
+		LFCR = '\r\n';
+		curIndent = repeat(levels,indent);
+	}
+ 
+	if( ..table.type(tab) == "array" ){ 
+		
+		var array = {}
+		var len = ..table.len(tab);
+		var startIndex = tab@[["_startIndex"]];
+		if( startIndex === null ) startIndex = 1;
+		len = len + startIndex - 1; //table.eachIndex展开
+		
+		for(i=startIndex;len ){ 
+			var s = ( prettyPrint ? concat( curIndent, encode( tab[i],prettyPrint,unicodeEscaped,objreferences ) ) : encode( tab[i],prettyPrint,unicodeEscaped,objreferences ) );
+   			push( array, s );
+		} 
+		
+		if(prettyPrint){
+			levels--;
+			curIndent = repeat(levels,indent);
+		}
+   		return concat("[", LFCR, join( array, ","+LFCR ), LFCR, curIndent, "]");
+	}
+	
+	var map = {}
+	for k,v in ..table.eachName(tab){ 
+   		push( map
+   			, concat( curIndent, encode( k,prettyPrint,unicodeEscaped,objreferences  ), ":", encode( v,prettyPrint,unicodeEscaped,objreferences  ) )
+   			); 
+	}
+	
+	if(prettyPrint){
+		levels--;
+		curIndent = repeat(levels,indent);
+	}
+	return  concat("{", LFCR, join( map, ","+LFCR ), LFCR, curIndent, "}" );
+}
+
+stringifyArray = function(tab,prettyPrint,unicodeEscaped,removeNull) { 
+	if( type(tab) == "table" ) {
+		if(!tab@){tab@={ _type = "array" }}
+		elseif(tab@._type===null) tab@._type= "array";
+		
+		if(removeNull) {..table.removeByValue(tab,null);}
+		return stringify(tab,prettyPrint,unicodeEscaped);
+	}
+}
+
+scanAny = function(s,unescape,idx,isKey){
+	var pos = scanSpace(s,idx); 
+
+    select(s[pos]) {
+    	case '{'#
+       		return scanObject(s,unescape,pos);
+    	case '['#
+    		return scanArray(s,unescape,pos); 
+    	case '\"'#
+    		return scanString(s,unescape,pos);
+    	case '\''# 
+    		return scanRawString(s,pos);
+    }
+    
+    if( idx == 1 ){
+    	var s = ..string.match(s,"^\s*[\w\.]*\s*\((.+)\)[\s\;]*$"); //JSONP,Js expression
+    	if( s ) return scanAny(s,unescape,idx)
+    }
+
+	return scanConstant(s,pos,isKey);
+}
+
+/*
+JSON默认编码为UTF-8,与aardio一致。
+如果JSON使用了非UTF-8编码的文本,应在inputCodepage参数中指明,
+如果检测到声明编码的BOM，或者检测到Unicode特征则忽略参数将inputCodepage设为实际代码页
+*/
+tryParse = function(s,unescape=true,inputCodepage){ 
+	if( type(s) != "string" ){
+		if(type(s) != "buffer") return null ,"参数不是字符串";
+	}	
+	
+	if( !#s ) return; 
+	if( s[1] == 0xEF  && s[2] == 0xBB && s[3] == 0xBF ){
+		s = ..string.right(s,-4);
+	}
+	elseif( #s%2 == 0 ){
+		if ( s[1] == 0xFF  && s[2] == 0xFE ){
+			s = ..string.fromUnicode( ..string.right(s,-3),65001 );
+		}
+		elseif ( s[1] == 0xFF  && s[2] == 0xFE ){
+			s = ..string.fromto( ..string.right(s,-3),1201,65001 );
+		}
+		elseif( s[2] == 0 && s[4] == 0 ) {
+			s = ..string.fromUnicode(s,65001);
+		}
+		elseif( s[1] == 0 && s[3] == 0 ) {
+			s = ..string.fromto( s,1201,65001 );
+		}
+		elseif(inputCodepage){
+			s = ..string.fromto( s,inputCodepage,65001 );
+		}
+	}
+	elseif( (inputCodepage!==null) && (inputCodepage != 65001 )){
+		s = ..string.fromto( s,inputCodepage,65001 );
+	}
+	
+	var ok,data,pos = call(scanAny,self,s,unescape,1);
+	if(!ok) return null,data; 
+	return data;
+}
+
+parse = function(...){
+	var data,err = tryParse(...)
+	if( ( data === null ) && err ) error(err,2);
+	return data;
+}
+
+strip = function(v){
+	v = stringify(v);
+	if(v) return parse(v);
+}
+
+/***
+aardio-json 扩展标准( 发布日期：2020-12-27，首个支持此标准的aardio版本为：v29.11 )：
+-------------------------------------------
+JSON字符串化时完全符合JSON官方标准。
+JSON解析时完全支持JSON，JSONP，并使用宽松的原则兼容JSON5，部分类YAML语法。
+
+aardio 扩展的JSON解析规则：
+
+一、字符串
+字符串置于双引号中时支持JSON转义符。
+字符串置于单引号中时不支持JSON转义符，单引号中可使用2个单引号表示原始单引号。
+字符串可以在引号内部时可以换行。
+
+字符串可省略首尾引号，此时不支持JSON转义符，遇到回车或换行、逗号、中括号、大括号时字符串结束解析。
+对象键名如果省略引号时必须以字母或下划线、~、_等作为首字符，并只能包含字母、数字、下划线、短横线。
+
+要特别注意原生的 aardio 字符串解析语法正好跟上面相反：
+单引号中是转义字符串，而双引号内是非转义字符串。
+
+二、null值
+可以使用null,undefined,~ 表示null值。
+
+三、注释
+1、支持 // 或 # 引导的单行注释
+2、支持包含于 /*......*/ 内的多行注释（注意这里按js规则不匹配星号数目）。
+支持 js/aardio 语法中的单行注释（），多行注释（/*......*/ ），
+
+四、分隔符
+元素分隔符可使用分号或逗号,如果分隔符前未使用省略引号的字符串也可以省略分隔符。
+在省略引号的字符串后面只能使用逗号作为分隔符并不可省略。
+
+五、键值分隔符
+键值分隔符可使用冒号,也可以使用等号
+键名可省略引号，省略引号时必须以字母或下划线、~、_等作为首字符，并只能包含字母、数字、下划线、短横线。
+
+六、数值
+数值支持16进制
+
+七、日期时间
+可使用ISO 8601格式表示日期时间，合法的格式如下：
+2021-01-1
+2021-02-1T15:02:31+08:00
+数字前可不用补0，但日期分隔符必须使用短横线，时间分隔符必须使用冒号
+
+七、解析
+单个字符串、数值都可以解析并返回值。
+解析时兼容JSONP格式。
+解析成功的JSON后面如果还有多余的文本时忽略。
+其他错误语法的JSON抛出异常，使用 web.json.tryParse() 函数解析可避免遇到错误语法时抛出异常。
+***/ 
+
+/**intellisense()
+web.json.stringify( = 转换为参数@1为json文本\n\n表对象可在元表_defined字段中预定义可能为null值的键,\n也可以在_json元方法中返回一个自定义的对象用于转换为json,\n\n时间对象与JS语言相同转换为ISO8601格式字符串,\nbuffer类与node.js中的Buffer类相同,转换结果示例：\n{"data":[230,181,139],"type":"Buffer"}\n其中type指明类型,data为buffer字节数组的值,\nbuffer,time对象与js一样只负责字符串化,不负责解析JSON时自动还原,\n应使用 time.iso8601函数解析iso8601格式的时间,\n在raw.buffer的参数中使用结构体还原字节数组
+web.json.stringify(.(对象,是否格式化,是否使用UNICODE编码) =  参数@2,@3可选,默认不格式化,启用UNICODE编码\n如果指定格式化,参数@3则默认为false\n\n注意即使选择了不启用UNICODE编码，单引号，\n以及一些可能无法直接显示的Unicode字符仍然会进行转义
+web.json.stringifyArray(.(表,是否格式化,是否使用UNICODE编码,是否清除null值) = 如果参数@1未声明数组类型，则添加类型声明,\n空数组会返回[]而不是{},其他参数与web.json.stringify相同
+web.json.parse( = 使用宽松的JSON语法解析并返回表对象,\n支持自动检测输入字符串的Unicode BOM,\n除完全支持JSON标准之外，并可兼容 jsonp，json5，支持 aardio-json 扩展标准。
+web.json.tryParse(.(输入文本,是否解析转义符,输入代码页) = 解析JSON并返回aardio对象\n作用与参数用法与parse函数一样,\n请参考该函数说明\n\n唯一的区别是：\nparse函数遇到JSON语法错误时抛出异常\n而tryParse遇到错误时返回 null,错误信息
+web.json.strip(__) = 将一个对象转换为JSON,再转换回来,\n用于将对象转换为纯粹的JS兼容的对象
+end intellisense**/
+
+//感谢 namwonsta 贡献最初的源码

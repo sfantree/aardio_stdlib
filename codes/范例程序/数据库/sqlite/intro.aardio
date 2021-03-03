@@ -1,0 +1,51 @@
+//入门
+import win.ui;
+/*DSG{{*/
+mainForm = win.form(text="sqlite 入门";right=425;bottom=498)
+mainForm.add(
+button={cls="button";text="查询";left=297;top=7;right=396;bottom=42;z=2};
+editResult={cls="edit";left=12;top=61;right=400;bottom=491;edge=1;multiline=1;z=3};
+editUser={cls="edit";text="小王";left=14;top=11;right=282;bottom=40;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+import sqlite
+var conn = sqlite("/intro2.db")//打开数据库连接
+
+//创建数据表
+if( not conn.existsTable("工作日志表") ) {  
+    conn.exec( "CREATE TABLE 工作日志表( 姓名,工作地点,时间);" );
+}  
+ 
+//预处理命名参数
+var cmd = conn.prepare("INSERT INTO [工作日志表] VALUES ( @姓名,@工作地点,@时间 );")
+
+//插入测试数据
+cmd.step(
+    姓名 = "小张";
+    工作地点 = "北京";
+    时间 = time.now();
+); 
+
+//插入测试数据
+cmd.step(
+    姓名 = "小王";
+    工作地点 = "上海";
+    时间 = time.now();
+);
+
+mainForm.button.oncommand = function(id,event){
+    
+    var result  = conn.stepQuery("SELECT * FROM [工作日志表]",{
+        姓名 = mainForm.editUser.text;
+    } )
+
+    if(result){
+        mainForm.editResult.print( result.姓名 );
+        mainForm.editResult.print( result.工作地点 );
+        mainForm.editResult.print( result.时间 );
+    }
+}
+
+mainForm.show();
+win.loopMessage();

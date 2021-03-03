@@ -1,0 +1,54 @@
+//debug 调试信息
+import console;
+import web.layout;
+namespace web.layout;
+
+var dll = _dll;
+namespace debug; 
+
+HTMLayoutSetupDebugOutput = dll.api("HTMLayoutSetupDebugOutput","void(pointer param,pointer pfOutput");  
+_output_debug = ..thread.tostdcall(  
+  	function(param,wchar){ 
+  		if( wchar == '\f'# ) return; 
+  		
+  		import console;
+  		console.open(); 
+  		io.stdout.write( string.fromUnicode( 
+  			string.pack(wchar & 0xFF,wchar >> 8 & 0xFF) 
+  		) );
+  	},"void(pointer parma,INT ch)"
+);
+
+//跨线程回调函数可能被其他线程调用,应当在线程结束前注销
+HTMLayoutSetupDebugOutput(  ,_output_debug);
+..table.gc(self,function(){
+	HTMLayoutSetupDebugOutput();	
+} )
+
+//为CSSS!添加全局函数 debug;
+debug = function(...){
+	..console.open();
+		
+	var args = {...}
+	for(i=1;#args;1){
+		if( type(args[i]) != type.table ){
+			write(args[i]," ");
+		}
+		else {
+			write("节点对象:",args[i].outerHTML," ");
+		} 
+	}
+	write('\r\n');
+	return true;
+}
+_event_subsriptions = 0x200/*_HL_HANDLE_METHOD_CALL*/ | 0x80000000/*_HL_DISABLE_INITIALIZATION*/;
+
+var stderr = ..io.stderr;
+write = function(...){
+	..console.open(); 
+	stderr.write(...);
+} 
+
+/**intellisense()
+web.layout.debug = 导入此库即启用debug模式,\n支持在控件台输出HTMLayout内部错误信息.\n\n调用 wbLayout.attachEventHandler( web.layout.debug )\n可为CSS脚本添加全局函数 debug()
+end intellisense**/

@@ -1,0 +1,56 @@
+import win.ole;
+import com.interface.IPersist; 
+namespace com.interface;
+
+class IPersistStreamInit{
+	ctor(  ){
+		this = ..com.interface.IPersist(); 
+	}; 
+	pointer IsDirty = "int()";
+	pointer Load = "int(pointer pStm)";
+	pointer Save = "int(pointer pStm,bool clearDirty)";
+	pointer GetSizeMax = "int(LONG &pCbSize)";
+	pointer InitNew = "int()"; 
+	
+	fromString = function(str){ 
+		var lpMem = ::GlobalAlloc( 0x40/*_GPTR*/, #str+1 );
+		::CopyMemory(lpMem,str,#str); 
+    	var re,pIStream = ::CreateStreamOnHGlobal(lpMem, 1 )
+    	
+		if(re){
+			::GlobalFree(lpMem);   
+			return;  
+		}
+		
+		owner.InitNew();
+		var ret = owner.Load(pIStream); 
+		
+		..com.Release(pIStream)  
+		return  (ret)>=0/*_SUCCEEDED*/; 
+	} 
+	toString = function(clearDirty){ 
+		var hr,pSteam = ::CreateStreamOnHGlobal( , true );  
+		owner.Save(pSteam, clearDirty);  
+		var hr,handle = ::GetHGlobalFromStream(pSteam);    
+		var size = ::GlobalSize(handle);
+		var ptr = ::GlobalLock(handle); 
+		var str =  ..raw.tostring(ptr,1,size);
+		..com.Release(pSteam);
+		return str;
+	}
+}
+IPersistStreamInit.IID = "{7FD52380-4E07-101B-AE2D-08002B2EC713}";
+IPersistStreamInit.Query = function(obj){
+	 return ..com.interface(obj,IPersistStreamInit);
+}
+
+/**intellisense()
+com.interface.IPersistStreamInit.Query() = !IPersistStreamInit.
+!IPersistStreamInit.GetSizeMax(0) = 返回HRESULT,长度
+!IPersistStreamInit.fromString(.(字符串) = 加载字符串,成功返回true
+!IPersistStreamInit.toString() = 返回字符串对象
+!IPersistStreamInit.Load(.(pStm) = Load
+!IPersistStreamInit.Save(.(pStm,fClearDirty) = .Save
+!IPersistStreamInit.InitNew() = InitNew
+!IPersistStreamInit.IsDirty() = IsDirty
+end intellisense**/

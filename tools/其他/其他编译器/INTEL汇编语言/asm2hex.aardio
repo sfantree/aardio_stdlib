@@ -1,0 +1,207 @@
+//汇编转aardio函数
+import win.ui;
+import process
+import fsys;
+	
+/*DSG{{*/
+var winform = win.form(text="汇编转aardio函数( 使用 raw.fasm 汇编支持库 )";right=474;bottom=492;parent=...)
+winform.add(
+btnDown={cls="button";text="下载头文件";left=317;top=465;right=397;bottom=490;db=1;dr=1;z=8};
+btnEdit={cls="button";text="转换并在aardio中打开";left=337;top=4;right=465;bottom=29;dr=1;dt=1;z=4};
+btnGen={cls="button";text="生成文件";left=401;top=465;right=466;bottom=490;db=1;dr=1;z=7};
+btnInstruction={cls="button";text="x86指令集";left=134;top=465;right=210;bottom=490;db=1;dr=1;z=10};
+btnPdf={cls="button";text="FASM用户手册";left=214;top=465;right=312;bottom=490;db=1;dr=1;z=9};
+button={cls="button";text="转换";left=274;top=4;right=331;bottom=29;dr=1;dt=1;z=1};
+chkAtt={cls="checkbox";text="用AT&&T语法注释";left=18;top=469;right=132;bottom=489;db=1;dr=1;z=11};
+editAsm={cls="edit";left=15;top=33;right=465;bottom=233;ah=1;dl=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=2};
+editByteCode={cls="edit";left=15;top=239;right=465;bottom=462;db=1;dl=1;dr=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=3};
+editParams={cls="edit";text="void( INT id, struct & cpuid )";left=77;top=5;right=264;bottom=28;align="right";dl=1;dr=1;dt=1;edge=1;multiline=1;z=6};
+splitter={cls="splitter";left=15;top=232;right=462;bottom=237;dl=1;dr=1;horz=1;z=5};
+static={cls="static";text="函数原型:";left=18;top=9;right=75;bottom=25;dl=1;dt=1;transparent=1;z=12}
+)
+/*}}*/
+
+winform.splitter.split( winform.editAsm,winform.editByteCode )
+
+winform.editAsm.text = /*
+push ebp
+mov ebp,esp
+sub esp,0C0h 
+push ebx
+push ecx
+push edx
+push esi
+mov eax,[ebp+8];
+mov esi,[ebp+12];
+cpuid
+mov [esi],eax
+mov [esi+4],ebx
+mov [esi+8],ecx 
+mov [esi+12],edx 
+pop esi 
+pop edx
+pop ecx
+pop ebx
+mov esp, ebp
+pop ebp
+ret 
+*/ 
+
+import string.template; 
+var templateCode = string.template();
+templateCode.template = /***
+import process;
+var app = process();//打开目标进程,可在参数中指定程序路径
+
+//写入机器码,并返回函数对象
+func = app.asmCdecl(
+	"${PARAMS}",
+	${ASM_CODE}
+)
+***/
+
+import udis86;
+import raw.fasm; 
+import raw.asm.opCode;
+winform.button.oncommand = function(id,event){
+	winform.button.text = "正在编译"
+	winform.button.disabled = true;
+	winform.editByteCode.text = "请稍候......"
+	 
+	var binCode,err,line = raw.fasm.assemble32( winform.editAsm.text )
+	if(!binCode){
+		winform.editByteCode.text = string.concat("错误: ",err," 错误行: #",tostring(line) );
+		winform.button.text = "转换"
+		winform.button.disabled = false;
+		return;
+	}
+	
+	var tAsmCode = {};
+	
+	var ud = udis86(); 
+	if( winform.chkAtt.checked ){
+		ud.translateAtt(); //使用ATT汇编语法
+	}
+	ud.setInputBuffer(binCode); //输入机器码
+	
+	while( ud.disassemble() ){ 
+		var byteCode = string.replace( ud.byteCode() ,".",
+			function(x){ 
+				return string.format("\x%02X",x[1] );
+				
+			}
+		); 
+		table.push(tAsmCode,string.format("	'%s', //%s",byteCode, ud.asm) );
+	}  
+	
+	asmCode = string.join(tAsmCode,'\r\n');  
+	
+	winform.editByteCode.text = templateCode.format(
+		ASM_CODE = string.trim( asmCode );
+		PARAMS = winform.editParams.text
+	)
+	
+	if( winform.editParams.text = "void( INT id, struct & cpuid )" ){
+		winform.editByteCode.text = winform.editByteCode.text + ('\r\n
+import console;\r\n
+var cpuid = func( 0,{ INT eax;BYTE ebx[4];BYTE ecx[4];BYTE edx[4] });\r\n
+console.log( cpuid.ebx ++ cpuid.edx ++ cpuid.ecx )\r\n
+console.pause()'
+		)
+	}
+	elseif( string.match(winform.editParams.text,"\(\s*\)") ){
+		winform.editByteCode.text = winform.editByteCode.text + ('\r\n
+import console;\r\n
+console.log( func() );
+console.pause();\r\n 
+' 
+		)
+	}
+	 
+	winform.button.text = "转换"
+	winform.button.disabled = false; 
+}
+
+winform.btnEdit.oncommand = function(id,event){ 
+	var code = string.trim(winform.editByteCode.text)
+	winform.button.oncommand();
+
+	var tempPath = io.tmpname() + ".aardio" 
+	string.save(tempPath, winform.editByteCode.text )
+	process.execute(tempPath);
+}
+
+import fsys.dlg;
+winform.btnGen.oncommand = function(id,event){
+	var path = fsys.dlg.open("DLL文件|*.dll|EXE文件|*.exe||","请选择生成文件路径",,winform.hwnd)
+	if(!path)return;
+	
+	winform.btnGen.disabled = true;
+	
+	var binCode,err,line = raw.fasm.assemble32( winform.editAsm.text )
+	if(!binCode){
+		winform.editByteCode.text = string.concat("错误:",err," 错误行:",tostring(line) ); 
+		winform.btnGen.disabled = false;
+		return;
+	}
+	 
+	string.save(path,binCode)
+	winform.btnGen.disabled = false;
+}
+
+
+import inet.downBox;
+import zlib.unzip;
+winform.btnDown.oncommand = function(id,event){
+	if( !..io.exist("/include" ) ){ 
+		var downBox = inet.downBox(winform,"aardio- 下载FASM头文件",true) 
+		if( not downBox.download(
+			"http://download.aardio.com/v10.files/demo/include.zip"
+			,"/include.zip"
+	 		)  
+	 	) {  
+			return;
+		}
+		
+		try{
+			import console;
+			zlib.unzip.extract( "/include.zip","/",
+				function(fileName,extractPath,fileInfo,size,unitSize,unitName){
+					console.log("正在解压缩",extractPath)
+					return true;
+				}
+			)
+			io.close()
+		}
+		catch(e){
+			fsys.delete( "/include" )
+		}
+		
+		if( !..io.exist("/include" ) ){
+			winform.msgboxErr("下载FASM头文件","aardio")
+		}
+		fsys.attrib("/include",/*移除*/,0x2/*_FILE_ATTRIBUTE_HIDDEN*/) 
+	}
+	else {
+		winform.msgbox("include文件已下载!")
+	}  
+}
+
+import process;
+winform.btnPdf.oncommand = function(id,event){
+	process.execute("http://download.aardio.com/v10.files/demo/fasm/FASM.pdf")
+}
+winform.btnInstruction.oncommand = function(id,event){
+	process.execute("http://en.wikipedia.org/wiki/X86_instruction_listings") 
+}
+
+import fsys.config;
+config  = ..fsys.config("/config/");
+winform.bindConfig( config.winform,{
+	edit = "text"; 
+	checkbox = "checked"; 
+} );
+
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();

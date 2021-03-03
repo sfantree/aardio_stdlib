@@ -1,0 +1,9 @@
+//高性能计数器演示
+import console;
+import time.performance;
+
+var tk = time.performance.tick();
+sleep(2000)
+
+console.log( ( time.performance.tick() - tk ) / 1000 ,"秒" );
+console.pause();

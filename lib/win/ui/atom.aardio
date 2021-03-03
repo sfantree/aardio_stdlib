@@ -1,0 +1,57 @@
+//atom 原子窗体
+import win;
+import win.ui;
+import process.atom;
+import win.property;
+
+namespace win.ui.atom;
+_unique_prop_name = "{2F5CEA45-75CB-4721-AB15-9AE33ABCCF77}"
+
+find = function(v){
+	var atomId =  ..process.atom.find(v);  
+	if (atomId) {
+		return atomId,..win.property.find(_unique_prop_name,atomId);  
+	} 
+}
+
+..util.metaProperty.extend( ..win._form ,{
+	atom = function( v ){ 
+        	if( v === false ){
+        		if( owner[["_atomId"]] ){
+        			..process.atom.delete(owner[["_atomId"]] ); 
+        		}
+        		return;
+        	}  
+        	if( owner[["_atomId"]] )
+        		error("不能重复设定原子窗体",2)
+        	if( !v )
+        		error("请指定原子窗体名称参数",2)	
+        			
+			v = tostring(v);
+			var atomId,hwndConflict =  find(v);  
+			
+			if (atomId) { 
+			 	if(hwndConflict){
+			 		if(..win.isVisible(hwndConflict)){
+			 			..win.show(hwndConflict,0x9/*_SW_RESTORE*/);
+			 		}
+			 		
+			 		..win.setForeground(hwndConflict); 
+					return null,hwndConflict;
+			 	} 
+				..process.atom.delete(atomId); //窗体意外终止  
+			}
+ 			
+			atomId =  ..process.atom.add(v); 
+			..win.property.set(owner[["hwnd"]], _unique_prop_name, atomId); 
+			owner[["_atomId"]] = atomId;
+			return atomId; 
+	}
+} );
+
+/**intellisense(win.ui.atom)
+find("__/*原子窗体唯一名称*/") = 在桌面顶层窗口查找原子窗体,\n返回原子值,以及原子窗体句柄.
+end intellisense**/
+
+
+

@@ -1,0 +1,42 @@
+//复选框、单选框
+import fonts.fontAwesome;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="图标字体实现复选框、单选框";right=759;bottom=469)
+winform.add(
+checkbox={cls="plus";text="没有勾选";left=118;top=135;right=215;bottom=166;align="left";font=LOGFONT(h=-16);iconStyle={align="left";font=LOGFONT(h=-13;name='FontAwesome')};iconText='\uF0C8 ';notify=1;textPadding={left=15};z=2};
+groupbox={cls="groupbox";text="单选框";left=64;top=233;right=301;bottom=377;edge=1;z=1};
+radioButton={cls="plus";text="用了再说";left=118;top=272;right=215;bottom=303;align="left";font=LOGFONT(h=-16);iconStyle={align="left";font=LOGFONT(h=-13;name='FontAwesome')};iconText='\uF111 ';notify=1;textPadding={left=15};z=3};
+radioButton2={cls="plus";text="说了再用";left=118;top=317;right=215;bottom=348;align="left";font=LOGFONT(h=-16);iconStyle={align="left";font=LOGFONT(h=-13;name='FontAwesome')};iconText='\uF111 ';notify=1;textPadding={left=15};z=4}
+)
+/*}}*/
+
+winform.checkbox.skin(
+    color = { 
+        hover = 0xFFFF0000; 
+        active = 0xFF00FF00;
+    }
+    checked = {
+    	text = ' 勾选了'/*_FA_CHECK_SQUARE*/;
+    	iconText = '\uF14a';
+    } 
+)  
+
+var radioButton ={
+	group = "单选框分组名字";
+    color = { 
+        hover = 0xFFFF0000; 
+        active = 0xFF00FF00;
+    }
+    checked = {  
+    	iconText = '\uF058'/*_FA_CHECK_CIRCLE*/
+    } 	
+}
+
+winform.radioButton.skin(radioButton)  
+
+winform.radioButton2.skin(radioButton)  
+winform.radioButton2.checked = true;
+ 
+winform.show() 
+win.loopMessage(); 

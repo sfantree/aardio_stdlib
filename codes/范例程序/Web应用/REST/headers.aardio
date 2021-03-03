@@ -1,0 +1,41 @@
+﻿//设置HTTP头
+
+import crypt;
+import web.rest.jsonLiteClient;
+
+var restClient = web.rest.jsonLiteClient();  
+
+//如果所有请求都要添加的相同HTTP头，在这里指定
+restClient.setHeaders(
+	["Test"] = "test"
+)
+
+/*
+如果每次请求都要修改HTTP头，可以写到这个事件里.
+
+*/
+restClient.beforeRequestHeaders = function(params){
+
+	var apiKey = "";
+	var secretKey = ""; 
+	var authorization = {
+		["apiKey"] = apiKey;
+		["time"] = tonumber(time()); 
+	}
+	
+	authorization["sign"] = crypt.md5(apiKey ++ secretKey ++ authorization.time)
+	
+	//通过返回值设置本次请求的HTTP头, Content-Type不需要指定（会自动指定）
+	return {
+		["Authorization"] = crypt.encodeBin(web.json.stringify(authorization)) 
+	}; 
+}
+
+var jsonData = restClient.post("http://eu.httpbin.org/post",{
+	用户名 = "用户名";
+	密码 = "密码";
+} )
+
+import console;
+console.dumpJson(jsonData)
+console.pause(true);

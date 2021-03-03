@@ -1,0 +1,818 @@
+//滑块配色工具
+import win.ui;
+import win.ui.ctrl.pick;
+import fonts.fontAwesome;
+/*DSG{{*/
+var winform = win.form(text="aardio - plus控件配色工具";right=999;bottom=746;bgcolor=16777215;border="none";exmode="none";mode="popup")
+winform.add(
+bk={cls="bk";text="  滑块控件制作工具（ 适用于 plus 控件 ）";left=0;top=0;right=1001;bottom=24;align="left";bgcolor=8026746;color=15793151;dl=1;dr=1;dt=1;z=49};
+btnOpenColorTable={cls="plus";text='\uF090 导出配色表';left=476;top=717;right=594;bottom=742;bgcolor=13491144;db=1;dr=1;font=LOGFONT(h=-13;name='FontAwesome';charset=0);forecolor=12043443;notify=1;z=56};
+btnPreviewCode={cls="plus";text='\uF08E 生成演示源码';left=833;top=717;right=973;bottom=742;bgcolor=13491144;db=1;dr=1;font=LOGFONT(h=-13;name='FontAwesome';charset=0);forecolor=12043443;notify=1;z=48};
+btnUpdateForm={cls="plus";text='\uF08B 导出到窗体设计器选中控件';left=603;top=717;right=821;bottom=742;bgcolor=13491144;db=1;dr=1;font=LOGFONT(h=-13;name='FontAwesome';charset=0);forecolor=12043443;notify=1;z=47};
+cBgActive={cls="plus";left=23;top=129;right=41;bottom=153;bgcolor=12378323;dl=1;dt=1;edge=1;z=10};
+cBgDefault={cls="plus";left=23;top=64;right=41;bottom=88;bgcolor=14265123;dl=1;dt=1;edge=1;notify=1;z=6};
+cBgDisabled={cls="plus";left=23;top=194;right=41;bottom=218;bgcolor=14933183;dl=1;dt=1;edge=1;z=14};
+cBgFocus={cls="plus";left=23;top=162;right=41;bottom=186;bgcolor=14935011;dl=1;dt=1;edge=1;z=12};
+cBgHover={cls="plus";left=23;top=97;right=41;bottom=121;bgcolor=11766674;dl=1;dt=1;edge=1;z=8};
+cFgActive={cls="plus";left=154;top=129;right=172;bottom=153;bgcolor=8882679;dl=1;dt=1;edge=1;z=21};
+cFgDefault={cls="plus";left=154;top=64;right=172;bottom=88;bgcolor=1865727;dl=1;dt=1;edge=1;z=17};
+cFgDisabled={cls="plus";left=154;top=194;right=172;bottom=218;bgcolor=4408202;dl=1;dt=1;edge=1;z=25};
+cFgFocus={cls="plus";left=154;top=162;right=172;bottom=186;bgcolor=6645199;dl=1;dt=1;edge=1;z=23};
+cFgHover={cls="plus";left=154;top=97;right=172;bottom=121;bgcolor=26367;dl=1;dt=1;edge=1;z=19};
+cPreviewBackground={cls="plus";left=42;top=467;right=536;bottom=704;db=1;dl=1;dt=1;z=3};
+cTxtActive={cls="plus";left=282;top=129;right=300;bottom=153;bgcolor=16756224;dl=1;dt=1;edge=1;z=32};
+cTxtDefault={cls="plus";left=282;top=64;right=300;bottom=88;bgcolor=23807;dl=1;dt=1;edge=1;z=28};
+cTxtDisabled={cls="plus";left=282;top=194;right=300;bottom=218;bgcolor=53759;dl=1;dt=1;edge=1;z=36};
+cTxtFocus={cls="plus";left=282;top=162;right=300;bottom=186;bgcolor=20991;dl=1;dt=1;edge=1;z=34};
+cTxtHover={cls="plus";left=282;top=97;right=300;bottom=121;bgcolor=26367;dl=1;dt=1;edge=1;z=30};
+chkBgActive={cls="plus";text='\uF0C8 鼠标按下';left=41;top=127;right=126;bottom=153;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=9};
+chkBgDefault={cls="plus";text='\uF0C8 默认状态';left=41;top=61;right=126;bottom=87;dl=1;dt=1;font=LOGFONT(name='FontAwesome');notify=1;z=5};
+chkBgDisabled={cls="plus";text='\uF0C8 禁用状态';left=41;top=192;right=126;bottom=218;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=13};
+chkBgFocus={cls="plus";text='\uF0C8 获得焦点';left=41;top=159;right=126;bottom=185;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=11};
+chkBgHover={cls="plus";text='\uF0C8 鼠标进入';left=41;top=94;right=126;bottom=120;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=7};
+chkFgActive={cls="plus";text='\uF0C8 鼠标按下';left=175;top=127;right=258;bottom=153;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=20};
+chkFgDefault={cls="plus";text='\uF0C8 默认状态';left=175;top=61;right=258;bottom=87;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=16};
+chkFgDisabled={cls="plus";text='\uF0C8 禁用状态';left=175;top=192;right=258;bottom=218;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=24};
+chkFgFocus={cls="plus";text='\uF0C8 获得焦点';left=175;top=159;right=258;bottom=185;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=22};
+chkFgHover={cls="plus";text='\uF0C8 鼠标进入';left=175;top=94;right=258;bottom=120;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=18};
+chkLinearGradient={cls="plus";text='\uF0C8 启用线性渐变';left=48;top=713;right=168;bottom=739;clipBk=false;db=1;dl=1;font=LOGFONT(name='FontAwesome');notify=1;z=54};
+chkPreviewBackground={cls="plus";text='\uF0C8 设置预览窗口背景色';left=203;top=715;right=365;bottom=741;clipBk=false;db=1;dl=1;font=LOGFONT(name='FontAwesome');notify=1;z=43};
+chkTxtActive={cls="plus";text='\uF0C8 鼠标按下';left=301;top=127;right=386;bottom=153;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=31};
+chkTxtDefault={cls="plus";text='\uF0C8 默认状态';left=301;top=61;right=386;bottom=87;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=27};
+chkTxtDisabled={cls="plus";text='\uF0C8 禁用状态';left=301;top=192;right=386;bottom=218;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=35};
+chkTxtFocus={cls="plus";text='\uF0C8 获得焦点';left=301;top=159;right=386;bottom=185;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=33};
+chkTxtHover={cls="plus";text='\uF0C8 鼠标进入';left=301;top=94;right=386;bottom=120;dl=1;dt=1;font=LOGFONT(name='FontAwesome');z=29};
+clrPicker={cls="pick";left=402;top=33;right=994;bottom=433;bgcolor=16777215;dl=1;dr=1;dt=1;z=40};
+editPreview={cls="richedit";left=558;top=460;right=986;bottom=704;db=1;dl=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=39};
+gbBg={cls="groupbox";text="背景色/(滑道右、上)";left=8;top=38;right=139;bottom=228;bgcolor=16777215;dl=1;dt=1;edge=1;z=2};
+gbFg={cls="groupbox";text="前景色(滑道左、下)";left=138;top=38;right=269;bottom=228;bgcolor=16777215;dl=1;dt=1;edge=1;z=15};
+gbTxtColor={cls="groupbox";text="文本色(滑块按钮)";left=266;top=38;right=397;bottom=228;bgcolor=16777215;dl=1;dt=1;edge=1;z=26};
+groupbox9={cls="groupbox";text="效果预览";left=29;top=441;right=995;bottom=713;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;edge=1;z=1};
+lbBorderPadding={cls="static";text="滑道外边距:";left=55;top=342;right=152;bottom=365;align="right";dl=1;dt=1;transparent=1;z=42};
+lbBorderRadius={cls="static";text="滑块按钮圆角:";left=55;top=405;right=152;bottom=428;align="right";dl=1;dt=1;transparent=1;z=38};
+lbBorderWidth={cls="static";text="滑块按钮大小(前景切图):";left=0;top=373;right=152;bottom=397;align="right";dl=1;dt=1;transparent=1;z=46};
+lbCurrentState={cls="plus";left=81;top=238;right=370;bottom=260;border={color=-4144960;radius=11;width=1};color=9727;dl=1;dt=1;transparent=1;z=44};
+plusMinimized={cls="plus";text='滑块制作工具 \uF122';left=728;top=0;right=873;bottom=28;bgcolor=13491144;font=LOGFONT(h=-13;name='FontAwesome';charset=0);forecolor=12043443;hide=1;notify=1;z=55};
+plusPreview={cls="plus";left=66;top=579;right=508;bottom=594;border={radius=-1};db=1;dl=1;font=LOGFONT(h=-16;name='FontAwesome');notify=1;z=4};
+static={cls="static";text="控件宽度:";left=55;top=278;right=152;bottom=301;align="right";dl=1;dt=1;transparent=1;z=51};
+static2={cls="static";text="控件高度:";left=55;top=310;right=152;bottom=333;align="right";dl=1;dt=1;transparent=1;z=53};
+tbBorderRadius={cls="trackbar";left=151;top=404;right=343;bottom=434;bgcolor=16777215;dl=1;dt=1;max=10;min=-1;ntk=1;z=37};
+tbForePadding={cls="trackbar";left=151;top=372;right=343;bottom=402;bgcolor=16777215;dl=1;dt=1;max=100;min=5;ntk=1;z=45};
+tbHeight={cls="trackbar";left=151;top=309;right=343;bottom=339;bgcolor=16777215;dl=1;dt=1;max=220;min=5;ntk=1;z=52};
+tbPadding={cls="trackbar";left=151;top=341;right=343;bottom=371;bgcolor=16777215;dl=1;dt=1;max=100;min=0;ntk=1;z=41};
+tbWidth={cls="trackbar";left=151;top=277;right=343;bottom=307;bgcolor=16777215;dl=1;dt=1;max=442;min=5;ntk=1;z=50}
+)
+/*}}*/
+
+import win.ui.atom;
+var atom,hwnd = winform.atom("0CCD6A28-2296-4C26-9AC7-80AC4B585E27.PLUSTRACKBAR");
+if(!atom){
+    win.setForeground(hwnd);
+	win.quitMessage();	
+	return;
+}
+
+import win.ui.simpleWindow;
+win.ui.simpleWindow(winform,,,24);
+
+var previewStyle = {}
+winform.plusPreview.setTrackbarRange(1,100);
+
+winform.clrPicker.onColorChange = function(argb){
+	if(winform.currentColorCtrl){
+		winform.currentColorCtrl.background = argb;
+		if(winform.currentChkColorCtrl.checked){
+			winform.onStyleChanged(
+				winform.currentChkColorCtrl.styleCtrlName,
+				winform.currentChkColorCtrl.checked,
+				argb
+				);
+		} 
+	} 
+}
+
+for(name,ctrl in winform.eachControl("plus") ){
+    if(name[1]=='c'#){
+    	if(string.match(name,"^c<Bg>|<Fg>|<Txt>|<Bd>") ){ 
+    		ctrl.onFocusGot = function(wParam,lParam){
+    			if(!owner.checkColorCtrl){
+    				return;
+    			}
+    			winform.currentChkColorCtrl = owner.checkColorCtrl;
+				winform.currentColorCtrl = owner;
+				owner.checkColorCtrl.setFocus();
+				owner.checkColorCtrl.oncommand();
+				return 0;
+    		}
+    		
+    		ctrl.skin( 
+    			border = { 
+    				hover = {width=3;color=0x80FF0000}  
+        			focus = {width=1;color=0xFFFF0000}  
+    			} 
+			) 
+			
+			continue ; 
+    	}
+    	
+    }
+    if(string.startWith(name,"chk") ){
+   
+     	ctrl.skin(
+    		color = { 
+        		hover = 0xFFFF0000; 
+        		active = 0xFF00FF00;
+    		}
+    		checked = {
+    			text = '\uF14a'/*_FA_CHECK_SQUARE*/;
+    			border ={
+    				focus = {bottom=1;color=0xFF000000;padding=15;}
+    			};
+    		} 
+    		border ={
+    			focus = {bottom=1;color=0xFF000000;padding=15;};
+    		}
+		) 
+		
+		var clrCtrl = winform["c" + string.right(name,-4) ];  
+		if(!clrCtrl) continue;
+
+		clrCtrl.checkColorCtrl = ctrl;
+		ctrl.styleCtrlName = name;
+		if(string.startWith(name,"chkBd") ){
+			ctrl.oncommand = function(id,event){
+				winform.chkPreviewBackground.checked = false;
+				
+				winform.currentChkColorCtrl = ctrl;
+				winform.currentColorCtrl = clrCtrl;
+				if(clrCtrl.backgroundColor===null)clrCtrl.background = 0xFF00AEFF; 
+				winform.clrPicker.setColor( clrCtrl.backgroundColor : 0xFF00AEFF ); 
+				
+				winform.onStyleChanged(
+					winform.currentChkColorCtrl.styleCtrlName,
+					winform.currentChkColorCtrl.checked,
+					winform.currentColorCtrl.backgroundColor
+					);
+			}
+		}
+		else {
+			ctrl.oncommand = function(id,event){ 
+				
+				winform.chkPreviewBackground.checked = false;
+				
+				winform.currentChkColorCtrl = ctrl;
+				winform.currentColorCtrl = clrCtrl;
+				if(clrCtrl.backgroundColor===null)clrCtrl.background = 0xFF00AEFF; 
+				winform.clrPicker.setColor( clrCtrl.backgroundColor : 0xFF00AEFF ); 
+				
+				winform.onStyleChanged(
+					winform.currentChkColorCtrl.styleCtrlName,
+					winform.currentChkColorCtrl.checked,
+					winform.currentColorCtrl.backgroundColor
+					);
+			}
+		}
+		
+    } 
+}
+
+import util.table;
+winform.onStyleChanged = function(styleCtrlName,styleCtrlChecked,styleCtrlColor){
+    if(styleCtrlName=="chkPreviewBackground"){
+    	return;
+    }
+    
+    if(styleCtrlColor===null){
+    	styleCtrlChecked = false;
+    	winform[styleCtrlName].checked = false;
+    }
+    
+	var style = previewStyle;
+	var styleStateTitle = ""
+	if( string.endWith(styleCtrlName,"Checked") ){
+		if(!style.checked) style.checked = {} 
+		style = style.checked;
+		styleStateTitle = "(勾选后)"
+	}
+	
+	var styleState = "default";
+	if(string.find(styleCtrlName,"Hover")){
+		styleState = "hover";
+		styleStateTitle = "鼠标进入" + styleStateTitle;
+	}
+	elseif(string.find(styleCtrlName,"Active")){
+		styleState = "active";
+		styleStateTitle = "鼠标按下" + styleStateTitle;
+	}
+	elseif(string.find(styleCtrlName,"Focus")){
+		styleState = "focus";
+		styleStateTitle = "获得焦点" + styleStateTitle;
+	}
+	elseif(string.find(styleCtrlName,"Disabled")){
+		styleState = "disabled";
+		styleStateTitle = "禁用状态" + styleStateTitle;
+	}
+	else {
+		styleStateTitle = "默认状态" + styleStateTitle;
+	}
+		
+	if(string.startWith(styleCtrlName,"chkBg")){
+		if(!style.background)style.background={};
+		style.background[styleState] = styleCtrlChecked ? styleCtrlColor : null
+		winform.lbCurrentState.text = "正在编辑：背景色 " + styleStateTitle;
+		if(!table.count(style.background)){
+			style.background = null;
+		}
+	}
+	elseif(string.startWith(styleCtrlName,"chkFg")){
+		if(!style.foreground)style.foreground={};
+		style.foreground[styleState] = styleCtrlChecked ? styleCtrlColor : null
+		winform.lbCurrentState.text = "正在编辑：背景色 " + styleStateTitle;
+		if(!table.count(style.foreground)){
+			style.foreground = null;
+		}
+	}
+	elseif(string.startWith(styleCtrlName,"chkTxt")){
+		if(!style.color)style.color={};
+		style.color[styleState] = styleCtrlChecked ? styleCtrlColor : null
+		winform.lbCurrentState.text = "正在编辑：文本色 " + styleStateTitle;
+		
+		if(!table.count(style.color)){
+			style.color = null;
+		}
+	} 
+
+	var styleChecked = previewStyle.checked;
+	if(previewStyle.checked && !table.count(previewStyle.checked)){
+		previewStyle.checked = null;
+	}
+	
+	var styleChecked = previewStyle.checked;
+	var strChecked;
+	if(styleChecked){
+		strChecked = util.table.stringify(styleChecked,true,{'background';'foreground';'color';'border';'checked';"text"});
+
+		strChecked = string.replace(strChecked,"\n\w+\=\{\};?","");
+		strChecked = string.replace(strChecked,`(\a+\=)(%{})`,function(k,v){
+			return k + '{\n\t' + string.slice(v,2,-2) + '\n}'
+		});
+		strChecked = string.replace(strChecked,`(<default>|<hover>|<active>|<disabled>|<focus>=[^{};]+;)`,function(v){ 
+			return v + '\n\t';
+		});
+		
+		strChecked = string.replace(strChecked,"\n",'\n\t');
+		strChecked = string.replace(strChecked,"\n\t",'\n\t\t');
+		
+		strChecked = string.replace(strChecked,"\-?\d+[\x']?!",function(clr){
+			var n = tonumber(clr);
+			if(n > 0xFFFFFF || n < 0 ){
+				return string.format("0x%08X",n )
+			} 
+		});
+		strChecked = string.replace(strChecked,"\{\s+\}","")
+		if(#strChecked){
+			strChecked = string.replace(strChecked,"\s+\}$",'\n\t}')
+			strChecked = string.replace(strChecked,"\\","\\\\")
+			previewStyle.checked = "选中状态"
+		}
+		else {
+			previewStyle.checked = null;
+		} 	
+	}
+	
+	var strDefault = util.table.stringify(previewStyle,true,{'background';'foreground';'color';'border';'checked'});
+	strDefault = string.replace(strDefault,"\n\w+\=\{\};?","");
+	strDefault = string.replace(strDefault,`(\a+\=)(%{})`,function(k,v){
+		return k + '{\n\t' + string.slice(v,2,-2) + '\n}'
+	});
+	strDefault = string.replace(strDefault,`(<default>|<hover>|<active>|<disabled>|<focus>=[^{};]+;)`,function(v){ 
+		return v + '\n\t';
+	});
+	
+	strDefault = string.replace(strDefault,"\n",'\n\t');
+	strDefault = string.replace(strDefault,"\-?\d+",function(clr){
+		var n = tonumber(clr);
+		if(n > 0xFFFFFF || n < 0 ){
+			return string.format("0x%08X",n )
+		} 
+	});
+	
+	if(strChecked){
+		 strDefault = string.replace(strDefault,`"选中状态"`,strChecked);
+	}
+
+	strDefault = string.replace(strDefault,"\n\s*\n",'\n');
+	strDefault = string.replace(strDefault,"\s+\}\s*$",'\n}')
+	
+	previewStyle.checked = styleChecked;
+	
+	winform.editPreview.text = 'winform.plus.setTrackbarRange(1,100);\nwinform.plus.skin(' + strDefault + ")";
+	
+	var previewStyle2 = table.clone(previewStyle);
+	
+	winform.plusPreview.background = null;
+	winform.plusPreview.foreground = null;
+
+	winform.plusPreview.skin(previewStyle2);	
+	winform.plusPreview.redrawTransparent();
+} 
+
+winform.cPreviewBackground.background = 0xFFF5F5F5;
+
+winform.chkPreviewBackground.oncommand = function(id,event){
+	winform.lbCurrentState.text = "正在编辑预览按钮窗口背景色" ;
+	winform.currentChkColorCtrl = owner;
+	winform.currentColorCtrl = winform.cPreviewBackground; 
+	winform.clrPicker.setColor( winform.cPreviewBackground.backgroundColor : 0xFFF5F5F5 ); 
+}
+
+winform.tbBorderRadius.oncommand = function(id,event,pos){
+	winform.plusPreview.border = {radius = owner.pos };
+	winform.plusPreview.redrawTransparent();
+}
+winform.tbBorderRadius.pos = -1; 
+
+var updateTrackbarPadding = function(){
+	var rect = winform.plusPreview.getRect()
+	var horizontal = rect.width() > rect.height();
+	
+	//前景边距
+	var p = winform.tbPadding.pos;
+	if( horizontal ){
+		if( p >= rect.height()/2 ) {
+			p = rect.height()/2 -1;
+			winform.tbPadding.pos = p;
+		}
+		
+		winform.plusPreview.paddingTop = winform.tbPadding.pos;
+		winform.plusPreview.paddingBottom = winform.tbPadding.pos;
+		winform.plusPreview.paddingLeft = 0;
+		winform.plusPreview.paddingRight = 0;
+	}
+	else {
+		if( p >= rect.width()/2 ) {
+			p = rect.width()/2 -1;
+			winform.tbPadding.pos = p;
+		}
+		
+		winform.plusPreview.paddingTop = 0;
+		winform.plusPreview.paddingBottom = 0;
+		winform.plusPreview.paddingLeft = winform.tbPadding.pos;
+		winform.plusPreview.paddingRight = winform.tbPadding.pos;
+	} 
+		
+}
+
+winform.tbPadding.oncommand = function(id,event,pos){
+	updateTrackbarPadding();
+	winform.plusPreview.redrawTransparent();
+}
+winform.tbPadding.pos = 5;
+
+var updateThumbPadding = function(){
+	var rect = winform.plusPreview.getRect()
+	var p = winform.tbForePadding.pos;
+	if( rect.width() > rect.height() ){
+		if( p >= rect.width()/2 ) {
+			p = rect.width()/2 -1;
+			winform.tbForePadding.pos = p;
+		}
+		
+		winform.plusPreview.foreRight = winform.tbForePadding.pos; 
+		winform.plusPreview.foreTop  = 0;
+	}
+	else {
+		if( p >= rect.height()/2 ) {
+			p = rect.height()/2 -1;
+			winform.tbForePadding.pos = p;
+		}
+		
+		winform.plusPreview.foreTop =  winform.tbForePadding.pos; 
+		winform.plusPreview.foreRight  = 0;
+	} 	
+}
+
+winform.tbForePadding.oncommand = function(id,event,pos){
+	updateThumbPadding();
+	winform.plusPreview.redrawTransparent();
+}
+winform.tbForePadding.pos = 15;
+
+import ide;
+import color;
+import string.template;
+winform.getPreviewCode = function(){
+	var strTemplateCode = /**
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";bgcolor=${FORMCOLOR})
+winform.add(
+plus={cls="plus"${BGCOLOR}${FORECOLOR}${BORDER}${GRADIENT}${PADDING}${BAR};left=225;top=266;right=${WIDTH};bottom=${HEIGHT};z=1;}
+)
+/*}}*/
+
+winform.plus.setTrackbarRange(1,100)
+
+${SKIN}
+
+winform.show() 
+win.loopMessage();
+**/
+ 
+	var strForegroundPadding = ""; 
+	
+	var strGradient = ""; 
+	if(winform.chkLinearGradient.checked){
+		strGradient = string.format(';linearGradient=%d',winform.plusPreview.width<winform.plusPreview.height?90:0 );
+	}	
+	
+	var strPadding = string.format(";paddingLeft=%d;paddingTop=%d;paddingRight=%d;paddingBottom=%d"
+		,winform.plusPreview.paddingLeft,winform.plusPreview.paddingTop,winform.plusPreview.paddingRight,winform.plusPreview.paddingBottom )
+	
+	var strBar = string.format(";foreRight=%d;foreTop=%d"
+		,winform.plusPreview.foreRight,winform.plusPreview.foreTop )
+	
+	var template = string.template(strTemplateCode);
+	var code = template.format(
+		GRADIENT = strGradient;
+		WIDTH = 225 + winform.tbWidth.pos;
+		HEIGHT = 266 + winform.tbHeight.pos;
+		SKIN = winform.editPreview.text;
+		PADDING = strPadding;
+		BAR = strBar;
+		FORMCOLOR = tostring(  color.rgbReverse( winform.cPreviewBackground.backgroundColor ) &0xFFFFFF,16 );
+		BGCOLOR = winform.chkBgDefault.checked ? ";bgcolor=" + tostring((gdi.rgbReverse(winform.cBgDefault.backgroundColor) & 0xFFFFFF)) : "";
+		FORECOLOR = winform.chkFgDefault.checked ? ";forecolor=" + tostring((gdi.rgbReverse(winform.cFgDefault.backgroundColor) & 0xFFFFFF)) : "";
+		BORDER = winform.tbBorderRadius.pos >= -1 ? ..string.format(";border={radius=%d}",winform.tbBorderRadius.pos ) : "";
+	)
+	
+	import win.clip;
+	win.clip.write(code)
+	return code;
+}
+
+winform.btnPreviewCode.oncommand = function(id,event){
+	var preViewCode = winform.getPreviewCode();
+	if(#preViewCode){
+		ide.newForm(preViewCode);
+		winform.hitMin();	
+	}
+}
+
+winform.chkFgDefault.checked = true;
+winform.chkBgDefault.checked = true;
+winform.chkFgHover.checked = true;
+winform.chkTxtDefault.checked = true;
+winform.chkTxtHover.checked = true;
+winform.chkPreviewBackground.checked = false;
+winform.currentChkColorCtrl = winform.chkBgDefault;
+winform.currentColorCtrl = winform.cBgDefault; 
+winform.currentChkColorCtrl = winform.chkBgHover;
+winform.currentColorCtrl = winform.cBgHover;
+
+winform.editPreview.enablePopMenu();
+winform.cPreviewBackground.directDrawBackgroundOnly();
+winform.onDrawBackgroundEnd = function(hdc,rc){
+    winform.plusPreview.redrawTransparent();
+}
+
+import ide;
+winform.btnUpdateForm.oncommand = function(id,event){
+ 
+    var formName = ide.getActiveForm();
+	if(!formName){
+		winform.msgboxErr("请在aardio中打开并切换到窗体设计器");
+		return;
+	}
+	
+	var ctrlName = ide.getSelectedControl();
+	if(!ctrlName){
+		winform.msgboxErr("当前窗体设计器中未选定plus控件");
+		return;	
+	}
+	
+	var ctrlParam = ide.getControlParam(ctrlName);
+	if(ctrlParam.cls!="plus"){
+		winform.msgboxErr("当前选定的不是plus控件");
+		return;
+	}
+	
+	if(winform.chkBgDefault.checked){
+		ctrlParam.bgcolor = gdi.argbReverse(winform.cBgDefault.backgroundColor) 
+	}
+	
+	if(winform.chkFgDefault.checked){
+		ctrlParam.forecolor = gdi.argbReverse(winform.cFgDefault.backgroundColor) 
+	}
+	
+	ctrlParam.border = {radius=winform.plusPreview.border[["radius"]]};
+	ctrlParam.linearGradient = winform.plusPreview.linearGradient;
+	ctrlParam.paddingLeft = winform.plusPreview.paddingLeft;
+	ctrlParam.paddingRight = winform.plusPreview.paddingRight;
+	ctrlParam.paddingTop = winform.plusPreview.paddingTop;
+	ctrlParam.paddingBottom = winform.plusPreview.paddingBottom;
+	ctrlParam.foreRight = winform.plusPreview.foreRight;
+	ctrlParam.foreTop = winform.plusPreview.foreTop;
+	ctrlParam.foreBottom = winform.plusPreview.foreBottom;
+	ctrlParam.foreLeft = winform.plusPreview.foreLeft;
+	ctrlParam.text = "";
+	ctrlParam.color = gdi.rgbReverse(winform.plusPreview.argbColor)
+	
+	ctrlParam.right = ctrlParam.left + winform.plusPreview.width;
+	ctrlParam.bottom = ctrlParam.top + winform.plusPreview.height;
+	
+	if(!ide.setControlParam(ctrlName,ctrlParam)){
+		winform.msgboxErr("更新窗体设计器中选定控件参数失败");
+		return;
+	} 
+	
+	var frmCode = ide.getActiveCode();
+	if(frmCode){
+		var preViewParam;
+		var preViewCode = winform.getPreviewCode();
+		if(!#preViewCode){
+			winform.msgboxErr("获取预览代码失败");
+		}
+		
+		frmCode = string.replace(frmCode,formName + "." + ctrlName+".skin(%\(\))[\r\n]+","");
+		
+		var skinPreview = winform.editPreview.text;
+		skinPreview = string.replace(skinPreview,"\w+\.\w+\.setTrackbarRange(%\(\))",formName + "." + ctrlName+ ".setTrackbarRange\1");
+		skinPreview = string.replace(skinPreview,"\w+\.\w+\.skin(%\(\))",formName + "." + ctrlName+ ".skin\1");
+		skinPreview = string.replace(skinPreview,"//\N+[\r\n]+","");
+
+		frmCode = string.replace(frmCode,"(/\*DSG\{\{\*/(.+?)/\*\}\}\*/)",function(dsg){
+			return dsg + '\r\n' + ..string.trim(skinPreview);
+		})
+		
+		ide.setActiveCode(frmCode);
+		ide.setSelectedControl(ctrlName);
+	} 
+}
+
+winform.btnUpdateForm.skin({
+	background={
+		default=0xFFC8DBCD;
+		hover=0xFFB7B2D2
+	};
+	foreground={
+		default=0xFFB3C4B7;
+		hover=0xFFCAC7DA
+	};
+})
+
+winform.btnPreviewCode.skin({
+	background={
+		default=0xFFC8DBCD;
+		hover=0xFFB7B2D2
+	};
+	foreground={
+		default=0xFFB3C4B7;
+		hover=0xFFCAC7DA
+	};
+})
+
+winform.plusMinimized.skin({
+	background={
+		default=0xFFC8DBCD;
+		hover=0xFFB7B2D2
+	};
+	foreground={
+		default=0xFFB3C4B7;
+		hover=0xFFCAC7DA
+	};
+})
+
+
+winform.btnUpdateForm.onMouseEnter = function(wParam,lParam){
+    winform.transparent(0)
+}
+
+winform.btnUpdateForm.onMouseLeave = function(wParam,lParam){
+	winform.transparent(false)
+}
+
+winform.btnUpdateForm.orphanWindow(false)
+
+winform.plusMinimized.onMouseDown = function(wParam,lParam){
+    if(winform.plusMinimized.hide){
+    	return;
+    }
+    winform.plusMinimized.show(false);
+    
+    var rc = winform.getRect();
+    var rcWork = win.getMonitorInfo(winform.hwnd).rcWork;
+    if(rc.right>rcWork.right){
+    	rc.offset(rcWork.right-rc.right,0);
+    }
+    if(rc.bottom>rcWork.bottom){
+    	rc.offset(0,rcWork.bottom-rc.bottom);
+    }
+    winform.setRect(rc);
+    
+	winform.transparent(false);
+	winform.btnUpdateForm.show(4/*_SW_SHOWNOACTIVATE*/);
+	win.setActive(winform.hwnd);
+	if(winform.plusMinimized.state.hover){
+		winform.hitCaption() 
+	}
+}
+
+
+winform.onActivateApp = function(activated,threadId){
+	if(!activated){
+		winform.transparent(0)
+		winform.plusMinimized.show(4/*_SW_SHOWNOACTIVATE*/);
+		winform.btnUpdateForm.show(false);
+	}
+	else {
+		winform.plusMinimized.onMouseDown();
+	}
+}
+winform.plusMinimized.orphanWindow(false);
+
+winform.onMinimize = function(lParam){
+	winform.btnUpdateForm.show(false);
+	winform.transparent(0)
+	winform.plusMinimized.show(4/*_SW_SHOWNOACTIVATE*/);
+	return true;	
+}
+
+winform.tbWidth.oncommand = function(id,event,pos){
+    if(owner.pos>owner.max/2){
+    	if(winform.tbHeight.pos>winform.tbHeight.max/2)winform.tbHeight.pos = 35;
+    }
+	winform.plusPreview.width = winform.tbWidth.pos;
+	winform.plusPreview.height = winform.tbHeight.pos;
+	winform.plusPreview.center(winform.cPreviewBackground);
+	winform.plusPreview.setTrackbarRange(1,100);
+	
+	winform.chkLinearGradient.oncommand();
+	updateTrackbarPadding();
+	updateThumbPadding();
+	winform.plusPreview.redrawTransparent();
+}
+winform.tbWidth.pos = 442; 
+
+winform.tbHeight.oncommand = function(id,event,pos){
+    if(owner.pos>owner.max/2){
+    	if(winform.tbWidth.pos>winform.tbWidth.max/2)winform.tbWidth.pos = 35;
+    }
+    
+    winform.plusPreview.width = winform.tbWidth.pos;
+	winform.plusPreview.height = winform.tbHeight.pos;
+	winform.plusPreview.center(winform.cPreviewBackground);
+	winform.plusPreview.setTrackbarRange(1,100);
+	
+	var padding = math.min(winform.tbWidth.pos,winform.tbHeight.pos)
+	var pos = winform.tbPadding.pos;
+	winform.tbPadding.setRange(0,padding/2-1);
+	winform.tbPadding.pos = pos;
+	 
+	winform.chkLinearGradient.oncommand();
+	updateTrackbarPadding();
+	updateThumbPadding();
+	winform.plusPreview.redrawTransparent();
+}
+winform.tbHeight.pos = 15;
+
+winform.chkLinearGradient.oncommand = function(){
+	if(winform.chkLinearGradient.checked){
+		if(winform.plusPreview.width>winform.plusPreview.height){
+			winform.plusPreview.linearGradient = 0;
+		}
+		else {
+			winform.plusPreview.linearGradient = 90;
+		} 
+	}
+	else {
+		winform.plusPreview.linearGradient = null;
+	}
+	winform.plusPreview.redrawTransparent()
+}
+
+var pickerSetColor = winform.clrPicker.setColor;
+winform.clrPicker.setColor  = function(){}
+
+import fsys.config;
+var config = fsys.config( io.appData("/aardio/trackbarPlus") )
+winform.bindConfig( config.winform,{
+	plus = {
+		["^c[A-Z]"] = "backgroundColor";
+		["^chk"] = "checked";
+	}; 
+	trackbar = "pos";
+	checkbox = "checked";
+} );
+
+for(name,ctrl in winform.eachControl("trackbar") ){ 
+	ctrl.oncommand ();
+}
+
+for(name,ctrl in winform.eachControl("plus") ){ 
+	if(string.startWith(name,"chk") ){
+    	ctrl.oncommand ();
+	}
+}
+
+
+winform.clrPicker.setColor  = pickerSetColor;
+winform.cBgDefault.setFocus();
+
+import win.image;
+var hico = win.image.loadIconFromFile("/.img/tracker.ico");
+
+winform.btnOpenColorTable.oncommand = function(id,event){
+	var clrName,clrNameEn;
+	var bg,fg,txt,border = {chk={}},{chk={}},{chk={}},{chk={}};
+	
+	for(name,ctrl in winform.eachControl("plus") ){
+		var clr = ctrl.backgroundColor;
+		if(!clr){
+			continue;
+		}
+		
+		var tab;
+		if( string.startWith(name,"cBg") ){
+			clrName = "背景"
+			clrNameEn = "background"
+			tab = bg;
+		}
+		elseif( string.startWith(name,"cFg") ){
+			clrName = "前景"
+			clrNameEn = "foreground"
+			tab = fg;
+		}
+		elseif( string.startWith(name,"cTxt") ){
+			clrName = "文本"
+			clrNameEn = "text"
+			tab = txt;
+		}
+		elseif( string.startWith(name,"cBd") ){
+			clrName = "边框"
+			clrNameEn = "border"
+			tab  = border;
+		}
+		else{
+			continue ;
+		}
+		
+		if( string.endWith(name,"Checked") ){
+			clrName = clrName+"/勾选"
+			clrNameEn = clrNameEn + "/checked"
+			tab = tab.chk;
+		}
+		
+		if(string.find(name,"Hover")){
+			clrNameEn = clrNameEn + "/hover";
+			clrName = clrName+"/鼠标进入"
+		}
+		elseif(string.find(name,"Active")){
+			clrNameEn = clrNameEn + "/active";
+			clrName = clrName+"/鼠标按下"
+		}
+		elseif(string.find(name,"Focus")){
+			clrNameEn = clrNameEn + "/focus";
+			clrName = clrName+"/获得焦点"
+		}
+		elseif(string.find(name,"Disabled")){
+			clrNameEn = clrNameEn + "/disabled";
+			clrName = clrName+"/禁用状态"
+		}
+		else {
+			clrNameEn = clrNameEn + "/default";
+			clrName = clrName+"/默认状态"
+		}
+		
+		table.push(tab,{
+			clrName;clrNameEn;color.rgbReverse(clr);
+		});	
+	}
+	 
+	var clrTable = {}
+	var tab ={bg;fg;txt;border}
+	for i,v in table.eachIndex(tab){
+		table.sort(v,function(b){
+			var a,b = owner[1],b[1]; 
+			return a < b;
+		})	
+		table.append(clrTable,v);
+	}
+ 	for i,v in table.eachIndex(tab){
+		table.sort(v.chk,function(b){
+			var a,b = owner[1],b[1]; 
+			return a < b;
+		})	
+		table.append(clrTable,v.chk)
+	}
+	winform.clrPicker.openColorTable(clrTable); 
+}
+
+winform.setIcon( hico )
+
+winform.show();
+winform.plusPreview.redrawTransparent();
+winform.cPreviewBackground.redrawTransparent();
+win.setTopmost(winform.hwnd);
+
+win.loopMessage();

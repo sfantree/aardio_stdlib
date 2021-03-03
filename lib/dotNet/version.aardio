@@ -1,0 +1,59 @@
+//version 获取安装版本
+import win.reg;
+namespace dotNet.version;
+	
+getFrameworks = function(){  
+	var vers = {};
+	var reg = ..win.reg("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\NET Framework Setup\NDP")
+	for(keyname,writetime in reg.eachKey() ){  
+	
+		if( ..string.match(keyname,"^v\d" ) ){
+			var ver = {}
+			vers[keyname] = ver;
+			var regVer = reg.openReg(keyname); 
+			ver.version = regVer.queryValue("Version");
+			ver.sp = regVer.queryValue("SP");
+			ver.installPath  = regVer.queryValue("InstallPath");
+			if( ! ver.version ){
+				var regClientVer  = regVer.openReg("Client",true); 
+				if( regClientVer ){
+					//安装了精简版
+					ver.client = {
+						version = regClientVer.queryValue("Version");
+						sp = regClientVer.queryValue("SP");
+						installPath  = regClientVer.queryValue("InstallPath");
+					}
+					regClientVer.close()
+				}
+				var regFullVer  = regVer.openReg("Full",true); 
+				if( regFullVer ){
+					ver.full = {
+						version = regFullVer.queryValue("Version");
+						sp = regFullVer.queryValue("SP");
+						installPath  = regFullVer.queryValue("InstallPath");
+					}
+					regFullVer.close();
+				}
+				if( ! ( regClientVer || regFullVer ) ){
+					vers[keyname] = null;
+				}
+			} 
+			regVer.close();
+		}
+	}
+	return vers; 
+}
+
+getVersions = function(){
+	var versions = getFrameworks();
+	return ..table.map(versions,function(v,k,result){
+		k = ..string.match(k,"^v\d+\.*\d*");
+		if(#k==2) k = k + ".0";
+		result[k] = true;
+	})  
+}
+
+/**intellisense(dotNet.version)
+getFrameworks() = 获取安装的.Net Framework版本信息列表
+getVersions() = 返回已安装的.Net Framework版本\n版本号一律规范为 vN.N 格式,例如v2.0 v4.0 等等
+end intellisense**/

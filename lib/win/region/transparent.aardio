@@ -1,0 +1,38 @@
+﻿//transparent 透明控件窗口
+namespace win.region;
+
+class transparent{
+	ctor(ctrl,diff){{
+		var parent = ctrl[["_parentForm"]];
+		if(!parent){
+			error("参数必须指定子窗口",2)
+		}
+		
+		var transparent = function(){
+			var rc = ..win.getRect(parent.hwnd)
+			var rgnParent = ::Gdi32.CreateRectRgn(0,0,rc.width(),rc.height());
+			
+			var rc = ..win.getRect(ctrl.hwnd)
+			var rgChild = ::Gdi32.CreateRectRgn(rc.left,rc.top,rc.width(),rc.height());
+			var rgnNew  = ::Gdi32.CreateRectRgn(0,0,0,0);
+		
+			::Gdi32.CombineRgn(rgnNew,rgnParent,rgChild,(diff===null||diff) ? 4/*_RGN_DIFF*/ : 2/*_RGN_OR*/);
+			::User32.SetWindowRgn(parent.hwnd,rgnNew,true);
+		
+			::Gdi32.DeleteObject(rgnParent);
+			::Gdi32.DeleteObject(rgChild);			
+		}
+			
+		parent.adjust = function(cx,cy,wParam){
+			transparent();
+		}; 
+		
+		transparent();
+	}}; 
+}
+
+/**intellisense(win.region)
+transparent = 透明控件窗口
+transparent(.(ctrl) =  设置控件窗口为透明区域
+transparent(.(ctrl,false) =  恢复控件窗口为不透明区域
+end intellisense**/

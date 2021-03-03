@@ -1,0 +1,12 @@
+﻿//http.tls 启用 TLS
+import win.reg;
+namespace inet.http.tls{
+    if( _WIN7_LATER && (!_WIN10_LATER) ){
+    	var reg = ..win.reg("HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Internet Settings")
+		reg.setDwValue("SecureProtocols",0xA80); //TLS 1.2,1.1,1.0 
+    } 
+}
+
+/**intellisense()
+inet.http.tls = 在 WIN7 系统上为 inet.http 以及 web.form 启用 TLS 1.2\n自动忽略 WIN7以外的系统（WIN 10 默认已启用）\n目前TLS 1.2 已普及，建议导入此支持库
+end intellisense**/

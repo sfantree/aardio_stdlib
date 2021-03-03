@@ -1,0 +1,31 @@
+//4)调用aardio
+import console;
+import py2;
+
+/*
+导出一个名字为"aardio"的模块，
+在python中可以使用 import aardio导入。
+
+可以使用此方法导出任何其他的aardio表，Python中可以访问导出表中的成员函数,
+除函数以外的成员不导出，但是可以在被调用函数中用owner对象访问自身的其他成员变量。
+*/
+py2.export.aardio ={
+	
+	c = 456;
+	test = function(a,b){
+		..console.log( "aardio函数被python调用了"  );
+		return a + b + owner.c;
+	} 
+
+}
+
+var pyCode = /**
+import aardio
+def testPy():
+    return aardio.test(12,2)
+**/
+
+py2.exec( pyCode )
+console.log( py2.main.testPy() );
+
+console.pause()

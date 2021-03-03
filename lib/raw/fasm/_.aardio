@@ -1,0 +1,138 @@
+import fsys;
+namespace raw.fasm;
+
+var dll = ..raw.loadDll($"~/lib/raw/fasm/.res/fasm.dll","fasm")
+
+class FASM_STATE{
+	INT condition;
+	INT length;
+	pointer outputData;
+}
+
+class FASM_STATE_ERROR{
+	INT condition;
+	int errorCode;
+	pointer errorLine;
+} 
+
+var GetVersion = dll.api("fasm_GetVersion","INT()")
+var Assemble = dll.api("fasm_Assemble","int(pointer lpSource,pointer lpMemory,INT cbMemorySize,INT nPassesLimit,pointer hDisplayPipe)" )
+var AssembleFile = dll.api("fasm_AssembleFile","int(pointer lpSourceFile,pointer lpMemory,INT cbMemorySize,INT nPassesLimit,pointer hDisplayPipe)" )
+
+getVersion = function(){
+	var v = GetVersion();
+	return v&0xFF,v>>16
+}
+
+FASMERR = {
+	[-107]="Invalid argument";
+	[-123]="Invalid use of symbol";
+	[-108]="Illegal instruction";
+	[-124]="Name too long";
+	[-109]="Invalid operand";
+	[-125]="Invalid name";
+	[-110]="Invalid operand size";
+	[-126]="Reserved word used as symbol";
+	[-111]="Operand size not specified";
+	[-127]="Symbol already defined";
+	[-112]="Operand sizes do not match";
+	[-128]="Missing end quote";
+	[-113]="Invalid address size";
+	[-129]="Missing end directive";
+	[-130]="Unexpected instruction";
+	[-114]="Address sizes do not agree";
+	[-131]="Extra characters on line";
+	[-132]="Section not aligned enough";
+	[-115]="Disallowed combination of registers";
+	[-133]="Setting already specified";
+	[-134]="Data already defined";
+	[-116]="Long immediate not encodable";
+	[-135]="Too many repeats";
+	[-101]="File not found";
+	[-117]="Relative jump out of range";
+	[-102]="Error reading file";
+	[-118]="Invalid expression";
+	[-140]="User error";
+	[-119]="Invalid address";
+	[-141]="Assertion failed";
+	[-104]="Invalid macro arguments";
+	[-120]="Invalid value";
+	[-105]="Incomplete macro";
+	[-121]="Value out of range";
+	[-103]="Invalid file format";
+	[-106]="Unexpected characters";
+	[-122]="Undefined symbol";
+	[-136]="Symbol out of scope" 
+}
+
+FASM_RETCODE = {
+	[-1] = "Invalid Parameter"; 
+	[-3] = "Stack Overflow"; 
+	[-4] = "Source not found"; 
+	[-5] = "Unexpected end of source";
+	[-6] = "Cannot Generate Code";
+	[-7] = "Format Limitations Exceeded";
+	[-8] = "Write Failed"; 
+}
+
+assemble = function(code,size = 0x800000,nPassesLimit=100,hPipe,isFile){ 
+	..fsys.setCurDir("/");
+	
+	var buffer = ..raw.buffer(24 + size );
+	
+	..thread.lock("FASM{A9F97D8C-11AA-49FF-A722-C14690E03151}");
+	var ret = ( (!isFile)? Assemble : AssembleFile )(code,buffer,24 + size,nPassesLimit,hPipe);
+	..thread.unlock("FASM{A9F97D8C-11AA-49FF-A722-C14690E03151}");
+	
+	if( ret == 0/*_FASM_OK*/ ){
+		var state = ..raw.convert(buffer,FASM_STATE() );
+		var bin = ..raw.tostring( topointer(state.outputData),1,state.length);
+		return bin; 
+	}
+	elseif( ret = -2/*_FASM_OUT_OF_MEMORY*/ ){ 
+		return null,"缓冲区溢出",0;
+	}
+	elseif( ret = 2/*_FASM_ERROR*/ ){
+		var state = ..raw.convert(buffer,FASM_STATE_ERROR() );  
+		var lineHeader = ..raw.convert( state.errorLine,{
+			string filePath;
+  			int lineNumber;
+  			INT fileOffset; 
+  			INT macroLine;
+		} );
+		return null,FASMERR[state.errorCode],lineHeader.lineNumber,lineHeader;
+	} 
+	return null,FASM_RETCODE[ret] or "未知错误",0 
+}
+
+assemble32 = function(code,size,nPassesLimit,hPipe){
+	var b,e,line,h = assemble( 'use32\n' + code,size,nPassesLimit,hPipe);
+	if( (!b) ? line ) line--;
+	return b,e,line,h;
+}
+
+assembleFile = function(path,size = 0x1000000,nPassesLimit=100,hPipe){ 
+
+	var fullpath = ..io.exist(path);
+	if( !fullpath) {
+		if( ..io.localpath(path) ){ 
+			var code = ..string.load(path)
+			if(code) return assemble(code,size,nPassesLimit,hPipe);
+		}
+		return null,"错误的文件路径";
+	} 
+	return assemble(fullpath,size,nPassesLimit,hPipe,true) 
+}
+ 
+/**intellisense()
+raw.fasm = fasm(flat assembler) 汇编语言编译器
+raw.fasm.assemble32(.("汇编代码",缓冲区大小) = 编译返回32位机器码,缓冲区大小为可选参数 - 默认为8MB\n出错返回null,错误信息,错误行号
+raw.fasm.assemble(.("汇编代码",缓冲区大小) = 编译返回机器码,缓冲区大小为可选参数 - 默认为8MB\n出错返回null,错误信息,错误行号
+raw.fasm.assembleFile(.("汇编源码文件路径",缓冲区大小) = 编译返回机器码,缓冲区大小为可选参数 - 默认为8MB\n出错返回null,错误信息,错误行号
+raw.fasm.getVersion() = 返回编译器版本
+
+_FASM_OK=@0/*_FASM_OK*/
+_FASM_WORKING=@1/*_FASM_WORKING*/
+_FASM_ERROR=@2/*_FASM_ERROR*/ 
+_FASM_OUT_OF_MEMORY=@-2/*_FASM_OUT_OF_MEMORY*/ 
+end intellisense**/ 

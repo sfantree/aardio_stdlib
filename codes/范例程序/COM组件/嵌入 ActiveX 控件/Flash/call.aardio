@@ -1,0 +1,82 @@
+//嵌入FLASH控件
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="嵌入FLASH控件";right=511;bottom=352;parent=...)
+winform.add(
+btnDump={cls="button";text="显示成员";left=307;top=313;right=395;bottom=340;db=1;dr=1;z=2};
+btnScreen={cls="button";text="全屏";left=403;top=314;right=491;bottom=341;db=1;dr=1;z=3};
+btn_xcall={cls="button";text="调用Flash函数";left=119;top=313;right=296;bottom=340;db=1;dr=1;z=4};
+flashBox={cls="custom";left=19;top=16;right=488;bottom=303;db=1;dl=1;dr=1;dt=1;edge=1;z=1}
+)
+/*}}*/
+
+//创建控件
+import com.flash;
+var flash = com.flash( winform.flashBox ); 
+
+//响应命令 
+flash.command = {
+	msgbox = function( args ){
+		winform.flashBox.fullscreen(false);
+		winform.flashBox.msgbox(args)
+	} 
+	fullscreen = function( args ){
+		..io.print("args",args)
+		winform.flashBox.fullscreen( string.cmp(args,"true") == 0 ); 
+	} 
+}
+
+//导出接口函数,注意一定不要在加载swf动画以后再设置此属性
+flash.external = {
+	addNumbers = function(a,b){
+		winform.flashBox.msgbox("addNumbers被调用,参数:" + a + " " + b) 
+		return a + b;
+	}	
+}
+ 
+//打开swf文件
+flash.movie = "\testCall.swf" 
+flash.play()
+
+winform.btn_xcall.oncommand = function(id,event){ 
+	var str =  flash.callMe(1,2); //也可以写 flash.xcall("callMe",1,2);
+	winform.flashBox.msgbox("FLASH函数返回值:" + str  );
+
+}
+
+winform.btnDump.oncommand = function(id,event){
+	io.open()
+	com.DumpTypeInfo(flash._object)
+} 
+
+winform.btnScreen.oncommand = function(id,event){
+	winform.flashBox.fullscreen(true);
+	
+}
+
+winform.show(true) 
+win.loopMessage();
+return winform;
+
+/***
+请注意flash的安全沙箱机制可能会阻止swf文件与外部函数交互,
+在加载swf以前设置flash.external将自动调用flash.disableLocalSecurity()禁用本地安全,
+或者在加载swf以前手动调用 flash.disableLocalSecurity() 禁用本地安全。
+禁用本地安全以后,本地swf文件即可自由调用aardio接口函数。
+关于详细的说明请参考这几个函数的源码以及说明、以及flash安全沙箱相关的资料。
+
+//testCall.swf 脚本( AS3.0 )
+
+btnCallAardio.addEventListener(MouseEvent.CLICK, fl_ClickCallAardio);
+function fl_ClickCallAardio(event:MouseEvent):void {
+	fscommand("msgbox", "这是flash调用Aardio的响应");
+}
+ 
+import flash.external.*;
+function callMe(a:uint,b:uint):uint {
+	var result:uint = ExternalInterface.call("addNumbers",a,b);
+	return result;
+}
+ExternalInterface.addCallback("callMe", callMe); 
+
+***/

@@ -1,0 +1,74 @@
+/*
+请先下载播放器的完整解码器插件包并覆盖到"~\lib\libvlc\.res\plugins\"目录:
+http://download.aardio.com/v10.files/demo/libvlc-plugins.7z
+也可以到VLC官网下载。
+*/ 
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="libvlc调用示例";right=958;bottom=639;clipch=1)
+winform.add(
+lbVod={cls="static";left=2;top=3;right=957;bottom=577;db=1;dl=1;dr=1;dt=1;edge=1;z=1};
+progress={cls="progress";left=6;top=585;right=954;bottom=595;db=1;dl=1;dr=1;edge=1;max=100;min=0;z=2};
+static={cls="static";text="音量：";left=64;top=612;right=144;bottom=630;align="right";transparent=1;z=4};
+tbVolume={cls="trackbar";left=160;top=601;right=572;bottom=631;db=1;dl=1;dr=1;max=100;min=0;z=3}
+)
+/*}}*/
+
+import win.version;
+import libvlc;
+
+//初始化vlc引擎，可用参数：https://wiki.videolan.org/VLC_command-line_help/ 
+var vlcEngine = libvlc(
+	"--subsdec-encoding=GB18030",//字幕默认使用中文编码
+	win.version.isVistaLater ? "--freetype-font=DFKai-SB" : "--freetype-font=宋体",//WIN7可用字体：Arial Unicode MS,DFKai-SB, Microsoft JhengHei, MingLiU, MingLiU-ExtB, MingLiU_HKSCS, MingLiU_HKSCS-ExtB, PMingLiU, PMingLiU-ExtB
+	"-I","dummy","--ignore-config"//,"--extraintf=logger" ,"--verbose=2" 
+	)
+	
+//创建播放器
+var mediaPlayer = vlcEngine.mediaPlayer( winform.lbVod );
+
+//用于设置音量
+winform.tbVolume.setRange(0,100);
+winform.tbVolume.pos = mediaPlayer.volume;
+winform.tbVolume.oncommand = function(id,event,pos){
+	if( event == 8/*_SB_ENDSCROLL*/ ){
+		mediaPlayer.volume= winform.tbVolume.pos;
+	}
+	elseif( event == 5/*_SB_THUMBTRACK*/ ){
+		mediaPlayer.volume = pos;
+	} 
+}
+
+//创建事件监听器
+var evtMgr = mediaPlayer.getEventManager() 
+evtMgr.mediaPlayerOpening = function(event){
+		winform.lbVod.show(true)
+}
+evtMgr.mediaPlayerEncounteredError = function(event){
+	winform.msgbox("mediaPlayerEncounteredError");
+}
+ 
+evtMgr.mediaPlayerLengthChanged = function(event){ 
+	winform.mediaLength  = event.newLength; 
+	winform.progress.setRange(1,1000);
+}
+
+evtMgr.mediaPlayerTimeChanged = function(event){
+	if( winform.mediaLength ){ 
+		winform.progress.pos =  ( event.newTime / winform.mediaLength ) * 1000;
+	}
+}
+evtMgr.mediaPlayerStopped = function(event){
+	winform.msgbox("mediaPlayerStopped")
+	evtMgr.mediaPlayerEndReached(event)
+}
+evtMgr.mediaPlayerEndReached = function(event){
+	winform.lbVod.show(false) //隐藏播放器窗口，然后可以用其他控件显示某个LOGO图像
+} 
+ 
+//mediaPlayer.loadMediaFile("d:\视频.mkv"); 
+mediaPlayer.loadMedia("http://download.aardio.com/demo/video.aardio");
+mediaPlayer.play()  
+
+winform.show() 
+win.loopMessage();

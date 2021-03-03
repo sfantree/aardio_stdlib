@@ -1,0 +1,18 @@
+﻿import win.ui.layered;
+import win.ui.shadow;
+
+namespace win.ui;
+
+class layeredRound{
+	ctor( winform,radius=12,delayTime,shadowAlpha=22,shadowSize=6,shadowColor ){
+		this = ..win.ui.layered(winform);
+		this.borderRadius = radius;
+ 
+		..win.ui.shadow(winform,shadowAlpha,shadowSize,radius+2,radius)
+	}; 
+}
+
+/**intellisense()
+win.ui.layeredRound(.(winform,radius) = 创建圆角分层窗口,\n参数@1指定窗体对象,参数@2指定圆角半径,\n此构造函数还支持有其他可选参数,详见库源码\n分层窗口仅支持plus,bkplus控件,其他子窗口可通过调用 orphanWindow 函数正常显示
+win.ui.layeredRound() = !winuilayered.
+end intellisense**/

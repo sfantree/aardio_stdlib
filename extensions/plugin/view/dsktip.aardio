@@ -1,0 +1,86 @@
+//代码出处 http://bbs.aardio.com/forum.php?mod=viewthread&tid=9949
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=216;bottom=91;border="none";exmode="none";max=false;min=false;mode="popup";sysmenu=false;title=false)
+winform.add()
+/*}}*/
+
+import web.layout;
+var wbLayout = web.layout(winform);
+
+namespace web.layout.behavior.closeBtn {
+	onButtonClick = function (ltTarget,ltEle,reason,behaviorParams) {
+		ltEle.getForm().close();
+	}
+}
+
+import process;
+wbLayout.sinking = {
+	onHyperlinkClick = function (ltTarget,ltEle,reason,behaviorParams) {
+		var path = ltEle.href; 
+		if(path) process.execute(path);
+		ltEle.getForm().close();
+		return true;
+	} 
+}
+
+wbLayout.html = /**
+<body>
+	<span .arrow></span><span .close></span>
+	<div .content>
+		<p><strong>aardio</strong></p>
+		<p>桌面软件快速开发工具</p>
+		<a href="http://www.aardio.com">www.aardio.com</a>
+	</div>
+</body>
+**/
+
+wbLayout.css = /**
+html { background: transparent }
+body { outline: 5dip glow #000; background: #eee; border-radius: 10dip }
+body > .content { margin: 50%% 16dip; font: 12dip "Microsoft Yahei","SimHei","Simsun"; line-height: 12dip; }
+body > .content p { margin: 8dip 0; }
+
+.arrow {
+	position: absolute; left: 2dip; top: 50%%; width: 7dip; height: 14dip;
+	font: 14dip Tahoma; color: #eee; content: "◆"; overflow: hidden;
+}
+
+.close {
+	position: absolute; right: 14dip; top: 14dip; width: 16dip; height: 16dip;
+	font: 13dip Tahoma; color: #333; text-align: center; line-height: 16dip;
+	behavior: clickable close-btn; border-radius: 2dip; content: "×";
+}
+.close:hover, .close:active { background: #fff #fff #f2f2f2 #f2f2f2; outline: 2dip glow #666 }
+.close:active { padding: 1dip -1dip -1dip 1dip; background: #f2f2f2 #f2f2f2 #fff #fff }
+**/
+
+/*
+shell = com.CreateObject('Shell.Application');
+shell.MiniMizeAll();
+*/
+SendMessageInt( ..win.find("Shell_TrayWnd") , 0x111/*_WM_COMMAND*/,  419, 0 );//显示桌面
+
+import winex.key;
+import winex.desktop
+winex.key.click(winex.desktop.listview.hwnd,"F5" );//刷新桌面 
+
+var idx;
+var listview = winex.desktop.listview;
+for(i=1;10;1){
+	idx = listview.findItemEx("aardio");
+	if(idx) break;
+	..win.delay(200);
+}
+if ( ! idx) { return }
+
+var rect = listview.getItemRect(idx);
+winform.setPos(rect.right, (rect.top + rect.bottom - winform.height) / 2);
+winform.show();
+ 
+win.setOwner(winform.hwnd,listview.hwnd)
+win.setForeground( winex.find( "<Progman>|<WorkerW>" ),);
+winform.modifyStyleEx(, 0x8000000/*_WS_EX_NOACTIVATE*/);
+winform.transparent(true);
+
+win.loopMessage();

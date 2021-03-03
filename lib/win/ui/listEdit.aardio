@@ -1,0 +1,93 @@
+﻿//listEdit 列表编辑框
+import win.ui.ctrl.edit;
+
+namespace win.ui;
+
+class listEdit{
+	ctor( listbox ){
+		this = listbox;  
+		
+		this.addCtrl(
+            editBox = { 
+                cls="edit";font = this.getFont() ;left = 0;top = 0;
+                right = 50;bottom = 50;autoResize = false ;hide = 1;edge = 1;
+                wndproc = function( hwnd, message, wParam, lParam ){
+                    var update; 
+                    if( ( message = 0x8/*_WM_KILLFOCUS*/)  || (message == 0x101/*_WM_KEYUP*/ && wParam == 0xD/*_VK_RETURN*/ ) ) {
+                        update = true;
+                    }
+                    elseif(message == 0x201/*_WM_LBUTTONDOWN*/ ){
+                        var x,y = ..win.getMessagePos(lParam)
+                        var rc = this.editBox.getClientRect();
+                       
+                        if( ! ::PtInRect(rc,x,y) ) update = true;
+                        this.editBox.capture = !update;
+                    } 
+                    elseif(message == 0x101/*_WM_KEYUP*/){
+                    	if( wParam == 0xD/*_VK_RETURN*/ ) {
+                    		owner.show(false);
+                    		return;
+                    	}
+                    	elseif( wParam == 0x1B/*_VK_ESC*/){
+                    		owner.text = this.selText;
+                    		owner.show(false);
+                    		return;
+                    	}
+                    }
+                    
+                    if( update ){
+                    	owner.show(false);
+                        var t = this.selText;
+                        if( t!= owner.text ){
+                        	if( this.onEditChanged ) {
+                        		if( false === this.onEditChanged(owner.text, owner.selIndex) ) return;	
+                        	}
+                        	this.add(owner.text,owner.selIndex)
+	 						this.delete(owner.selIndex+1)
+                        }	
+                    }
+                }  
+            }
+        ) 
+	};
+	beginEdit = function(){
+		
+		var edit = this.editBox;
+       	if( ..win.isVisible(edit.hwnd) ) return;  
+       	
+        var event = this.editBox.event;
+        edit.text=this.selText;
+        var rc =this.getItemRect( this.editBox.selIndex );
+        var rcClient=this.getClientRect();
+        if( rcClient.bottom > rc.bottom + 4 ){
+            rc.bottom = rc.bottom + 4;
+        }
+        else {
+            rc.top = rc.top - 4;
+        }
+        
+        edit.setRect(rc);
+        rc.inflate(-1,-1);
+        edit.setClientRect(rc);
+        edit.show(); 
+        edit.setFocus();
+        edit.capture = true;
+        return true;	 
+	}; 
+	_precommand = function(id,event){
+		if( event ==  0x2/*_LBN_DBLCLK*/ ){
+			this.editBox.selIndex = this.selIndex ;
+			this.beginEdit(); 
+		}	 
+	};
+}
+
+/**intellisense()
+win.ui.listEdit(__) = 参数必须指定一个listbox控件对象\n返回一个可编辑单元格的列表框对象,\n\n鼠标左键双击单元格、或者按空格键开始编辑,\n回车完成编辑,ESC键撤消编辑,回车+上下方向键快速移动到其他项,\n用户完成编辑后会触发onEditChanged事件
+win.ui.listEdit() = !winuilstEdit.
+!winuilstEdit.editBox = 实现编辑功能的edit控件\n此功能需要扩展listview并实现了编辑功能的的控件才能支持\n!edit.
+!winuilstEdit.onEditChanged(text,iItem,iSubItem) = @.onEditChanged = function(text,selIndex){
+	__/*控件完成编辑\ntext为更新后的文本,selIndex为行号\n返回false取消编辑*/
+}
+!winuilstEdit.setTable(__) = 用listview控件显示数据表\n此函数会自动清空控件之前的所有项,\n如果没有创建任何列,则自动创建列\n\n数据表应当包含行组成的数组,\n每行的数据列必须是由列名和列值组成的键值对\n数据表应使用fields包含需要显示的列名称数组\n可以通过fields控制要显的列、以及要显示的顺序\n\n使用sqlite,access,sqlServer等数据库对象提供的getTable函数可获取符合此规格的数据表 
+end intellisense**/

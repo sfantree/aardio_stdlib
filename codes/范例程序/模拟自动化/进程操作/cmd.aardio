@@ -1,0 +1,23 @@
+//批量执行CMD命令
+
+import process.popen
+
+//打开命令行,隐藏命令行窗口
+prcs = process.popen("cmd.exe")
+
+cmd = /*
+CD C:\
+C:
+dir 
+mkdir test
+rmdir test
+*/
+
+prcs.write(cmd)
+result = prcs.peekTo(">");
+prcs.write('exit\n')
+
+//显示结果
+io.open()
+io.print( result )
+execute("pause")

@@ -1,0 +1,55 @@
+//调试基础
+
+import debug;
+import debug.log;
+import console;
+
+//aardio代码可以在运行时方便的获取变量信息
+//console.dump( {1;2;3;a={b="测试"}} )
+//console.pause(); //可以方便的暂停代码
+
+//这个函数也可以输出变量,格式上有所区别
+//console.varDump({1;2;3;a={b="测试"}})
+//console.pause(); //可以方便的暂停代码
+
+//下面的代码是转换为JSON格式输出到控制台,嵌套表看起来比较清楚
+console.dumpJson({a={b="测试"}})
+console.pause(); //可以方便的暂停代码
+
+//主线程启动时设置一次日志路径就可以,在多线程中自动生效
+debug.log.setPath("/.config/log.txt");
+debug.log.checkSize(0x20000); //设置日志大小
+
+/*
+输出错误调试信息到日志文件,
+发布后会下面的代码会进行BASE64位编码后输出(并且不再显示于控制台) -> 可以使用 debug.log.dump() 解码为明文。
+我们强烈建议大家在程序中使用日志记录异常信息。
+*/
+debug.log.print("错误信息"); 
+
+/*
+下面的代码用于隐藏错误信息,
+*/
+global.onError = function( err,over ){ 
+    if(!over){
+        import debug;
+        var stack = debug.traceback(,"调用栈",3);//获取调用栈信息,此函数当前调用级别为1,调用onError的默认错误处理程序调用级别为2,真正发生错误的代码调用级别为3
+        debug.log.write(stack,'\n',err)
+    }
+    
+    if( _STUDIO_INVOKED ) return err; //在开发环境中仍然返回错误信息,不返回字符串类型的错误信息则不会显示
+}
+
+
+/*
+下面的代码插入一个断点并打开控制台,
+在控制台中可以使用aardio代码,调用debug支持库的函数进一步获取更多调试信息。
+
+注意默认提供了两个快捷键
+1、按't'键后回车执行代码 io.print( debug.traceback() )
+2、按'c'键继续执行断点后的代码
+*/
+debug.debug();
+
+error("错误信息2",2);
+console.pause();

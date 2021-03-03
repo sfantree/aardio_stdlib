@@ -1,0 +1,23 @@
+//在PHP中自由调用aardio语言
+
+import php;
+import console;
+ 
+//PHP代码
+phpcode =/* 
+	$ret = aauto("
+		import win;
+		win.msgbox('我是aardio代码');
+		return 123;
+	")
+*/ 
+
+//运行PHP代码,返回表达式的值
+var ret = php.eval(phpcode) 
+console.log( ret );
+
+console.pause();
+
+//================================
+//请注意: aardio返回给PHP的值都是字符串类型
+//aardio代码使用return语句返回值。

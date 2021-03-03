@@ -1,0 +1,63 @@
+//缩进转换工具
+import ide;
+import win.ui;
+import win.ui.atom;
+/*DSG{{*/
+var winform = win.form(text="缩进转换工具 - 点关闭按钮隐藏(不退出),在工具中再次运行可恢复显示";right=514;bottom=146;exmode="toolwindow";max=false;parent=...;topmost=1)
+winform.add(
+btnSpaceIndent={cls="button";text="空格缩进(CTL+ALT+SPACE)";left=276;top=51;right=452;bottom=102;z=2};
+btnTabIndent={cls="button";text="tab缩进(CTRL+SHIFT+SPACE)";left=69;top=51;right=261;bottom=102;z=1}
+)
+/*}}*/
+
+var atom,hwnd  = winform.atom("{E4A74472-8253-438B-B41B-4FC33343998F }");
+if(!atom){ 
+	win.show(hwnd)
+	win.setForeground(hwnd);
+	win.quitMessage();	
+	return;
+}
+winform.onClose = function(hwnd,message,wParam,lParam){
+	winform.show( false )
+	return false;
+}
+
+winform.btnSpaceIndent.oncommand = function(id,event){ 	
+	var codeEditor = ide.getActiveCodeEditor()	
+	if( !codeEditor ){		
+		return;	
+	}	
+	var code = codeEditor.text;	
+	codeEditor.text = string.replace(code,"\n(\s+)",function(space){
+			return '\n'+ ..string.replace(space,'\t','    ')  	
+	} );
+}
+
+winform.btnTabIndent.oncommand = function(id,event){	
+	var codeEditor = ide.getActiveCodeEditor()	
+	if( !codeEditor ){		
+		return;	
+	}	
+	var code = codeEditor.text;	
+	codeEditor.text = string.replace(code,"\n(\s+)",function(space){	
+		space = ..string.replace(space,'    ','\t')		
+		space = ..string.replace(space,'   ','\t')		
+		space = ..string.replace(space,'  ','\t')		
+		space = ..string.replace(space,' ','\t')		
+		return '\n'+space	
+	}  ); 
+}
+
+hkid = winform.reghotkey(function(id,mod,vk){
+	winform.btnSpaceIndent.oncommand()
+}
+,0x2/*_MOD_CONTROL*/ | 0x1/*_MOD_ALT*/,0x20/*_VK_SPACE*/);
+
+hkid = winform.reghotkey(function(id,mod,vk){
+	winform.btnTabIndent.oncommand()
+}
+,0x2/*_MOD_CONTROL*/ | 0x4/*_MOD_SHIFT*/,0x20/*_VK_SPACE*/);
+
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();

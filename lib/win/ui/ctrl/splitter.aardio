@@ -1,0 +1,264 @@
+//splitter 拆分条
+import win.ui.ctrl.metaProperty;  
+namespace win.ui.ctrl ;
+	
+class splitter{
+    ctor(parent,tParam){  
+    	if( tParam ){ 
+    		tParam.style |=0x100/*_BS_PATTERN*/
+    		tParam.cls = "splitter"  
+    		
+    		if(tParam.edge) tParam.exstyle |= 0x100/*_WS_EX_WINDOWEDGE*/;	
+    		if( tParam.center===null || tParam.center )
+				tParam.style |= 0x200/*_SS_CENTERIMAGE*/
+    		
+    		this.horz =tParam.horz; //是否为水平拆分； 
+    		this.ltMin = 20;
+    		this.rbMin = 20;
+		}	 
+    };
+       
+    onCreate =function(){
+    	var x0,y0,
+    	    ,c1x,c1y,c1w,c1h,
+    	    ,c2x,c2y,c2w,c2h,
+    	    ,spx,spy,spw,sph,
+    	    ,oldxy,move,
+    	    ,draging,leftButtonDown;
+    	
+    	var hDc;
+    	var hCur = ::LoadCursor( ,topointer( this.horz ? 0x7F85/*_IDC_SIZENS*/ : 0x7F84/*_IDC_SIZEWE*/ ) );
+    	var limit =function(movexy){
+    		var move=movexy;
+    		var max;
+    		if(movexy<0){
+    			if(! this.horz){
+    				max =-c2w+this.rbMin;
+    				if(movexy < max) 
+    					move =max;
+       			}else {
+    				max = -c2h+this.rbMin;
+    				if(movexy < max)
+    					move = max;
+    			}
+    		}else {
+    			if(! this.horz){
+    				max =c1w-this.ltMin;
+    				if(movexy >max)
+    					move = max;
+    			}else {
+    				max =c1h-this.ltMin;
+    				if(movexy >max)
+    					move = max;
+    			}
+    		}
+    		return move; 		 
+    	}
+    	 
+    	this.wndproc = function(hwnd,message,wParam,lParam){ 
+			select(message) {
+				case 0x200/*_WM_MOUSEMOVE*/{
+					if(leftButtonDown){
+						var x,y =..win.getMessagePos(lParam)
+						draging = true; 
+						if( ! this.horz  ){
+							move = limit(x0 - x);
+							if(oldxy!=0){
+								this._drawSplitter(hDc,oldxy,spy,spw,sph);
+							}
+							this._drawSplitter(hDc,spx-move,spy,spw,sph);
+							oldxy =spx-move;
+						}
+						else {
+							move =limit(y0-y);
+							if(oldxy!=0){
+								this._drawSplitter(hDc,spx,oldxy,spw,sph);
+							}
+							this._drawSplitter(hDc,spx,spy-move,spw,sph);
+							oldxy = spy-move;
+						}
+					}
+				}
+				case 0x20/*_WM_SETCURSOR*/ {
+					::SetCursor(hCur);		
+					return true; 
+				}
+				case 0x201/*_WM_LBUTTONDOWN*/ {
+					if((this.ltControl===null)or(this.rbControl===null)){ 
+						return ;
+					} 
+					..win.setCapture(hwnd);
+					
+					leftButtonDown = true;
+					x0,y0 =..win.getMessagePos(lParam);
+					c1x,c1y,c1w,c1h = this.ltControl.getPos();
+					c2x,c2y,c2w,c2h = this.rbControl.getPos();
+					spx,spy,spw,sph = this.getPos();
+					oldxy = 0;
+					if(hDc)::ReleaseDC(this.parent.hwnd,hDc);  
+					hDc =::GetDC(this.parent.hwnd); 
+					
+					if( ! this.horz  ){ 
+						this._drawSplitter(hDc,spx,spy,spw,sph); 
+						oldxy = spx;
+					}
+					else { 
+						this._drawSplitter(hDc,spx,spy,spw,sph);
+						oldxy = spy;
+					}
+				}
+				case 0x202/*_WM_LBUTTONUP*/ {
+					if( leftButtonDown ){
+						 
+						..win.releaseCapture();
+						leftButtonDown = false;	
+						if(draging){
+							if( !this.horz ){
+								this.ltControl.setPos(c1x,c1y,c1w-move,c1h);
+								this.rbControl.setPos(c2x-move,c2y,c2w+move,c2h);
+								this.setPos(spx-move,spy);
+							}
+							else {
+								this.ltControl.setPos(c1x,c1y,c1w,c1h-move);
+								this.rbControl.setPos(c2x,c2y-move,c2w,c2h+move);
+								this.setPos(spx,spy-move);							
+							}
+							
+							draging = false;
+							::ReleaseDC(this.parent.hwnd,hDc);   
+						}
+						else {
+							if(hDc){
+								this._drawSplitter(hDc,spx,spy,spw,sph);
+								::ReleaseDC(this.parent.hwnd,hDc);   
+								this.redraw();
+							}
+						}
+						hDc = null;
+					}
+				} 
+			}
+		}  
+    };
+    _drawSplitter =function(hDc,x,y,width,height){
+    	var sbmp ='\u00AA\u0055\u00AA\u0055';
+		var hbmp =::CreateBitmap(4,4,1,1,sbmp);
+		var brush =::CreatePatternBrush(hbmp);
+		var brush_old =::SelectObject(hDc,brush);
+		::PatBlt(hDc,x,y,width,height,0x5A0049/*_PATINVERT*/);
+		::SelectObject(hDc,brush_old);
+		::DeleteObject(brush);
+		::DeleteObject(hbmp);	
+    };
+   	_adjust = function(){
+   		if( !(this.ltControl && this.rbControl) )return;
+   		var ltX,ltY,ltCx,ltCy = this.ltControl.getPos();
+   		var rbX,rbY,rbCx,rbCy = this.rbControl.getPos();
+   		var x,y,cx,cy = this.getPos(); 
+   	 
+   		if( this.horz ){
+   			if( this.ltControl.ah || this.ltControl.db ){
+   				this.ltControl.setPos( , , ,ltCx,y-ltY);
+   				this.rbControl.setPos( rbX , y + cy,rbCx,rbCy + ( rbY - ( y + cy ) ) ); 
+   			}
+   			else {
+   				..win.setPos(owner.hwnd , x,ltY+ltCy);
+   				this.rbControl.setPos( rbX , ltY + ltCy + cy,rbCx,rbY + rbCy - (ltY + ltCy + cy) ); 
+   			} 
+   		}
+   		else{
+   			if( this.ltControl.aw || this.ltControl.dr ){
+   				this.ltControl.setPos( , , ,x-ltX,ltCy);
+   				this.rbControl.setPos( x+cx , rbY,rbCx + ( rbX - ( x + cx) ),rbCy ); 
+   			}
+   			else {
+   				..win.setPos(owner.hwnd ,ltX + ltCx ,y);
+   				this.rbControl.setPos( ltX + ltCx + cx , rbY, rbX + rbCx - (ltX + ltCx + cx),rbCy ); 
+   			} 
+   		}  
+   	}
+   	 
+	@_metaProperty;
+}
+
+splitter._metaProperty = metaProperty(  
+	split =function(ctrl1,ctrl2 ){ 
+    	if( owner.horz ){
+    		if( ctrl1.top < ctrl2.top ){
+    			owner[["ltControl"]] = ctrl1;
+    			owner[["rbControl"]] = ctrl2;  
+    		}
+    		else {
+    			owner[["ltControl"]] = ctrl2;
+    			owner[["rbControl"]] = ctrl1;  
+    		} 
+    	}
+    	else {
+    		
+    		if( ctrl1.left < ctrl2.left ){
+    			owner[["ltControl"]] = ctrl1;
+    			owner[["rbControl"]] = ctrl2;  
+    		}
+    		else {
+    			owner[["ltControl"]] = ctrl2;
+    			owner[["rbControl"]] = ctrl1; 
+    		} 
+    	} 
+    };
+
+);
+
+..win.registerClassEx("splitter",,"static");
+
+//感谢: 琴鸣 贡献最初的源码
+
+/**intellisense()
+!splitter.ltControl = 左边或上边的控件\n!static.
+!splitter.rbControl = 右边或下边的控件\n!static.
+!splitter.split(.(前面的控件,后面的控件) = 指定需要拆分的控件,\n被折分的控件可在控件属性中指定是否支持自动调整大小
+!splitter.horz = 是否水平拆分条
+!splitter.ltMin = 前面的控件最小尺寸
+!splitter.rbMin = 后面的控件最小尺寸
+!splitter.cls = 设计时类名
+!splitter.className = 运行时类名
+!splitter.hwnd = 控件句柄
+!splitter.id = 控件ID
+!splitter.text = 控件文本
+!splitter._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!splitter.getParent() = 返回父窗口\n!splitter.
+!splitter.setParent(__/*控件对象*/) = 改变父窗口 
+!splitter.translateAccelerator = @.translateAccelerator = function(msg){ \n	__/*返回是否快捷键*/\n} 
+!splitter.adjust = @.adjust = function( cx,cy,wParam ) {	 \n	__ \n};  
+!splitter.adjust() = 调整窗口 - 自定义事件函数
+!splitter.hide = 控件是否隐藏
+!splitter.disabled = 是否禁用
+!splitter.left = 左侧坐标
+!splitter.right = 右侧坐标
+!splitter.top = 顶部坐标
+!splitter.bottom = 底部坐标
+!splitter.width = 宽度
+!splitter.height = 高度
+!splitter.redraw() = 刷新
+!splitter.redrawTransparent() = 刷新\n透明背景时请使用此函数替代redraw()
+!splitter.show(true__) = 显示控件
+!splitter.getRect() = 控件区块位置(::RECT结构体)
+!splitter.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!splitter.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!splitter.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!splitter.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+!splitter.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!splitter.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!splitter.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!splitter.capture = 是否捕获全局鼠标消息
+!splitter.close() = 关闭控件窗口
+!splitter.invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+!splitter.invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+!splitter.update() = 重绘invalidate函数指定的区块
+!splitter.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!splitter.getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd)
+!splitter.sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+!splitter.postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+?win.ui.ctrl.static  =!splitter.
+win.ui.ctrl.splitter() = 拆分条控件\n!splitter.
+win.ui.ctrl.splitter = 拆分条控件支持库
+end intellisense**/

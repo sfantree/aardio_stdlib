@@ -1,0 +1,134 @@
+//multipartFormData 上传文件表单
+import fsys.mime;
+namespace web;
+
+class multipartFormData{
+	ctor(){
+		var formData = {};
+		var currentName,currentValue,currentFile;
+		var boundary = "----------" + ..string.random( ..math.random(15,20) );
+		var endOfData; 
+	};
+	boundary = function(){
+		return boundary;
+	};
+	contentType = function(){
+		return ..string.format('multipart/form-data; boundary=%s',boundary ) 
+	};
+	contentHeader = function(...){
+		return ..table.mix({ ["Content-Type"] = this.contentType() },...)
+	};
+	add = function(name,value){
+		value = ( value === null ? "" :  tostring(value) );
+		if(! (name && value) ) error("参数不能为空",2); 
+		
+		formData[name] = value;
+	};
+	addFile = function(name,value){
+		value = value ? tostring(value);
+		if(! (name && value) ) error("参数不能为空",2); 
+		
+		formData[name] = "@" + value;
+	};
+	addTable = function(t){
+		for k,v in ..table.eachName(t) formData[k] = tostring(v);
+	};
+	size = function() { 
+		var contentLength = 0;
+		var testFileSize = function(size){
+			contentLength += size;
+		}
+		
+		while( 
+		    var s;
+		    s = this.read(,testFileSize); 
+		    s
+		) {
+			contentLength += #s;
+		}
+		return contentLength;
+	};
+	read = function(blockSize=0x2000,testFileSize){ 
+		if( currentFile ){
+			if( !testFileSize ){
+				var s = currentFile.read(blockSize);
+				if( s ) return s;
+			}
+			else {
+				testFileSize( currentFile.size(1) );
+			}
+			
+			currentFile.close();
+			currentFile = null;
+			return '\r\n';
+		}
+		
+		if( ( currentName === null)  && endOfData ){
+			endOfData = null;
+			return;
+		}
+		currentName,currentValue = ..table.next(formData,currentName); 
+		if( !currentName ) { 
+			endOfData = true;
+			return ..string.format( '--%s--\r\n',boundary);
+		}
+		if( currentValue[1]=='@'# ){
+			var filePath = ..string.right(currentValue,-2);
+			currentFile = ..io.open( filePath,"rb")
+			if(!currentFile) return ""; 
+			
+			var mime = ..fsys.mime.fromFile(filePath); 
+			var tPath = ..io.splitpath(filePath); 
+			
+			var filename = tPath.file;
+			filename = ( (this.codePage!==null) ? ..string.fromto(filename,65001,this.codePage) : filename ) //rfc2388,RFC 2231 ?
+			
+			return ..string.format( '--%s\r\n
+Content-Disposition: form-data; name="%s"; filename="%s"\r\n
+Content-Type: %s\r\n\r\n',boundary,currentName,filename,mime :"application/octet-stream"  )
+		}
+		
+		return ..string.format( '--%s\r\n
+Content-Disposition: form-data; name="%s"\r\n
+\r\n
+%s\r\n', boundary,currentName, ( (this.codePage!==null) ? ..string.fromto(currentValue,65001,this.codePage) : currentValue ) )
+		
+	}
+	readAll = function(blockSize){
+		var t = {};
+		while( 
+    		var s;
+    		s = this.read(blockSize); 
+    		s
+		) {
+			..table.push(t,s)
+		}
+		return ..string.join(t);
+	}
+	close = function(){
+		if( currentFile ){
+			currentFile.close();
+			currentFile = null;
+		}
+	}
+}
+
+..math.randomize() 
+
+/**intellisense()
+web.multipartFormData = 用于构建上传文件表单
+web.multipartFormData() = 构建上传文件表单\n!webMultipartFormData.
+end intellisense**/
+
+/**intellisense(!webMultipartFormData)
+codePage = 指定服务端编码使用的代码页\n数值,UTF8编码为65001,系统默认ANSI编码为0,null为默认UTF8编码
+addFile(.("字段名","文件路径") = 添加文件到上传表单中
+add(.("字段名","@值") = 添加字段到上传表单中\n如果值的第一个字符为"@",则@后面应当是上传文件路径
+addTable(字段名值对) = @.addTable(\n	[""] = "@__/*如果值的第一个字符为"@",则@后面应当是上传文件路径*/"; \n	[""] = "";\n);
+size() = 获取上传数据总大小
+read(.(块大小) = 读取上传数据\n应循环调用该函数,直到该函数返回空值
+readAll(.(块大小) = 读取所有数据
+contentType() = 返回请求HTTP头Content-Type的值:\n"multipart/form-data; boundary=分隔符"
+contentHeader() = 返回一个用于构建HTTP头的表,指定了Content-Type的值:\n"multipart/form-data; boundary=分隔符"\n\n可选在参数中指定多个附加表用于添加更多键值
+close() = 关闭对象\n无需手动调用该函数
+end intellisense**/

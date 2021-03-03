@@ -1,0 +1,1295 @@
+﻿//tabs 高级选项卡
+import win.ui.ctrl.close;
+import win.ui.menu;
+import util.metaProperty;
+
+namespace win.ui;
+
+class tabs{
+	ctor( ctrl,... ){ {
+		ctrl._parentForm.resize();
+		
+		this.mode = "tabs";
+		this.strips = {ctrl;...};
+		if(#this.strips<2) error('至少要指定2个已创建的plus控件模板\n创建高级选项卡以后可以调用clear函数清空控件模板',2);
+		
+		var defRc = this.strips[1]._defRect;
+		var defRc2 = this.strips[2]._defRect;
+		var defRc3 = this.strips[#this.strips]._defRect; 
+		this.horizontal = ..math.abs(defRc3.left - defRc.left) > ..math.abs(defRc3.top - defRc.top);
+		
+		this._form = this.strips[1]._parentForm;
+		this.selHistory = {};
+		this._radioGroup = "#" + tostring(this);
+		for(i,s in this.strips){
+			s.radioGroup = this._radioGroup;
+		}
+		
+		..table.sort(this.strips,function(b){
+			if(this.horizontal) return owner._defRect.left < b._defRect.left;
+			else  return owner._defRect.top < b._defRect.top;
+		});
+			
+		var hcontainer;
+		var defRc = this.strips[1]._defRect;
+		var defRc2 = this.strips[2]._defRect;
+		var x,y,cx,cy = this.strips[1].getPos(); 
+		this.startRect = this.strips[1].getRect();
+		
+		if(this.horizontal){
+			this.itemMargin = defRc2.left - defRc.right;	 
+			hcontainer= ::User32.RealChildWindowFromPoint(this._form.hwnd,x + cx,y + cy +cy);
+		}
+		else {
+			this.itemMargin = defRc2.top - defRc.bottom;
+			hcontainer= ::User32.RealChildWindowFromPoint(this._form.hwnd,x + cx + cx,y + cy );
+		}
+		
+		this.designTimeItemWidth = defRc2.width();
+		this.designTimeItemHeight = defRc2.height();
+		
+		if( hcontainer ){
+			this.container = this._form.getCtrl(hcontainer);
+			if(this.container[["cls"]]!="custom") this.container = null;
+		} 
+		this.forms = {}; 
+		
+		var first = this.strips[1];
+		var last = this.strips[#this.strips];
+		this.designTimeBeginRect = ..table.clone(first._defRect);
+		if(this.horizontal){
+			this.designTimeBeginRect.offset(-(first._defRect.width()+this.itemMargin),0);
+			this.keepSpace = !(last.dl || last.dr)
+		}
+		else {
+			this.designTimeBeginRect.offset(0,-(first._defRect.height()+this.itemMargin));
+			this.keepSpace = !(last.dt || last.db)
+		}
+		
+		this.template = {
+			cls = last.cls;
+			bkBottom=last.bkBottom;
+			bkLeft=last.bkLeft;
+			bkRight=last.bkRight;
+			bkTop=last.bkTop;
+			paddingLeft=last.paddingLeft;
+			paddingRight=last.paddingRight;
+			paddingTop=last.paddingTop;
+			paddingBottom=last.paddingBottom;
+			textPadding=last.textPadding;
+			color=last.color;
+			valign=last.valign;
+			align=last.align;
+			x=last.x;
+			y=last.y;
+			dl=last.dl;
+			dt=last.dt;
+			dr=last.dr;
+			db=last.db;
+			clipch=last.clipch;
+			backgroundColor=last.backgroundColor;
+			background=last.background;
+			foreground=last.foreground;
+			foreRepeat=last.foreRepeat;
+			border=last.border;
+			repeat=last.repeat;
+			notify=last.notify;
+			font=last.getFont();
+			iconStyle=last.iconStyle;
+			iconText=last.iconText;
+			iconColor=last.iconColor;
+			focusOnClick=false;
+			hide=1;
+			z=1;
+		}
+		
+		var ddParam = {
+			cls = last.cls; 
+			left=last.right;
+			top=last.top;
+			width = 30;
+			height = 30;
+			dl=last.dl;
+			dt=last.dt;
+			dr=last.dr;
+			db=last.db; 
+			notify=1; 
+			text = this.horizontal ? "4" : "6";
+			font=LOGFONT(name='Marlett';h=-16);
+			focusOnClick=false;
+			z=1;
+			hide=1;
+		};
+		
+		if(this.horizontal){
+			ddParam.align = "left";
+		}
+		else {
+			ddParam.valign = "top";	
+		}
+		
+		this.dropButton = this._form.addCtrl({ddParam})[1];
+		this.dropButton.skin(dropButtonStyle);
+		this.dropButton.oncommand = function(){
+			var last = this.lastVisibleIndex();
+			if(!last) return;
+			
+			var menu = ..win.ui.popmenu(this._form);
+			
+			for(i=last+1;#this.strips;1){
+				menu.add(
+					this.strips[i].text,
+					function(id){ 
+						this.strips[last].show(0/*_SW_HIDE*/); 
+						this.swap(i,last);
+						this.strips[last].show(4/*_SW_SHOWNOACTIVATE*/)
+						this.selIndex = last;
+					} 
+				)  
+			}
+			
+			var rect = this.dropButton.getRect();
+			menu.popup(rect.right,rect.bottom);
+		}
+		
+		this.dropButton.preadjust = function(){
+			this.adjustLayout();
+		} 
+		
+		this.margin = this.dropButton.width;
+		this.margin = this.margin + ..math.max(this.itemMargin,10 )
+		this.dropButtonMargin = ..math.max(this.itemMargin,10 )
+		
+		//下面创建选项卡上的浮动关闭按钮
+		//-------------------------------------------------------------------
+		this.closeButton = this._form.addCtrl({{
+			cls = "close";width = 16;height = 16;
+		}})[1];
+		
+		this.closeButton.oncommand = function(){
+			if( this.closeButton.hoverStrip) {
+				this.deleteByStrip(this.closeButton.hoverStrip);
+				this.closeButton.hoverStrip = null;
+			};
+			
+			this.closeButton.hide = true;
+		}
+		
+		this.closeButton.onMouseLeave = function(wParam,lParam){ 
+			if( !owner.hoverStrip[["state"]][["hover"]] ) {
+				owner.hide = true;
+				owner.hoverStrip = null;
+			}
+		}
+		
+		this._preMouseHover = function(wParam,lParam){
+			var strip = owner;
+			if( this.onMouseHover ) this.onMouseHover(strip,wParam,lParam);
+			
+			if( !strip.hasCloseButton ) return;
+			
+			var rcStrip = strip.getRect();
+			var rcCloseButton = this.closeButton.getRect();
+			
+			var x,y;
+			if( this.beforeShowCloseButton ){
+				x,y = this.beforeShowCloseButton(strip,rcStrip,rcCloseButton);
+				if(x===null) return;
+			}
+			else {
+				x,y = rcStrip.right - rcCloseButton.width() + 2,rcStrip.top  - 2;
+			}
+				
+			x,y = ..win.toScreen(this._form.hwnd,x,y);
+			this.closeButton.setPos(x,y);
+		
+			this.closeButton.show(0x4/*_SW_SHOWNOACTIVATE*/);
+			this.closeButton.hoverStrip = strip;
+		}
+		
+		this._preMouseLeave = function(wParam,lParam){
+			if( this.onMouseLeave ) this.onMouseLeave(owner,wParam,lParam);
+			
+			if( !this.closeButton.state.hover ){
+				this.closeButton.hide = true;
+				this.closeButton.hoverStrip = null;
+			}
+		}
+		
+		this._preMouseDown = function(wParam,lParam){ 
+			var strip = owner;
+			if( this.onMouseDown ) this.onMouseDown(strip,id,event); 
+			
+			var hFocus = ..win.getFocus();
+			if(  ..win.isChild(this.selForm[["hwnd"]],hFocus)  ){
+				this.selForm.$lostFocusInTabs = hFocus;
+			} 
+		}
+		
+		this._preSelectChange = function(prevStrip){
+			var selStrip = owner;
+			this.selIndex =  this.selIndex;
+		};
+		
+		this._preMouseUp = function(id,event){
+			var strip = owner; 
+			if( this.onMouseUp ) this.onMouseUp(strip,id,event);  
+			if( this.oncommand ) this.oncommand(strip,id,event);   
+			
+			if( this.mode = "popup" ){
+				if( this.onOk ) this.onOk(this.selStrip);
+				this.popup(false); 
+				return;
+			}
+			
+			if(this.selForm[["$lostFocusInTabs"]]){
+				..win.setFocus(this.selForm[["$lostFocusInTabs"]]);
+				this.selForm[["$lostFocusInTabs"]] = null;
+			}
+		};
+		 
+		this._preFocusGot = function(hFocusLost){
+			if( this.onFocusGot ) return this.onFocusGot(hFocusLost);
+		} 
+		
+		this._preMouseActivate = function(hwndTop,hitTest,message){ 
+			if( this.isPopup() ) return 3/*_MA_NOACTIVATE*/
+		}
+		
+		this._preFocusLost = function(hFocusGot){
+			if( this.onFocusLost ) {
+				for(i=1;#this.strips;1){
+					if( hFocusGot === this.strips[i].hwnd ) return;
+				}
+				
+				return this.onFocusLost(hFocusGot);
+			}
+		}
+
+		for(i=1;#this.strips;1){ 
+			v = this.strips[i];
+			v.onMouseDown =this._preMouseDown;
+			v.onSelectChange = this._preSelectChange;
+			v.onMouseUp =this._preMouseUp;
+			v.onMouseHover = this._preMouseHover;
+			v.onMouseLeave = this._preMouseLeave;
+			v.onFocusGot = this._preFocusGot;
+			v.onFocusLost = this._preFocusLost; 
+			v.onMouseActivate = this._preMouseActivate;
+		}
+	} };
+	isVisible = function(){
+		return #this.strips && !this.strips[1].hide;
+	};
+	addItems = function(items,...){
+		if(#items){
+			for(i=1;#items;1){ this.add(items[i],...); }
+			return;
+		}  	
+	};
+	setItems = function(items,limit,selIndex){ 
+		var strips = this.strips;   
+		if(!limit) limit = #items;
+		else limit = ..math.min(limit,#items);
+		
+		if( limit >= #strips ){ 
+			for(i=1;#strips;1){
+			 	..table.assign(strips[i],items[i]);
+			}
+			
+			for(i=#strips+1;limit;1){
+				{ this.add(items[i]); } 
+			} 	
+		}
+		else {
+			for(i=1;limit;1){
+				..table.assign(strips[i],items[i]);
+			} 
+			
+			for(i=limit+1;#strips;1){
+				{ this.delete(i); } 
+			} 	
+		}  
+		
+		if( selIndex ? (selIndex<#this.strips) ) this.selIndex = selIndex;
+		return #this.strips;
+	}; 
+	setItemTexts = function(items,limit,selIndex){
+		return this.setItems( ..table.map(items,lambda(v){text=v}),limit,selIndex);
+	};
+	add = function(param,...){
+		 
+		if(#param && type(param[1])=="table"){
+			for(i=1;#param;1){ this.add(param[i],...); }
+			return;
+		}  
+		
+		var isPopup = this.isPopup();
+		param = ..table.assign({},this.template,param);
+		if(isPopup){ 
+			param.dt = 1;
+			param.dl = 1;
+		}
+		
+		var last = this.strips[#this.strips];
+		var rcDesignTime = last ? last._defRect : this.designTimeBeginRect;
+		if(this.horizontal){
+			param.top = rcDesignTime.top;
+			param.bottom = rcDesignTime.bottom;
+			param.left = rcDesignTime.right + 	this.itemMargin;
+			param.right = param.left + rcDesignTime.width();
+		}
+		else {
+			param.left = rcDesignTime.left;
+			param.right = rcDesignTime.right;
+			param.top = rcDesignTime.bottom + 	this.itemMargin;
+			param.bottom = param.top + rcDesignTime.height();
+		}
+	 
+		var ctrl =  this._form.add( { param } )[[1]];
+		if( ctrl ){ 
+			ctrl.reloadScale();
+			if(this.itemRegion) this.itemRegion.updateWindow(ctrl.hwnd,true,true)
+			
+			ctrl.onDrawString = this[["(onDrawString)"]];
+			ctrl.onDrawForegroundEnd = this[["(onDrawForegroundEnd)"]];
+			ctrl.onDrawEnd = this[["(onDrawEnd)"]];
+			
+			var idx = ..table.push(this.strips,ctrl);
+			..win.setTop(ctrl.hwnd);
+			
+			this.radioGroup = this._radioGroup;
+			if(this.style) ctrl.skin(this.style);
+			
+			ctrl.onMouseDown = this._preMouseDown; 
+			ctrl.onSelectChange = this._preSelectChange; 
+			ctrl.onMouseUp = this._preMouseUp;
+			ctrl.onMouseHover = this._preMouseHover;
+			ctrl.onMouseLeave = this._preMouseLeave;
+			ctrl.onFocusGot = this._preFocusGot; 
+			ctrl.onFocusLost = this._preFocusLost;
+			ctrl.onMouseActivate = this._preMouseActivate
+			if(...){
+				var frm = this.forms[idx];	
+				if( frm ) {
+					frm.close();	
+				}
+				
+				if( (...)[["hwnd"]] ){
+					this.forms[idx]= this.container.loadForm( ...);   
+				}
+				else{ 
+					ctrl.preloadFormArgs = {...};
+				};
+			}
+			
+			if(isPopup){
+				ctrl.orphanWindow(this.transparent);
+				return;
+			}
+			
+			if(this.margin){
+				var rect = this._form.getClientRect();
+				if(this.horizontal){
+					if(ctrl.right + this.margin > rect.right){
+						var v = this.lastVisibleIndex();
+						if(v){
+							this.swap(idx,v);
+							this.strips[idx].hide = true;
+							
+							ctrl.predraw();
+							ctrl.show(4/*_SW_SHOWNOACTIVATE*/);
+							this.showDropButton(true);
+							return v;
+						}
+					}
+				}
+				else {
+					if(ctrl.bottom + this.margin > rect.bottom){
+						if(v){
+							var v = this.lastVisibleIndex();
+							this.swap(idx,v);
+							
+							this.strips[idx].hide = true;
+							
+ 							ctrl.predraw();
+							ctrl.show(4/*_SW_SHOWNOACTIVATE*/);
+							this.showDropButton(true);
+							return v;
+						}
+					}
+				}
+			}
+			
+			ctrl.predraw();
+			ctrl.show(4/*_SW_SHOWNOACTIVATE*/);
+			return idx;
+		}
+	};
+	adjust = function(){
+		
+	};
+	adjustLayout = function(){
+		if(!this.isVisible()){ return; }
+		
+		if( this.strips[1] ){
+			this.startRect = this.strips[1].getRect();
+		}
+		
+		var rect = this._form.getClientRect();
+		if(! ( rect.width() && rect.height() ) ) return this.adjust();
+		
+		var last = 1;
+		var keepSpace = this.keepSpace && (!this.itemRegion);
+		if(this.horizontal){
+			while( 
+			    var strip;
+			    strip = this.strips[last];
+			    strip && ( ( strip.right + this.margin ) < rect.right ) 
+			) {
+				if( keepSpace ? (last>1) ){
+					..win.setPos(strip.hwnd,this.strips[last-1].right + this.itemMargin,strip.top,,,,0x1C/*_SWP_NOACTIVATE | _SWP_NOZORDER | _SWP_NOREDRAW*/)
+					strip.predraw();
+				}
+				
+				if(strip.hide) strip.show(4/*_SW_SHOWNOACTIVATE*/);
+				last++;
+			}
+		}
+		else {
+			while( 
+			    var strip;
+			    strip = this.strips[last];
+			    strip && ( ( strip.bottom + this.margin ) < rect.bottom ) 
+			) {
+				if( keepSpace ? (last>1) ){
+					..win.setPos(strip.hwnd,strip.left,this.strips[last-1].bottom + this.itemMargin,,,,,0x1C/*_SWP_NOACTIVATE | _SWP_NOZORDER | _SWP_NOREDRAW*/)
+					strip.predraw();
+				}
+				
+				if(strip.hide) strip.show(4/*_SW_SHOWNOACTIVATE*/); 
+				last++;
+			}
+		}
+		
+		if(!this.margin) return this.adjust();
+		this.showDropButton(false);
+		
+		if( ( last<= # this.strips) && (last > 1) ) {
+			
+			if( this.selIndex >= last ) {
+				this.swap(last-1,this.selIndex); 
+				this.strips[last-1].show(4/*_SW_SHOWNOACTIVATE*/);
+			};
+			
+			for(i=last;# this.strips;1){
+				this.strips[i].hide = true;
+			}
+			
+			this.showDropButton(true);
+		}
+		
+		return this.adjust();
+	};
+	setPos = function(x,y){
+		if(!#this.strips){
+			if(this.startRect )this.startRect.setPos(x,y);
+			return; 
+		}
+		
+		var x1,y1 = this.strips[1].getPos()
+		for(i=1;#this.strips;1){
+			var strip = this.strips[i]
+			var x2,y2 = strip.getPos();
+			strip.setPos(x+x2-x1,y+y2-y1);
+		}
+	};
+	getPos = function(){
+		if(#this.strips){
+			this.startRect = this.strips[1].getRect()
+		}
+		
+		var rc = this.startRect;
+		var len = #this.strips;
+		if( len > 1 ){
+			var x,y,cx,cy = this.strips[len].getPos();
+			x,y,cx,cy = rc.left,rc.top,x+cx-rc.left,y+cy-rc.top;
+			for(i=2;#this.strips-1;1){
+				 var x2,y2,cx2,cy2 = this.strips[i].getPos();
+				 x = ..math.min(x,x2);
+				 y = ..math.min(y,y2);
+				 cx = ..math.max(cx,x2+cx2-x);
+				 cy = ..math.max(cy,y2+cy2-y);
+			}
+			return x,y,cx,cy;
+		}
+		elseif(!len){
+			return rc.left,rc.top,0,0;
+		}
+		
+		return rc.left,rc.top,rc.width(),rc.height();
+	};
+	hitTest = function(x,y){ 
+		for(i=1;#this.strips;1){ 
+			var rc = this.strips[i].getRect(true);
+			if(::PtInRect(rc,x,y)){ 
+				return this.strips[i],i;
+			}
+		}
+	};
+	swap = function(a,b){
+		var ia = this.strips[a];
+		var ib = this.strips[b];
+		if(!(ia&&ib) ) return;
+		
+		var ax,ay = ia.getPos();
+		var bx,by = ib.getPos();
+		ib.setPos(ax,ay);
+		ia.setPos(bx,by);
+		
+		this.strips[a],this.strips[b] = this.strips[b],this.strips[a];
+		this.forms[a],this.forms[b] = this.forms[b],this.forms[a];
+		return true;
+		
+	};
+	showDropButton = function(v){
+		if(!v) {
+			this.dropButton.hide = true;
+			return;	
+		}
+
+		var last = this.lastVisibleItem();
+		if(!last) return;
+		 
+		if(this.horizontal){ 
+			this.dropButton.setPos( last.right + this.dropButtonMargin,last.top + (last.height - this.dropButton.height) /2)
+		}
+		else {
+			this.dropButton.setPos( last.left + (last.width - this.dropButton.width) /2,last.bottom + this.dropButtonMargin)
+		}
+		..win.setTop(this.dropButton.hwnd);
+		
+		this.dropButton.redrawTransparent();
+		this.dropButton.show(4/*_SW_SHOWNOACTIVATE*/);
+	};
+	loadForm = function(idx,...){
+		if( this.forms[idx] ) this.forms[idx].close();
+		if(!this.strips[idx]) error("请先添加对应索引的选项卡",2);
+		
+		if( (...)[["hwnd"]] ){
+			this.forms[idx]= this.container.loadForm( ...); 
+		}
+		elseif(...){
+			this.strips[idx].preloadFormArgs = {...}; 
+		}
+	};
+	preloadForm = function(idx,show){
+		var strip = this.strips[idx];
+		if( strip && (!this.forms[idx]) && strip.preloadFormArgs ){
+			var frm = this.container.loadForm( ..table.unpackArgs(strip.preloadFormArgs) );  
+			owner.forms[idx] = frm;
+			
+			var hFocus = ..win.getFocus();
+			if(..win.isChild(frm.hwnd,hFocus)){
+				frm["$lostFocusInTabs"] = hFocus;
+			}
+						
+			strip.preloadFormArgs = null;
+			if(show!==null) frm.show(show);
+			return frm;
+		} 
+	};
+	create = function(param){
+		var idx = this.add(param);
+		if( idx ) this.forms[idx]= this.container.loadForm( ..win.form(parent = this.container) ); 
+		return this.strips[idx],this.forms[idx];
+	};
+	indexOfStrip = function(strip){
+		for(i=1;#this.strips;1){
+			if( this.strips[i] == strip ) return i;
+		}
+	};
+	indexOfForm = function(form){
+		for(i=1;#this.forms;1){
+			if( form ==  this.forms[i]  ) return i;
+		}
+	};
+	delete = function(i){
+		var selIndex;
+		var strip = this.strips[i];
+		if(strip) {
+			
+			for(i=#this.selHistory;1;-1){
+				 if( (this.selHistory[i] == strip ) || (!..win.isWindow(this.selHistory[i].hwnd) ) )
+				 	..table.remove(this.selHistory,i);
+			}
+			
+			selIndex = this.selIndex;
+			if(selIndex==i) {
+				var preStrip = ..table.pop(this.selHistory,1)
+				var idx = preStrip ? this.indexOfStrip(preStrip);
+				
+				if( idx ){
+					selIndex = idx;
+				}
+				else { 
+					var lastVisibleIndex = this.lastVisibleIndex();
+					if(selIndex < lastVisibleIndex){
+						selIndex = selIndex;
+					}
+					elseif(selIndex == lastVisibleIndex){
+						
+					}
+					else{
+						selIndex = null;
+					}  
+				} 
+			}
+			else {
+				selIndex = null;
+			}
+			
+			var x,y = strip.getPos();
+			..table.remove(this.strips,i);
+			strip.close();
+			
+			for(j=i;#this.strips;1){
+				var x2,y2 = this.strips[j].getPos();
+				this.strips[j].setPos(x,y);
+				x,y =  x2,y2;
+			}
+			
+			
+		};
+		
+		var form = this.forms[i];
+		if(form) {
+			..table.remove(this.forms,i);
+			form.close();
+		};
+		
+		this.adjustLayout();
+		
+		if(selIndex){
+			if(selIndex>=#this.strips){
+				selIndex=#this.strips;
+			}
+			this.selIndex = selIndex;
+		}
+	};
+	deleteByStrip = function(strip){
+		for(i=1;#this.strips;1){
+			if( strip == this.strips[i] ) return this.delete(i);
+		}	
+	};
+	deleteByForm = function(form){
+		for(i=1;#this.forms;1){ 
+			if( form == this.forms[i] ) return this.delete(i);
+		}	
+	};
+	clear = function(){
+		
+		for(i=1;#this.forms;1){
+			this.forms[i].close();
+		}
+		
+		for(i=1;#this.strips;1){
+			this.strips[i].close(); 
+		}
+		
+		this.strips = {};
+		this.forms = {};
+	};
+	each = function(){
+		
+		var i = 0;
+		return function(){
+			i++;
+			return this.strips[i],this.forms[i],i;
+		} 
+	};
+	query = function(args){
+		if( type(args) == "string" ){ args  = {text=args} };
+		
+		for(i=1;#this.strips;1){
+			var strip = this.strips[i]
+			
+			for(k,v in args){
+				if(strip[k] = v) {
+					if( this.preloadForm(i,false) ){
+						if(this.selForm) this.selForm.show();
+					}
+					
+					return this.forms[i],i;
+				}
+			} 
+		}
+	};
+	queryStrip = function(args){
+		if( type(args) == "string" ){ args  = {text=args} };
+		
+		for(i=1;#this.strips;1){
+			var strip = this.strips[i]
+			
+			for(k,v in args){
+				if(strip[k] = v) {
+					return strip,i;
+				}
+			} 
+		}
+	};
+	setStrips = function(name,values){
+		for(i=1;#values;1) this.strips[i][name] = values[i];
+	};
+	updateItemRegion = function(itemRegion){
+		if(itemRegion){
+			if(! itemRegion[["updateWindow"]] ){
+				error("参数必须是兼容 win.region.png 接口的对象",2)
+			}	
+			
+			this.template.clipch = 1;
+			for(strip in this.each() ){
+				itemRegion.updateWindow(strip.hwnd,true,true)
+				..win.modifyStyle(strip.hwnd,,0x2000000/*_WS_CLIPCHILDREN*/)
+			}
+			this.itemRegion = itemRegion;
+		}
+		else {
+			this.itemRegion = null;
+			for(strip in this.each() ){
+				::SetWindowRgn( strip.hwnd ,null ); 
+				strip.predraw();
+			}
+		}	
+	};
+	isPopup = function(){
+		return this.mode = "popup";
+	};
+	initPopup = function(handleCtrl,transparent){
+		if(transparent!==null){ this.transparent = transparent;}
+		
+		if(!handleCtrl){
+			if(!this._popHandle){
+				this._popHandle = this._form.add({{cls="plus";text="win.ui.tabs.popHandle";left=0;top=0;width=0;height=0;notify=1;z=1}})[1]
+			}
+			this.$popHandle = this._popHandle;
+			handleCtrl = this._popHandle;
+		}
+		else {
+			this.$popHandle = handleCtrl;
+		} 
+		
+		if(!handleCtrl.handleWinUiTabs){
+			var oldTranslate = handleCtrl.defaultTranslateAccelerator;
+			handleCtrl.defaultTranslateAccelerator = function(msg){
+				if(this.isVisible() && msg.message == 0x100/*_WM_KEYDOWN*/ ){ 
+					if(msg.wParam==0x1B/*_VK_ESC*/){
+						this.popup(false);
+						if(this.onCancel)this.onCancel();
+						return true;
+					}
+					elseif(msg.wParam==0xD/*_VK_RETURN*/){
+						if( this.selStrip ) {
+							if( this.oncommand ) this.oncommand(this.selStrip,this.selStrip[["id"]],0); 
+							if( this.onOk ) this.onOk(this.selStrip);
+						}
+						
+						this.popup(false);
+						return true; 
+					}
+				}
+				
+				if(oldTranslate)return invoke(oldTranslate,handleCtrl,msg); 
+			}
+			
+			handleCtrl.wndproc = function(hwnd,message,wParam,lParam){
+				if(message==0x200/*_WM_MOUSEMOVE*/){ 
+					var x,y = ..win.getMessagePos();
+					var strip,idx = this.hitTest(x,y); 
+					for(i,strip in this.strips){
+						var preHover = strip.state.hover;
+						strip.state.hover = i == idx;
+						if(strip.state.hover!=preHover){
+							strip._onStateChange();
+						}
+					} 
+				};
+				elseif(message==0x201/*_WM_LBUTTONDOWN*/){   
+					if(this.isVisible()){ 
+						var x,y = ..win.getMessagePos();
+						var rc = owner.getRect(true);
+						if(::PtInRect(rc,x,y)){  
+							return;
+						} 
+						
+						..win.releaseCapture();  
+						var strip,idx = this.hitTest(x,y); 
+						if(!strip){ 
+							if(this.onCancel)this.onCancel();
+							this.popup(false); 
+						}
+						else { 
+							this.selIndex = idx;
+						}
+					} 
+				} 
+				elseif(message===0x100/*_WM_KEYDOWN*/){
+					if(!this.isVisible()) return;
+					
+					var vk = wParam;
+					if( vk === 0x9/*_VK_TAB*/ || vk == 0x28/*_VK_DOWN*/){
+						this.next();  
+						return true;
+					}
+					elseif(vk == 0x26/*_VK_UP*/){
+						this.prev();  
+						return true;
+					}
+					elseif(vk == 0x20/*_VK_SPACE*/|| vk == 0xD/*_VK_RETURN*/){  
+						if( this.selStrip ) {
+							if( this.oncommand ) this.oncommand(this.selStrip,this.selStrip[["id"]],0); 
+							if( this.onOk ) this.onOk(this.selStrip);
+						}
+						this.popup(false);  
+						return true;
+					}	
+					elseif(vk == 0x1B/*_VK_ESC*/ ){ 
+						this.popup(false);  
+						if(this.onCancel)this.onCancel();
+						return true;  
+					}
+				}
+				elseif(message == 8/*_WM_KILLFOCUS*/){
+					
+					if( this.isVisible() ){ 
+						this.popup(false);
+						if(this.onCancel)this.onCancel();
+					} 
+					
+					if(this.onFocusLost){
+						this.onFocusLost(wParam)
+					}
+				}
+				elseif(message==0x202/*_WM_LBUTTONUP*/){
+					if(this.isVisible()){ 
+						var x,y = ..win.getMessagePos();
+						var rc = owner.getRect(true);
+						if(::PtInRect(rc,x,y)){  
+							return;
+						}  
+						
+						var strip,idx = this.hitTest(x,y); 
+						if( strip ){
+							if( this.oncommand ) this.oncommand(strip,id,event);  
+							if( this.onOk ) this.onOk(this.selStrip);
+							this.popup(false); 
+						} 
+					}
+				} 
+				elseif(message ==0x87/*_WM_GETDLGCODE*/){ 
+					return 4/*_DLGC_WANTALLKEYS*/
+				}
+			} 
+		}
+		handleCtrl.handleWinUiTabs = this;
+		
+		if( ! this.isPopup() ){
+			this.mode = "popup"
+			this.margin = 0;
+			
+			for(i=1;#this.strips;1){
+				var strip = this.strips[i] 
+				strip.dt = 1;
+				strip.dl = 1;
+				strip.focusOnClick = false; 
+				strip.show(0/*_SW_HIDE*/);
+				strip.orphanWindow(this.transparent);
+			}
+		}
+	};
+	show = function(show){
+		for(i=1;#this.strips;1){
+			this.strips[i].show(show);
+		}
+		
+		if(this.onVisualStateChanged){
+			this.onVisualStateChanged(show)
+		}
+	};
+	popup = function(show,x,y){
+		if(!#this.strips) show = false;
+		
+		if(!show){ this.show(false) } 
+		if(!this.isPopup()){ this.initPopup(); }
+	
+		if(x==-1){
+			var pt = ::POINT()
+			::User32.GetCursorPos(pt)
+			x,y = pt.x,pt.y;
+		}
+		elseif(x[["hwnd"]]){
+			this.$popBuddy = x;
+			var _,_,cx,cy = this.getPos();
+			var x2,y2,cx2,cy2 = ..win.getPos(x[["hwnd"]],true)
+			var mode = y;
+			if(!mode || mode ==="down"){
+				y = y2 + cy2;
+				x = x2;	
+			}
+			elseif(mode ==="up"){
+				y = y2 - cy;
+				x = x2;
+			}
+			elseif(mode ==="left"){
+				y = y2;
+				x = x2 - cx;
+			}
+			elseif(mode ==="right"){
+				y = y2;
+				x = x2 + cx2;
+			}
+		} 
+		
+		if( x && y ) { this.setPos(x,y); } 
+		this.show( show ? 4/*_SW_SHOWNOACTIVATE*/: 0/*_SW_HIDE*/);  
+		
+		if(!show){ 
+			this.selIndex = null;
+			if(this.$popHandle)this.$popHandle.checked = false;
+			if(this.$popBuddy)this.$popBuddy.checked = false;
+			if(this.onPopup){ this.onPopup(false) }
+			..win.releaseCapture();
+		}  
+		else {  
+			if(this.$popHandle)this.$popHandle.checked = true;
+			if(this.$popBuddy)this.$popBuddy.checked = true;
+			
+			this._form.setTimeout( 
+				function(){  
+					..win.setFocus(this.$popHandle.hwnd);
+					if( this.onFocusGot ) return this.onFocusGot(hFocusLost);
+					
+					..win.setCapture(this.$popHandle.hwnd);
+					if(this.onPopup){ this.onPopup(true) }
+				},10
+			) 
+		} 
+		
+		return show; 
+	};
+	skin = function(style){
+		style.group = this._radioGroup;
+		for(i=1;#this.strips;1){
+			this.strips[i].skin(style);
+		}
+		this.style = style;
+	};
+	@_metaProperty;
+} 
+
+namespace tabs{
+    
+    _metaProperty = ..util.metaProperty(
+    	next = function(){
+    		var selIndex = owner.selIndex : 0;
+    		selIndex = selIndex + 1;
+    		if(selIndex>#owner.strips){ selIndex = 1; }
+    		owner.selIndex = selIndex; 
+    	};
+    	prev = function(){
+    		var selIndex = owner.selIndex : (#owner.strips+1);
+    		selIndex = selIndex - 1;
+    		if(selIndex<1){ selIndex = #owner.strips; }
+    		owner.selIndex = selIndex; 
+    	};
+    	selIndex = {
+			_get = function(){ 
+				var strips = owner.strips;
+				for(i=1;#strips;1){
+					 if( strips[i].checked ) return i;
+				} 
+			};
+			_set = function( i ){
+				var strip = owner.strips[i];
+				
+				if(!i){
+					var strips = owner.strips; 
+					for(i=1;#strips;1){ 
+					 	if( strips[i].checked ) { 
+					 		strips[i].checked = false;
+					 		strips[i].state.hove = false;
+							strips[i].state.active = false;
+					 	}
+					}
+					return;	
+				}
+				 
+				if(!strip) error("错误的选项卡索引",2);
+				var lastsel = owner.selHistory[#owner.selHistory];
+				if( ( lastsel == strip ) && strip.checked ){
+					
+					if( (  (!owner.forms[i]) && (!strip.preloadFormArgs) )  
+						|| (owner.forms[i] && ..win.isVisible(owner.forms[i].hwnd)) )
+						return;
+				}
+				
+				var lastVisible = owner.lastVisibleIndex();
+				if( lastVisible){
+					if( i > lastVisible ){
+						owner.strips[lastVisible].show(0/*_SW_HIDE*/);
+						owner.swap(i,lastVisible);
+						owner.strips[lastVisible].show(4/*_SW_SHOWNOACTIVATE*/);
+						owner.selIndex = lastVisible;
+						return;	
+					}	
+				}
+				
+				strip.show(4/*_SW_SHOWNOACTIVATE*/); 
+				strip.checked = true;
+				
+				..table.push(owner.selHistory,owner.strips[i]);
+				if(#owner.selHistory > 10) owner.selHistory = ..table.slice(owner.selHistory,-10);
+				
+				if(owner.container){
+					owner.container.showChildren(false);
+					owner.preloadForm(i);
+					
+					if(owner.forms[i]){
+						owner.forms[i].show(true);
+					}; 
+				};
+				
+				if( owner.onSelchange ) owner.onSelchange(i,owner.strips[i],owner.forms[i]); 
+			} 	
+		};
+		selStrip = {
+			_get = function(){ 
+				var strips = owner.strips;
+				for(i=1;#strips;1){
+					 if( strips[i].checked ) return strips[i];
+				} 
+			}
+			_set = function(v){
+				var strips = owner.strips;
+				for(i=1;#strips;1){
+					 if( strips[i] == v ) {
+					 	owner.selIndex = i;
+					 	return ;
+					 }
+				} 
+				
+				owner.selIndex = null;
+			}
+		};
+		selText = {
+			_get = function(){ 
+				var strips = owner.strips;
+				for(i=1;#strips;1){
+					 if( strips[i].checked ) return strips[i].text;
+				} 
+			}
+			_set = function(v){
+				var strips = owner.strips;
+				for(i=1;#strips;1){
+					 if( strips[i].text == v ) {
+					 	owner.selIndex = i;
+					 	return ;
+					 }
+				} 
+				
+				owner.selIndex = null;
+			}
+		};
+		selForm = {
+			_get = function(){ 
+				var strips = owner.strips;
+				for(i=1;#strips;1){
+					 if( strips[i].checked ) return owner.forms[i];
+				}
+			}
+		};
+		count = function(){
+			return #(owner.strips);
+		};
+		lastVisibleIndex= function(){
+			var strips = owner.strips;
+			for(i=#strips;1;-1){
+					if( !strips[i].hide ) return i;
+			}	
+		};
+		lastVisibleItem = function(){
+			var strips = owner.strips;
+			for(i=#strips;1;-1){
+				if( !strips[i].hide ) return strips[i];
+			}	
+		};
+		onDrawString = {
+			_set = function(d){ 
+				var strips = owner.strips;
+				for(i=1;#strips;1) {
+					 strips[i].onDrawString = d;
+					 strips[i].predraw();
+				}
+				owner[["(onDrawString)"]] = d;
+			};
+			_get = function(){ return owner[["(onDrawString)"]]; };
+		};
+		onDrawForegroundEnd = {
+			_set = function(d){ 
+				var strips = owner.strips;
+				for(i=1;#strips;1) {
+					 strips[i].onDrawForegroundEnd = d;
+					 strips[i].predraw();
+				}
+				owner[["(onDrawForegroundEnd)"]] = d;
+			};
+			_get = function(){ return owner[["(onDrawForegroundEnd)"]]; };
+		};	
+		onDrawEnd = {
+			_set = function(d){ 
+				var strips = owner.strips;
+				for(i=1;#strips;1) {
+					 strips[i].onDrawEnd = d;
+					 strips[i].predraw();
+				}
+				owner[["(onDrawEnd)"]] = d;
+			};
+			_get = function(){ return owner[["(onDrawEnd)"]]; };
+		};		
+    )
+    
+    dropButtonStyle = {   
+		color = { 
+			hover = 0xff99ffcc;
+			active = 0xffff6666; 
+			default = 0xffffffff; 
+		}
+	}
+}
+ 
+/**intellisense()
+win.ui.tabs = 高级选项卡\n如果是水平选项卡，应在下侧放置custom控件,\n如果是垂直选项卡,应在右侧放置 custom控件\n高级选项卡会自动查找附近合适的custom控件用于加载子窗口\n\n为了避免在启动软件时一次性加载大量子窗口导致启动速度慢,\n为每一个选项卡添加子窗口时,win.ui.tabs并不会直正的加载窗口,\n直到点击该选项卡才会真正加载相应的子窗口
+win.ui.tabs(__) = 创建高级选项卡,\n参数必须指定至少2个已创建的plus控件模板,对象创建成功可选清除模板\n如果不需要动态增删选项卡,参数中的plus控件无需保持均匀间隔,\n\n动态增加选项卡时会根据模板控件的样式与位置,\n自动分析是水平排列还是垂直排列,自动分析排列间距，\n并动态添加选项卡,可选显示删除选项卡的按钮\n\n添加的选项卡数目超出显示范围时可自动折叠到下拉菜单，\n自动折叠功能会保证新增选项卡、当前选项卡位于可见位置,\n这会导致选项卡在必要时自动调整位置,\n所以同一索引并不一定指向同一选项卡
+win.ui.tabs() = !win_ui_tabs.
+end intellisense**/
+
+/**intellisense(!win_ui_tabs)
+margin = 可设置选项卡按钮尾部最少预留的边距,\n超出显示范围时自动折叠选项卡并在此显示下拉菜单，\n默认会根据下拉按钮的大小自动设置此值,\n如果设置为0则禁用自动折叠功能
+keepSpace = 是否保持选项之间的间距不变,\n该属性建议由aardio自动设置
+dropButtonMargin = 下拉菜单按钮边距
+itemMargin = 选项卡间隔距离,可以为负数
+updateItemRegion(__) = 更新选项卡绘图区域,\n参数必须是兼容 win.region.png 接口的对象
+selIndex = 获取或指定当前选中项索引,设为null清除当前选项,\n如果新的选中项已被自动折叠,则会自动移动到可见位置\n所以设置selIndex时可能导致selIndex移动位置
+selStrip = 获取或指定当前选中的选项卡按钮\n指定null或不存在于tabs中的控件时清除选中项,\n!ui_ctrl_plus.
+selText = 获取当前选中项文本,\n也可以指定一个文本用于切换到显示该文本的选项卡
+selForm = 当前选中的子窗口\n!winform.
+lastVisibleIndex = 最后一个显示状态的选项卡索引\n在这后面是因为超出显示范围被自动隐藏的选项卡
+lastVisibleItem = 最后一个显示状态的选项卡\n在这后面是因为超出显示范围被自动隐藏的选项卡\n这是一个plus控件对象\n!ui_ctrl_plus.
+container = 用于加载子窗口的容器控件,必须是custom控件,\n创建高级选项卡时,会自动绑定附近可用的custom控件\n也可以在加载子窗口以前手工指定此对象\n!winform.
+forms = 子窗口数组
+forms.? = 子窗口是win.form对象\n!winform.
+strips = 选项卡数组
+strips.? = 选项卡按钮对象,plus控件\n!ui_ctrl_plus.
+adjustLayout() = 调整布局\n高级选项卡会在需要的时候自动调用此函数
+getPos() = 返回x,y,cx,cy等4个值,\n分别表示高级选项卡当前左,上坐标,宽度,高度
+hitTest(.(x,y) = 参数指定屏幕坐标，返回该坐标所在的选项卡，以及选项索引
+adjust() = @.adjust = function(){
+    var x,y,cx,cy = owner.getPos();
+	__/*选项卡已重新调整布局*/
+}
+showDropButton(true) = 参数为true显示下拉菜单按钮\n参数为false隐式该按钮\n高级选项卡会在需要的时候自动调用此函数
+swap(.(a,b) = 交换两个索引的选项卡位置\n参数a,b应当是有效的选项卡索引\n这个函数如果没有弄清楚原理最好不要使用,\n高级选项卡会在需要的时候自动调用此函数,\n成功返回true,失败返回null
+loadForm( = 加载窗体到高级选项卡窗体容器中\n选项卡必须已经找到可用的子窗体容器,即container成员对象不为空值\n\n高级选项卡默认会自动查找附近合适的custom控件作为子窗体容器\n也可以手动指定container指向的窗口 
+loadForm(.(index,"请输入aardio文件路径") = 加载外部窗体文件并绑定到参数@1指定索引的选项卡.\n在开发环境中,请注意保存外部窗体文件以后测试运行
+loadForm(.(index,winform窗体对象) = 添加窗体并绑定到参数@1指定索引的选项卡
+loadForm(.(index,创建窗体的表参数) = 创建窗体并绑定到参数@1指定索引的选项卡
+loadForm() = !winform.
+preloadForm(.(index,shown) = 立即加载指定选项卡下关联的子窗口,\n参数@1指定选项卡索引,\n如果参数@2不为null，则将其作为参数调用返回窗体的show函数,\n成功返回窗体对象,失败返回null,\n!winform.
+setItemTexts( = 使用文本数组更新选项卡数组,\n此函数可重用已创建的选项卡，所以有更好的性能
+setItemTexts(.(texts,limit,selIndex) = 使用参数@texts指定的字符串数组创建选项卡数组,\n其中的每个字符串用于指定选项卡上的显示文本。\n可选用@limit参数指定最大显示条数,\n可选用@selIndex参数指定默认选中索引,\n此函数返回实际显示条数
+setItems( = 使用控件初始化选项数组更新选项卡数组,\n此函数可重用已创建的选项卡，所以有更好的性能
+setItems(.(items,limit,selIndex) = 使用参数@items指定的选项数组更新选项卡数组, \n每个选项提供控件的初始化属性并将被传入add函数。\n可选用@limit参数指定最大显示条数,\n可选用@selIndex参数指定默认选中索引,\n此函数返回实际显示条数
+add(option) = @.add({\n	text="标题文本";\n	foreground="\res\images\icon.png";__/*添加选项卡按钮 - 使用plus控件创建,\n参数@1可以指定部分创建plus控件的参数,未指定的参数自动补全,\ntext字段可用于指定显示文本,foreground字段可用于指定前景图标,\n参数@1也可以使用一个数组同时指定创建多个个选项卡的选项\n\n如果存在多个参数,\n自参数@2开始作为loadForm函数的参数加载窗体并绑定当前选项卡\n\n此函数成功返回新增的选项卡索引,注意如果超出显示范围,\n新增的窗体会自动替换到可显示的位置*/\n})
+addItems(.(options) = 参数@option指定一个数组，\n遍历数组中的项并作为参数调用add函数创建多个选项卡,\n参数为null或空数组时忽略不执行任何操作
+create(.(参数表) = 此函数与add函数用法相同\n但创建选项卡以后会同时创建对应的子窗口,\n返回2个值,分别为创建的选项卡对象、子窗体对象\n\n注意,调用add,create函数添加选项卡,\n如果超出可见范围,会自动折叠其他选项卡,并将新增的选项卡移动到可见位置\n所以增加选项卡可能导致选项卡调整位置,索引发生变化
+create() = !ui_ctrl_plus.
+delete(__) = 删除指定索引的选项卡\n参数用数值指定选项所在位置索引
+deleteByStrip(__) = 删除指定的选项卡\n参数指定选项卡按钮对象
+deleteByForm(__) = 删除指定的选项卡\n参数指定相同索引位置的子窗体对象
+prev() = 切换到上一个
+next() = 切换到下一个
+initPopup(.(handleCtrl,transparent) =  初始化为弹出菜单样式\n@handleCtrl指定接收输入事件的控件,\n自动修改该控件的checked属性为是否弹出状态,\ntransparent指定菜单是否透明,\n所有参数可选
+popup( = 切换到弹出列表模式，\n用于显示简单的弹出列表或菜单，\n如果当前项目列表数组为空,则无论传入什么参数都会切换到隐藏状态
+popup(.(true,x,y) = 弹出列表\n可选使用x,y指定列表左上角在屏幕上的坐标
+popup(.(true,ctrl,mode) = 弹出列表\nctrl指定控件，弹出列表显示在该控件边上,\n自动修改该控件的checked属性为是否弹出状态,\n可选使用mode参数指定"up","down","left","right"等显示位置
+popup(.(false) = 隐藏列表，并将selIndex置为null\n如果当前项目列表数组为空,则无论传入什么参数都会切换到隐藏状态
+show(__/*可选输入显示参数*/) = 显示或隐藏所有选项卡,可选输入以_SW_为前缀的显示参数\n参数@1也可以传入true,false控制是否显示选项卡
+skin = @.skin({\n	background = { \n		hover = "/res/images/button-hover.png";\n		focus = "/res/images/button-focus.png";\n		active = "/res/images/button-active.png";\n		disabled = 0xFFCCCCCC; \n	};\n	color = {\n		hover = 0xF00000FF;__/*用格式为0xAARRGGBB的16进制数值,指定鼠标放到控件上的字体颜色,\nAA为透明度,RR为红色分量,GG为绿色分量,BB为蓝色分量*/ \n	};\n	border = { \n		hover = {left=5;color=0xFFFF0000;padding=15;} \n	}; \n})
+clear() = 清空所有选项卡、清空所有加载的子窗口
+isVisible() = 选项卡是否可见
+onPopup(showing) = @.onPopup = function(showing){
+	__/*弹出状态变更时触发此事件\n弹出状态@showing参数为true，显示为弹出状态@showing参数为false*/
+} 
+onVisualStateChanged(showing) = @.onVisualStateChanged = function(showing){
+	__/*显示或隐藏时触发此事件\n显示@showing参数为true，隐藏@showing参数为false*/
+}
+beforeShowCloseButton(strip,rcStrip,rcCloseButton) = @.beforeShowCloseButton = function(strip,rcStrip,rcCloseButton){
+    __/*返回关闭按钮显示的x,y坐标,需要返回2个值\n不返回值取消显示\n\n参数strip为请求显示关闭按钮的选项卡\nrcStrip为选项卡所在的区块,::RECT对象,\nrcCloseButton为关闭按钮所在的的区块,::RECT对象*/
+}
+onMouseHover(strip,wParam,lParam) = @.onMouseHover = function(strip,wParam,lParam){
+    __/*鼠标正悬浮于选项卡对象strip之上,\nwParam,lParam为窗口消息参数*/
+}
+onMouseLeave(strip,wParam,lParam) = @.onMouseLeave = function(strip,wParam,lParam){
+    __/*鼠标离开选项卡对象strip,\nwParam,lParam为窗口消息参数*/
+}
+onMouseLeave(strip,wParam,lParam) = @.onMouseLeave = function(strip,wParam,lParam){
+    __/*鼠标离开选项卡对象strip,\nwParam,lParam为窗口消息参数*/
+}
+onFocusGot(hLostFocus) = @.onFocusGot = function(hLostFocus){
+	..win.setFocus(hLostFocus);__/*得到焦点触发此事件,hLostFocus为失去焦点的窗口句柄*/
+}
+onFocusLost(hFocus) = @.onFocusLost = function(hFocus){
+	__/*失去焦点触发此事件,hFocus为得到焦点的窗口句柄*/
+}
+onSelchange(idx,strip,form) = @.onSelchange = function(idx,strip,form){
+	__/*切换选项卡会触发此事件,idx为当前选中索引\nstrip为当前选项卡,form为当前子窗口*/
+}
+onOk(strip) = @.onOk = function(strip){
+	__/*用户在弹出列表中选择并确认选项,且即将关闭弹出列表*/
+}
+onCancel() = @.onCancel = function(){
+	__/*用户关闭弹出列表﻿并且未确认选项*/
+}
+oncommand(strip,id,event) = @.oncommand = function(strip,id,event){
+	__/*点击选项卡触发此函数\nstrip为触发事件的选项卡\nid为控件id,event目前值总是0*/
+}
+onMouseDown(strip,wParam,lParam) = @.onMouseDown = function(strip,wParam,lParam){
+    __/*在选项卡对象strip上按下鼠标,即将切换当前选项卡,\nwParam,lParam为窗口消息参数*/
+}
+onMouseUp(strip,wParam,lParam) = @.onMouseUp = function(strip,wParam,lParam){
+    __/*在选项卡对象strip上放开鼠标,选项卡切换操作已完成,\nwParam,lParam为窗口消息参数*/
+}
+onDrawString(->->->) = @.onDrawString = function(graphics,text,font,rectf,strformat,brush){
+    graphics.drawString(text,font,rectf,strformat,brush); 
+    __/*自绘所有选项卡控钮上的文本\n注意owner参数指向当前选项卡按钮*/
+}
+onDrawForegroundEnd = @.onDrawForegroundEnd = function(graphics,rc,rcContent){
+	__/*背景前景绘制后,绘制文本前触发此事件,\ngraphics 为gdip.graphics对象(GDI+画板),\nrc为客户区RECT结构体,rcContent为去掉内边距后的RECT结构体*/
+}
+onDrawEnd = @.onDrawEnd = function(graphics,rc){
+	__/*所有绘制操作结束触发此事件,\ngraphics 为gdip.graphics对象(GDI+画板),\nrc为客户区RECT结构体*/
+}
+indexOfStrip(__) = 获取选项卡所在的索引位置\n参数指定选项卡按钮对象
+indexOfForm(__) = 获取子窗口所在的选项卡索引位置\n参数指定相同索引位置的子窗体对象
+closeButton = 选项卡上关闭按钮,plus控件\n可调用skin函数自定义外观样式\n可通过beforeShowCloseButton事件自定义显示坐标\n注意这是一个orphanWindow浮动窗口\n!ui_ctrl_plus.
+dropButton = 下拉菜单按钮,\n如果存在超出显示范围的选项卡,这个控件会自动显示\n这是一个plus控件对象\n!ui_ctrl_plus.
+each() = @for(strip,form,idx in ??.each() ){
+	__/*遍历所有选项卡,\nstrip为选项卡对象,form为对应的子窗口,idx为索引位置\n遍历时不应当执行删除、新增选项卡,设置当前选项卡等改变索引位置的操作*/
+}
+query(查询属性) = @.query(\n	text = "标题";\n	tabsName = "名字";__/*使用选项卡的指定属性查询对应的子窗口,\n如果子窗口没有加载将会立即加载,\n选项卡的任一属性值与查询条件相同即可\n自定义属性建议加上tabs前缀以避免冲突\n也可以用一个字符串参数直接查询选项卡标题,\n返回窗口对象,以及所在索引*/\n)
+query() = !winform.
+queryStrip(查询属性) = @.queryStrip(text = "标题"__/*使用选项卡的指定属性查询对应的选项卡,\n选项卡的任一属性值与查询条件相同即可\n自定义属性建议加上tabs前缀以避免冲突\n也可以用一个字符串参数直接查询选项卡标题,\n返回选项卡对象,以及所在索引*/)
+queryStrip() = !ui_ctrl_plus.
+setStrips(.(属性名,属性值数组) = 设置所有选项卡的指定属性值
+count() = 返回选项卡总数
+end intellisense**/

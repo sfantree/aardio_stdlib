@@ -1,0 +1,244 @@
+//上传代码工具
+import fonts.fontAwesome;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio源代码临时上传代码工具";right=939;bottom=731;bgcolor=16777215)
+winform.add(
+custom={cls="custom";left=148;top=11;right=921;bottom=653;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;z=4};
+plusCopyLink={cls="plus";text="复制链接";left=559;top=683;right=651;bottom=714;border={color=-4144960;width=1};db=1;dr=1;font=LOGFONT(h=-15;name='FontAwesome');notify=1;z=7};
+plusOpenLink={cls="plus";text="打开链接";left=459;top=683;right=551;bottom=714;border={color=-4144960;width=1};db=1;disabled=1;dr=1;font=LOGFONT(h=-15;name='FontAwesome');notify=1;z=9};
+plusPost={cls="plus";text="上传并转换为HTML";left=758;top=683;right=928;bottom=714;border={color=-4144960;width=1};db=1;dr=1;font=LOGFONT(h=-15;name='FontAwesome');notify=1;z=6};
+plusUrl={cls="plus";left=47;top=694;right=450;bottom=714;border={bottom=1;color=-16744448};dl=1;dr=1;editable=1;z=5};
+plusUrlDelete={cls="plus";text="删除链接";left=658;top=683;right=750;bottom=714;border={color=-4144960;width=1};db=1;dr=1;font=LOGFONT(h=-15;name='FontAwesome');notify=1;z=8};
+static={cls="static";left=139;top=7;right=140;bottom=653;bgcolor=16752414;clip=1;db=1;dl=1;dt=1;z=3};
+strip1={cls="plus";text="测试文本";left=31;top=34;right=139;bottom=63;bgcolor=16752414;clip=1;dl=1;dt=1;z=1};
+strip2={cls="plus";text="测试文本";left=31;top=63;right=139;bottom=92;bgcolor=16752414;clip=1;dl=1;dt=1;z=2}
+)
+/*}}*/
+
+import win.ui.tabs;
+var tbs = win.ui.tabs(winform.strip2,winform.strip1);
+tbs.skin(
+    background = {  
+        default = 0xFFFFFFFF;
+    }
+    color = {
+        hover = 0xF00000FF; 
+    } 
+    border = {
+        default = { bottom = 1;color= 0xFF1E9FFF;  }
+        hover = { bottom = 1;right = 4;color= 0xFF1E9FFF; }
+    }
+    checked = {
+        background = { 
+            hover = 0xFF99CCFF;
+            focus = 0xFF1E9FFF;
+            active = 0xFF333366;
+            default = 0xFF1E9FFF;
+        }
+        color = {
+            hover = 0xFF000000; 
+            default = 0xFFFFFFFF; 
+        } 
+        border = {
+            hover = { right = 2;color=0xFF1E9FFF}
+            default = { right = 2;color=0xFF1E9FFF}
+        }
+    }
+)
+
+tbs.clear();
+
+var frmEditor = win.form(text="aardio form";right=1164;bottom=759;bgcolor=16777215;border="none";exmode="none")
+frmEditor.add(
+richedit={cls="richedit";left=5;top=8;right=1160;bottom=755;db=1;dl=1;dr=1;dt=1;edge=1;multiline=1;vscroll=1;z=1}
+)
+frmEditor.richedit.enablePopMenu({
+	{ /*分隔线*/ };
+	{ "同步为aardio编辑器源码(&E)"; function(id){  
+		import ide;
+		var editor = ide.getActiveCodeEditor();
+		if (editor) {
+			var sel = editor.selText;
+			if(#sel){
+		 		tbs.query(  "源代码" ).richedit.text = sel;
+			}
+			else {
+		 		tbs.query(  "源代码" ).richedit.text = editor.text;	
+			}
+		}
+	} };
+})
+
+tbs.add({
+    text="源代码"; 
+},frmEditor)
+
+import web.form;
+var wb = web.form( win.form() ) 
+
+tbs.add({
+    text="预览HTML";  
+},wb._form)
+
+var frmHtmlEditor = win.form(text="aardio form";right=1164;bottom=759;bgcolor=16777215;border="none";exmode="none")
+frmHtmlEditor.add(
+richedit={cls="richedit";left=5;top=8;right=1160;bottom=755;db=1;dl=1;dr=1;dt=1;edge=1;multiline=1;vscroll=1;z=1}
+)
+frmHtmlEditor.richedit.enablePopMenu({
+	{ /*分隔线*/ };
+	{ "粘贴剪贴板HTML格式为HTML代码(&E)"; function(id){  
+		import win.clip.html;
+		var cb = win.clip.html()
+		if( cb.read() ) frmHtmlEditor.richedit.text = cb.html; 
+	} };
+})
+
+tbs.add({
+    text="编辑HTML";  
+},frmHtmlEditor)
+
+tbs.selIndex = 1;
+
+tbs.onSelchange = function(idx,strip,form){
+	if( strip.text == "预览HTML"){
+		wb.html = "
+		<!doctype html>
+		<html>
+		<head>
+		    <meta charset=""utf-8""> 
+		</head>
+		<body>
+		    " +frmHtmlEditor.richedit.text+ "
+		</body>
+		</html>
+		" ;
+	}
+	
+	winform.plusPost.disabled = (idx != 1); 
+	winform.plusPost.redrawTransparent();
+}
+
+import ide;
+var editor = ide.getActiveCodeEditor();
+if (editor) {
+	var code = editor.selText;
+	if( !#code )  {code = editor.text; }
+	
+	code = string.replace(code,"\n(\s+)",lambda(space) '\n'+ ..string.replace(space,'\t','    ') ); 
+	tbs.query(  "源代码" ).richedit.text = code;
+}
+
+winform.plusCopyLink.skin(
+    color = {
+        hover = 0xFFFF0000;
+        active = 0xFF0000FF;
+        disabled = 0xFFCCCCCC; 
+    }
+    border ={
+    	hover = { color  = 0xC0FF0000;bottom = 1}
+    }
+)
+winform.plusCopyLink.disabled = true;
+
+winform.plusPost.skin(
+    color = { 
+        hover = 0xFFFF0000;
+        active = 0xFF0000FF; 
+        disabled = 0xFFCCCCCC; 
+    }
+    border ={
+    	hover = { color  = 0xC0FF0000;bottom = 1}
+    }
+)
+
+import win.clip;
+winform.plusCopyLink.oncommand = function(id,event){
+	win.clip.write(winform.plusUrl.text)
+}
+
+winform.updateHtml = function(html){
+	frmHtmlEditor.richedit.text = html;
+}
+
+winform.plusPost.oncommand = function(id,event){
+    winform.plusPost.disabledText = {'\uF254';'\uF251';'\uF252';'\uF253';'\uF250'}
+ 
+    var ok = win.invoke(
+    	function(winform,srcCode){
+    		import web.rest.client;
+    		var http = web.rest.client();
+			var paste = http.api("https://paste.rs/");  
+			var url = paste.post( srcCode );
+			
+			if(url){
+				url = string.trim(url);
+				winform.plusUrl.text = url + ".js";
+				winform.updateHtml( http.get(url + ".js") );
+				winform.plusCopyLink.disabled = false;
+				winform.plusUrlDelete.disabled = false;
+				winform.plusOpenLink.disabled = false;
+			}
+			
+			http.close();
+			winform.plusPost.disabledText = null;
+			return #url;	
+    	},winform,frmEditor.richedit.text
+    )
+    
+    if(ok) tbs.selIndex = 2; 
+}
+
+winform.plusUrlDelete.skin(
+    color = { 
+        hover = 0xFFFF0000;
+        active = 0xFF0000FF; 
+        disabled = 0xFFCCCCCC; 
+    }
+    border ={
+    	hover = { color  = 0xC0FF0000;bottom = 1}
+    }
+)
+winform.plusUrlDelete.disabled = true;
+
+winform.plusUrlDelete.oncommand = function(id,event){
+   
+    var url = winform.plusUrl.text;
+    if(!#url) return;
+    
+    winform.plusUrlDelete.disabledText = "正在删除...";
+    win.invoke(
+    	function(url){
+    		import web.rest.client;
+    		var http = web.rest.client();
+    		
+    		url = ..string.replace(url,"\.\w+$","");
+			var paste = http.api(url);
+			paste.delete();
+    	},url
+    ) 	
+    
+    winform.msgbox("已删除服务器链接")
+    winform.plusUrlDelete.disabledText = null;
+}
+
+winform.plusOpenLink.skin(
+    color = { 
+        hover = 0xFFFF0000;
+        active = 0xFF0000FF; 
+        disabled = 0xFFCCCCCC; 
+    }
+    border ={
+    	hover = { color  = 0xC0FF0000;bottom = 1}
+    }
+)
+import process;
+winform.plusOpenLink.oncommand = function(id,event){
+	var url = winform.plusUrl.text;
+	if(#url){
+		process.openUrl(url)
+	}
+}
+
+winform.show();
+win.loopMessage();

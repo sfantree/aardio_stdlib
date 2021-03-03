@@ -1,0 +1,30 @@
+ 
+ 
+import com.interface;
+namespace  dotNet.interface;
+
+class ICorRuntimeHost{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer CreateLogicalThreadState = "int()"; 
+	pointer DeleteLogicalThreadState = "int()"; 
+	pointer SwitchInLogicalThreadState = "int(pointer pFiberCookie)"; 
+	pointer SwitchOutLogicalThreadState = "int(pointer &pWidth)"; 
+	pointer LocksHeldByLogicalThread = "int(INT &pCount)"; 
+	pointer MapFile = "int(pointer hFile,pointer &hMapAddress)"; 
+	pointer GetConfiguration = "int(pointer &pConfiguration)"; 
+	pointer Start = "int()"; 
+	pointer Stop = "int()"; 
+	pointer CreateDomain = "int(ustring wstrFriendlyName,pointer pIdentityArray,pointer &pAppDomain)"; 
+	pointer GetDefaultDomain = "int(pointer &pAppDomain)"; 
+	pointer EnumDomains = "int(pointer &hEnum)"; 
+	pointer NextDomain = "int(pointer hEnum,pointer &pAppDomain)"; 
+	pointer CloseEnum = "int(pointer hEnum)"; 
+	pointer CreateDomainEx = "int(ustring wstrFriendlyName,pointer pSetup,pointer pEvidence,pointer &pAppDomain)"; 
+	pointer CreateDomainSetup = "int(pointer &pAppDomainSetup)"; 
+	pointer CreateEvidence = "int(pointer &pEvidence)"; 
+	pointer UnloadDomain = "int(pointer pAppDomain)"; 
+	pointer CurrentDomain = "int(pointer &pAppDomain)";  
+}
+ICorRuntimeHost.IID = "{CB2F6722-AB3A-11d2-9C40-00C04FA30A3E}";

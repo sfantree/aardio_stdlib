@@ -1,0 +1,104 @@
+//mutex 线程互斥量
+namespace process;
+
+class mutex {
+	ctor( uniqueName,inheritHandle,initialOwner ){
+		var tArg1 = type(uniqueName);
+		if( tArg1 == "pointer" )   {
+			this.handle	= uniqueName;
+			if(inheritHandle===true)..table.gc( this,"close" );
+		}
+		else{
+			if( inheritHandle===null )inheritHandle=1/*_TRUE*/; 
+			
+			if(tArg1=="string"){
+				uniqueName = ..string.replace(uniqueName,"@\","/");
+				this.handle = OpenMutex(0x1f0001/* MUTANT_ALL_ACCESS*/,inheritHandle,uniqueName);
+			}
+			
+			if(this.handle ) {
+    			this.conflict = "互斥体已存在" 
+    		}
+			else{ 
+				this.handle  =  CreateMutex( { INT  nLength;pointer secDesc;bool inherit = inheritHandle }
+					,initialOwner,uniqueName);   
+					
+				if(!this.handle) {
+					if(tArg1=="string") { 
+						sleep(100);
+						this.handle = OpenMutex(0x1f0001/* MUTANT_ALL_ACCESS*/,inheritHandle,uniqueName);
+						if(this.handle ) {
+							this.conflict = "互斥体已存在"; 
+						};  
+					}
+				}
+			} 
+			
+			if(!this.handle) return null;
+			..table.gc(this,"close");
+		}
+	};
+	
+	close = function(){  
+		//The system closes the handle automatically when the process terminates. 
+		//The mutex object is destroyed when its last handle has been closed.
+		if( this.handle ){
+			..raw.closehandle(this.handle);
+			this.handle = null;
+		}
+	} 
+	@_metaProperty
+}
+
+
+namespace mutex{
+	import util.metaProperty
+	
+	_metaProperty = util.metaProperty(
+	
+		_topointer = function(){
+			return owner.handle;
+		} 
+		_serialize = function(kernelCall){
+			if(kernelCall) return ..raw.serializeDupHandle("process.mutex",owner.handle);
+		}
+		release = function(count=1){
+			return ReleaseMutex( owner.handle )
+		} 
+		wait = function(timeout){
+			return ..thread.wait(owner.handle,timeout)
+		}   
+		waitOne = function(timeout){
+			return ..thread.waitOne(owner.handle,timeout)
+		}  
+	)
+	
+	OpenMutex = ::Kernel32.api("OpenMutex","ptr(INT desiredAccess,bool bInherit,string lpName)"); 
+	CreateMutex = ::Kernel32.api("CreateMutex","ptr(struct attr,bool bOwner,string lpName)" ); 
+	ReleaseMutex= ::Kernel32.api("ReleaseMutex","int(ptr h)"); 
+	
+	lock = function(name,proc){
+		if(!name) error("请指定互斥体名称",2);
+		var mutex = ..process.mutex(name);
+		mutex.waitOne();
+		proc();
+		mutex.release();
+		mutex.close();
+	}
+}
+ 
+ 
+/**intellisense() 
+
+process.mutex = 互斥体\n可跨进程使用
+process.mutex(.(互斥体句柄) = 使用句柄直接打开互斥体
+process.mutex(.(互斥体句柄,true) = 使用句柄直接打开互斥体\n添加析构函数负责释放句柄
+process.mutex(.("唯一名称",句柄是否可继承,线程独占模式) = 创建互斥体\n名称不能超过260个字符,名称内的反斜杠自动替换为正斜杠,\nthread.event,process.mutex,fsys.mmap等命名不能相同,\n省略名称创建匿名对象,\n参数@2指定句柄是否可被子进程继承,为可选参数,默认为false,\n参数@3可选,默认为false,true表示同时只能有一个线程独占互斥体
+process.mutex.lock(.("互斥体名称",回调函数) = 该函数在多进程中互斥执行
+!mutex.close() = 关闭互斥体句柄\n该函数并不关闭互斥体创建的内核对象\n当所有引用内核对象的对象关闭,内核对象自动释放
+!mutex.conflict = 如果互斥体已存在,此属性为真值\n否则为空值
+!mutex.release() =  线程在处理完共享资源后,\n应在离开时调用此函数释放互斥体所有权
+!mutex.wait() = 等待并获取互斥体独占所有权,\n可选增加一个参数指定超时,以毫秒为单位\n注意此函数应与release函数配对使用\n在同一线程中可多次取得所有权,但需要相同次数调用release函数释放\n在UI线程中应使用非阻塞的waitOne()函数替代
+!mutex.waitOne() = 等待并获取互斥体独占所有权,\n可选增加一个参数指定超时,以毫秒为单位\n注意此函数应与release函数配对使用\n在同一线程中可多次取得所有权,但需要相同次数调用release函数释放\n
+process.mutex() = !mutex.
+end intellisense**/

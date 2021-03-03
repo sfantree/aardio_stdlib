@@ -1,0 +1,12 @@
+//默认库 -> base
+//sqlite v3.8.4.3 https://www.sqlite.org
+if( ___sqlite_dll__ ) error("不能导入不同版本的sqlite支持库
+sqlite.aes128/sqlite.aes256/sqlite 只要导入其中一个就可以",2);
+
+___sqlite_dll__ = raw.loadDll($"~/lib/sqlite/.res/sqlite3.dll","sqlite.dll","cdecl")
+import sqlite.base;
+
+/*
+sqlite3_threadsafe =  ___sqlite_dll__.api("sqlite3_threadsafe","int()"); 
+assert( sqlite3_threadsafe() == 1,"DLL编译选项不能指定为单线程模式")  
+*/

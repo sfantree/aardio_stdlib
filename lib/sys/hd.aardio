@@ -1,0 +1,152 @@
+//hd 硬盘序列号
+import fsys.file;
+
+namespace sys.hd  {
+     
+    class IDEREGS { 
+    	BYTE bFeaturesReg;
+    	BYTE bSectorCountReg;
+    	BYTE bSectorNumberReg;
+    	BYTE bCylLowReg;
+    	BYTE bCylHighReg;
+    	BYTE bDriveHeadReg;
+    	BYTE bCommandReg;
+    	BYTE bReserved; 
+    } 
+    
+    class DRIVERSTATUS { 
+    	BYTE bDriverError;
+    	BYTE bIDEStatus; 
+    	BYTE bReserved[2];
+    	int dwReserved[2];
+    }
+      
+    class IDSECTOR { 
+    	WORD wGenConfig; 
+    	WORD wNumCyls; 
+    	WORD wReserved; 
+    	WORD wNumHeads; 
+    	WORD wBytesPerTrack; 
+    	WORD wBytesPerSector; 
+    	WORD wSectorsPerTrack; 
+    	WORD wVendorUnique[3]; 
+    	BYTE sSerialNumber[20]; 
+    	WORD wBufferType; 
+    	WORD wBufferSize; 
+    	WORD wECCSize; 
+    	BYTE sFirmwareRev[8]; 
+    	BYTE sModelNumber[40]; 
+    	WORD wMoreVendorUnique; 
+    	WORD wDoubleWordIO; 
+    	WORD wCapabilities; 
+    	WORD wReserved1; 
+    	WORD wPIOTiming; 
+    	WORD wDMATiming; 
+    	WORD wBS; 
+    	WORD wNumCurrentCyls; 
+    	WORD wNumCurrentHeads; 
+    	WORD wNumCurrentSectorsPerTrack; 
+    	INT ulCurrentSectorCapacity; 
+    	WORD wMultSectorStuff; 
+    	INT ulTotalAddressableSectors; 
+    	WORD wSingleWordDMA; 
+    	WORD wMultiWordDMA; 
+    	BYTE bReserved[128]; 
+    }
+       
+    function changeByteOrder(s){ 
+   		var t = {};
+   		for(i=1;#s;2)..table.push(t,s[i+1],s[i]);
+   		return  ..string.trim( ..string.pack(t) );
+	} 
+	
+	function getInfo(driveNumber){ 
+	
+		if( driveNumber === null ){
+			for(j=0;4;1){ 
+            	info = getInfo(j);
+            	if(info) return info;
+        	} 
+        	return;
+		}
+		
+		var file = ..fsys.file(..string.format( "\\.\PhysicalDrive%d",driveNumber),"r+b");
+        if  (!file) return;  
+        
+        var sin = { 
+    		INT cBufferSize;
+    		struct irDriveRegs=IDEREGS();
+    		BYTE bDriveNumber;
+    		BYTE bReserved[3]; 
+    		INT dwReserved[4];
+    		BYTE bBuffer[1];
+    	}
+    	var vers = { 
+    		BYTE bVersion;
+    		BYTE bRevision;
+    		BYTE bReserved;
+    		BYTE bIDEDeviceMap;
+    		INT fCapabilities;
+    		INT dwReserved[4];
+    	}
+    	
+        if  (!file.deviceIoControl( 0x00074080/*_DFP_GET_VERSION*/,sin,vers))  {
+            file.close();
+            return; 
+        } 
+        
+        if  (!(vers.fCapabilities&1))  {
+            file.close();
+            return; //If IDE identify command not supported, fails 
+        }  
+        sin.irDriveRegs.bDriveHeadReg= (driveNumber&1) ? 0xb0 : 0xa0; //Identify the IDE drives  
+         
+        if  (vers.fCapabilities&(16 >> driveNumber)) { 
+            return; //We don't detect a ATAPI device. 
+        } 
+        sin.irDriveRegs.bCommandReg=0xec;  
+        
+        sin.bDriveNumber=driveNumber; 
+        sin.irDriveRegs.bSectorCountReg=1; 
+        sin.irDriveRegs.bSectorNumberReg=1; 
+        sin.cBufferSize=512;
+        var out = { 
+    		INT cBufferSize;
+    		struct DriverStatus=DRIVERSTATUS();  
+    		struct hdinfo = IDSECTOR();
+    		BYTE bReserved[256]; 
+    	}
+        if  (! file.deviceIoControl( 0x0007c088/*DFP_RECEIVE_DRIVE_DATA*/,sin,out) )  { 
+            file.close();
+            return; 
+        }  
+        
+        var phdinfo = out.hdinfo ; 
+        phdinfo.sModelNumber = changeByteOrder(phdinfo.sModelNumber); 
+        phdinfo.sFirmwareRev = changeByteOrder(phdinfo.sFirmwareRev); ; 
+        phdinfo.sSerialNumber= changeByteOrder(phdinfo.sSerialNumber); ; 
+        phdinfo.ulTotalAddressableSectors=..string.pack(phdinfo.ulTotalAddressableSectors/2/1024); 
+
+        file.close();  
+        return out.hdinfo; 
+	} 
+
+}
+
+/*intellisense()
+sys.hd = 用于获取硬盘序列号\n注意在VISTA以后系统需要管理权限
+sys.hd.getInfo() = 读取硬盘IDSECTOR结构信息\n可选在参数中指定硬盘序号,不指定参数时自动获取可用序号,\n!syshdinf.
+!syshdinf.sSerialNumber = 硬盘生产序号\n请自行使用string.trim函数去掉首尾空格
+!syshdinf.sModelNumber = 硬盘型号\n请自行使用string.trim函数去掉首尾空格
+!syshdinf.sFirmwareRev = 硬盘硬件版本\n请自行使用string.trim函数去掉首尾空格
+!syshdinf.ulTotalAddressableSectors = ulTotalAddressableSectors
+!syshdinf.wGenConfig = 基本信息字  
+!syshdinf.wNumCyls = 柱面数  
+!syshdinf.wReserved2 = 保留  
+!syshdinf.wNumHeads = 磁头数
+!syshdinf.wNumSectorsPerTrack = 每磁道扇区数
+!syshdinf.wBufferType = 缓冲类型  
+!syshdinf.wBufferSize = 缓冲大小
+!syshdinf.wCapabilities = 支持功能\n不同的二进制位表示硬盘是否支持指定功能
+!syshdinf.wUltraDMA = Ultra DMA支持能力  
+end intellisense*/

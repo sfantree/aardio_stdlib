@@ -1,0 +1,48 @@
+//shellhook 监视外部窗口
+namespace win.util; 
+
+//可以把下面的类放到库里面
+class shellhook {
+
+    ctor(winform ){
+        this = winform;
+        RegisterShellHookWindow(this.hwnd);
+        
+        this.wndproc = function(hwnd,message,wParam,lParam){
+    		if(message == WM_SHELLHOOK) {//判断消息类型 
+           		if( this[["onShellHook"]] )
+           			this.onShellHook(wParam,lParam)   
+    		}
+    	}
+    
+    }
+}
+
+namespace shellhook{
+	//注册shell窗口
+	WM_SHELLHOOK  := ::RegisterWindowMessage("SHELLHOOK"); 
+	RegisterShellHookWindow = ::User32.api("RegisterShellHookWindow","int(int)" )
+	
+    //无返回值则继续调用默认回调函数
+}//endproc
+ 
+
+/**intellisense()
+?.shellhook = !shellhook.
+win.util.shellhook(__/*输入winform对象*/) = 创建一个shellhook通知窗口\n在所有窗口创建销毁时接收消息
+!shellhook.onShellHook = @.onShellHook=function(hshell,hwnd){
+	var tid,pid = win.getThreadProcessId(hwnd)
+	if(tid!= thread.getId()){
+		return; /*如果不想临视本线程在这里退出*/
+	}
+    select(hshell ) {
+		case 0x1/*_HSHELL_WINDOWCREATED*/ {  
+			..io.print("一个窗口创建",hwnd,"进程ID：" + pid + "线程ID:" +tid)
+		}
+		case 0x2/*_HSHELL_WINDOWDESTROYED*/{
+			..io.print("一个窗口销毁",hwnd,"进程ID：" + pid + "线程ID:" +tid)
+		}   
+     }	
+}
+
+end intellisense**/

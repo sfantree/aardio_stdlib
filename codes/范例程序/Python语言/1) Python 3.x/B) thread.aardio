@@ -1,0 +1,85 @@
+//B)后台线程
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio - 后台线程运行Python";right=1163;bottom=753)
+winform.add(
+button={cls="button";text="调用python线程";left=876;top=663;right=1102;bottom=723;z=2};
+edit={cls="edit";left=11;top=16;right=1140;bottom=625;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+/*
+其实Python并不支持真正的多线程，
+Pyhton的多线程GIL管理也不方便，处理不好就会崩溃、死锁。
+
+所以更好的方式是在单线程中运行python，
+如果在界面线程中，python需要做耗时操作，
+那么可以使用工作线程运行python，下面是一个演示：
+*/
+
+//python服务端线程
+pyServerThread = function(winform){
+    import thread.command;
+	import py; 
+	
+	//创建命令监听器
+	var cmd = thread.command();
+	
+	//响应事件
+	cmd.pyHash = function(){	
+		
+		//可以直接访问界面控件
+		winform.edit.print("子线程正在执行pyHash函数",tostring(time()))
+		
+		var hashlib = py.import("hashlib"); 
+		var md5 = hashlib.md5()
+		md5.update( raw.buffer("注意这个函数的参数不是字符串而是字节数组（相当于aardio中的buffer）") );	
+		sleep(1000)
+		
+		//调用界面线的函数
+		winform.pyHashEnd( tostring(md5.hexdigest()) );
+		
+		return tostring(md5.hexdigest());
+	}
+	
+	//退出线程
+	cmd.pyExit = function(){
+		win.quitMessage();
+	}
+
+	//在工作线程需要启用消息循环，才能响应事件
+	win.loopMessage();	
+}
+
+//启动python服务端线程
+thread.create( pyServerThread,winform ) 
+
+//增加工作线程可以调用的函数
+winform.pyHashEnd = function(str){
+	winform.edit.print("主线程收到：",str)
+}
+
+import thread.command;
+winform.button.oncommand = function(id,event){
+      
+    //禁用按钮，避免重复提交
+    winform.button.disabledText = "正在调用python线程";
+    
+    //异步调用python线程的函数，不等待返回
+    thread.command.post("pyHash") 
+    
+    //异步调用python线程的函数，等待返回值
+    var str = thread.command.sendInvoke("pyHash") 
+    winform.edit.print("主线程收到：",str)
+    
+    //取消按钮禁用状态
+    winform.button.disabledText = null;
+}  
+
+winform.onClose = function(hwnd,message,wParam,lParam){
+    //退出Python线程
+	thread.command.pyExit() 
+}
+
+winform.show() 
+win.loopMessage();

@@ -1,0 +1,118 @@
+//file 文件操作
+import fsys;
+import process;
+
+namespace process.file;
+
+each = function(exename){
+	var prcs,entry;
+	var next,freeItor = ..process.each(exename);
+	return function(){
+		if(prcs) prcs.free();
+		
+		while(  var  path; entry = next(entry);  entry ) {
+			prcs = ..process( entry.th32ProcessID );
+			if( prcs ) {
+				path = prcs.getPath();
+				if( path && #path && (path != "?") ) { 
+					if( ..io.exist(path) ) path =  ..fsys.longpath(path)
+					if(path) return path,prcs;
+				}
+				prcs.free();
+			}
+		} 
+	},freeItor
+}
+
+eachDir = function(parentDir){
+	if(!parentDir) return error("请指定进程所属上级目录",2)
+	parentDir = ..io.fullpath(parentDir);
+	
+	var prcs,entry;
+	var next,freeItor = ..process.each();
+	
+	return function(){
+		if(prcs) prcs.free();
+		while(  var  path; entry = next(entry);  entry ) { 
+			prcs = ..process( entry.th32ProcessID );
+			if( prcs ) {
+				path = prcs.getPath();
+				if( path && #path && (path != "?") ) {
+					if( ..io.localpath(path) ) { prcs.free();continue; } //过滤掉系统进程
+					if( parentDir[1] != path[1] ) { prcs.free();continue; }//过滤掉系统进程
+			
+					if( ..io.exist(path) ) {
+						path =  ..fsys.longpath(path)
+						if( ..fsys.path.relative(path,parentDir) ){
+							return path,prcs;
+						}
+					}
+				}
+				prcs.free();
+			}
+		} 
+	},freeItor
+}
+	
+find = function(path){
+	path = ..fsys.longpath(path);
+	var cmp = ..fsys.path.cmp;
+	for( fullpath,prcs in ..process.file.each() ){ 	 
+		if( cmp( fullpath,path ) == 0 ){
+			return prcs;
+		}
+	}
+}
+
+test = function(path){
+	var prcs = find(path);
+	if( prcs ) { prcs.free(); return true;}
+}
+
+wait = function(path){
+	while( !test(path) ){
+		sleep(1000)
+	}
+	return true;
+} 
+
+terminate = function(path){
+	path = ..fsys.longpath(path);
+	var cmp = ..fsys.path.cmp;
+	
+	var p;
+	do {
+		p = null;
+		for( fullpath,prcs in ..process.file.each() ){ 
+			if( fullpath == "?" ) continue;
+			
+			if( cmp( fullpath,path ) == 0 ){
+				prcs.terminate();
+				p = true; 
+			}
+		}
+		sleep(50)
+	}while(p);
+		
+}
+
+delete = function(path){
+	terminate(path);
+	while(..io.exist(path)){ sleep(10); ..fsys.delete(path) };
+}
+
+/**intellisense(process.file)
+each( ) = @for( path,prcs in ??.each() ){
+	__break ;
+}
+eachDir( ) = @for( path,prcs in ??.each(__/*输入EXE文件所属上级目录*/) ){
+	break ;
+}
+each() = !process.
+find() = !process.
+find(.(EXE路径) = 使用物理路径查找并返回进程对象\n仅使用文件名查找请使用process.find函数
+test(.(EXE路径) = 检测指定路径的进程是否存在\n该函数不会返回进程对象
+wait(.(EXE路径) = 等待指定的进程启动
+terminate(.(EXE路径) = 中止进程
+delete(.(EXE路径) = 中止进程、并删除执行程序文件\n一直重试直到删除成功
+end intellisense**/

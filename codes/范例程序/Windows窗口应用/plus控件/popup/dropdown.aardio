@@ -1,0 +1,55 @@
+//实现下拉框
+import fonts.fontAwesome;
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add(
+dropdown={cls="plus";left=330;top=331;right=483;bottom=362;bgcolor=15132390;border={color=-3546113;width=2};editable=1;font=LOGFONT(h=-13);forecolor=16777215;iconStyle={align="right";font=LOGFONT(name='FontAwesome');padding={right=8}};iconText='\uF078';notify=1;paddingRight=28;textPadding={left=2;top=6;right=1;bottom=2};z=1};
+menuItem={cls="plus";text='\uF0AE 测试菜单一';left=330;top=362;right=483;bottom=407;bgcolor=11525002;border={left=1;right=1;bottom=1;color=-3546113};font=LOGFONT(name='FontAwesome';charset=0);tabstop=1;z=2};
+menuItem2={cls="plus";text='\uF0AE 测试菜单二';left=330;top=407;right=483;bottom=452;bgcolor=11525002;border={left=1;right=1;bottom=1;color=-3546113};font=LOGFONT(name='FontAwesome');ont=LOGFONT(name='FontAwesome';charset=0);tabstop=1;z=3};
+menuItem3={cls="plus";text='\uF0AE 测试菜单三';left=330;top=452;right=483;bottom=497;bgcolor=11525002;border={left=1;right=1;bottom=1;color=-3546113};font=LOGFONT(name='FontAwesome');tabstop=1;z=4}
+)
+/*}}*/
+
+import win.ui.tabs;
+var menu = win.ui.tabs(winform.menuItem,winform.menuItem2,winform.menuItem3)
+menu.skin( { 
+	foreground={
+		default = 0xFFFFFFFF;
+		hover= 0xFF8ADBAF;
+	};
+	checked = { 
+		foreground={
+			default = 0xFFDB8A8E;
+			hover= 0xFF8ADBAF;
+		}; 
+	}
+})
+
+// 用户点选菜单项触发此事件,strip参数是点选的控件
+menu.onOk = function(strip){
+	winform.dropdown.setFocus(menu.selText)
+}
+
+// 切换到弹出列表模式,并使用参数指定的控件处理键盘事件
+menu.initPopup(winform.dropdown.editBox)
+
+// 禁止共享编辑框外观状态(focus状态除外)
+winform.dropdown.editState = false
+winform.dropdown.skin({
+	background = { hover = 0xFFF78987 }
+	checked = { 
+		iconText = '\uF077';
+	}  
+})
+
+// 显示弹出菜单，弹出菜单会自动修改winform.dropdown的checked属性为菜单打开状态
+winform.dropdown.oncommand = function(id,event){ 
+	if(winform.dropdown.checked ){
+		menu.selText = winform.dropdown.text
+		menu.popup(true,winform.dropdown)
+	}  
+}
+
+winform.show() 
+win.loopMessage();

@@ -1,0 +1,262 @@
+//tracker 输入跟踪器 
+namespace win.ui;
+
+class tracker{
+	ctor( ctrl,hoverTime=0xFFFFFFFF/*_HOVER_DEFAULT*/ ){
+		if( !ctrl[["hwnd"]] ) error("参数必须是窗口对象",2);
+		if( ctrl[["_tracker"]] ) return ctrl[["_tracker"]];
+		ctrl[["_tracker"]] = ctrl;
+		
+		this = ctrl;
+		var state = {};
+		this.state = state;
+		state.disabled = ctrl.disabled; 
+		
+		if(! this._onStateChange ){
+			this._onStateChange = function(){
+				if(this.onStateChange) this.onStateChange();
+			}
+		}
+		this.radioClick = __radioClick__;
+		this.radioValue = __radioValue__;
+		
+		this.wndproc = {
+			[0x200/*_WM_MOUSEMOVE*/]  = function(hwnd,message,wParam,lParam){ 
+				if(!state.hover){
+					state.hover = trackMouseEvent({
+						INT cbSize = 16;
+						INT dwFlags = 2/*_TME_LEAVE*/ | 0x1/*_TME_HOVER*/;
+						int hwndTrack = this[["hwnd"]];
+						INT dwHoverTime = hoverTime;
+					} )
+					
+					if( (wParam & 0x1/*_MK_LBUTTON*/) && ( state.dragging ) ) 
+						state.active = true;  
+					
+					if( this.onMouseEnter ){ 
+						this.onMouseEnter(wParam,lParam);
+					}  
+					elseif( this.OnMouseEnter ){ 
+						this.OnMouseEnter(wParam,lParam);
+					}
+					if(this._onStateChange) this._onStateChange(state);
+				}
+				else{
+					if(( wParam & 0x1/*_MK_LBUTTON*/) && this.onMouseDrag && state.dragging ) this.onMouseDrag(wParam,lParam);
+					if(this.onMouseMove) this.onMouseMove(wParam,lParam);
+				}
+				 
+			}
+			[0x02A3/*_WM_MOUSELEAVE*/] = function(hwnd,message,wParam,lParam){ 
+				state.hover = false;
+				state.dragging = state.active;
+				state.active = false; 
+				
+				if(this.onMouseLeave) this.onMouseLeave(wParam,lParam);
+				if(this._onStateChange) this._onStateChange(state);  
+			}
+			[0x2A1/*_WM_MOUSEHOVER*/] = function(hwnd,message,wParam,lParam){
+				if(this.onMouseHover) this.onMouseHover(wParam,lParam);
+			}
+			[0x201/*_WM_LBUTTONDOWN*/] = function(hwnd,message,wParam,lParam){
+				state.active = true;
+				if(this.onMouseDown) this.onMouseDown(wParam,lParam);
+				if(this.radioGroup && this.radioGroup[1]=='#'#){ this.radioClick(); } 
+				elseif(this._onStateChange) this._onStateChange(state);   
+				
+				if(this.onMouseDrag){ this.capture = true; }
+				state.dragging = true;
+			}
+			[0x202/*_WM_LBUTTONUP*/] = function(hwnd,message,wParam,lParam){ 
+				state.dragging = null;
+				
+				if(state.active ){
+					state.active = false;
+					if(this.onMouseDrag){ this.capture = false; }
+					
+					var rc = ::RECT();
+					::User32.GetClientRect(hwnd,rc); 
+					
+					var pt = ..raw.convert( {INT lParam=lParam},{word x;word y} )
+					if(::PtInRect(rc,pt.x,pt.y) ){
+						if( this.focusOnClick !== false ) ..win.setFocus(this.hwnd)
+						if( ! this.radioGroup ){ 
+							state.checked = !state.checked; 
+							if(this._onStateChange) this._onStateChange(state);
+						}
+						elseif(this.radioGroup[1]!='#'#) { this.radioClick(); } 
+						
+						if(this.onMouseUp){ this.onMouseUp(wParam,lParam) }
+						if(this.oncommand) this.oncommand(this.id,0);
+						if(this.onMouseClick) this.onMouseClick(wParam,lParam); 
+						return;
+					}
+				}
+				
+				if(this.onMouseUp){ this.onMouseUp(wParam,lParam) };
+				if(this._onStateChange) this._onStateChange(state);
+			} 
+			[0x203/*_WM_LBUTTONDBLCLK*/] = function(hwnd,message,wParam,lParam){ 
+				if(this.onMouseDoubuleClick) this.onMouseDoubuleClick(wParam,lParam);
+			}
+			[0x21/*_WM_MOUSEACTIVATE*/]  = function(hwnd,message, wParam,lParam){
+            	if( this.onMouseActivate ) {
+            		return this.onMouseActivate(wParam,::LOWORD(lParam),::HIWORD(lParam))
+            	}
+        	}
+			[0xA/*_WM_ENABLE*/] = function(hwnd,message,wParam,lParam){ 
+				state.disabled = !wParam;  
+				if(this._onStateChange) this._onStateChange(state); 
+			}
+			[0x7/*_WM_SETFOCUS*/] = function(hwnd,message,wParam,lParam){ 
+				state.focus = true;
+				if(this._onStateChange) this._onStateChange(state);  
+				if(this.onFocusGot) {
+					var r = this.onFocusGot(wParam,lParam); 
+					if( r!==null) return r;
+				}
+				if(this.editable && this.editBox )this.editBox.setFocus();
+			}
+			[0x8/*_WM_KILLFOCUS*/] = function(hwnd,message,wParam,lParam){  
+				state.focus = false;
+				if(this._onStateChange) this._onStateChange(state); 
+				if(this.onFocusLost) this.onFocusLost(wParam,lParam);  
+			}
+			[0x100/*_WM_KEYDOWN*/] = function(hwnd,message,wParam,lParam){ 
+				var repeat =  lParam & 1<<30; 
+				if( !repeat &&  ( wParam == 0x20/*_VK_SPACE*/ || wParam == 0xD/*_VK_ENTER*/ ) ){
+					state.active = true; if(this._onStateChange) this._onStateChange(state); 
+					if(this.oncommand) this.oncommand(this.id,0);
+				}
+				
+				if(this.onKeyDown) this.onKeyDown(wParam,lParam,repeat?lParam&0xFFFF);  
+			}
+			[0x101/*_WM_KEYUP*/] = function(hwnd,message,wParam,lParam){ 
+				if(   ( wParam == 0x20/*_VK_SPACE*/ || wParam == 0xD/*_VK_ENTER*/ ) ){
+					if( ! this.radioGroup ){ state.checked = !state.checked; }
+					else { this.radioClick(); } 
+					state.active = false; if(this._onStateChange) this._onStateChange(state); 
+				} 
+				if(this.onKeyUp) this.onKeyUp(wParam,lParam);  
+			}
+			[0x104/*_WM_SYSKEYDOWN*/] = function(hwnd,message,wParam,lParam){ 
+				if(this.onSysKeyDown) this.onSysKeyDown(wParam,lParam,repeat?lParam&0xFFFF);  
+			}
+			[0x105/*_WM_SYSKEYUP*/] = function(hwnd,message,wParam,lParam){
+				if(this.onSysKeyUp) this.onSysKeyUp(wParam,lParam);  
+			}
+		}
+		
+		..win._form._metaProperty.trackerGroup = lambda(){};
+	}; 
+}
+
+namespace tracker{
+	trackMouseEvent = ::User32.api("TrackMouseEvent", "bool(struct& lpEventTrack)");
+	 
+	__radioValue__ = function(){
+		var chk = owner.getForm()[["__uiTrackerRadioGroups__"]][[owner.radioGroup]];
+		if( chk ) return chk.text; 
+	};
+	__radioClick__ = function(){
+		var form = owner.getForm();
+		if(!form) return;
+		
+		var g = form.__uiTrackerRadioGroups__;
+		if( !g ) {
+			g = { @{ _weak = "v" } };
+			form.__uiTrackerRadioGroups__ = g; 
+			form.trackerGroup = function(name){
+				return g[name];
+			}
+		};
+		
+		var prev = g[owner.radioGroup];
+		owner.state.checked = true; 
+		if(owner._onStateChange) owner._onStateChange(state);
+		g[owner.radioGroup] = owner; 
+		
+		if( prev ? prev != owner ) {
+			prev.state.checked = false;
+			if(prev._onStateChange) prev._onStateChange(prev.state); 
+			if(owner.onSelectChange) owner.onSelectChange(prev);
+		} 
+	}
+}
+
+/**intellisense()
+win.ui.tracker = 创建鼠标跟踪器,
+win.ui.tracker(.(控件对象) =  参数为控件或窗口对象\n返回鼠标跟踪器 - 实际上就是返回控件对象自身,\n如果已经调用此函数创建过鼠标跟踪器,则直接返回参数
+win.ui.tracker() = !winuitracker.
+!winuitracker.radioValue() = 单选模式下选中控件的文本
+!winuitracker.radioClick() = 单选模式下选中控件
+!winuitracker.state.hover = 鼠标是否在控件上方\n悬停超过预设时间后触发onMouseHover事件
+!winuitracker.state.focus = 是否已得到焦点
+!winuitracker.state.active = 鼠标或键盘键按下状态
+!winuitracker.state.disabled = 已禁用 
+!winuitracker.state.checked = 是否选中状态
+!winuitracker.state.dragging = 是否按下鼠标且正在拖动
+!winuitracker.focusOnClick = 设为false时禁止在单击控件时设置此控件为焦点控件
+!winuitracker.onMouseEnter = @.onMouseEnter = function(wParam,lParam){
+	__/*鼠标移入*/
+}
+!winuitracker.onMouseLeave = @.onMouseLeave = function(wParam,lParam){
+	__/*鼠标移出*/
+}
+!winuitracker.onMouseHover = @.onMouseHover = function(wParam,lParam){
+	__/*鼠标悬停*/
+}
+!winuitracker.onMouseMove = @.onMouseMove = function(wParam,lParam){
+	if( wParam & 0x1/*_MK_LBUTTON*/ ){
+		var x,y = win.getMessagePos(lParam);
+		__/*鼠标移动*/
+	}
+}
+!winuitracker.onMouseDrag = @.onMouseDrag = function(wParam,lParam){ 
+    var x,y = win.getMessagePos(lParam);
+	__/*鼠标左键按下拖动,\n自动捕获鼠标,允许拖出控件范围*/ 
+}
+!winuitracker.onMouseDown = @.onMouseDown = function(wParam,lParam){
+    var x,y = win.getMessagePos(lParam);
+	__/*鼠标左键按下,\norphanWindow模式下如果阻止控件得到焦点,此事件不会被触发*/
+}
+!winuitracker.onMouseClick = @.onMouseClick = function(wParam,lParam){
+    var x,y = win.getMessagePos(lParam);
+	__/*鼠标左键在控件上单击,\norphanWindow模式下如果阻止控件得到焦点,此事件不会被触发*/
+}
+!winuitracker.onMouseUp = @.onMouseUp = function(wParam,lParam){
+    var x,y = win.getMessagePos(lParam);
+	__/*鼠标左键弹起*/
+}
+!winuitracker.onMouseDoubuleClick = @.onMouseDoubuleClick = function(wParam,lParam){
+    var x,y = win.getMessagePos(lParam);
+	__/*鼠标双击*/
+}
+!winuitracker.onKeyDown = @.onKeyDown = function(keyCode,lParam,repeat){
+	__/*按下键盘键*/
+}
+!winuitracker.onKeyUp = @.onKeyUp = function(keyCode,lParam){
+	__/*放开键盘键*/
+}
+!winuitracker.onSysKeyDown = @.onSysKeyDown = function(keyCode,lParam,repeat){
+	if(keyCode!=0x12/*_VK_ALT*/){
+		__/*按下键盘ALT组合键*/		
+	}
+}
+!winuitracker.onSysKeyUp = @.onSysKeyUp = function(keyCode,lParam){
+	__/*放开键盘键*/
+}
+!winuitracker.onFocusGot(hLostFocus) = @.onFocusGot = function(hLostFocus){
+	..win.setFocus(hLostFocus);__/*得到焦点触发此事件,hLostFocus为失去焦点的窗口句柄,\n如果在这里将hLostFocus恢复焦点,则阻止当前窗口得到焦点*/
+}
+!winuitracker.onFocusLost(hFocus) = @.onFocusLost = function(hFocus){
+	__/*失去焦点触发此事件,hFocus为得到焦点的窗口句柄*/
+}
+!winuitracker.onStateChange = @.onStateChange = function(){
+	__/*状态已改变*/
+}
+!winuitracker.onSelectChange = @.onSelectChange = function(prev){
+	__/*单选模式下已选中当前控件,prev为之前选中的控件*/
+} 
+!winuitracker.onMouseActivate = @.onMouseActivate = function(hwndTop,hitTest,message){\n	return _MA___/*鼠标点击并且将要激活窗口时触发此事件\nhwndTop表示被激活的顶层窗口,\nhitTest参数请参考WM_NCHITTEST消息\nmessage为鼠标消息ID\n返回值的作用请参数MSDN*/\n}
+end intellisense**/

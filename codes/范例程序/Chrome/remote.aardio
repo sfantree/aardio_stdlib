@@ -1,0 +1,101 @@
+//远程调试接口
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="调用chrome远程调试接口";right=784;bottom=557;topmost=1)
+winform.add(
+btnConnect={cls="button";text="连接chrome";left=595;top=422;right=737;bottom=467;db=1;disabled=1;dr=1;z=4};
+btnSend={cls="button";text="调用chrome打开网页";left=595;top=478;right=737;bottom=523;db=1;disabled=1;dr=1;z=3};
+btnStartChrome={cls="button";text="启动chrome调试进程";left=201;top=364;right=368;bottom=409;db=1;dr=1;z=5};
+buttonList={cls="button";text="获取可调试网页列表";left=516;top=364;right=683;bottom=409;db=1;disabled=1;dr=1;z=7};
+editPort={cls="edit";left=399;top=370;right=491;bottom=400;edge=1;multiline=1;z=6};
+txtData={cls="edit";text="http://bbs.aardio.com/forum.php?mod=viewthread&tid=21977";left=32;top=481;right=585;bottom=520;db=1;dl=1;dr=1;edge=1;multiline=1;z=2};
+txtMessage={cls="richedit";left=29;top=22;right=755;bottom=352;db=1;dl=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=1};
+txtWsUrl={cls="edit";left=35;top=425;right=588;bottom=464;edge=1;items={};z=8}
+)
+/*}}*/
+
+import web.socket.chrome;
+var ws = web.socket.chrome();
+
+//打开连接触发的事件
+ws.on("open",function(){ 
+    winform.txtMessage.print("已打开连接");
+    winform.btnSend.disabled = false;     
+})
+
+ws.on("close",function(){
+    winform.txtMessage.print("已关闭连接");      
+});
+
+ws.on("error",function(err){ 
+    winform.txtMessage.print("出错了",err);
+});  
+
+//监听chrome事件
+ws.on("Inspector.detached",function(param){
+    winform.txtMessage.print("chrome已主动断开连接,原因：",param);
+}) 
+
+ws.on("Network.requestWillBeSent",function(param){
+	winform.txtMessage.print("准备发送请求：",param );		
+})
+
+ws.on("Runtime.executionContextCreated",function(param){
+    winform.txtMessage.print("Javascript executionContextId",param.context.id);
+}) 
+
+//调用chrome打开一个网页
+winform.btnSend.oncommand = function(id,event){
+    
+    //允许触发Runtime.executionContextCreated
+  	ws.Runtime.enable();
+  	
+  	//允许触发Network.requestWillBeSent
+  	ws.Network.enable(
+            maxTotalBufferSize = 10240;
+    ).end = function(result,err){
+        winform.txtMessage.print("调用Network.enable结果:",result)
+    }   
+           
+    ws.Page.navigate(
+        url = winform.txtData.text;
+    ).end = function(result,err){
+        winform.txtMessage.print("调用返回参数",result)
+    } 
+}
+
+//连接chrome
+winform.btnConnect.oncommand = function(id,event){
+    ws.connect(winform.txtWsUrl.text);
+}
+
+import chrome.remote;
+winform.btnStartChrome.oncommand = function(id,event){
+    
+	var cr = chrome.remote({
+		["--user-data-dir"] = "%LocalAppData%\aardio\chrome.remote.userdata";
+	})  
+	
+	winform.editPort.text = cr.remoteDebuggingPort;
+	if( cr.remoteDebuggingPort) winform.buttonList.disabled = false;
+}
+
+winform.buttonList.oncommand = function(id,event){ 
+    var first;
+	for id,title,wsUrl,devtoolsUrl in ws.eachDebuggingPage(winform.editPort.text) {
+		winform.txtMessage.print(title);
+		winform.txtMessage.print(devtoolsUrl);
+		winform.txtMessage.print(wsUrl);
+		winform.txtMessage.print();
+		
+		if(!first) {
+			first = wsUrl;
+			winform.btnConnect.disabled = false;
+		}
+	} 
+	
+	winform.txtWsUrl.text = first : "";
+}
+
+winform.show() 
+win.loopMessage();

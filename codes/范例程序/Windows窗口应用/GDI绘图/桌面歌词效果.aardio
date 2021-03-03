@@ -1,0 +1,77 @@
+import win.ui;
+/*DSG{{*/
+var winform = ..win.form(text="歌词效果演示";right=339;bottom=141;border="none";exmode="toolwindow";mode="popup")
+winform.add()
+/*}}*/
+
+import gdip; 
+drawAlphaText =function( strText,fontsize= 35,fontname="Verdana"  ){
+
+	gdi.layeredBuffer( winform.hwnd, 
+	
+    	function( hdc,hMemDc,hMemBitmap,width,height ){
+    	
+        	//图形对象graphics(可以看作是画板)
+			var graphics = gdip.graphics(hMemDc)  
+			//加上抗锯齿功能
+			graphics.smoothingMode = 4/*_GdipSmoothingModeAntiAlias*/;  
+			//创建画笔,画笔pen只能画一个轮廓(画线)
+			var pen = gdip.pen(0xFF222222, 2,2/*_GdipUnitPixel*/ );
+			
+			//创建渐变刷子 
+			var brush = gdip.lineBrush( ::POINTF(10,10)/*渐变起始坐标*/, ::POINTF(100,100) /*渐变终止坐标*/ 
+				, 0xFFFFFF00/*起始颜色*/, 0xFF00FFFF/*结束颜色*/ )
+ 			
+			//创建FontFamily
+			var family = gdip.family( fontname ); 
+			//创建stringFormat 
+			var strformat = gdip.stringformat(); 
+			//设置样式
+			strformat.align =1/*_GdipStringAlignmentCenter*/; 
+			
+			//注意GDI+里使用RECTF而不是RECT,这里的F后缀表示参数为float浮点数 
+			var rclayout = ::RECTF( , ,width,height);//设置文字区域,
+			var path = gdip.path( 0/*_GdipFillModeAlternate*/ );  //创建一个文字路径
+			//添加文字到上面创建的路径中
+			path.addstring(strText, family,1/*_GdipFontStyleBold*/, fontsize, rclayout, strformat);
+
+			graphics.fillPath( brush, path) //fillPath填充路径  
+			graphics.drawPath( pen, path) //drawPath描边
+				 
+			//删除所有GDI+对象  
+			brush.delete();
+			pen.delete();
+			strformat.delete();
+			family.delete();
+			path.delete();
+			graphics.delete();  
+
+        	// 用这个GDI 画好的DC代替窗体原来的图形    
+        	gdi.updateLayeredWindow( winform.hwnd,hMemDc,::SIZE(width,height) ,gdi.blendFunction(130/*透明度*/)  ); 
+    	}
+	)  
+}
+
+winform.transparent(true); 
+var cx,cy = win.getScreen();
+winform.setPos(60,(cy-90)/2,cx - 120,90)
+drawAlphaText("aardio",55/*大小*/ )
+winform.show(true) 
+
+import win.ui.menu;
+winform.popmenu = win.ui.popmenu(winform);//创建弹出菜单 
+winform.popmenu.add('退出',function(id){ winform.close() })
+
+winform.wndproc = function(hwnd,message,wParam,lParam){
+
+	select(message) {
+		case 0x201/*_WM_LBUTTONDOWN 鼠标按下*/{
+			winform.hitCaption()
+		}
+		case 0x204/*_WM_RBUTTONDOWN*/{   
+			winform.popmenu.popup( win.getMessagePos(lParam) );//弹出菜单
+		} 
+	} 
+} 
+
+win.loopMessage();

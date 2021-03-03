@@ -1,0 +1,49 @@
+//mac 地址
+import fsys.file;
+import inet.adapter; 
+import wsock.tcp.client;
+
+namespace inet.mac;
+getPermanentAddress = function(adapterName){
+	if(!adapterName) error("请使用参数@1指定网卡ID",2);
+	var permanentMac;
+	var file = ..fsys.file("\\.\"+adapterName,"r+")
+
+    if( file ){
+    	var address = { BYTE permanentAddress[6] };
+    	if( file.deviceIoControl(
+    		0x00170002/*_IOCTL_NDIS_QUERY_GLOBAL_STATS*/,{ int n = 0x01010101/*_PERMANENT_ADDRESS*/},address
+    	) ){
+    		var a = address.permanentAddress;
+			permanentMac = ..string.format("%02X-%02X-%02X-%02X-%02X-%02X", a[1],a[2],a[3],a[4],a[5],a[6] )
+    	}
+
+    	file.close()
+    }
+    return permanentMac;
+}
+	
+getAddress = function(host,port){
+	if(!host) error("请使用参数@1指定主机",2);
+	
+	var c = ..wsock.tcp.client();
+	if( ! c.connect(host,port : 80) ){
+		return;
+	}
+	var ip = c.getLocalIp()
+	c.close()
+	 
+	for adptInfo in ..inet.adapter.each() {  
+		for( addrInfo in adptInfo.ipAddressList.eachAddress() ){
+			if( ip == addrInfo.ipAddress ){
+    			return adptInfo.mac,getPermanentAddress(adptInfo.adapterName);
+			} 
+		}  
+	}
+}
+
+/**intellisense(inet)
+mac = Media Access Control
+mac.getPermanentAddress(.("网卡ID") = 返回硬件MAC - OID_802_3_PERMANENT_ADDRESS
+mac.getAddress(.("IP或域名",端口) = 返回当前联网目标主机的网卡的MAC地址\n返回值1为 OID_802_3_CURRENT_ADDRESS,\n返回值2为硬件MAC,即OID_802_3_PERMANENT_ADDRESS\n无法连接目标主机返回空值
+end intellisense**/

@@ -1,0 +1,27 @@
+﻿//托盘图标跳动
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="托盘图标跳动";right=759;bottom=469)
+winform.add(
+button={cls="button";text="停止";left=386;top=250;right=534;bottom=339;z=1}
+)
+/*}}*/
+
+import win.util.tray;
+var tray = win.util.tray(winform,hIcon);
+var hIcon = ::LoadIcon(null, topointer(0x7F00/*_IDI_APPLICATION*/)); 
+
+var tid = winform.reduce( { hIcon;},
+	function(value,index){
+		tray.icon = value;
+		return 500;
+	} 
+)
+
+winform.button.oncommand = function(id,event){
+    winform.clearInterval(tid);
+    tray.icon = hIcon;
+}
+
+winform.show() 
+win.loopMessage();

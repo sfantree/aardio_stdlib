@@ -1,0 +1,42 @@
+//使用SQL操作excel
+
+import access;
+
+//可自动创建文件,系统自带Jet 4.0驱动可支持Excel 8.0( 97-2003 )  
+var db,err = access( "/test.xls") 
+
+/* 
+import access.oleDb12;
+access.oleDb12.install();//检测并安装Microsoft.Ace.OLEDB.12驱动
+
+var db,err = access( "/test.xlsx",//也可以省略后面的参数
+	{  
+        ["Provider"] = "Microsoft.Ace.OLEDB.12.0"; 
+        ["Extended Properties"] = "Excel 12.0 Xml;HDR=YES"; 
+    }  
+)
+
+关于列数据类型不统一时值丢失或字符串被截断,或使用excel源的其他问题,可参考以下链接：
+http://msdn.microsoft.com/zh-cn/library/ms141683.aspx
+http://www.connectionstrings.com/excel/
+*/
+
+//创建表	
+if( ! db.existsTable( "sheet1" ) ){
+	db.exec("CREATE TABLE sheet1 (username VARCHAR(255),comment MEMO,num double )");
+}
+	
+//插入数据,注意访问excel里的表名后面加$并用放到方括号里
+db.exec( "INSERT INTO [sheet1$](username,comment,num)values('aardio','www.aardio.com',123)");
+
+//查询
+import console;
+for(rs in db.each("SELECT * FROM [sheet1$]") ){  
+	console.log( rs("username").value );
+	console.log( rs("comment").value );
+	console.log( rs("num").value )
+}
+
+//关闭数据库
+db.close();
+console.pause();

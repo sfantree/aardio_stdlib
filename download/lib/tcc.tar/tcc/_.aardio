@@ -1,0 +1,241 @@
+/*
+http://bellard.org/tcc/tcc-doc.html
+*/
+
+class tcc{
+	ctor(){ 
+		var state = _dll.tcc_newP();  
+		set_lib_path(state,fromto(_rootdir));  
+		set_output_type(state, 1/*_TCC_OUTPUT_MEMORY*/);  
+		add_library(state,"user32");
+		add_library(state,"kernel32");
+		add_library(state,"gdi32");
+		 
+		this._io_open = ..raw.tocdecl(..io.open,"void()") 
+		add_symbol(state, "io_open",this._io_open  );
+		define_symbol(state,"io_reopen()",'
+			io_open();
+			freopen("CONIN$", "r+t", stdin);  
+			freopen("CONOUT$", "w+t", stdout);  
+			freopen("CONOUT$", "w+t", stderr)'
+			);
+	 
+		var errproc = function(opaque,msg){
+			this.err_msg = msg;
+			
+			if(this[["onError"]])
+				this.onError(msg);
+			else{
+				if( ..win && ..win.msgboxErr ) ..win.msgboxErr( msg,"tcc" )
+				elseif( ..console ) ..console.log( msg );
+				else ..io.stderr.write(msg,'\n');
+			}
+		} 
+		this._errproc_c = ..raw.tocdecl(errproc,"int(pointer opaque,string.msg )"); 
+		set_error_func(state,null,this._errproc_c)
+		
+		this.data = {};
+		this.pfun = {};
+		..table.gc(this,"close");
+	};
+	close  = function(){
+		if(state){
+			_dll.tcc_delete(state)
+			state = null;
+		}
+	};
+	addLibPath = function(path){
+		return add_library_path(state, fromto( ..io.fullpath(path) ) )!=-1;
+	};
+	addIncludePath = function(path){
+		return add_include_path(state, fromto( ..io.fullpath(path) ) )!=-1;
+	};
+	addSysIncludePath = function(path){
+		return add_sysinclude_path(state, fromto( ..io.fullpath(path) ) )!=-1;
+	};
+	setOptions = function(s,...){
+		set_options(state,fromto(s));
+		if(!...) return;
+		return this.setOptions(...);
+	}
+	define = function(name,value){
+		if(value)
+			define_symbol(state,fromto(name),fromto(value));
+		else
+			undefine_symbol(state,fromto(name))
+	};
+	compile = function(code){
+		if (compile_string(state,code) != 0){
+			if( this[["onError"]] ) return false; 
+			error('compile error:'+ ( this.err_msg : "") , 2 ) 
+		}
+		return true;
+	};
+	compileEx = function(code){
+		return this.compile(code);
+	};
+	addFile = function(...){  
+		for(i,path in {...} )  
+			if( add_file(state,fromto( ..io.fullpath(path) ) ) == -1){
+				error('Failed to add file:\n' + path,2); 
+			}
+	};
+	addLib = function(...){ 
+		for(i,path in {...} )  
+			if( add_library(state,fromto(path) ) == -1){
+				error('Failed to add library:\n' + path,2); 
+			}
+	};
+	loadDll = function(...){
+		return addLib(...)
+	};
+	setCdecl = function(func,name,proto){ 
+		var pfun = func;
+		if(type(func)==type.function){
+			pfun = ..raw.tocdecl(func,proto); 
+			this.pfun[name] = pfun 
+		}
+		add_symbol(state,fromto(name),pfun );
+	};
+	relocate = function(){
+		var size = relocate(state);
+		if (size == -1) return 1;
+		
+		var data = ..raw.malloc(size);
+		relocate(state, data);
+		..table.push(this.data,data);
+	};
+	getSymbol = function( name ){
+		if( ! (#this[["data"]]) ) 
+			this.relocate(); 
+			
+		return get_symbol( state,fromto(name) )
+	};
+	setSymbol = function(name,value){
+		add_symbol(state, fromto(name),fromto(value));
+	};
+	getCdecl = function(name,proto){
+		if( ! (#this[["data"]]) ) 
+			this.relocate(); 
+			
+		var func = get_symbol(state, fromto(name));
+		if (!func) return;
+		if(!proto)return _app[func];
+		return _app.api(func,proto,"cdecl"); 
+	};
+	run = function(...){ 
+		if( #(this[["data"]]) ){ 
+			error("调用 relocate() 函数以后不能再调用 run()函数",2);
+		}
+			
+		var argv = { ..io._exepath ;  ...};
+		for(k,v in ..table.eachArgs(argv) ){
+			argv[k] = fromto(v);
+		}
+		
+		return run( state,#argv,{pointer argv[]=argv } );
+	};
+	output = function(path,code){ 
+		var ext = ..string.right(path,4);
+		ext = ..string.lower(ext);
+		if( ..string.endWith(ext,".o") || ext == ".obj" ){
+			set_output_type(state, 4/*_TCC_OUTPUT_OBJ*/ ); 
+		}
+		elseif( ext == ".exe"  ){
+			set_output_type(state, 2/*_TCC_OUTPUT_EXE*/);  
+		}
+		elseif( ext == ".dll" ){
+			set_output_type(state, 0x3/*_TCC_OUTPUT_DLL*/); 
+		}     
+		
+		if( #(this[["data"]]) ){ 
+			error("调用 relocate() 函数以后不能再调用 output（）函数",2);
+		}
+	 	
+		if( code && ( !this.compile( code ) ) ){
+			return;
+		}
+		output_file(state,fromto(..io.fullpath(path)) );
+		set_output_type(state, 0x1/*_TCC_OUTPUT_MEMORY*/); 
+	}
+	outputEx = function(path,code){
+		return this.output(path,code);
+	}
+	@_meta;
+}
+
+namespace tcc{
+	_meta = {
+		_get = function(k){
+			return owner.getCdecl(k);
+		}
+		_set = function(k,v){
+			if( k === "c" ) return owner.compile(v);
+			owner[[k]] = v;
+		}
+	}
+
+	_app = ..raw.module("cdecl"); 
+	_dll = ..raw.loadDll($"~/lib/tcc/.dll/libtcc.dll","libtcc.dll","cdecl");  
+	_rootdir = ..io.fullpath( "~\lib\tcc\.res" );
+	_libdir = ..io.fullpath( "~\lib\tcc\.res\lib" );
+	_includedir = ..io.fullpath( "~\lib\tcc\.res\include" ); 
+	  
+	set_options = _dll.api("tcc_set_options","int(POINTER state,str cmd)" )
+	set_error_func = _dll.api("tcc_set_error_func","void(POINTER state,pointer error_opaque,pointer error_func )" )
+	set_warning = _dll.api("tcc_warning","int(POINTER state,string warning_name, int value)" )
+	add_include_path = _dll.api("tcc_add_include_path","int(POINTER state,string pathname)" )
+	add_sysinclude_path = _dll.api("tcc_add_sysinclude_path","int(POINTER state,string pathname)" )
+	define_symbol = _dll.api("tcc_define_symbol","void(POINTER state,string sym,string value)" )
+	undefine_symbol = _dll.api("tcc_undefine_symbol","void(POINTER state,string sym)" )
+	add_file = _dll.api("tcc_add_file","int(POINTER state,string filename)" )
+	compile_string = _dll.api("tcc_compile_string","int(POINTER state,string buf)" )
+	set_output_type = _dll.api("tcc_set_output_type","int(POINTER state,int output_type)" )
+	add_library_path = _dll.api("tcc_add_library_path","int(POINTER state,string pathname)" )
+	add_library = _dll.api("tcc_add_library","int(POINTER state,string libraryname)" )
+	add_symbol = _dll.api("tcc_add_symbol","int(POINTER state,STRING name,point val)" ) 
+	output_file = _dll.api("tcc_output_file","int(POINTER state,string filename)" )
+	run = _dll.api("tcc_run","int(POINTER state,int argc,struct argv)" ) 
+	relocate = _dll.api("tcc_relocate","int(POINTER state,pointer ptr)" )
+	get_symbol = _dll.api("tcc_get_symbol","pointer(POINTER state,STRING name)" )
+	set_lib_path = _dll.api("tcc_set_lib_path","void(POINTER state,string path)" )
+	fromto = ..string.fromto;
+}
+
+/**intellisense()
+!tcc.onError = @.onError = function(msg){
+	console.log( msg ) __/*编译警告或错误会触发此事件\n如果不定义此事件,aardio默认弹出对话框或使用控制台显示此信息*/
+}
+!tcc.addSysIncludePath("__/*头文件目录*/") = 添加系统头文件目录
+!tcc.addIncludePath("__/*头文件目录*/") = 添加头文件目录
+!tcc.addLibPath("__/*库目录*/") = 添加库目录
+!tcc.addLib(库文件) = @.addLib(\n 	"user32",\n	"kernel32",\n	"gdi32" __/*这几个库默认已添加,这里仅作演示\n静态库必须在"\lib\tcc\.res"目录下可找到 lib库名.a 文件\n动态库必须在"\lib\tcc\.res"目录下可找到 库名.def 文件,请到tcc官网下载def生成工具\n请到tcc官网下载def生成工具\n*/\n)
+!tcc.addFile(添加对象文件) = @.addFile("/bin__.o")
+!tcc.output = @.output("bin.o",__/*输入C源码,\n源码建议使用UTF-8编码*/)
+!tcc.define("__/*预处理器符号*/","") = 定义预处理器符号,如果值为null则删除该定义.
+!tcc.compile(__/*C源码*/)  = 编译C源码,\n注意只有源码为UTF8编码,才能支持 L"UTF-16字面量" 的C语法\n出错则触发onError事件,如果未指定该事件则抛出异常
+!tcc.setCdecl(函数,函数名,原型) = @.setCdecl(\n	function(){\n		__\n	},\n	"函数名",\n	"void()"\n)
+!tcc.setCdecl(函数指针,函数名) = 直接将C函数指针传入tcc
+!tcc.getCdecl("__/*函数名*/","void()") = 获取编译后的C函数\n如果从未调用过relocate()则自动调用.
+!tcc.relocate() = 重定位\n此函数在调用getCdecl()前被自动调用.
+!tcc.getSymbol(.("符号名") = 可使用此函数获取函数地址
+!tcc.setSymbol(.("符号名",指针) = 可使用此函数添加函数指针
+!tcc.close() = 关闭C语言解释器
+!tcc.run() = 编译并执行int main() 入口函数.\n可添加任意多个字符串参数
+!tcc.setOptions(.("-bt N") = 允许调试,生成的文件较大
+!tcc.setOptions(.("-Wall") =  启用所有警告
+!tcc.c = @.c = /*** \n	#include <stdlib.h> \n	#include <windows.h>\n	\n	/*\n	DLL入口函数,该函数可以有也可以没有。\n	总之在DllMain最好不要调用API函数.\n	*/\n	int __stdcall DllMain(void * hinstDLL, unsigned long fdwReason, void * lpvReserved) {\n		if (fdwReason == 1/*DLL_PROCESS_ATTACH*/ ){ \n			\n		}\n		return 1;\n	}\n	\n	//导出变量	\n__declspec(dllexport) const wchar_t *hello_data = L"(UTF8字面量定义为UTF16字符串)";\n	\n	//DLL导出函数\n__declspec(dllexport) void helloW (const wchar_t * msg)\n	{\n		MessageBoxW (0, msg, hello_data, MB_ICONINFORMATION);__/*DLL导出函数*/\n	}\n***/
+tcc() = 创建TCC C语言解释器\n!tcc.
+tcc._rootdir = TCC根目录,需要的DLL组件目录;
+tcc._libdir = 默认库目录
+tcc._includedir = 默认头文件目录 
+io_reopen() = 重定向到已经打开的aardio控制台窗口\n如果C语言生成独立的exe文件,不应使用此函数.
+end intellisense**/  
+
+/**intellisense()
+_TCC_OUTPUT_MEMORY=@1/*_TCC_OUTPUT_MEMORY*/
+_TCC_OUTPUT_EXE=@2/*_TCC_OUTPUT_EXE*/
+_TCC_OUTPUT_DLL=@3/*_TCC_OUTPUT_DLL*/
+_TCC_OUTPUT_OBJ=@4/*_TCC_OUTPUT_OBJ*/
+_TCC_OUTPUT_PREPROCESS=@5/*_TCC_OUTPUT_PREPROCESS*/
+end intellisense**/

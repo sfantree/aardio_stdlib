@@ -1,0 +1,35 @@
+//12、线程消息
+import win;
+import console;
+
+var thrdFunc = function(arg){
+
+	//线程函数内部要添加自已的import语句
+    import win; 
+    import console;
+    
+    //在子线程启动消息循环
+    win.loopMessage(
+    	//注册一个消息钩子函数
+    	function(msg){
+    		console.log( "收到消息",msg.message )
+    	} 
+    ) 
+
+}
+ 
+//创建线程
+var thrdHandle,thrdId = thread.create( thrdFunc  ) 
+sleep(1000)
+ 
+//给线程发送消息 
+::PostThreadMessage(thrdId,123,0,0)
+::PostThreadMessage(thrdId,456,0,0)
+
+//给线程发送退出消息
+::PostThreadMessage(thrdId,0x12/*_WM_QUIT*/,0,0)
+ 
+thread.waitClose(thrdHandle); 
+console.log("线程已退出")
+
+execute("pause") //按任意键继续 

@@ -1,0 +1,57 @@
+﻿//versionEx 扩展版本信息
+import win.reg;
+import win.version;
+
+win.versionEx = win.version;
+namespace win.versionEx{ 
+	
+	var reg = ..win.regReader("HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion")
+	productName = reg.queryValue("ProductName");
+	editionId = reg.queryValue("EditionID");
+	updateBuildRevision = reg.queryValue("UBR")
+	
+	var win10ReleaseId = {
+		[10240] = "1507";
+		[10586] = "1511";
+		[14393] = "1607";
+		[15063] = "1703";
+		[16299] = "1709";
+		[17134] = "1803";
+		[17763] = "1809";
+		[18362] = "1903";
+		[18363] = "1909";
+		[19041] = "2004";//20H1
+	}	
+	if(isWin10Later){
+		releaseId = win10ReleaseId[buildNumber]
+		if(!releaseId){
+			releaseId = reg.queryValue("ReleaseId");
+		}
+	} 
+  
+	isWin10ReleaseLater = function(releaseId){ 
+		if( isWin10Later ) {
+			if(releaseId){
+				return tonumber(self.releaseId) >= tonumber(releaseId)
+			}
+			
+			for(build,releaseVersion in win10ReleaseId){
+				if(releaseVersion==releaseId){
+					return self.buildNumber >= build;
+				}
+			}
+		}
+	}
+}
+
+/**intellisense(!winVersion)
+productName = 产品名称,例如"Windows 10 Pro","Windows Server (R) 2008 Standard"等等\n需要导入win.versionEx此属性才可用
+editionId = 版本ID，例如 "Professional","ServerStandard"等等\n需要导入win.versionEx此属性才可用
+updateBuildRevision = 更新版本号\n需要导入win.versionEx此属性才可用
+releaseId = Win10版本号，例如1709,1803这种,\n注意这个属性的数据类型是字符串,但包含的是数值,\nreleaseId与buildNumber存在对应关系,\n需要导入win.versionEx此属性才可用
+isWin10ReleaseLater(.(releaseId) = 系统是否Win10并且ReleaseId大于等于参数指定的发行版本\n需要导入win.versionEx此属性才可用
+end intellisense**/
+
+/**intellisense()
+win.versionEx = 扩展系统版本信息\naardio 内建以下全局常量也可用于检测系统版本：\n_WINXP,_WIN7_LATER,_WIN10_LATER,_WINE 等\n!winVersion.
+end intellisense**/

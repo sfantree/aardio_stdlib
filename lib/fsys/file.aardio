@@ -1,0 +1,462 @@
+//file 文件读写
+import util.metaProperty
+namespace fsys;
+
+class file{ 
+	ctor( path
+		,mode = "r" 
+		,sharemode = 3/*_FILE_SHARE_READ | _FILE_SHARE_WRITE*/
+		,creation = 3/*_OPEN_EXISTING*/ 
+		,attrib = 0x80/*_FILE_ATTRIBUTE_NORMAL*/
+		,secAttrib
+		,template
+		){ 
+		if(type(path)==type.pointer){
+			this.hfile =  path;
+			if(mode===true)..table.gc( this,"close" );
+		}
+		else{
+			path = ..io.fullpath(path);
+			var lastChar = path[#path];
+			if( lastChar=='/'# || lastChar=='\\'# ){
+				if( attrib == 0x80/*_FILE_ATTRIBUTE_NORMAL*/ )
+					attrib = 0x2000000/*_FILE_FLAG_BACKUP_SEMANTICS*/;
+			}
+			
+			var access = 0;
+			var seekend;
+			if( type(mode) == type.string ){
+				var f=mode[1];
+				if( f='r'# ) {
+					creation |= 0x3/*_OPEN_EXISTING*/  
+					access |= 0x80000000/*_GENERIC_READ*/;
+				}
+				else {
+					creation &= ~3/*_OPEN_EXISTING*/;
+					access |= 0x40000000/*_GENERIC_WRITE*/
+					if( f='w'#  ) 
+						creation |= 0x2/*_CREATE_ALWAYS*/
+					else{
+						creation |= 0x4/*_OPEN_ALWAYS*/
+						seekend = true;
+					}
+				}
+				
+				if(..string.indexAny(mode,"+") ){
+					access = access | 0x80000000/*_GENERIC_READ*/ | 0x40000000/*_GENERIC_WRITE*/;
+				}
+				
+				if(..string.indexAny(mode,"D") ){
+					attrib = 0x4000000/*_FILE_FLAG_DELETE_ON_CLOSE*/
+				}
+			}
+			else {
+				access = mode; 
+			} 
+			
+			this.hfile = CreateFile(path,access,sharemode,secAttrib : {} ,creation,attrib ) 
+			if( this.hfile == _INVALID_HANDLE_VALUE )
+				return null,..lasterr()
+				
+			if(seekend)
+			 	llseek( this.hfile,0 ,0x2/*_SEEK_END*/); 
+			 	
+			..table.gc(this,"close");
+		} 
+	}; 
+	@_metaProperty
+}
+ 
+var push = ..table.push;
+namespace file{	 
+	_metaProperty = ..util.metaProperty(
+		close = function(){
+			if(owner.hfile)
+				..raw.closehandle(owner.hfile)
+			owner.hfile = null;
+		}
+		seteof = function(){
+			if(owner.hfile)
+				return SetEndOfFile(owner.hfile)
+		}
+		seek = function(mode="cur",off=0){
+			if(owner.hfile){
+				return llseek( owner.hfile,off,_seekMode[mode]); 
+			}
+		}
+		readTo = function(ends){  
+			if( type(ends)!="string" || (!#ends) ) error("参数错误",2);
+			var lends = #ends; 
+			var bytes = {} 
+			while( 
+			    var ok,byte;
+			    ok,byte,readSize = ReadByte(owner.hfile,0,1,0) ;
+			    ok && readSize
+			) {   
+				push(bytes,byte); 
+				if( byte == ends[lends]){ 
+					var l = #bytes;
+					for(i=lends-1;1;-1){ 
+						if( ends[i] != bytes[l-lends + i ] ){ 
+							continue 2;
+						} 
+					}
+					..table.pop(bytes,lends);
+					return ..string.pack(bytes); 
+				}  
+			}
+		};
+		read = function(len){
+			if(owner.hfile){ 
+				if( type(len)!=type.number){ 
+					if( len[["_struct"]] ){
+						var s = len;
+						var l =  ..raw.sizeof(s)
+						ok,s,readSize = ReadStruct(owner.hfile,s,l,0)
+						if(ok && ( l == readSize) )return s;
+						return;
+					}
+					elseif( ( len===null ) or ( len=="%s" ) ){
+						var bytes = {} 
+						var ok,byte = ReadByte(owner.hfile,0,1,0) ;
+						while( byte ? (byte!='\n'#) ){  
+							if( !ok ) return null,..lasterr();
+							if(byte!='\r'#) push(bytes,byte);  
+								
+							ok,byte = ReadByte(owner.hfile,0,1,0);
+						}
+						
+						if(#bytes)
+							return ..string.pack(bytes);
+						 
+						return byte?"":null;
+					};
+					error("不支持的参数",2)
+				} 
+				if(len<0) {
+					len = owner.size(1) - len + 1; 
+				}
+					
+				var ok,str,readSize = ReadFile( owner.hfile,len,len,0); 
+				if(ok)
+					return readSize ? ..string.left(str,readSize) : null; 
+					
+				return null,..lasterr();
+			}
+		};
+		readAll = function(){
+			len = owner.size(1);
+			var ok,str,readSize = ReadFile( owner.hfile,len,len,0);	
+			if(ok) return readSize ? ..string.left(str,readSize) : null; 
+		};
+		write = function(s,...){
+			if(owner.hfile){
+				var st = type(s);
+				if( st != "string"  ){
+					if( st == "number") s = tostring(s);
+					elseif( s[["_struct"]]) s = ..raw.buffer(s); 
+					else error("参数类型错误",2);
+				}
+				
+				var ok/*,numBytes*/ = WriteFile( owner.hfile,s,#s,0);
+				if(ok){
+					if(!...)
+						return true;
+						
+					return owner.write(...);
+				}
+				return 0;
+			}
+		};
+		readBuffer = function(buffer,l){
+			var t = type(buffer);
+			if( t == "buffer" ){
+				var m = #buffer;
+				if( l=== null ) l = m;
+				elseif( l > m ) l = m;
+				elseif( l < 0 ) return;	
+			}
+			else{
+				if(t!="pointer") error("参数@1必须指定缓冲区指针",2);
+				if(!l) error("无效的长度参数@2",2);
+			}
+			var ok,readSize = ReadBuffer( owner.hfile,buffer,l,0);
+			if(ok)return readSize;
+		}
+		writeBuffer = function(buffer,l){
+			var t = type(buffer);
+			if( t == "buffer" ){
+				var m = #buffer;
+				if( l=== null ) l = m;
+				elseif( l > m ) l = m;
+				elseif( l < 0 ) return;	
+			}
+			else{
+				if(t!="pointer") error("参数@1必须指定缓冲区指针",2);
+				if(!l) error("无效的长度参数@2",2);
+			}
+			
+			var ok,writeSize = WriteFile( owner.hfile,buffer,l,0);
+			if(ok)return writeSize;
+		}
+		flush = function(){
+			if(owner.hfile){
+				return FlushFileBuffers( owner.hfile );
+			}
+		};
+		setFileTime = function(tm){
+			if(! owner.hfile)
+				return;
+			
+			var tmkind = ::FILETIME();
+			if( tmkind._struct != tm[["creation"]][["_struct"]])
+				error("创建时间不是合法的FILETIME对象",2);
+				
+			if( tmkind._struct != tm[["access"]][["_struct"]])
+				error("访问时间不是合法的FILETIME对象",2)
+			
+			if( tmkind._struct != tm[["write"]][["_struct"]])
+				error("修改时间不是合法的FILETIME对象",2)
+		  
+			var ok = SetFileTime( owner.hfile,tm.creation,tm.access,tm.write)
+			return ok;
+		};
+		getFileTime = function(){
+			if(! owner.hfile)
+				return;
+				
+			var ok,creation,access,write = GetFileTime(owner.hfile,..fsys.time() ,..fsys.time() ,..fsys.time() ) 
+			return  {
+				creation = creation;
+				access = access;
+				write = write
+			};
+		};
+		setTime = function(tm){
+			if(! owner.hfile)
+				return;
+			
+			if( type(tm) != type.table ) 
+				error("参数必须是一个表对象",2); 
+				
+			owner.setFileTime(
+				creation = fsys.time().fromSystemTime(tm.creation);
+				access = fsys.time().fromSystemTime(tm.access);
+				write = fsys.time().fromSystemTime(tm.write);
+			)
+		};
+		getTime = function(){
+			var tm = owner.getFileTime();
+			if(tm) return {
+				creation = tm.creation.toSystemTime();
+				access = tm.access.toSystemTime();
+				write = tm.write.toSystemTime()
+			};
+		}; 
+		lastModified = function(){
+			var tm = owner.getFileTime();
+			if(tm) return tm.write.toGmtTime();
+		}; 
+		size = function(){ 
+			if(owner.hfile){ 
+				var low,high = GetFileSize(owner.hfile,0)
+				return tonumber( ..math.size64(low,high) );  
+			} 
+		};
+		size64 = function(){ 
+			if(owner.hfile){ 
+				var low,high = GetFileSize(owner.hfile,0)
+				return ..math.size64(low,high);
+			} 
+		};
+		deviceIoControl = function(ctlCode,ib,ob,iLen){
+			var oLen,rLen = 0,{INT n};
+			if( iLen== null ){
+				if( ib[["_struct"]] ) iLen = ..raw.sizeof(ib);
+				else iLen = #ib;
+			}
+			if( ob[["_struct"]] ) oLen  = ..raw.sizeof(ob);
+			else oLen = #ob;
+			
+			if( ::Kernel32.DeviceIoControl(owner.hfile,ctlCode,ib,iLen,ob,oLen,rLen,null) )
+				return true,rLen.n;
+		};
+		type = function(){
+			return ::Kernel32.GetFileType(owner.hfile);
+		};
+		handle = {
+			_get = function(){
+				return owner.hfile;
+			} 
+		};
+		_topointer = function(){
+			return owner.hfile;
+		};
+		_serialize = function(kernelCall){
+			if(kernelCall) return ..raw.serializeDupHandle("fsys.file",owner.hfile);
+		};
+	);
+	namespace _metaProperty{
+		getFileTimes = getTime;
+		setFileTimes = setTime;
+	}
+	
+	is = function(v){
+		return v@ == _metaProperty;
+	}
+	
+	import fsys.time;
+	CreateFile = ::Kernel32.api("CreateFile","pointer(ustring path,int access,int sharemode,struct secAttrib,int creationDisposition,int attrib,pointer template)")
+	llseek = ::Kernel32.api("_llseek","int(POINTER file,int off,int mode)") 
+	ReadByte = ::Kernel32.api("ReadFile","bool(POINTER file,BYTE& buffer,INT bufferSize,INT& numBytes,pointer overlapped)") 
+	ReadFile = ::Kernel32.api("ReadFile","bool(POINTER file,string& buffer,INT bufferSize,INT& numBytes,pointer overlapped)") 
+	ReadStruct = ::Kernel32.api("ReadFile","bool(POINTER file,struct& buffer,INT bufferSize,INT& numBytes,pointer overlapped)") 
+	ReadBuffer = ::Kernel32.api("ReadFile","bool(POINTER file,POINTER buffer,INT bufferSize,INT& numBytes,pointer overlapped)") 
+	WriteFile = ::Kernel32.api("WriteFile","bool(POINTER file,string buffer,INT bufferSize,INT& numBytes,pointer lpOverlapped)")
+	GetFileSize = ::Kernel32.api("GetFileSize","INT(POINTER file,int& INT)")
+	FlushFileBuffers = ::Kernel32.api("FlushFileBuffers","int(POINTER file)")
+	SetEndOfFile = ::Kernel32.api("SetEndOfFile","bool(pointer file)");
+	GetFileTime = ::Kernel32.api("GetFileTime","int(pointer file,struct& creation,struct& access,struct& write)")
+	SetFileTime = ::Kernel32.api("SetFileTime","int(pointer file,struct creation,struct access,struct write)")
+    
+	_seekMode = {
+	 	["cur"] = 0x1/*_FILE_CURRENT*/;
+	 	["end"] = 0x2/*_FILE_END*/;
+	 	["set"] = 0x0/*_FILE_BEGIN*/;
+	} 
+	
+	temp = function( path
+			,mode = "w+b" 
+			,sharemode = 3/*_FILE_SHARE_READ | _FILE_SHARE_WRITE*/
+			,creation = 0 
+			,attrib = 0x80/*_FILE_ATTRIBUTE_NORMAL*/
+			,secAttrib
+			,template
+			){ 
+			attrib = attrib | 0x2/*_FILE_ATTRIBUTE_HIDDEN*/ | 0x4000000/*_FILE_FLAG_DELETE_ON_CLOSE*/;
+			return ..fsys.file(path,mode,sharemode,creation,attrib,secAttrib,template);
+	}
+	
+	lines = function(path){
+		var file = ..fsys.file(path,"r");
+		if(!file) error("打开文件失败",2);
+		
+		return function(){
+			var s = file.read();
+			return s;
+		},function() { file.close(); }
+		
+	}
+	
+	lastModified = function(path){
+		var file = ..fsys.file(path,"r");
+		if(!file) return;
+		 
+		var tmWrite = file.lastModified();
+		file.close();
+		if(tmWrite) return tmWrite;
+	}
+}
+
+/**intellisense() 
+fsys.file = 文件读写函数库
+fsys.file.temp(.("文件路径") = 创建临时文件
+fsys.file.temp() = !fsysfile.
+fsys.file.lastModified(__) = 参数指定文件路径,\n返回最后修改时间,返回值是time.gmt对象,\n即RFC1123格式时间,HTTP协议使用该对象\n!time.
+fsys.file(__/*文件句柄*/) = 可以指定文件、管道等句柄
+fsys.file(__/*文件句柄*/,true) = 直接文件、管道等句柄\n添加析构函数负责释放句柄
+fsys.file("__/*文件路径*/") = 只读模式打开,文件必须存在\n如果路径以斜杠结束,则以目录模式打开.\n更多参数参考源码
+fsys.file("__/*文件路径*/","r+") = 读写模式打开,文件必须存在\n更多参数参考源码
+fsys.file("__/*文件路径*/","w") = 只写模式打开,创建新文件清空原文件
+fsys.file("__/*文件路径*/","w+") = 读写模式打开,创建新文件清空原文件
+fsys.file("__/*文件路径*/","w+D") = 读写模式打开临时文件,关闭对象时自动删除文件
+fsys.file("__/*文件路径*/","a") = 只写追加模式打开,创建新文件保留原文件
+fsys.file("__/*文件路径*/","a+") = 读写追加模式打开,创建新文件保留原文件
+fsys.file(.(path,mode,shareMode,creation,attrib,secAttrib) = 所有参数可选,\n参数详细用法参考此函数源码与CreateFile参数用法,\nmode参数可指定数值指定打开模式,也可使用与io.open函数相同规则的描述字符\nshareMode参数默认为 _FILE_SHARE_READ | _FILE_SHARE_WRITE\ncreation参数默认值为 _OPEN_EXISTING
+fsys.file.is(__) = 判断参数是不是fsys.file对象
+!fsysfile.readTo( = 读取直到以指定的字符串结束
+!fsysfile.readTo(.('结束串') = 读取直到以指定的字符串结束,返回值不包含结束串,\n该函数每次仅读取一个字节,效率较低
+!fsysfile.read(__/*字节数*/) = 读取指定长度的字节\n不支持多参数
+!fsysfile.read({int number} ) = 读取结构体\n不支持多参数
+!fsysfile.read() = 读取一行文本\n返回文本不包含回车换行符
+!fsysfile.read(-1) = 读取所有内容到文件尾部
+!fsysfile.readAll() = 读取所有内容
+!fsysfile.write(__/*字符串*/) = 写入字符串\n参数也可以是数值、结构体
+!fsysfile.readBuffer( = 读取数据到缓冲区,成功返回读取长度,失败返回null
+!fsysfile.readBuffer(.(缓冲区指针,读取长度) = 直接读数据到内存\n参数@1可以是缓冲区,或内存指针,\n如果是指针则必须指定读取长度,否则长度参数可选\n成功返回读取长度
+!fsysfile.writeBuffer( = 写入缓冲区数据,成功返回写入长度,失败返回null
+!fsysfile.writeBuffer(.(缓冲区指针,写入长度) = 直接写数据到内存\n参数@1可以是缓冲区,或内存指针,\n如果是指针则必须指定写入长度,否则长度参数可选\n成功返回写入长度
+!fsysfile.seek("end") = 移动指针至结束处\n返回当前位置,返回值大于2GB则为负值,\n获取文件大小推荐使用 size() 函数
+!fsysfile.seek("end",__) = 移动至相对结束处的指定偏移量
+!fsysfile.seek() = 得到当前位置
+!fsysfile.seek("cur",__) = 移动至相对当前位置的指定偏移量
+!fsysfile.seek("set") = 移动指针到开始
+!fsysfile.seek("set",__) = 移动至相对开始处的指定偏移量
+!fsysfile.path = 返回文件路径
+!fsysfile.flush() = 刷新缓冲区
+!fsysfile.close() = 关闭文件句柄
+!fsysfile.seteof() = 将当前文件位置设为文件末尾,\n用于快速改变文件大小\n成功返回true
+!fsysfile.size() = 返回文件大小\n如果希望获取格式化的的文件大小请使用size64函数
+!fsysfile.size64() = 返回文件大小\n返回值为math.size64长整数对象\n!math_size64.
+!fsysfile.deviceIoControl( = 对设备驱动程序发送控制指令
+!fsysfile.deviceIoControl(.(控制码,输入结构体,输出结构体) = 参数可以为空或结构体,\n输出结构体也可以是raw.malloc分配的缓冲区,\n成功返回true,以及读取的字节数
+!fsysfile.type() = 获取文件对象的类型\n例如控制台，管道，本地文件....等等\n返回值请参考_FILE_TYPE_前缀的常量
+!fsysfile.handle = 返回文件句柄
+fsys.file() = !fsysfile.
+
+!fsysfile.setTime(creation=创建时间;access=访问时间;write=修改时间) = @.setTime(\n	creation = time();\n	access = time();\n	write = time() \n)
+!fsysfile.getTime() = 返回创建时间、最后修改时间、最后访问时间\n!filetimes.
+!fsysfile.setFileTime(creation=创建时间;access=访问时间;write=修改时间) = @.setFileTime(\n	creation = fsys.time();\n	access = fsys.time();\n	write = fsys.time() \n)
+!fsysfile.getFileTime() = 返回创建时间、最后修改时间、最后访问时间\n!filefiletimes.
+!fsysfile.lastModified() = 返回最后修改时间,返回值是time.gmt对象,\n即RFC1123格式时间,HTTP协议使用该对象\n!time.
+!filetimes.creation = 文件创建时间\n!time.
+!filetimes.access = 文件最后访问时间\n!time.
+!filetimes.write = 文件最后修改时间\n!time.
+!filefiletimes.creation = 文件创建时间\n!fsys_time.
+!filefiletimes.access = 文件最后访问时间\n!fsys_time.
+!filefiletimes.write = 文件最后修改时间\n!fsys_time.
+fsys.file.lines(path) = @for line in fsys.file.lines(__/*请输入逐行读取的文本文件路径*/) { 
+	
+} 
+
+_FILEOPENORD=@0x600/*_FILEOPENORD*/
+_FILE_ATTRIBUTE_ARCHIVE=@0x20/*_FILE_ATTRIBUTE_ARCHIVE*/
+_FILE_ATTRIBUTE_COMPRESSED=@0x800/*_FILE_ATTRIBUTE_COMPRESSED*/
+_FILE_ATTRIBUTE_DIRECTORY=@0x10/*_FILE_ATTRIBUTE_DIRECTORY*/
+_FILE_ATTRIBUTE_HIDDEN=@2/*_FILE_ATTRIBUTE_HIDDEN*/
+_FILE_ATTRIBUTE_NORMAL=@0x80/*_FILE_ATTRIBUTE_NORMAL*/
+_FILE_ATTRIBUTE_READONLY=@1/*_FILE_ATTRIBUTE_READONLY*/
+_FILE_ATTRIBUTE_SYSTEM=@4/*_FILE_ATTRIBUTE_SYSTEM*/
+_FILE_ATTRIBUTE_TEMPORARY=@0x100/*_FILE_ATTRIBUTE_TEMPORARY*/
+_FILE_BEGIN=@0x0/*_FILE_BEGIN*/
+_FILE_CASE_PRESERVED_NAMES=@2/*_FILE_CASE_PRESERVED_NAMES*/
+_FILE_CASE_SENSITIVE_SEARCH=@1/*_FILE_CASE_SENSITIVE_SEARCH*/
+_FILE_CURRENT=@1/*_FILE_CURRENT*/
+_FILE_END=@2/*_FILE_END*/
+_FILE_FILE_COMPRESSION=@0x10/*_FILE_FILE_COMPRESSION*/
+_FILE_FLAG_BACKUP_SEMANTICS=@0x2000000/*_FILE_FLAG_BACKUP_SEMANTICS*/
+_FILE_FLAG_DELETE_ON_CLOSE=@0x4000000/*_FILE_FLAG_DELETE_ON_CLOSE*/
+_FILE_FLAG_NO_BUFFERING=@0x20000000/*_FILE_FLAG_NO_BUFFERING*/
+_FILE_FLAG_OVERLAPPED=@0x40000000/*_FILE_FLAG_OVERLAPPED*/
+_FILE_FLAG_POSIX_SEMANTICS=@0x1000000/*_FILE_FLAG_POSIX_SEMANTICS*/
+_FILE_FLAG_RANDOM_ACCESS=@0x10000000/*_FILE_FLAG_RANDOM_ACCESS*/
+_FILE_FLAG_SEQUENTIAL_SCAN=@0x8000000/*_FILE_FLAG_SEQUENTIAL_SCAN*/
+_FILE_FLAG_WRITE_THROUGH=@0x80000000/*_FILE_FLAG_WRITE_THROUGH*/
+_FILE_NOTIFY_CHANGE_ATTRIBUTES=@4/*_FILE_NOTIFY_CHANGE_ATTRIBUTES*/
+_FILE_NOTIFY_CHANGE_DIR_NAME=@2/*_FILE_NOTIFY_CHANGE_DIR_NAME*/
+_FILE_NOTIFY_CHANGE_FILE_NAME=@1/*_FILE_NOTIFY_CHANGE_FILE_NAME*/
+_FILE_NOTIFY_CHANGE_LAST_WRITE=@0x10/*_FILE_NOTIFY_CHANGE_LAST_WRITE*/
+_FILE_NOTIFY_CHANGE_SECURITY=@0x100/*_FILE_NOTIFY_CHANGE_SECURITY*/
+_FILE_NOTIFY_CHANGE_SIZE=@0x8/*_FILE_NOTIFY_CHANGE_SIZE*/
+_FILE_PERSISTENT_ACLS=@0x8/*_FILE_PERSISTENT_ACLS*/
+_FILE_SHARE_READ=@1/*_FILE_SHARE_READ*/
+_FILE_SHARE_WRITE=@2/*_FILE_SHARE_WRITE*/
+_FILE_SHARE_DELETE=@4/*_FILE_SHARE_DELETE*/
+_FILE_TYPE_CHAR=@2/*_FILE_TYPE_CHAR*/
+_FILE_TYPE_DISK=@1/*_FILE_TYPE_DISK*/
+_FILE_TYPE_PIPE=@3/*_FILE_TYPE_PIPE*/
+_FILE_TYPE_REMOTE=@0x8000/*_FILE_TYPE_REMOTE*/
+_FILE_TYPE_UNKNOWN=@0x0/*_FILE_TYPE_UNKNOWN*/
+_FILE_UNICODE_ON_DISK=@4/*_FILE_UNICODE_ON_DISK*/
+_FILE_VOLUME_IS_COMPRESSED=@0x8000/*_FILE_VOLUME_IS_COMPRESSED*/
+end intellisense**/

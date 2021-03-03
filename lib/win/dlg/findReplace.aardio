@@ -1,0 +1,118 @@
+//findReplace 查找替换对话框
+import win;
+namespace win.dlg
+
+class findReplace{
+	ctor( winform ){
+	 	this = FINDREPLACE();
+		this.cbSize = ..raw.sizeof(this);
+		this.hwndOwner = winform[["hwnd"]] ; 
+		if(!winform[["hwnd"]])
+			error("参数错误,不是有效窗体对象",2)
+			
+		winform.wndproc = {
+			[findReplaceMsg] = function(hwnd,message,wParam,addrRawBuffer){
+				if (message == findReplaceMsg ){ 
+					if(!this.hwnd) return;
+					
+					var this = ..raw.convert(this.rawBuffer,this );
+					this.findWhat = ..string.fromUnicode(this.findWhatBuffer,,this.findWhatLen);
+					this.replaceWith = ..string.fromUnicode(this.replaceWithBuffer,,this.replaceWithLen);
+				 
+    				if (this.flags & 0x40/*_FR_DIALOGTERM*/) {
+    					this.hwnd = null;
+    					this.flags = this.flags & ~0x40/*_FR_DIALOGTERM*/
+        				return; 
+    				}  
+    				elseif ( (this.flags & 0x8/*_FR_FINDNEXT*/) && this.onSearch ) {
+        				this.onSearch(this.findWhatBuffer,!!(this .flags  & 0x1/*_FR_DOWN*/) ,!!(this.flags  & 0x4/*_FR_MATCHCASE*/),!!(this.flags  & 0x2/*_FR_WHOLEWORD*/) ); 
+    				} 
+    				elseif( (this.flags & 0x10/*_FR_REPLACE*/) && this.onReplace ) {
+        				this.onReplace(this.findWhatBuffer,this.replaceWith,!!(this .flags  & 0x1/*_FR_DOWN*/) ,!!(this.flags  & 0x4/*_FR_MATCHCASE*/),!!(this.flags  & 0x2/*_FR_WHOLEWORD*/) ); 
+    				} 
+    				elseif( (this.flags & 0x20/*_FR_REPLACEALL*/ ) && this.onReplaceAll ) {
+        				this.onReplaceAll(this.findWhatBuffer,this.replaceWith,!!(this .flags  & 0x1/*_FR_DOWN*/) ,!!(this.flags  & 0x4/*_FR_MATCHCASE*/),!!(this.flags  & 0x2/*_FR_WHOLEWORD*/) ); 
+    				} 
+    				
+    				return;
+    			}
+    		};
+		};
+		
+		..table.gc(this,"close");
+	}; 
+	__create = function(createDlg,defText){ 
+		
+		if(!#this.findWhat) this.findWhat = defText;
+		
+		if(this.hwnd){
+			..win.show(this.hwnd);
+			return;
+		}
+		
+		this.findWhatBuffer = ..raw.buffer(160,..string.toUnicode(this.findWhat));
+		this.findWhatLen = 160;	
+		this.replaceWithBuffer = ..raw.buffer(160,..string.toUnicode(this.replaceWith));
+		this.replaceWithLen = 160;	
+		this.rawBuffer =  ..raw.buffer(this);//避免提前释放内存
+		this.hwnd = createDlg(this.rawBuffer);
+		if( this.title ) ..win.setText(this.hwnd,this.title);
+	}; 
+	find = function(defText){ 
+		return this.__create(::Comdlg32.FindText,defText); 
+	};  
+	replace = function(defText){ 
+		return this.__create(::Comdlg32.ReplaceText,defText);
+	}; 
+	show = function(cmd){
+		if( this.hwnd ){
+			..win.show(cmd)	
+		}	
+	};
+	close = function(){
+		if( this.hwnd ){
+			..win.close(this.hwnd)	
+		}
+	}; 
+}
+
+::Comdlg32 := ..raw.loadDll("comdlg32.dll");
+namespace findReplace{  
+	FINDREPLACE = class {
+ 		INT cbSize;
+ 		ADDR hwndOwner; 
+ 		ADDR hInstance;
+ 		INT flags = 0x1/*_FR_DOWN*/;
+ 		ptr findWhatBuffer;
+ 		ptr replaceWithBuffer;
+ 		WORD findWhatLen;
+ 		WORD replaceWithLen;
+ 		int custData;
+ 		pointer fnHook;
+ 		ustring templateName;
+	}
+	findReplaceMsg = ::RegisterWindowMessage( "commdlg_FindReplace") 
+} 
+
+/**intellisense()
+win.dlg.findReplace = 查找替换对话框
+win.dlg.findReplace(__) = 创建查找替换对话框\n参数中指定父窗口对象,注意不能使用指定父窗口句柄作为参数\n一个父窗口上不要创建多个查找对话框
+win.dlg.findReplace() = !windlgfindReplace.
+!windlgfindReplace.flags = 查找替换选项,\n此属性可以作为richedit的findText,replaceText函数参数使用
+!windlgfindReplace.title = 窗口标题,需要在首次打开对话框以前设置
+!windlgfindReplace.findWhat = 要查找的文本\n用户输入过的查找文本会放在这里,\n下次打开对话框作为默认查找字符串
+!windlgfindReplace.replaceWith = 要替换的文本\n用户输入过的替换文本会放在这里,\n下次打开对话框作为默认替换字符串
+!windlgfindReplace.find() = 打开查找文本对话框\n可选在参数中指定findWhat属性为空时的默认查找文本
+!windlgfindReplace.replace() = 打开替换文本对话框\n可选在参数中指定findWhat属性为空时的默认查找文本
+!windlgfindReplace.close() = 关闭对话框
+!windlgfindReplace.show(false) = 隐藏对话框
+!windlgfindReplace.onSearch = @.onSearch = function(findWhat,down,matchCase,wholeWord){
+	__/*查找触发此事件,参数：\nfindWhat 查找字符串\ndown 是否向下查找\nmatchCase 是否区分大小写\nwholeWord 是否全字匹配*/	
+} 
+!windlgfindReplace.onReplace = @.onReplace = function(findWhat,replaceWith,down,matchCase,wholeWord){
+	__/*替换触发此事件,参数：\nfindWhat 查找字符串\nreplaceWith 替换字符串\ndown 是否向下查找\nmatchCase 是否区分大小写\nwholeWord 是否全字匹配*/	
+} 
+!windlgfindReplace.onReplaceAll = @.onReplaceAll = function(findWhat,replaceWith,down,matchCase,wholeWord){
+	__/*全部替换触发此事件,参数：\nfindWhat 查找字符串\nreplaceWith 替换字符串\ndown 是否向下查找\nmatchCase 是否区分大小写\nwholeWord 是否全字匹配*/
+} 
+end intellisense**/

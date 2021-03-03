@@ -1,0 +1,48 @@
+//复选框多级同步
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=349;bottom=249)
+winform.add(
+treeview={cls="treeview";left=10;top=11;right=336;bottom=233;asel=false;bgcolor=16777215;chkBox=1;edge=1;z=1}
+)
+/*}}*/
+
+/*
+注意：请在窗口设计视图下，设置treeview控件的【显示复选框】为true
+*/
+
+//添加节点
+var hitem = winform.treeview.insertItem( { 
+    text = "下面用一个数组指定子节点"; { 
+        {  text = "子节点1"  };
+        {  text = "子节点2" };
+        {  text = "下面用一个数组指定子节点"; {
+            "a";"b";"c";{ text = "d" } 
+           }
+        };
+    }
+} ) 
+
+//响应事件
+winform.treeview.onnotify = function(id,code,ptr){
+    
+    //用户勾选、取消勾选复选框
+    if(code = 0xFFFFFFE8/*_NM_TVSTATEIMAGECHANGING*/){
+         var hItem = winform.treeview.hitTest(); 
+         
+         //因为节点正在被勾选,勾选状态还未更新，所以下面要取反
+         var checked = !winform.treeview.getChecked(hItem);    
+         
+         /*
+         全选所有下级节点,并更新所有上级父节点勾选状态。
+         如果有任意下级节点被勾选则勾选父节点,如果所有下级节点都没有被勾选则取消勾选父节点。 
+         */
+         winform.treeview.checkAll(hItem,checked); 
+         
+         //展开所有下级节点
+         winform.treeview.expandAll(hItem);
+    }
+}
+
+winform.show() 
+win.loopMessage();

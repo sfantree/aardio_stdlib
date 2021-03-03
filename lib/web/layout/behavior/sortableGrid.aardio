@@ -1,0 +1,63 @@
+//sortableGrid 排序网格
+
+import web.layout.behavior.grid;
+namespace web.layout.behavior.sortableGrid;
+
+var grid = ..web.layout.behavior.grid; 
+var sortableGrid = self; 
+
+namespace sinking {
+	onMouseDown = function (ltTarget,ltOwner,x,y,mouseParams) {  
+		return sortableGrid/*变更owner*/.onMouseDblClick(ltTarget,ltOwner, x,y,mouseParams,true);
+	}
+}
+
+onKeyDown = grid.onKeyDown;
+onMouseDblClick = grid.onMouseDblClick;
+
+onColumnClick = function(ltOwner, ltTarget ){
+    grid.onColumnClick(ltOwner, ltTarget); 
+    var current = ltOwner.querySelector("th:checked");
+ 	
+ 	if( current && ( current != ltTarget ) ){
+ 		current.state.checked = false;
+ 		current.order = "down";
+ 	};
+    
+    ltTarget.state.checked = true; 
+    reorder(ltOwner, ltTarget );
+} 
+
+reorder = function(ltOwner, ltTarget){
+	var order = ltTarget.order;
+	var columnNo = ltTarget.index();
+	var elTrCurrent = grid.getCurrentRow( ltOwner );
+	
+	if( order != "up" ){
+		ltOwner.sort(
+    		function(ltOwner,ltEle2){ 
+    			return ltOwner.child(columnNo).innerText < ltEle2.child(columnNo).innerText
+    				? -1 : 1;
+    			return 1;/*-1,0,1*/
+    		},grid.fixedRows(ltOwner)
+    	)
+    	ltTarget.order = "up" 
+    }
+    else {
+		ltOwner.sort(
+    		function(ltOwner,ltEle2){ 
+    			return ltOwner.child(columnNo).innerText > ltEle2.child(columnNo).innerText
+    				? -1 : 1;
+    			return 1;/*-1,0,1*/
+    		},grid.fixedRows(ltOwner)
+    	)
+    	ltTarget.order = "down";
+    }
+    
+    if( elTrCurrent )elTrCurrent.scrollToView();
+}
+
+/*
+修正智能提示
+elTrCurrent = ltOwner
+*/

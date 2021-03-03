@@ -1,0 +1,178 @@
+//ole 时间对象
+
+import string.lcid;
+namespace time;
+
+class ole {
+    ctor( value, ... ) {
+        var tm;   
+        if(type(value)==type.number){  
+        	tm = ..time( , ... );
+            if(! VariantTimeToSystemTime( value ,tm)  ) return;
+        }
+        elseif( ..time.istime(value) ){
+            tm = ..time( , ... );
+            ..table.assign(tm,value)
+            var format,locale = ...;
+            if(format!==null) tm.format=format;
+            if(locale!==null) tm.locale=locale;
+        };
+        else {
+        	tm = ..time( value, ... )
+        	var re,n = SystemTimeToVariantTime(tm,0)
+        	VariantTimeToSystemTime(n,tm) 
+        }
+        
+        ..table.assign(this,tm)
+    }; 
+    
+    @_meta
+}
+ 
+namespace ole{
+ 
+	_meta = {  
+		_type = "time.ole.datetime";
+		_eq = function(b) {
+			return tonumber(owner) == tonumber(b)
+		};  
+    	_le = function(b) {
+			return tonumber(owner) <= tonumber(b)
+		} ; 
+		_lt = function(b) { 
+			return tonumber(owner) < tonumber(b)
+		};
+		addday = function(span){
+			return owner._fromnumber( tonumber(owner)+span )
+		} 
+		addhour = function(span){
+			return owner._fromnumber( ( tonumber(owner)*24 + span)/24 )
+		} 
+		addminute = function(span){
+			return owner._fromnumber( ( tonumber(owner)*1440 + span)/1440 )
+		} 
+		addsecond = function(span){
+			return owner._fromnumber( ( tonumber(owner)*86400 + span)/86400 )
+		}
+		update = function(){
+			return owner._fromnumber(   tonumber(owner) );
+		}
+		diffhour  = function(tm2){
+			return (tonumber(owner) -tonumber(tm2))  /24
+		} 
+		diffminute = function(tm2){
+			return (tonumber(owner) -tonumber(tm2)) /1440
+		} 
+		diffsecond= function(tm2){
+		   return (tonumber(owner) -tonumber(tm2))  /86400
+		}
+		diffday = function(tm2){
+			return (tonumber(owner) -tonumber(tm2))  
+		}
+		_fromnumber = function(n){
+			VariantTimeToSystemTime(n,owner);
+			return owner;
+		};
+		_tonumber = function(){
+			var tm = owner.local(true) : owner;
+        	var re,n = SystemTimeToVariantTime(tm,0)
+        	return n;
+    	};
+    	systemFormat = function(format,locale){
+    		if(!locale) locale = owner.locale;
+    		locale = locale ? ..string.lcid[locale] : 0x0800 ;
+    		format = owner.toSystemFormat(format);
+    		
+    		var size = ::Kernel32.GetDateFormatW(locale,flags,owner,format,null,0);
+    		if( size > 0){
+    			var buf = ..raw.buffer((size-1)*2);
+    			if( ::Kernel32.GetDateFormatW(Locale,flags,owner,format,buf,size) )
+    				format = buf;
+    		}
+
+    		size = ::Kernel32.GetTimeFormatW(locale,flags,owner,format,null,0);
+    		if( size > 0){
+    			var buf = ..raw.buffer((size-1)*2);
+    			if( ::Kernel32.GetTimeFormatW(locale,flags,owner,format,buf,size) )
+    				return ..string.fromUnicode(buf);
+    		}
+    	};
+    	toSystemFormat = function(format){
+    		var f =..string.replace(format : owner.format,"\%(\w)",{
+				d ="dd";B ="MMMM";b ="MMM";m = "MM";y = "yy";Y = "yyyy";H = "HH";I = "hh";M = "mm";S = "ss";p = "tt";
+			});
+			if(f[1]=='!'#) f = ..string.right(f,-2);
+			return f;
+    	};
+    	_tostring = function(format,locale){
+    		return owner.systemFormat(format,locale);
+    	}; 
+    	_serialize = function(kernelCall){
+    		if(kernelCall){
+    			return ..string.format(`global.import('time.ole') : ..time.ole(%s,"%s")`,tonumber(owner), owner.format); 	
+    		}
+    		else {
+    			return ..string.format(`..time.ole(%s,"%s")`,tonumber(owner), owner.format); 
+    		}
+    	}
+	} 
+	 
+	..table.mix(_meta,{ _get =  _meta},..time._meta);
+	
+	now = function(){
+		return ..time.ole();
+	}
+	
+    ::OleAut32 := ..raw.loadDll("OleAut32.dll")
+    VariantTimeToSystemTime= ::OleAut32.api("VariantTimeToSystemTime","bool(double vtime,struct& lpSystemTime)");
+    SystemTimeToVariantTime= ::OleAut32.api("SystemTimeToVariantTime","bool(struct lpSystemTime,double&pvtime)");  
+}
+
+isole = function(v){
+	return v@ == ole._meta;
+}
+
+
+/*intellisense()
+time.ole(.(__,"%Y/%m/%d %H:%M:%S") = 创建OLE时间对象\n参数@1可以是表示时间的数值、字符串、或time,time.ole 对象,\n也可以指定一个仅提供time对象的部分键值的表作为参数\n\n参数@2指定格式化串,首字符为!表示GMT时间\n\n可选使用@3指定对象的locale属性,即文本格式化语言,\nlocale支持的参数与setlocale相同,英文"enu",中文"chs"\n\n此对象继承自时间对象,所有功能相同,与time对象的区别是:\nOLE时间对象在输入数值或转换为数值是是以天数为单位的,而time对象以秒为单位.\nOLE时间对象支持从100年1月1日到9999年12月31日的时间,正数1899年12月30日算起的天数,\n小数部分是一天当中的片段时间,负数表示1899年12月30日之前的时间.\n\n注意：格式化为字符串时调用systemFormat格式化,请参考该函数说明
+time.ole() = !time_ole.
+time.ole.now() = !time_ole.
+time.ole = 数值运算支持从100年1月1日到9999年12月31日的时间\n正数1899年12月30日算起的天数，小数部分是一天当中的片段时间\n负数表示1899年12月30日之前的时间\n\n注意：格式化为字符串时调用systemFormat格式化,请参考该函数说明
+time.isole(__) = 检测参数中指定的值是否time.ole对象
+end intellisense*/
+
+/**intellisense(!time_ole)
+year= 年
+dayofweek = 星期\n注意修改这个字段不会更新时间值
+day = 日
+month= 月
+hour= 小时
+minute= 分钟
+second= 秒
+milliseconds= 毫秒
+endstr = 文本解析为时间后，\n最后一个格式化标记解析成功并跳过空白字符以后的剩余的连续不含空白字符串，\n可用于后续解析iso8601等格式的时区（解析后将必须删除）。
+locale = 格式化时间使用的语言代码\n参数与setlocale相同,英文"enu",中文"chs",\n该属性为空表示使用当前默认语言
+format = @.format="%Y年%m月%d日 %H时%M分%S秒";\n//指定格式化串,首字符为!表示GMT时间
+local() = 将UTC时间转换为本地时间\n格式化串首字符为!表示UTF时间\n如果不是UTC时间直接返回\n返回自身\n
+local(true) = 将UTC时间转换为本地时间\n并创建一个新的时间对象返回\n如果不是UTC时间直接复制并返回\n不修改自身并返回新对象
+utc() = 将本地时间转换为UTC时间\n格式化串首字符为!表示UTF时间\n如果已经是UTC时间直接返回\n修改并返回自身\n
+utc(true) = 将本地时间转换为UTC时间\n并创建一个新的时间对象返回\n如果已经是UTC时间直接复制并返回\n不修改自身并返回新对象
+update() = 重新计算时间并更新dayOfWeek字段.\n
+addmonth(__/*输入数值*/) = 增加月份数,返回自身
+addday(__/*输入数值*/) = 增加天数,可以为负数,返回自身
+addsecond(__/*输入数值*/) = 增加秒数,可以为负数,返回自身
+addminute(__/*输入数值*/) = 增加分钟数,可以为负数,返回自身
+addhour(__/*输入数值*/) = 增加小时数,可以为负数,返回自身
+addmonth() = 
+addday() = 
+addsecond() = 
+addminute() = 
+addhour() = 
+diffmonth(__/*指定datetime对象*/) = 计算两个time对象相差月份
+diffday(__/*指定datetime对象*/) = 计算两个time对象相差天数
+diffsecond(__/*指定datetime对象*/) = 计算两个time对象相差秒数
+diffminute(__/*指定datetime对象*/) = 计算两个time对象相差分钟数
+diffhour(__/*指定datetime对象*/) = 计算两个time对象相差小时数 
+systemFormat(.(格式化串,区域代码)= 使用系统格式化规则格式化时期,区域代码应使用3字母缩写\n不指定格式化串时获取format属性并转为系统时间格式化串,\n转换规则如下：\n"%y" -> "yy" 表示2位年份\n"%Y" -> "yyyy" 表示4位年份\n"%B" -> "MMMM" "" 表示月份全称\n"%b" -> "MMM" 表示月份缩写\n"%m" -> "MM" 表示2位月份\n"%d" -> "dd" 表示月份的第几天\n"%H" -> "HH" 表示2位24时制小时\n"%I" -> "hh" 表示2位12时制小时\n"%M" -> "mm" 表示2位分钟数\n"%S" -> "ss" 表示2分秒数\n"%p" -> "tt" 表示12时制显示上午或下午
+toSystemFormat(__) = 取参数指定的格式化串，或format属性指定的格式化串,\n转换为系统格式化语法并返回新的格式化串，不会修改原来的格式化串,\n转换规则如下：\n"%y" -> "yy" 表示2位年份\n"%Y" -> "yyyy" 表示4位年份\n"%B" -> "MMMM" "" 表示月份全称\n"%b" -> "MMM" 表示月份缩写\n"%m" -> "MM" 表示2位月份\n"%d" -> "dd" 表示月份的第几天\n"%H" -> "HH" 表示2位24时制小时\n"%I" -> "hh" 表示2位12时制小时\n"%M" -> "mm" 表示2位分钟数\n"%S" -> "ss" 表示2分秒数\n"%p" -> "tt" 表示12时制显示上午或下午\n\n注意不要直接修改format属性为系统格式化语法\n这会导致time.ole与time对象不能兼容转换
+end intellisense**/

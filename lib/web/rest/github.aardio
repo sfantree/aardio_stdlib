@@ -1,0 +1,41 @@
+﻿import crypt;
+import web.rest.jsonLiteClient;
+namespace web.rest;
+
+namespace github{
+	getContent = function(user,repos,path,branch){
+		if(!(repos && path)){
+			var url = user;
+			user,repos,branch,path = ..string.match(url,"github\.com/([^/]+)/([^/]+)/<blob>|<raw>/([^/]+)/([^\s\#\?]+)")
+			if(!user){
+				user,repos,branch,path = ..string.match(url,"([^/]+)/([^/]+)/<blob>|<raw>/([^/]+)/([^\s\#\?]+)")
+				if(!user){
+					user,repos,branch,path = ..string.match(url,"raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/([^\s\#\?]+)")
+				}
+			}
+		}
+
+		if(user&&repos&&path){
+			var client = ..web.rest.jsonLiteClient();
+			var github = client.api("https://api.github.com"); 
+			var result = github.repos[user][repos].contents[path].get(,{ref=branch});
+
+			if(result[["content"]] && result[["encoding"]]=="base64"){
+				var str = ..crypt.decodeBin(result[["content"]]);
+				client.close();
+				
+				return ..string.removeBom(str);
+			}
+			
+			var ret = client._http.get("https://github.com/"+user+"/"+repos+"/raw/"+(branch:"main")+"/" + path);
+			client.close()
+				
+			return ..string.removeBom(ret);
+		}
+	}
+}
+
+/**intellisense(web.rest.github)
+getContent(.(网址) = 自指定的github网址获取数据,\n支持blob,raw网址，网址可省略域名部分
+getContent(.(用户名,仓库名,文件路径,分支名) = 自指定的github网址获取数据,分支名可省略
+end intellisense**/

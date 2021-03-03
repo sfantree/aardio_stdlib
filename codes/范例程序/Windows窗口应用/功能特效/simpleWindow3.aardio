@@ -1,0 +1,14 @@
+﻿//透明渐变标题栏
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="透明渐变标题栏";right=759;bottom=469;border="none")
+/*}}*/
+
+import inet.http;
+winform.image = "http://pic23.photophoto.cn/20120429/0027011761472219_b.jpg";
+
+import win.ui.simpleWindow3;
+win.ui.simpleWindow3(winform)
+
+winform.show() 
+win.loopMessage(); 

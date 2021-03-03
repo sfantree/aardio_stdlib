@@ -1,0 +1,702 @@
+import fsys;
+import win.ui;
+import fsys.codepage; 
+import util.metaProperty;
+
+namespace web;
+var raw_convert = ..raw.convert; 
+if(layout) error("请在导入此名字空间下其他子模块以前调用 
+import web.layout; 创建类名字空间！",2);
+
+class layout { 
+	ctor ( winform,handleEvents=0x80000100/*_HL_HANDLE_LITE*/ ) { 
+		if( winform.className == "static" ){
+			winform.modifyStyle(,0x100/*_SS_NOTIFY*/ | 0x2000000/*_WS_CLIPCHILDREN*/); 
+		} 
+		else{
+			winform.modifyStyle(,0x2000000/*_WS_CLIPCHILDREN*/)
+			if( winform.isForm &&  (! ..table.next( winform._ctrlHwnd) ) 
+				&& ( ! ..win.getStyle(winform.hwnd,0x40000000/*_WS_CHILD*/) ) ){
+				::CreateWindowEx(0x20/*_WS_EX_TRANSPARENT*/,"static",""
+					,0x44000000/*_WS_CHILD | _WS_CLIPSIBLINGS*/ ,-2,-2,1,1,winform.hwnd,winform._getFreeCommandId(), _HINSTANSE ); 
+			}
+		};
+		
+		winform._layout = this;
+		this.hwnd = winform[["hwnd"]];
+		this._form = winform;
+		this.readyState = 'uninitialized';
+		 
+		ProcND(this.hwnd, 0x1/*_WM_CREATE*/, 0, 0);
+		::HTMLayout.HTMLayoutSetOption( this.hwnd, 5/*_HL_OPTIONS_ANIMATION_THREAD*/,1) ; 
+		 
+		winform.tailWndproc = function (hwnd, message, wParam, lParam) {
+			var re, handled = ProcND(hwnd, message, wParam, lParam);
+			if( message == 0x5/*_WM_SIZE*/ ){  
+				return;//调整其他不属于HTMLayout的子窗口
+			}
+			elseif( message == 0x2/*_WM_DESTROY*/ ){
+				WindowDetachEventHandler(this.hwnd,this._domEventsHandler_c,0);
+				::HTMLayout.HTMLayoutSetCallback(this.hwnd,null,null);
+				winform.wndproc = null;
+				return;//默认析构
+			}
+			
+			if( handled ) 
+				return re; 
+		};
+		
+		winform.onEraseBkgnd = null; 
+		if( winform.isDialogMessage ){
+			if( winform.isDialogMessage!= ..win.isDialogMessage ){
+				error("在创建web.layout窗体以前,禁止重写默认 isDialogMessage() 函数 ",2)
+			}
+			else{
+				winform.isDialogMessage = function(hwnd,msg) {
+					return false; 
+				}
+			}
+		};
+		
+		this._callback_c = ..raw.tostdcall( _callback, "addr(INT uMsg,ADDR wParam,pointer lParam,pointer vParam)",this);
+		::HTMLayout.HTMLayoutSetCallback(this.hwnd, this._callback_c,null);
+ 
+ 		this._domEventsHandler_c = ..raw.tostdcall( event._handler, "bool(pointer tag,pointer he,INT evtg,pointer prms)",this); 
+		WindowAttachEventHandler(this.hwnd, this._domEventsHandler_c,0, handleEvents ); 
+	 
+		this._contrls = {}; //自定义窗口控件 
+	};
+	@_metaProperty;
+}
+
+namespace layout {
+
+	_dll = ..raw.loadDll(  ..io.exist("~/lib/web/layout/.res/HTMLayout.dll" ) : 
+		$"~/lib/web/layout/.res/HTMLayout.dll","HTMLayout.dll" );
+	
+	dll = _dll;
+	::HTMLayout = _dll;
+	
+	namespace ..global{ 
+		import web.layout.behavior;
+		import web.layout.valueObject;
+		import web.layout.element;
+		import web.layout.event;
+	}
+	 
+ 	var ctrlClasses = ..win.ui.ctrl; 
+ 	var getAttributeByName = element.GetAttributeByName;
+ 	var fromUnicode = ..string.fromUnicode;
+ 	var loadText = ..fsys.codepage.load;
+ 	var loadBinary = ..string.loadBuffer;
+ 	var joinpath = ..fsys.joinpath
+ 	var match = ..string.match;
+ 	var replace = ..string.replace;
+ 	var indexOf = ..string.indexOf;
+ 
+	setMasterCss = function(css){
+		return !! ::HTMLayout.HTMLayoutSetMasterCSS(css,#css);
+	};
+	appendMasterCss = function(css){
+		return !! ::HTMLayout.HTMLayoutAppendMasterCSS(css,#css);
+	};
+	appendMasterCssFile = function(path){
+		var css  = loadText(path,owner.charset : 65001,65001 )
+		if(#css) ::HTMLayout.HTMLayoutAppendMasterCSS(css,#css);
+	};
+	createEle = function (tag, text) {
+		var re, he = element.CreateElement(tag, text);
+		if( re == 0/*_HLDOM_OK*/) {
+			return element(he,false);
+		}
+	};
+	declareEle = function(tag,model){
+		::HTMLayout.HTMLayoutDeclareElementType(tag,model);
+	};
+
+	appendMasterCss($"~/lib/web/layout/.res/master.css" );
+ 	
+	_defaultNotifyHandler ={
+		[ 0xB01/*_HLN_LOAD_DATA*/ ]  = function(this,message, wParam, lParam, vParam,notifyCode){
+			var nmld = NMHL_LOAD_DATA();  
+			raw_convert(lParam, nmld);
+			var uri = fromUnicode(nmld.uri,,true);  
+			if( nmld.dataType == 0/*_HLRT_DATA_HTML*/ && this.readyState != 'loading' ) { 
+				this.readyState = 'loading'  
+				this.locationUrl = uri; 
+			}
+
+			if( match( uri,"^\a\a+\:" ) )
+				return 0/*_LOAD_OK*/;
+
+			
+			uri = ..string.split(uri,'?');
+			uri[1] = ..string.unhex(uri[1],"%")
+			
+			var data,err;
+			if(..string.endWith(uri[1],".aardio",true) ){
+				var lst = {};
+				if(uri[2]){
+					for p in ..string.lines(uri[2],"\&\s*") { 
+						var nv = ..string.split(p,"=",2);
+						lst[ ..string.unhex(nv[1],"%") ] = ..string.unhex( nv[2],"%" );
+					}
+				}
+				var r = ..request;
+				..request = { get = lst; }
+				data,err = ..string.loadcode(uri[1],lst);
+				..request = r;
+			}
+			else{
+				if(  nmld.dataType % 2 != 0 )
+					data,err = loadBinary(uri[1]);
+				else
+					data,err = loadText(uri[1],this.charset : 65001,65001 ); 
+			}
+			
+			if (data)
+				DataReady(this.hwnd, uri[1], data, #data);
+			elseif( debug[["write"]] )
+				debug.write("加载失败:",uri[1],'\n',err ); 
+			
+			return 0/*_LOAD_OK*/;
+		}
+		[0xB03/*_HLN_DATA_LOADED*/]  = function(this,message, wParam, lParam, vParam,notifyCode){  
+			if(this.onDataLoaded) this.onDataLoaded(lParam);
+ 			return 0;
+		}
+		[0xB04/*_HLN_DOCUMENT_COMPLETE*/]  = function(this,message, wParam, lParam, vParam,notifyCode){  
+			if this.readyState = 'complete' return;
+			this.readyState = 'complete'
+			if(this.onDocumentComplete)this.onDocumentComplete();
+ 			return 0;
+		}
+		[ 0xB00/*_HLN_CREATE_CONTROL*/ ]  = function(this,message, wParam, lParam, vParam,notifyCode){
+			var nmld = NMHL_CREATE_CONTROL();
+			raw_convert(lParam, nmld);  
+			var re,cType = getAttributeByName(nmld.helement,"cls")
+			if( !cType ) return 0;
+			
+			cType = fromUnicode(cType,,true)  
+			if( !ctrlClasses[cType] )
+				return 0;
+
+			var tParam = { bottom=1;right=1;left=0;top=0;cls=cType;text="";autoResize=false};
+			var re,dt = getAttributeByName(nmld.helement,"data-table")
+			if( dt ){
+				dt = fromUnicode(dt,,true) 
+				..table.assign(tParam,eval(dt) );
+			}
+			var ctrl = this._form.addCtrl( { tParam } )[1]; 
+			if( ctrl ? ctrl.hwnd ){
+				nmld.outControlHwnd = ctrl.hwnd;  
+ 				::CopyMemoryByStruct(lParam, nmld, ..raw.sizeof(nmld));
+ 				this._contrls[nmld.helement] = ctrl; 
+ 				this._controlCreated = true;
+			}  
+			
+ 			return 0;
+		}
+		[0xB02/*_HLN_CONTROL_CREATED*/] = function(this,message, wParam, lParam, vParam,notifyCode){ 
+			if( this._controlCreated ){
+			
+				var nmld = NMHL_CREATE_CONTROL();
+				raw_convert(lParam, nmld);
+				var ctrl = this._contrls[nmld.helement]
+				if(!ctrl)return 0;
+				
+				var ltEle = element(nmld.helement);
+				var handler = this.onControlCreated; 
+				if( type(handler) == "table" ){
+					var re,cId = getAttributeByName(nmld.helement,"id") 
+					if( re==0/*_HLDOM_OK*/ ? cId){
+						var f = handler[ fromUnicode(cId,,true) ];
+						if(f) invoke(f,handler,ltEle,ctrl);
+					}
+				}
+				elseif(handler) {
+					this.onControlCreated(ltEle,ctrl)
+				};
+				
+				ltEle.postEvent("onElementControlCreated");
+ 			}
+			return 0;
+		}
+		[0xB06/*_HLN_DESTROY_CONTROL*/] = function(this,message, wParam, lParam, vParam,notifyCode){
+			var nmld = NMHL_DESTROY_CONTROL();
+			raw_convert(lParam, nmld);
+			var ctrl = this._contrls[nmld.helement]
+			if(!ctrl)return 0; 
+			ctrl.close();
+			this._contrls[nmld.helement] = null; 
+ 			return 0;
+		} 
+		[0xB07/*_HLN_ATTACH_BEHAVIOR*/] = function(this,message, wParam, lParam, vParam,notifyCode){
+			var nmld = NMHL_ATTACH_BEHAVIOR();
+			raw_convert(lParam, nmld);
+			var behaviorName = ..raw.str( nmld.behaviorName );
+			var handler = behavior[behaviorName]; 
+
+			if( !handler  ) { 
+				if( indexOf(behaviorName,".") ){
+					handler = ..table.getByNamespace( match(behaviorName,"[^/\\]+$") ,behavior); 
+				}
+				else{
+					var name,camel = replace(behaviorName,"-(\w)",function(c){  return ..string.upper(c); } ); 
+					handler = ( camel ? behavior[name] );
+					if( !handler ){
+						var name,space = replace(behaviorName,"_","."); 
+						handler = ( space ? ..table.getByNamespace( name ,behavior) ); 
+					}
+				}
+				if( !handler  ) return 0;
+				
+				behavior[behaviorName] = handler; 
+			}
+			
+			var tb = type(handler); 
+			if( tb == "class" ){
+				handler = handler( element(nmld.element),this );
+				tb = type(handler);
+				
+				if(tb != "table" ) return 0; 
+				behavior.__addRef(handler); //添加引用,防止对象被析构  
+			}
+			elseif(tb != "table" ) return 0; 
+			
+			if( !handler._domEventsHandler_c ){
+				if(!handler._event_subsriptions )
+					handler._event_subsriptions = event.getSubscriptions(handler) ;
+				
+				handler._domEventsHandler_c  =  ..raw.tostdcall( event._handler, "bool(pointer tag,pointer he,INT evtg,pointer prms)",handler ); 
+			}
+			
+			..raw.mixin( lParam,nmld,{
+				elementProc =  handler._domEventsHandler_c;
+				elementEvents = handler._event_subsriptions;
+			} );
+			
+			if( this._contrls[nmld.element] ){
+				( element(nmld.element)).postEvent("onElementControlCreated");
+			} 
+ 			return 0;
+		}
+	};     
+	
+	var _nmhdr = ::NMHDR(); 
+	_callback = function (message, wParam, lParam, vParam) {
+		var notifyCode = raw_convert( lParam, _nmhdr ).code; 
+		if ( owner.callback ) {
+			var re = owner.callback(message, wParam, lParam, vParam,notifyCode);
+			if (re !== null) return re;
+		} 
+		
+		var handler = _defaultNotifyHandler[notifyCode]
+		if( handler ){
+			var result = handler(owner,message, wParam, lParam, vParam,notifyCode)
+			if( result !== null )
+				return result;
+		}	 
+		return 0;
+	};
+	
+	var delay = ..win.delay;
+	_metaProperty = ..util.metaProperty(
+		go = function (filename,charset) {
+			if ( ..io.localpath(filename) ) {
+				owner.localBaseDir = ..io.splitpath(filename).dir;
+				var data,err;
+				if(..string.endWith(filename,".aardio",true) ){
+					var r = ..request;
+					if(type(charset) != "table" )charset={};
+					..request = { get = charset; }
+					data,err = ..string.loadcode(filename,charset);
+					..request = r;
+					
+					if(#data) data = ..string.toUnicode(data);
+					else error(err,2)
+				} 
+				else {
+					data = loadText(filename,charset : 65001,1200 );
+					owner.charset =  charset;
+				}
+				if(#data) return LoadHtmlEx( owner.hwnd, data, #data,owner.localBaseDir);
+			}
+			else {
+				return LoadFile(owner.hwnd,filename);
+			}
+		};
+		post = function(url,param,dt){
+			owner.write('<body></body> ');
+			return owner.querySelector("body").request(url,param,"POST");
+		};
+		wait = function(){
+			var hwnd = owner._form.hwnd;   
+			var isWnd = ..win.isWindow;
+			while( owner.readyState == 'loading' && delay(200) && isWnd(hwnd) ){ 
+		  		
+			} 
+			return true;
+		};
+		location = {
+			_get = function(){
+				return owner.locationUrl;
+			} 
+			_set = function(url){
+				owner.go(url);
+			}
+		};
+		loadcode = function(data,...){
+			var data,err  = ..string.loadcode(data,...);
+			if( err ) error( 'HTML不是开始于正确的HTML标记,或者aardio模板语法错误:\n' + err,2);
+			
+			data = ..string.toUnicode(data);
+			return LoadHtmlEx( owner.hwnd, data, #data,"/" );
+		};
+		write = function (data, baseUrl="/") {
+			var data,err  = ..string.loadcode(data);
+			if( err ) error( 'HTML不是开始于正确的HTML标记,或者aardio模板语法错误:\n' + err,2);
+			
+			data = ..string.toUnicode(data);
+			return LoadHtmlEx( owner.hwnd, data, #data,baseUrl );
+		};
+		createEle = createEle;
+		commitUpdates = function(){
+			::HTMLayout.HTMLayoutCommitUpdates(owner._form.hwnd);
+		};
+		fromPoint = function(x=0,y=0,screen ){
+			if(screen)
+				x,y = ..win.toClient( owner.hwnd,x,y );
+				
+			var ret,he = FindElement( owner.hwnd,x,y )
+			if( (ret == 0/*_HLDOM_OK*/) && he )
+				return element(he,true);
+		}; 
+		documentElement = {
+			_get = function () {
+				var re, he = GetRootElement( owner.hwnd );
+				return he ? ( element(he) );
+			}
+		};
+		getEle = function (id) {
+			var doc = owner.documentElement;
+			return doc ? doc.getElementById(id) ;
+		};
+		getCtrl = function(id){
+			var doc = owner.documentElement;
+			var ele = doc ? doc.getElementById(id);
+			if(ele)return owner._contrls[ele.handle];
+		};
+		getEleByUid = function (uid) {
+			var doc = owner.documentElement;
+			return doc ? doc.getElementByUid(uid:0) ;
+		}; 
+		getFocus = function() {
+			var re,he = GetFocusElement(owner.hwnd) ;
+			if( re == 0/*_HLDOM_OK*/ )
+				return element(he)
+		};
+		getEles = function (name) {
+			var doc = owner.documentElement;
+			return doc ? doc.getElementsByName(name);
+		};
+		getElesByTag = function (tag) {
+			var doc = owner.documentElement;
+			return doc ? doc.getElementsByTagName(tag);
+		};
+		enumQuery = function(...){
+			var doc = owner.documentElement;
+			return doc ? doc.enumQuery(...);	
+		};
+		querySelectorAll = function (...) {
+			var doc = owner.documentElement;
+			return doc ? doc.queryElements(...);
+		};
+		querySelector = function (...) {
+			var doc = owner.documentElement;
+			return doc ? doc.queryElement(...);
+		}; 
+		setCss = function(css,mediaType,baseUrl ){
+			if(!owner.documentElement ) error("无效的文档对象",2);
+			 return !! ::HTMLayout.HTMLayoutSetCSS(owner.hwnd,css,#css,baseUrl,mediaType : "screen")
+		}; 
+		setMasterCss = function(css){
+			return !! ::HTMLayout.HTMLayoutSetMasterCSS(css,#css);
+		};
+		appendMasterCss = function(css){
+			return !! ::HTMLayout.HTMLayoutAppendMasterCSS(css,#css);
+		};
+		updateWindow = function(){
+			return ::HTMLayout.HTMLayoutUpdateWindow(owner.hwnd);
+		}; 
+		setMode = function(mode){
+			::HTMLayout.HTMLayoutSetMode(owner.hwnd,mode : 0/*_HLM_LAYOUT_ONLY*/)
+		};
+		setOption = function(option,value=1){
+			return !! ::HTMLayout.HTMLayoutSetOption(owner.hwnd,option,value)
+		}; 
+		addHeaders = {
+			_set = function(v){
+				return ::HTMLayout.HTMLayoutSetHttpHeaders(owner.hwnd,v,#v);
+			}
+		};
+		enumRes = function(func){
+			if( type(func) != type.function) error("请指定回调函数参数",2)
+			var callBack = ..raw.tostdcall(
+				function(u,t,i,s){
+		 			return false !== func( fromUnicode(u,,true),t,i,s); 
+				} ,"bool(pointer resUri,string resType,pointer imgData,pointer imgSize)");
+			::HTMLayout.HTMLayoutEnumResources(owner.hwnd,callBack);
+		};
+		combineUrl = function(url){
+			var doc = owner.documentElement;
+			return doc ? doc.combineUrl(url);
+		};
+		attachEventHandler = function( handler,subscription ){ 
+			if( type(handler) != type.table ){
+				error("请指定监听对象",2) 
+			} 
+			if( !subscription)
+				subscription = handler._event_subsriptions
+			if( !subscription ){
+				subscription = event.getSubscriptions(handler);
+			}
+			
+			var tagId = event._handlerByTagRegistry.reg(handler);
+			var ret = WindowAttachEventHandler(owner.hwnd, event._handlerByTagId_c,tagId,subscription );  
+			
+			if( ret == 0/*_HLDOM_OK*/){ 
+				return tagId;
+			}
+			else {
+				event._handlerByTagRegistry.unReg(tagId);
+			}
+		};
+		detachEventHandler = function(tagId){
+			if(!tagId){
+				error("请指定事件ID,必须大于零",2)
+			}
+			 
+			return ( 0/*_HLDOM_OK*/ == WindowDetachEventHandler(owner.hwnd, event._handlerByTagId_c ,tagId ) );
+		};
+	); 
+	
+	with _metaProperty{
+		css = { _set = setCss };
+		masterCss = { _set = setMasterCss }; 
+		html =  { _set = write };
+		$ = querySelectorAll;
+		$1 = querySelector;
+		queryEles = querySelectorAll;
+		queryEle = querySelector;
+	} 
+	
+	NMHL_CREATE_CONTROL = class {
+		struct hdr = ::NMHDR();
+		pointer helement;
+		int inHwndParent;
+		int outControlHwnd;
+	}
+	
+	NMHL_DESTROY_CONTROL = class {
+		struct hdr = ::NMHDR();
+		pointer helement;
+		int inoutControlHwnd;
+	}
+
+	NMHL_LOAD_DATA = class {
+		struct hdr = ::NMHDR();
+		pointer uri;
+		pointer outData;
+		INT outDataSize;
+		INT dataType; //_HLRT_DATA_......
+		int principal;
+		int initiator;
+	}
+	
+	NMHL_ATTACH_BEHAVIOR = class {
+		struct hdr = ::NMHDR();
+		pointer element;
+		pointer behaviorName;
+		pointer elementProc;
+		pointer elementTag;
+		INT elementEvents;
+	}
+	  
+	DataReady = dll.api("HTMLayoutDataReady","int(int hwnd,pointer uri,pointer data,INT len)");
+	LoadFile = dll.api("HTMLayoutLoadFile","int(int hWnd,ustring filename)");
+	LoadHtmlEx = dll.api("HTMLayoutLoadHtmlEx","int(int hWnd,ustring html,INT size,ustring baseUrl)");
+	ProcND = dll.api("HTMLayoutProcND","INT(int hwnd,INT msg,INT wParam,int lParam,bool& pbHandled)"); 
+	GetRootElement = dll.api("HTMLayoutGetRootElement","int(int hwnd,pointer& phe)");
+	GetFocusElement = dll.api("HTMLayoutGetFocusElement","int(int hwnd,pointer& phe)");
+	FindElement = dll.api("HTMLayoutFindElement","int(int hwnd,int x,int y,pointer& phe)");
+	WindowAttachEventHandler = dll.api("HTMLayoutWindowAttachEventHandler","int(int hwndLayout,pointer pep,INT tag,INT subscription)");
+	WindowDetachEventHandler = dll.api("HTMLayoutWindowDetachEventHandler","int(int hwndLayout,pointer pep,INT tag)");
+}
+
+/*
+鸣谢：
+http://terrainformatica.com
+http://bbs.aardio.com/forum.php?mod=viewthread&tid=3789
+*/
+
+/**intellisense(::)
+::HTMLayout=HTMLayout.dll\n!dllModule.
+end intellisense**/
+
+/*****intellisense()
+web.layout(.(窗口对象,捕获事件) = 从窗口对象创建HTMLayout窗口\n 参数二默认为 _HL_HANDLE_LITE - 仅允许捕获按钮命令等基本交互事件
+web.layout._dll = dll;
+?web.layout = !weblayout.
+!weblayout.querySelectorAll(.("标签名[属性名='属性值']") = 使用CSS选择器语法,\n查找所有符合条件节点,\n如果有多个参数则首先调用string.format格式化为CSS文本,\n该函数名可使用'$'代替,等价于CSS!中的$函数
+!weblayout.querySelector(.("标签名[属性名='属性值']") = 使用CSS选择器语法,\n查找第一个符合条件节点,\n如果有多个参数则首先调用string.format格式化为CSS文本,\n该函数名可使用'$1'代替,等价于CSS!中的$1函数
+!weblayout.$(.("标签名[属性名='属性值']") = 使用CSS选择器语法,\n查找所有符合条件节点
+!weblayout.$1(.("标签名[属性名='属性值']") = 使用CSS选择器语法,\n查找第一个符合条件节点
+!weblayout.querySelectorAll() = !layoutEle.
+!weblayout.querySelector() = !layoutEle.
+!weblayout.queryEle() = !layoutEle.
+!weblayout.queryEles() = !layoutEle.
+!weblayout.$() = !layoutEle.
+!weblayout.$1() = !layoutEle.
+!weblayout.addHeaders = @.addHeaders = /**\nAccept-Language: cn\n__/*设置默认的HTTP请求头\n多个请求头使用回车换行分隔*/\n**/
+!weblayout.setMode( _HLM__ ) = 设置模式\n _HLM_SHOW_SELECTION 类似于在body节点应用behavior:htmlarea
+!weblayout.setOption(_HL_OPTIONS__,1) = 设置选项
+!weblayout.callback = @.callback = function ( message,wParam,lParam,vParam,notifyCode ) {\n	__\n}
+!weblayout.eventsHandler = @.eventsHandler = function (tag,he,evtg,prms) {\n	__\n}
+!weblayout.onDocumentComplete = @.onDocumentComplete = function() {
+	__/*文档已加载*/
+}
+!weblayout.onDataLoaded = @.onDataLoaded = function(lParam) {
+	var dataLoaded = raw.convert(lParam,{
+    	struct hdr = ::NMHDR();
+    	ustring  uri; 
+    	ptr data;
+    	INT dataSize; 
+    	INT dataType;
+    	INT status; 
+	});
+	__/*单个文件数据加载完成后触发*/
+}
+!weblayout.onControlCreated = @.onControlCreated = {
+	节点ID = function( ltEle,ltCtrl ){ 
+	 	__/*onControlCreate也可以是一个函数,在onElementControlCreated之前被触发*/
+	}
+}
+!weblayout.enumQuery(枚举函数,CSS选择器,格式化参数) = @.enumQuery(\n	function(ltEle){\n		 __/*返回true停止枚举*/\n	},"div"\n)
+!weblayout._contrls[] = !static.
+!weblayout.go("__/*路径*/") = 跳转到指定网址,支持aardio资源文件\n如果参数指定的是aardio文件,参数@2可选用一个表指定request.get对象\n其他文件可用参数@2指定代码页,默认为65001
+!weblayout.post(.(网址,参数) =  参数可以是字符串或键值对组成的表对象\n该函数可触发onDataArrived事件
+!weblayout.write(__/*HTML 代码*/) = 写入HTML代码到网页
+!weblayout.loadcode(__/*HTML模板代码*/) = 使用aardio模板语法加载HTML文件\n可选在第二个参数中传入模板参数,\n模板代码中使用owner参数获取首个模板参数
+!weblayout.readyState = 获取当前状态,可能返回的值:\n'uninitialized','loading','complete'
+!weblayout.wait() = 等待所有资源加载完成
+!weblayout.html = @.html = /**\n<!doctype html>\n<html>\n<head>\n    <style type="text/css">\n    html,body{ height:100%; margin:0; } __\n    </style>\n</head>\n<body>\n    <div id="header"></div>\n    <div id="container"> \n        <div class="lside"> </div> \n        <div class="rside"> </div>  \n    </div>\n</body>\n</html>\n**/
+!weblayout.debug() = @import web.layout.debug;\n??.attachEventHandler( web.layout.debug );
+!weblayout.documentElement = !layoutEle.
+!weblayout.getCtrl("") = 根据ID或name查找节点,\n并获取在该节点中自定义的控件对象
+!weblayout.getCtrl() = !static.
+!weblayout.getEle() = !layoutEle.
+!weblayout.getEles() = !layoutEle.
+!weblayout.getFocus() = 获取当前输入焦点所在节点\n!layoutEle.
+!weblayout.getEleByUid(.(UID) = 根据唯一标志符(数值)返回节点 
+!weblayout.getEleByUid() = !layoutEle.
+!weblayout.getEle("__") = 根据ID查找节点\n如果未找到,尝试使用name查找	
+!weblayout.getEles("__") = 根据name属性查找节点
+!weblayout.createEle(.(标签名,节点内容) = 创建节点,\n节点内容可省略 
+!weblayout.createEle() = !layoutEle. 
+!weblayout.traverseUiEvent(.(结构体参数) =  结构体参数是 web.layout.event.MOUSE_PARAMS 或 KEY_PARAMS\n该函数发送事件经过捕获与冒泡过程直到事件被处理
+!weblayout.fromPoint(.(x坐标,y坐标,是否屏幕坐标) = 参数三可选,默认为窗口客户区坐标\n成功返回节点对象
+!weblayout.fromPoint() = !layoutEle.
+!weblayout.updateWindow() = 更新窗口\n如果仅仅需要更新节点位置等,可调用commitUpdates函数
+!weblayout.commitUpdates() = 立即更新所有节点\n因为节点可能会延迟更新,\n需要立即获取节点更新后的位置可调用此函数\n该函数不会调用updateWindow
+!weblayout.combineUrl(.(URL) = 将URL转换为绝对路径,\n可省略参数返回 baseURL
+!weblayout.location = 当前页面URL,\n只读属性
+!weblayout.setCss(.(css,mediaType,baseUrl) = 替换CSS
+!weblayout.css = @.css = /**\n#my-button{ \n	behavior:"my.command"; \n	active-on!:\n		__/*输入CSS脚本,语句用逗号分隔*/\n  	; \n} \n**/
+!weblayout.attachEventHandler(.(eventHandler,subscription) = 添加事件监听对象,参数一不可省略,\nsubscription 可选使用 _HL_HANDLE_ 前缀常量指定捕获的事件,\n 省略该参数则根据定义的回调函数自动设定该值,\n也可以使用对象的 _event_subsriptions 成员指定该值,\n该函数返回事件ID,用于注销监听
+!weblayout.detachEventHandler(.(事件ID) = 注销事件监听对象,事件ID不可省略
+!weblayout.enumRes(枚举函数) = @.enumRes(\n	function(uri,resType,imgData,size){ \n		__/*枚举页面页源*/ \n	} \n)
+web.layout.setMasterCss(.(css) = 替换默认CSS\n必须在调用其他函数之前调用
+web.layout.appendMasterCssFile(.("/res/master->css") = 追加默认CSS文件\nCSS文件请使用UTF编码保存,\n必须在创建HTMLayout窗体,以及调用其他函数以前调用
+web.layout.appendMasterCss(.(css) =  追加默认CSS,\n必须在创建HTMLayout窗体,以及调用其他函数以前调用
+web.layout.declareEle( "__", _HLELM___ ) = 声明标记,\n必须在创建HTMLayout窗体,以及调用其他函数以前调用,\n并且须要早于设置MasterCss的函数调用
+web.layout.createEle(.(标签名,节点内容) = 创建节点,\n节点内容可省略
+web.layout.createEle() = !layoutEle.
+end intellisense*****/
+
+ /**intellisense()  
+ _event_subsriptions = 在HTMLayout中的behavior对象,或eventHandle对象中可添加此成员变量,\n使用一个或多个 _HL_HANDLE_ 前缀的掩码来指定 指定订阅的事件\n如果未显示指定该参数,程序将自动设定为合适的值
+_HL_HANDLE_ALL=@0xFFFF/*_HL_HANDLE_ALL*/
+_HL_HANDLE_INITIALIZATION=@0/*_HL_HANDLE_INITIALIZATION*/
+_HL_HANDLE_MOUSE=@1/*_HL_HANDLE_MOUSE*/
+_HL_HANDLE_KEY=@2/*_HL_HANDLE_KEY*/
+_HL_HANDLE_FOCUS=@4/*_HL_HANDLE_FOCUS*/
+_HL_HANDLE_SCROLL=@8/*_HL_HANDLE_SCROLL*/
+_HL_HANDLE_TIMER=@0x10/*_HL_HANDLE_TIMER*/
+_HL_HANDLE_SIZE=@0x20/*_HL_HANDLE_SIZE*/
+_HL_HANDLE_DRAW=@0x40/*_HL_HANDLE_DRAW*/
+_HL_HANDLE_DATA_ARRIVED=@0x80/*_HL_HANDLE_DATA_ARRIVED*/
+_HL_HANDLE_METHOD_CALL=@0x200/*_HL_HANDLE_METHOD_CALL*/
+_HL_HANDLE_EXCHANGE=@0x1000/*_HL_HANDLE_EXCHANGE*/
+_HL_HANDLE_GESTURE=@0x2000/*_HL_HANDLE_GESTURE*/
+_HL_HANDLE_BEHAVIOR_EVENT=@0x100/*_HL_HANDLE_BEHAVIOR_EVENT*/
+_HL_HANDLE_LITE=@0x80000100/*_HL_HANDLE_LITE*/
+_HL_HANDLE_INPUT=@0x80000007/*_HL_HANDLE_INPUT*/
+_HL_DISABLE_INITIALIZATION=@0x80000000/*_HL_DISABLE_INITIALIZATION*/
+_HLN_CREATE_CONTROL=@0xB00/*_HLN_CREATE_CONTROL*/
+_HLN_DESTROY_CONTROL=@0xB06/*_HLN_DESTROY_CONTROL*/
+_HLN_LOAD_DATA=@0xB01/*_HLN_LOAD_DATA*/
+_HLN_CONTROL_CREATED=@0xB02/*_HLN_CONTROL_CREATED*/
+_HLN_DATA_LOADED=@0xB03/*_HLN_DATA_LOADED*/
+_HLN_DOCUMENT_COMPLETE=@0xB04/*_HLN_DOCUMENT_COMPLETE*/
+_HLN_UPDATE_UI=@0xB05/*_HLN_UPDATE_UI*/
+_HLN_ATTACH_BEHAVIOR=@0xB07/*_HLN_ATTACH_BEHAVIOR*/
+_HLN_DIALOG_CREATED=@0xB0F/*_HLN_DIALOG_CREATED*/
+_HLN_DIALOG_CLOSE_RQ=@0xB10/*_HLN_DIALOG_CLOSE_RQ*/
+_HWND_TRY_DEFAULT=@0/*_HWND_TRY_DEFAULT*/
+_HWND_DISCARD_CREATION=@1/*_HWND_DISCARD_CREATION*/
+_LOAD_OK=@0/*_LOAD_OK*/
+_LOAD_DISCARD=@1/*_LOAD_DISCARD*/
+_HLRT_DATA_HTML=@0/*_HLRT_DATA_HTML*/
+_HLRT_DATA_IMAGE=@1/*_.HLRT_DATA_IMAGE*/
+_HLRT_DATA_STYLE=@2/*_HLRT_DATA_STYLE*/
+_HLRT_DATA_CURSOR=@3/*_HLRT_DATA_CURSOR*/
+_HLRT_DATA_SCRIPT=@4/*_HLRT_DATA_SCRIPT*/
+_HLM_LAYOUT_ONLY=@0/*_HLM_LAYOUT_ONLY*/
+_HLM_SHOW_SELECTION=@1/*_HLM_SHOW_SELECTION*/
+_DATA_ELEMENT=@0/*_DATA_ELEMENT*/
+_INLINE_TEXT_ELEMENT=@1/*_INLINE_TEXT_ELEMENT*/
+_INLINE_BLOCK_ELEMENT=@2/*_INLINE_BLOCK_ELEMENT*/
+_BLOCK_TEXT_ELEMENT=@3/*_BLOCK_TEXT_ELEMENT*/
+_BLOCK_BLOCK_ELEMENT=@4/*_BLOCK_BLOCK_ELEMENT*/
+_HL_SMOOTH_SCROLL=@1/*_HL_SMOOTH_SCROLL*/
+_HL_CONNECTION_TIMEOUT=@2/*_HL_CONNECTION_TIMEOUT*/
+_HL_HTTPS_ERROR=@3/*_HL_HTTPS_ERROR*/
+_HL_FONT_SMOOTHING=@4/*_HL_FONT_SMOOTHING*/
+_HL_ANIMATION_THREAD=@5/*_HL_ANIMATION_THREAD*/
+_HL_TRANSPARENT_WINDOW=@6/*_HL_TRANSPARENT_WINDOW*/
+_SIH_REPLACE_CONTENT=@0/*_SIH_REPLACE_CONTENT*/
+_SIH_INSERT_AT_START=@1/*_SIH_INSERT_AT_START*/
+_SIH_APPEND_AFTER_LAST=@2/*_SIH_APPEND_AFTER_LAST*/
+_SOH_REPLACE=@3/*_SOH_REPLACE*/
+_SOH_INSERT_BEFORE=@4/*_SOH_INSERT_BEFORE*/
+_SOH_INSERT_AFTER=@5/*_SOH_INSERT_AFTER*/
+_HL_OPTIONS_SMOOTH_SCROLL=@1/*_HL_OPTIONS_SMOOTH_SCROLL*/
+_HL_OPTIONS_CONNECTION_TIMEOUT=@2/*_HL_OPTIONS_CONNECTION_TIMEOUT*/
+_HL_OPTIONS_HTTPS_ERROR=@3/*_HL_OPTIONS_HTTPS_ERROR*/
+_HL_OPTIONS_FONT_SMOOTHING=@4/*_HL_OPTIONS_FONT_SMOOTHING*/
+_HL_OPTIONS_ANIMATION_THREAD=@5/*_HL_OPTIONS_ANIMATION_THREAD*/
+_HL_OPTIONS_TRANSPARENT_WINDOW=@6/*_HL_OPTIONS_TRANSPARENT_WINDOW*/ 
+_HLM_LAYOUT_ONLY=@0/*_HLM_LAYOUT_ONLY*/
+_HLM_SHOW_SELECTION=@1/*_HLM_SHOW_SELECTION*/ 
+_HLRT_DATA_HTML=@0/*_HLRT_DATA_HTML*/
+_HLRT_DATA_IMAGE=@1/*_HLRT_DATA_IMAGE*/
+_HLRT_DATA_STYLE=@2/*_HLRT_DATA_STYLE*/
+_HLRT_DATA_CURSOR=@3/*_HLRT_DATA_CURSOR*/
+_HLRT_DATA_SCRIPT=@4/*_HLRT_DATA_SCRIPT*/
+_HLELM__DATA_ELEMENT=@0/*_HLELM__DATA_ELEMENT*/
+_HLELM__INLINE_TEXT_ELEMENT=@1/*_HLELM__INLINE_TEXT_ELEMENT*/
+_HLELM__INLINE_BLOCK_ELEMENT=@2/*_HLELM__INLINE_BLOCK_ELEMENT*/
+_HLELM__BLOCK_TEXT_ELEMENT=@3/*_HLELM__BLOCK_TEXT_ELEMENT*/
+_HLELM__BLOCK_BLOCK_ELEMENT=@4/*_HLELM__BLOCK_BLOCK_ELEMENT*/
+end intellisense**/

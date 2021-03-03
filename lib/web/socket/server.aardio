@@ -1,0 +1,531 @@
+﻿//server 异步服务端
+
+import crypt;
+import crypt.bin;
+import wsock.tcp.asynHttpServer;
+
+namespace web.socket;
+
+class server{
+	ctor(){
+		this.heartbeatInterval = 1800;
+		this.heartbeatData = "";
+		this.heartbeatType = 9;
+		
+		this.httpServer = ..wsock.tcp.asynHttpServer();
+		this.httpServer.keepAliveTimeout = -1;
+		this._form = this.httpServer._form;
+		
+		this.httpServer.onRead = function(hSocket,err){
+			var client = this.httpServer.client(hSocket); 
+			
+			if(err){
+				if( this.onError ) this.onError( hSocket,..wsock.err.lasterr(err) ); 
+				client.shutdown();
+				return; 
+			};
+			
+		    
+			if( client.webSocketUpgraded ){
+				this.onWebSocketRead(client);
+			}
+			else {
+				this.httpServer.onHttpRead(client);
+			} 	
+		}
+		
+		this.httpServer.onUpgradeProtocol = function(client,request,response){
+			if( request.headers["sec-websocket-version"] !="13" )
+				return response.errorStatus(400);
+
+			if( request.headers["upgrade"] !="websocket" )
+				return response.errorStatus(400);
+				
+			var secKey = request.headers["sec-websocket-key"];
+			if(!secKey) return response.errorStatus(400);
+
+			var protocol = request.headers["sec-websocket-protocol"];
+			response.headers["Sec-WebSocket-Protocol"] = protocol;
+			if( this.onUpgradeToWebsocket ){
+				this.onUpgradeToWebsocket(client.hSocket
+					,request,response,protocol,request.headers.origin);
+					
+				if(response.closed) return;
+			}
+
+			response.keepAlive = true;
+			response.headers["Upgrade"] = "websocket";
+			response.headers["Connection"] = "Upgrade";
+			response.headers["Sec-WebSocket-Accept"] = getSecAccept(secKey);
+			response.headers["Content-Length"] = "0";
+			response.status = "101 Switching Protocols"; 
+			response.close(true);
+			
+			client.webSocketUpgraded  = true;
+			client.cacheFragment = {};
+			client.wsReadyState = 1;
+			client.dontClearKeepAliveTimeout = true;
+			
+			if( this.onOpen ) this.onOpen( client.hSocket );
+		}
+		
+		this.httpServer.onClose = function(hSocket,err){
+			
+			var client = this.httpServer.client(hSocket);
+			
+			if( client ){
+				if( !client.webSocketUpgraded ) return;
+				client.wsReadyState = 3; 
+				
+				if( this.onClose ) {
+					if(err){
+						this.onClose(hSocket,{ 
+							code = 1006;
+							reason = ..wsock.err.lasterr(err);
+						} );
+					}
+					else {
+						this.onClose(hSocket,{ 
+							code = client.webSocketCloseCode : 1000;
+							reason = client.webSocketCloseReason 
+						} );
+					}
+				}
+				
+				client.webSocketCloseCode = null;	
+				client.webSocketCloseReason = null;
+				client.close();
+			} 
+			else {
+				if(err){
+					if( this.onError ) this.onError( hSocket,..wsock.err.lasterr(err) );
+				};
+			}
+		}
+		
+		this.httpServer._beforeHttpServerStop = function(){
+			if(this.httpServer.heartbeatTimerId )  
+				this.httpServer._form.clearInterval(this.httpServer.heartbeatTimerId);
+				
+			if( this.beforeStop ){
+				this.beforeStop();
+			};
+			
+			if( this._beforeStop ){
+				this._beforeStop();
+			};
+		}
+		
+		this.httpServer._onClientClosed = function(hSocket){
+			if(this._onClientClosed) this._onClientClosed(hSocket);
+			if(this.onClientClosed) this.onClientClosed(hSocket);
+		}
+	};
+	client = function(hSocket){
+		return this.httpServer.client(hSocket);
+	};
+	close = function(hSocket,code,reason){
+		var client = this.httpServer.client(hSocket);
+		
+		if(client){
+			if( ( client.wsReadyState !=3 ) && ( client.wsReadyState !=2 ) ){
+				
+				if( code && reason ){
+					this.sendData(hSocket,{
+						WORD code = ..raw.swap(code,"WORD");
+						BYTE reason[] = reason;
+					},8);
+				} 
+				else{
+					this.sendData(hSocket,"",8);
+				};
+				
+				client.wsReadyState = 2;
+				client.shutdown(); 
+			}
+		}
+	};
+	isClosed = function(hSocket){
+	    var c = this.httpServer.client(hSocket);
+	    if(!c) return true;
+	    if( !c.hSocket ) return true;
+		if( c.wsReadyState == 3 ) return true; 
+		if( c.readyState == 3 ) return true; 
+	};
+	isConnected = function(){
+		var c = this.httpServer.client(hSocket);
+	    if(!c) return false;
+	    if( !c.hSocket ) return false;
+		if( c.wsReadyState == 1 ) return true; 
+	};
+	_beginTranslateMessage = function(hSocket,msg){ 
+		if( !this._translateMessage || (! this._translateMessage(hSocket,msg) ) ){
+			if( this.onMessage ) { this.onMessage(hSocket,msg); };	
+		}
+	};
+	onWebSocketRead = function(client){
+		 
+		var msg = this._beginRecvMessage(client);
+		if(!msg){ 
+			return; 
+		};
+
+		//control frames
+		if( msg.type & 2#1000 ){
+			if( msg.type == 8 ){//close
+				if(#msg.data>=2){
+					client.webSocketCloseCode = ..raw.swap( ..raw.convert(msg.data,{WORD code}).code );
+					client.webSocketCloseReason = ..raw.tostring(msg.data,3);
+				}
+				else {
+					client.webSocketCloseCode = 1005;	
+					client.webSocketCloseReason = null;
+				}
+				
+            	client.shutdown();
+        	}
+        	elseif( msg.type == 9){//ping
+            	//this.sendData(client.hSocket, msg.data,10);
+        	}
+        	elseif( msg.type == 10){//pong
+        	}
+			return;
+		}
+		
+		if( msg.fin ){
+			if( msg.type ){
+				if( msg.type == 1 && #msg.data ) msg.data = ..raw.tostring(msg.data);
+				this._beginTranslateMessage(client.hSocket,msg);
+			}
+			else {
+				if( this.onFragment ){
+					this.onFragment(client.hSocket,msg);
+				}
+				else {
+					var cacheFragment = client.cacheFragment;
+					if( type(cacheFragment) != "table" )return;
+					
+					..table.push(cacheFragment.data,msg.data);
+					cacheFragment.length = cacheFragment.length + #(msg.data);
+					
+					if( cacheFragment.type == 1 ) cacheFragment.data = ..string.join(cacheFragment.data);
+					else {
+						var len = 0;
+						var buffer = ..raw.buffer(cacheFragment.length); 
+						var data = cacheFragment.data;
+						for(i=1;#data;1){
+							if(#data[i]){
+								..raw.concat(buffer,data[i],len)
+								len = len + #data[i];	
+							}
+						}
+						cacheFragment.data = buffer;
+					}
+					
+					this._beginTranslateMessage(client.hSocket,cacheFragment);
+				}
+			}
+		}
+		else {
+			if( msg.type ){
+				if( this.onFragment ){
+					this.onFragment(client.hSocket,msg);
+				}	
+				else {
+					client.cacheFragment = msg;
+					client.cacheFragment.data = {msg.data}
+					client.cacheFragment.length = #(msg.data);
+				}
+				
+			}
+			else {
+				if( this.onFragment ){
+					this.onFragment(client.hSocket,msg);
+				}
+				else {
+					..table.push(client.cacheFragment.data,msg.data);
+					client.cacheFragment.length = client.cacheFragment.length + #(msg.data);
+				}
+			}
+		}
+	}; 
+	send = function(hSocket,data){
+		var t = type(data);
+		
+		if( t = type.string )
+			return this.sendData(hSocket,data,1);
+
+		if( t = type.buffer )
+			return this.sendData(hSocket,data,2);
+			
+		if( t[["_struct"]] )
+			return this.sendData(hSocket,..raw.buffer(data),2);
+	}
+	publish = function(data){
+		var cs = this.httpServer.clients;
+		for(h,c in cs){
+			if(c.wsReadyState == 1) this.send(h,data);
+		} 
+	};
+	clientCount = function(){
+		var r = 0;
+		var cs = this.httpServer.clients;
+		for(h,c in cs){
+			if(c.wsReadyState) r++;
+		}
+		return r;
+	};
+	sendData = function(hSocket,data,opcode = 1,fin=1,rsv1 = 0,rsv2 = 0,rsv3 = 0){ 
+		var client = this.httpServer.client(hSocket);
+		if(!client) {
+			return;
+		};
+		
+		if(client.wsReadyState != 1) {
+			if( this.onError ) this.onError(hSocket, 'Failed to execute "send/sendData"');
+			return;
+		};
+		
+		if( data[["_struct"]] ) data = ..raw.buffer(data);
+			 
+		var len = #data; 
+		var buf = ..raw.buffer( len + 14);
+		buf[1] = (fin << 7) | (rsv1 << 6) | (rsv2 << 5) | (rsv3 << 4) | opcode;
+
+   		var w  = 2;
+    	if (len <= 125) {
+        	buf[2] = len; 
+    	}
+    	elseif(len < (1 << 16) ) {
+        	buf[2] = 126;
+        	..raw.convert({WORD v = ..raw.swap(len,"WORD"); },buf,2);
+        	w = 4;
+    	} 
+    	else {
+        	buf[2] = 127;
+        	..raw.convert({LONG v=..math.size64(len).swap(); },buf,2);
+        	w = 10;
+    	}
+    	
+    	 ..raw.concat(buf,data,w);
+    	if(!client.writeBuffer(buf,w + len)){
+    		if( this.onError ) this.onError( hSocket,..wsock.err.lasterr() ); 
+    		client.shutdown();
+    		return false;
+    	}
+    	return true;
+	};
+	_endRecvMessage4 = function(client){
+		var len = client.wsRecvMessage.dataSize;
+		
+		if(len){
+        	var buf = ..raw.buffer(len);
+       		if( ! client.readBuffer(buf) ){
+				return;
+       		}  
+       		
+       		var maskKey = client.wsRecvMessage.maskKey;
+        	if( maskKey ){ 
+            	for(i=1;len;1) buf[i] = buf[i]  ^ maskKey[ i% 4 : 4 ];
+        	}
+        	client.wsRecvMessage.data = buf;
+        }
+        else {
+        	client.wsRecvMessage.data = "";
+        }
+        
+        var msg = client.wsRecvMessage;
+        client.wsRecvMessage = null;
+        return msg;
+	};
+	_recvMessageMaskKey3 = function(client){
+		var msg = client.wsRecvMessage;
+		
+		//上次的消息还没有接收完整，继续尝试
+		if( msg.maskKey ) 
+			return this._endRecvMessage4(client);
+ 
+        if( msg.mask ){
+            msg.maskKey = client.read(4); 
+            if(!msg.maskKey) return;
+        }
+        
+        return this._endRecvMessage4(client);    
+	}
+	_recvMessageDataSize2 = function(client){
+		var msg = client.wsRecvMessage;
+		
+		//上次的消息还没有接收完整，继续尝试
+		if( msg.dataSize!==null ) 
+			return this._recvMessageMaskKey3(client);
+			
+		var len = msg.len;
+        if (len == 126) {
+            len = client.read({WORD v});
+            if(!len)  return; 
+            msg.dataSize = ..raw.swap(len.v,"WORD");
+        }
+        elseif(len == 127) {
+            len = client.read({LONG size64 = ..math.size64() });
+            if(!len)  return; 
+            
+            msg.dataSize = tonumber( len.size64.swap() ); 
+        }
+        else {
+        	msg.dataSize = len;
+        }
+         
+        return this._recvMessageMaskKey3(client);     
+	}
+	_beginRecvMessage = function(client){
+		//上次的消息还没有接收完整，继续尝试
+		if( client.wsRecvMessage ) 
+			return this._recvMessageDataSize2(client);
+
+		var msg = {}; 
+	    var h = client.read(2);
+	    if(!h) {
+	    	return; //异止套接字读取数据不完整会自动退回缓冲区
+	    }
+
+        var h1,h2 = h[1],h[2];
+        client.wsRecvMessage = {
+        	type = h1 & 2#1111;
+            fin = (h1 >> 7) & 1;
+            rsv1 = (h1 >> 6) & 1;
+            rsv2 = (h1 >> 5) & 1;
+            rsv3 = (h1 >> 4) & 1;
+            mask = (h2 >> 7) & 1;
+            len = h2 & 2#1111111;
+        } 	
+        
+        return this._recvMessageDataSize2(client);
+	}
+	getUrl = function(path,localIp){
+		var ip,port = this.httpServer.getLocalIp();
+		if(ip=="0.0.0.0")ip = localIp? ..wsock.getLocalIp() : "localhost";
+		
+		var url = ..string.format("ws://%s:%d",ip,port ); 
+		if( path )  {
+			path = ..string.replace(path,"\\","/");
+			if(path[1]=='/'#) path = ..string.right(path,-2);
+			
+			url = url + "/" + path;
+		};
+		return url;
+	};
+	getLocalIp = function(){
+		return this.httpServer.getLocalIp();
+	};
+	getRemoteIp = function(hSocket){
+		return this.httpServer.getRemoteIp(hSocket);
+	};
+	start = function(ip,port,backlog){
+		if( this.httpServer.start(ip,port,backlog) ){
+			if( this.heartbeatInterval > 0 ){
+				var d,t = this.heartbeatData,this.heartbeatType;
+				if(this.httpServer.heartbeatTimerId ) this.httpServer._form.clearInterval(this.httpServer.heartbeatTimerId)
+				this.httpServer.heartbeatTimerId = this.httpServer._form.setInterval( 
+					this.heartbeatInterval * 1000,function(hwnd,msg,id,tick){
+						var now = tonumber(..time());
+						for(hSocket,client in this.httpServer.clients){
+							if(!client.webSocketUpgraded ) continue;
+							
+							if( now - client.lastActiveTime > this.heartbeatInterval ){
+								if(!this.sendData(hSocket,d,t)){
+									if( this.onError ) this.onError( hSocket,"Heartbeat failed" ); 
+									client.shutdown();
+									
+								}
+							}
+						}
+					} 
+				)
+			}
+			return true;
+		}
+	};
+	stop = function(){ 
+		return this.httpServer.stop();
+	};
+}
+
+namespace server{
+    
+	sha1 = function(data){
+		var cr = ..crypt();
+		var hash = cr.createHash( 0x8004/*_CALG_SHA1*/,data ); 
+		var data = hash.getValue();
+		hash.destroy();
+		cr.release();
+		
+		return ..crypt.bin.encodeBase64(data);
+	}
+	
+	getSecAccept = function(data){
+		return sha1(..string.trim(data)+"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+	}
+	
+	getSecKey = function(){
+		return ..crypt.bin.encodeBase64(..string.random(16) );
+	}
+}
+
+/**intellisense()
+web.socket.server = 支持单线程异步的WebSocket服务端\n可直接在界面线程中使用，不会阻塞界面，不需要创建多线程\n支持服务端心跳(Ping/Pong帧)，客户端单向心跳(Pong帧)机制,\n可调用close函数断线，并可调用connect函数实现重析连接服务器
+web.socket.server() = !stdwebsocketserver.
+web.socket.server.sha1(__) = 使用sha1算法取哈希值，并使用Base64编码为普通文本
+web.socket.server.getSecKey() = 获取WebSocket客户端密钥
+web.socket.server.getSecAccept(__) = 获取WebSocket客户端配对密钥，\n参数指定服务端HTTP头中sec-websocket-accept返回的值
+end intellisense**/
+
+/**intellisense(!stdwebsocketserver)
+getLocalIp() = 返回当前绑定的IP,端口号
+getRemoteIp(hSocket) = 返回客户端IP地址,端口
+start(.(IP,端口,请求队列大小) = 启动单线程异步WebSocket服务端,成功返回true,失败返回null,\n\n如果不写IP，则默认设为"0.0.0.0"也即监听本机所有IP,访问此服务端也不限制IP\n限制仅本机可以访问建议写127.0.0.1\n\n端口为0或省略则自动查找1025以后的空闲端口\n注意0-1023为系统通用服务保留端口,\n1024-49151为用户服务端口,其中大约%9已由IANA注册分配\n49152-65535为私有或临时端口
+stop() = WebSocket服务端
+send(hSocket,__) = 发送数据,支持字符串或缓冲区(buffer)、结构体\n字符串作为UTF8文本类型发送,其他以二进制类型发送，\n成功返回true
+publish(__) = 发送数据给所有的客户端,\n支持字符串或缓冲区(buffer)、结构体\n字符串作为UTF8文本类型发送,其他以二进制类型发送，\n成功返回true
+sendData(.(hSocket,data,opcode,fin,rsv1,rsv2,rsv3) = 发送WebSocket数据包\n参数@1支持支持字符串或缓冲区(buffer)、结构体\n除参数@1以外,所以参数可选\n一般应当调用send函数，而不是调用sendData函数\n\n如果一定要使用这个函数,请阅读此函数源码,以及WebSocket协议相关说明
+close(.(hSocket,code,reason) = 关闭连接
+client(hSocket) = 使用套接字句柄获取 wsock.tcp.client 对象
+isClosed(hSocket) = 连接是否已关闭
+isConnected(hSocket)  = 是否已连接并准备就绪可以发送数据
+client() = !stdtcpaclient.
+clientCount() = 当前WebSocket客户端数目\n包含正在连接或正在断开连接的客户端\n不含已关闭的客户端
+httpServer = HTTP服务端\nwsock.tcp.asynHttpServer对象\nWebSocket服务端继承此HTTP服务端\n包含原来HTTP服务端的所有功能,\n!stdasynHttpServer.
+onUpgradeToWebsocket = @.onUpgradeToWebsocket = function(hSocket,request,response,protocol,origin){\n    __/*\n用户发送HTTP请求切换到WebSocket协议,\n可以在这里修改HTTP响应头中Sec-WebSocket-Protocol的值\n\n如果要阻止用户切换到WebSocket,用 response.close() 关闭请求，\n或调用 response.errorStatus() 函数返回错误代码即可，\n否则退出此函数后会继续切换到WebSocket协议。\n\n参数说明:\nhSocket为客户端套接字句柄\nrequest为HTTP请求对象\nresponse为HTTP应答对象\nprotocol为Sec-WebSocket-Protocol请求头的值*/\n}
+_onClientClosed = @._onClientClosed = function(hSocket){
+	__/*客户端连接已经关闭时触发\n此函数在连接断开后一定会被触发\n此回调函数是标准库保留接口\n用户不应使用此回调*/
+}
+onClientClosed = @.onClientClosed = function(hSocket){
+	__/*客户端连接已经关闭时触发\n此函数在连接断开后一定会被触发*/
+}
+onOpen = @.onOpen = function(hSocket){
+	??.send("客户端已切换到WebSocket服务*/
+}
+onClose = @.onClose = function(hSocket,err){
+	__/*连接被关闭\nerr.code 为错误代码 err.reason 为错误原因\n客户端关闭连接并不保证一定会触发此消息\n但onClientClosed事件在关闭后一定会被触发*/	
+}
+onError = @.onError = function(hSocket,err){
+	__/*发生错误,err为错误信息*/
+}
+onMessage = @.onMessage = function(hSocket,msg){
+    __/*收到服务端数据\nmsg.type为1时msg.data为文本,\n否则msg.data为字节数组（buffer类型）*/
+	
+}
+onFragment = @.onFragment = function(hSocket,msg){
+   __/*收到分片数据\n第一个数据包使用msg.type指明类型,参考WebSocket协议规范\n后续数据包msg.type为0,最后一个数据包msg.fin为1\n\n如果不指定这个回调函数,则自动并接分片数据后触发onMessage事件*/	
+}
+beforeStop = @.beforeStop = function(){
+	__/*服务端关闭以前触发*/
+}
+_beforeStop = @._beforeStop = function(){
+	__/*服务端关闭以前触发\n此回调函数是标准库保留接口\n用户不应使用此回调*/
+}
+_translateMessage = 此回调函数的参数与onMessage相同,\n如果定义了这个回调函数,\n那么此函数将在调用onMessage之前被调用,\n如果此回调返回true则不再触发onMessage,\n这个函数提供了一个机会用于自动处理客户端消息\n,为其他需要扩展web.socket.server功能的库所预留，\n一旦定义将不能修改
+heartbeatInterval = 服务端主动发送心跳Ping空帧间隔,默认为30分钟\n设为-1时禁用客户端心跳,一般不建议禁用\n这个值修改以后，只能在下次调用start函数才会生效
+heartbeatData = 心跳帧发送的数据,默认为空数据\n这个值修改以后，只能在下次调用connect函数才会生效
+heartbeatType = 心跳帧发送的的帧类型,\n默认为9,也就是Ping帧\n这个值修改以后，只能在下次调用start函数才会生效
+getUrl(__) = 获了服务端网址,可选指定目录或文件路径\n注意参数第一个字符不需要指定斜杠\n如果参数@2为true，IP "0.0.0.0"替换为合适的内网IP而不是localhost\n如果服务器启动失败不返回任何值
+end intellisense**/

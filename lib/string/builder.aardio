@@ -1,0 +1,212 @@
+﻿//builder 字符串生成器
+namespace string;
+
+class builder{
+	ctor(len){
+		this.ptr = ..raw.realloc( len : 1024 );
+		..table.gc(this,"free");
+	};
+	@_meta
+}
+
+namespace builder{
+
+	::Msvcrt := ..raw.loadDll("Msvcrt.dll",,"cdecl");
+	var strpbrk =  ::Msvcrt.strpbrk;
+	var strstr = ::Msvcrt.strstr;
+	var strtok = ::Msvcrt.strtok;
+	var snprintf = ::Msvcrt._snprintf;
+	var concat = ..raw.concat;
+	var convert = ..raw.convert;
+	var sizeof = ..raw.sizeof;
+	var getString = ..raw.tostring;
+
+	_meta = {
+		empty = function(){
+			return ! sizeof(owner[["ptr"]])
+		};
+		capacity = function(){
+			var l,c = sizeof(owner[["ptr"]]);
+			return c:0;
+		};
+		reserve = function(size){
+			var l = sizeof(owner[["ptr"]]);
+			if( size < l ) size = l;
+			owner[["ptr"]] = ..raw.realloc(size: 1024,owner[["ptr"]]);
+			return owner; 
+		};
+		size = function(){
+			return (sizeof(owner[["ptr"]]))
+		};
+		resize = function(size){
+			var l,c = sizeof(owner[["ptr"]]);
+			if(size>c) owner[["ptr"]] = ..raw.realloc(size+1024,owner[["ptr"]]);
+			convert( {INT size = size},topointer(owner[["ptr"]],-4));
+		};
+		assign = function(v){
+			owner[["ptr"]] = ..raw.realloc( (v[["_struct"]]?sizeof(v):#v ) +1024,owner[["ptr"]],v);
+		};
+		subString = function(i,j){
+			var l,c = sizeof(owner[["ptr"]]);
+			return getString(owner[["ptr"]],i:1,j:l); 
+		};
+		leftString = function(l){
+			var c = sizeof(owner[["ptr"]]);
+			if(l<0) l = c + l + 1;
+			if(l>c) l = c;
+			return getString(owner[["ptr"]],1,l); 
+		};
+		rightString = function(l){
+			var c = sizeof(owner[["ptr"]]);
+			if(l<0) l = ..math.abs(l);
+			else l = c - l + 1;
+			if(l>c) l = c;
+			return getString(owner[["ptr"]],l,c); 
+		};
+		indexAny = function(set){
+			var p = strpbrk(owner[["ptr"]],set);
+			if(p) return  p - tonumber(owner[["ptr"]])  + 1;
+		};
+		indexOf = function(p,f){
+			if(!#p) return;
+			var r = strstr(topointer(owner[["ptr"]],f?f-1),p );
+			if(r) return ( r - tonumber(owner[["ptr"]]) )  + 1;
+		};
+		eachIndexOf = function(p){
+			var i,n=0,#p+1;
+			return function(){ 
+				i = owner.indexOf(p,i+n);
+				return i;
+			},owner;
+		};
+		tokenize = function(delimit){
+			if(!delimit) delimit='\t\n\r\v\x20';
+			
+			var tok;
+			var addr = tonumber(owner[["ptr"]]);
+			strtok(addr,delimit) 
+			return function(){
+				var tok = strtok( ,delimit)
+				if(tok) return tok-addr + 1;
+			} 
+		} 
+		trim = function(set){
+			owner.trimleft();
+			owner.trimright();
+			return owner;
+		}
+		trimleft = function(set){ 
+			if(!set) set='\t\n\r\v\x20';
+			var s = tonumber(owner[["ptr"]]);
+			var pl = ::Msvcrt.strspn(s,set);
+			if(pl == 0) return owner;
+			
+			var size = owner.size()-pl;
+			::Kernel32.RtlMoveMemory(s,s+pl,size); 
+			owner.resize(size);
+			return owner;
+		}
+		trimright = function(set){ 
+			if(!set) set='\t\n\r\v\x20';
+			var size,c = 0;
+			var indexAny = ..string.indexAny;
+			for(i=owner.size();1;-1){
+				c = convert(owner[["ptr"]],{BYTE v},i-1).v;
+				if !indexAny(set,c ){ size = i;break ; }
+			}
+			owner.resize(size);
+			return owner;
+		}
+		appendf = function(f,...){
+			var l1,c = sizeof(owner[["ptr"]]);
+			var l = snprintf( topointer(owner[["ptr"]],l1),c-l1,f,...);
+			while(l<0){
+				c = c + #f + 1024;
+				owner[["ptr"]] = ..raw.realloc(c,owner[["ptr"]]);
+				l = snprintf( topointer(owner[["ptr"]],l1),c-l1,f,...);
+			}
+			
+			convert( {INT size = l1+l},topointer(owner[["ptr"]],-4));
+			return owner;  
+		};
+		_get = function(k){
+			if(type(k)=='number') return convert(owner[["ptr"]],{BYTE v},k-1).v;
+			return owner@[[k]];
+		}
+		_set = function(k,v){
+			if((type(k)=='number') && (k>0) )convert({BYTE v = v},owner[["ptr"]],k-1)
+		}
+		append = function(s,l){
+			owner[["ptr"]] = concat(owner[["ptr"]],s,l);
+			return owner;
+		}
+		fromUnicode = function(l,codepage){
+			if(l===null) l = -1;
+			return ..string.fromUnicode(owner[["ptr"]],codepage,l);
+		}
+		toUnicode = function(l,codepage){
+			if(l===null) l = -1;
+			return ..string.toUnicode(owner[["ptr"]],codepage,l);
+		}
+		str = function(u,off){
+			return ..raw.str(owner[["ptr"]],u,off);
+		}
+		_add = function(v){
+			owner[["ptr"]] = concat(owner[["ptr"]],v);
+			return owner;
+		}
+		_concat = function(v){
+			owner[["ptr"]] = concat(owner[["ptr"]],v);
+			return owner;	
+		}
+		_tostring = function(){
+			var len = sizeof(owner[["ptr"]]);
+			if(len)return getString(owner[["ptr"]],1,len);
+		}
+		_topointer = function(){
+			return owner[["ptr"]];
+		}
+		_serialize = function(kernelCall){
+			return "null";
+		}
+		free = function(){
+			owner[["ptr"]] = ..raw.realloc(0,owner[["ptr"]]);
+		};
+	};
+}
+
+/**intellisense()
+string.builder = 字符串生成器\n创建的对象内部使用动态指针,并负责自动释放动态指针\n要切记对象虽然可以在API中转换为普通指针使用\n但任何可能导致自动调整内存大小操作都有可能改变动态指针指向的内存,并使原指针失效
+string.builder() = 创建字符串生成器，\n可选在参数中指定预分配内存大小\n生成器对象可使用+,++连接字符串、缓冲区、结构体,或使用[]操作符取字节码,\n此对象可用于拼接字符串，并自动调整内存大小,\n\n在大字符串频繁拼接时可明显提升速度，\n小字符串少量拼接不需要使用些对象\n!stdstringbuilder.
+end intellisense**/
+
+/**intellisense(!stdstringbuilder)
+str( = 转换为纯文本字符串\n如果需要转换为二进制字符串,直接使用 tostring 函数转换string.builder对象即可
+str(.(是否unicode,偏移) = 去掉尾部多余终结符转换为纯文本字符串,参数可省略,偏移默认为0\n参数@1为true反回字符串标记会设置UTF-16标记,否则设为UTF-8标记
+toUnicode(.(转换字节数,源编码) =  转换并返回UTF16编码字符串\n字节数可省略,默认为-1\n字节数为-1时表示查找'\0'终止符自动获取长度
+fromUnicode(.(转换字符数,目标编码) = 自UTF16编码转换为多字节编码字符串，默认为UTF8\n参数@1以字符计数，即2个字节为一个单位,字符数只能为数值，省略时默认值为-1\n字符数为-1表示查找'\u0000'终止符获取可打印文本长度
+free() = 释放内存\n此函数设置内部动态指针值为null\n释放动态指针以后,仍然可以调用reserve函数重新分配内存
+empty() = 存储内容是否为空
+capacity() = 返回预分配内存大小\n释放指针后此函数返回0
+reserve(__) = 调整预分配内存大小,返回自身\n小于存储内容大小时则设为存储内容大小\n为0时设为1024\n此函数可能改变内部动态指针值\n\n释放动态指针以后,仍然可以调用此函数重新分配内存
+reserve() = !stdstringbuilder.
+size() =  返回存储内容大小\n释放指针后此函数返回0
+resize(__) = 调整存储内容大小\n此函数可能改变内部动态指针值
+assign(__) = 重置初始值\n参数可以是字符串，缓冲区，或结构体\n此函数可能改变内部动态指针值
+subString(.(开始位置,结束位置) = 截取字符串\n返回字符串对象，参数不能为负数\n开始位置省略则表示1，结束位置省略则表示存储内容尾部\n不会改变内部动态指针值
+leftString(__) = 从左侧截取参数指定长度的字符串\n返回字符串对象,参数可用负数表示右侧截取位置\n不会改变内部动态指针值
+rightString(__) = 从右侧截取参数指定长度的字符串\n返回字符串对象,参数可用负数表示左侧截取位置 \n不会改变内部动态指针值
+trimleft(__) = 清除左侧空白字符\n可选用一个字符串指定要清除的单字节字符
+trimright(__) = 清除右侧空白字符\n可选用一个字符串指定要清除的单字节字符
+trim(__) = 清除两侧空白字符\n可选用一个字符串指定要清除的单字节字符
+indexOf(.(查找内容,查找开始位置) = 普通字符串查找\n不使用模式匹配语法
+indexAny("__") = 参数用一个字符串指定要查找的单字节字符\n返回任意字符最初出现的位置,找不到返回值为空
+appendf(.("C格式化串",->->->) = 使用printf函数格式化文本\n此函数可能改变内部动态指针值
+append(.(追加数据,追加长度) = 追加数据可以是字符串，缓冲区，或其他指针\n如果参数不是指针追加长度可省略\n此函数可能改变内部动态指针值
+eachIndexOf(查找内容) = @for(i in ??.eachIndexOf(__/*查找内容*/)){
+	
+}
+tokenize(分割符) = @for(i in ??.eachIndexOf("__/*单字节分割符*/")){
+	
+}
+end intellisense**/

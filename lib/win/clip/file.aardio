@@ -1,0 +1,82 @@
+//file 剪贴板文件
+import win;
+namespace win.clip.file;
+  
+class DROPFILES{ 
+   INT pFiles = 20; 
+   struct pt = {int x;int y};
+   bool fNC;
+   bool fWide = true;    
+}
+var uDropEffect = ::User32.RegisterClipboardFormat('Preferred DropEffect') 
+
+write = function(file,effect="copy"){
+	if(!::User32.OpenClipboard(0))
+		return;	
+		
+	file = ..string.toUnicode(file);	
+	User32.EmptyClipboard();
+	var clipbuffer = ::GlobalAlloc(0x40/*_GMEM_ZEROINIT*/ | 0x2/*_GMEM_MOVEABLE*/ | 0x2000/*_GMEM_DDESHARE*/, 4);
+    var buffer =  ::GlobalLock(clipbuffer);
+    ::CopyMemoryByStruct(buffer,{int effect = ( effect="copy"? 1/*_DROPEFFECT_COPY*/ :2/*_DROPEFFECT_MOVE*/)  },4);
+    ::GlobalUnlock(clipbuffer);
+    var hdl =  topointer( ::User32.SetClipboardData(uDropEffect,clipbuffer) );
+		
+	var clipbuffer = ::GlobalAlloc(0x40/*_GMEM_ZEROINIT*/ | 0x2/*_GMEM_MOVEABLE*/ | 0x2000/*_GMEM_DDESHARE*/, 20 + #file + 2);
+    var buffer =  ::GlobalLock(clipbuffer);
+    var stDrop = DROPFILES();
+    
+    ::CopyMemoryByStruct(buffer,stDrop,20/*raw.sizeof(DROPFILES()*/); 
+    ::CopyMemory(topointer(buffer,20),file,#file);
+	::GlobalUnlock(clipbuffer); 
+	
+	var hdl =  topointer( ::User32.SetClipboardData(0xF/*_CF_HDROP*/,clipbuffer) );
+	::User32.CloseClipboard();
+	return hdl;
+}
+
+
+read = function(){
+
+	if(!::User32.OpenClipboard(0))
+		return;	
+	
+	var file = {}; 
+	var effect;
+	var hdrop = topointer(::User32.GetClipboardData(15) );
+	if(hdrop) {
+		effect = topointer(::User32.GetClipboardData(uDropEffect) );
+		if( !effect)
+			 effect = "copy"
+		else {
+			effect  = ..raw.convert(effect,{int num}).num;
+			if(  effect & 1/*_DROPEFFECT_COPY*/  )
+				effect = "copy"
+			elseif( effect & 2/*_DROPEFFECT_MOVE*/ )
+				effect = "move"	 
+		}
+		
+		file = ..win.getDropFile(hdrop,false/*不可释放*/) 
+    }
+     
+	::User32.CloseClipboard() 
+	
+	return file,effect;
+		
+}
+
+/**intellisense(win.clip.file)
+read() = 返回剪贴板文件路径列表,\n第二个返回值指明复制类型,复制为"copy",剪切则为"move"
+write(.(文件) = 将文件复制到剪贴板
+write(.(文件,"copy") = 将文件复制到剪贴板
+write(.(文件,"move") = 将文件剪切到剪贴板
+end intellisense**/
+
+ /**intellisense()
+_CF_HDROP=@0xF/*_CF_HDROP*/
+_DROPEFFECT_NONE=@0/*_DROPEFFECT_NONE*/
+_DROPEFFECT_COPY=@1/*_DROPEFFECT_COPY*/
+_DROPEFFECT_MOVE=@2/*_DROPEFFECT_MOVE*/
+_DROPEFFECT_LINK=@4/*_DROPEFFECT_LINK*/
+_DROPEFFECT_SCROLL=@0x80000000/*_DROPEFFECT_SCROLL*/
+end intellisense**/

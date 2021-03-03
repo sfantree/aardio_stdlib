@@ -1,0 +1,54 @@
+//padding 填充边距
+namespace string;
+
+class padding {
+	ctor( max,space ){
+		this._max = max : 15;
+		this._space = space : " ";
+	};
+	len = function(s){ 
+		s = ..string.toUnicode(s);
+		var l = #s/2;
+		for(i=1;l;1){
+			if(s[i]>0x7F) l++;
+		} 
+		return l;
+	};
+	ljust = function(...){ 
+		var s = {...}
+		var v;
+		for(i=1;#s;1){
+			v = tostring(s[i]);
+			s[i] = v ++ ..string.repeat(this._max-this.len(v),this._space); 
+		}
+		return ..table.unpack( s,..table.range(s) );
+	};
+	rjust = function(...){
+		var s = {...}
+		var v;
+		for(i=1;#s;1){
+			v = tostring(s[i]);
+			s[i] = ..string.repeat(this._max-this.len(v),this._space) ++ v; 
+		}
+		return ..table.unpack( s,..table.range(s) ); 
+	};
+	center = function(...){ 
+		var s = {...}
+		var v;
+		for(i=1;#s;1){
+			v = tostring(s[i]);
+			s[i] = ..string.repeat( ..math.floor( (this._max-this.len(v))/2 ),this._space) 
+				++ v ++ ..string.repeat((this._max-this.len(v))/2,this._space); 
+		}
+		return ..table.unpack( s,..table.range(s) );
+	};
+}
+
+/**intellisense()
+string.padding(.(宽度,空白字符) = 宽度必须指定\n空白字符默认为空格
+string.padding() = !string_padding.
+!string_padding.ljust(__) = 右侧填充空格并左对齐,\n支持多参数多返回值
+!string_padding.rjust(__) = 左侧填充空格并右对齐,\n支持多参数多返回值
+!string_padding.center(__) = 两侧填充空格并居中对齐,\n支持多参数多返回值
+!string_padding.len(__) = 计算字符长度\nASCII字符长度计为1,非ASCII字符长度计为2
+end intellisense**/

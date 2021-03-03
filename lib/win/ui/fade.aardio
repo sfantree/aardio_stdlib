@@ -1,0 +1,65 @@
+﻿//fade 淡入淡出
+
+namespace win.ui;
+
+class fade{
+	ctor(winform,duration=400,interval=12){
+		if(duration<interval){
+			winform.show(); 
+			return;
+		}
+			
+		winform.transparent( 1 ); 
+		winform.show(); 
+		
+		var timestamp = 0; 
+		winform.setInterval( 
+			interval,function(){
+				var trans = easeOutQuad( timestamp, 0, 255, duration) 
+				timestamp = timestamp + interval;
+				winform.transparent( trans );  
+				if( trans > 245 ){
+					winform.transparent(false);
+					return false;
+				}
+			} 
+		)
+		
+		winform.onClose = function(hwnd,message,wParam,lParam){
+			var timestamp = 0;
+			var shadow = winform._shadowWindow;
+			var tmId = winform.setInterval( 
+				interval,function(){
+					var trans = easeOutQuad( timestamp, 255,-255 , duration) 
+					timestamp = timestamp + interval;
+					
+					if(trans<=200 && shadow){
+						shadow._form.close(); 
+						shadow = null;
+					}
+					winform.transparent( trans ) ;
+					
+					if( trans < 10 ){
+						winform.onClose = null;
+						winform.close(); 
+						return false;
+					}
+				} 
+			)  
+			return false
+		}
+	}; 
+}
+
+namespace fade{
+
+	function easeOutQuad(timestamp,begining,change,duration){
+		var x = timestamp/duration;  
+		return begining+change*(-x*x + 2*x); 
+	}
+}
+
+/**intellisense()
+win.ui.fade = 窗口淡入淡出动画
+win.ui.fade(.(窗口对象,动画间隔时间,动画时长) = 在窗口显示或或关闭时显示动画
+end intellisense**/

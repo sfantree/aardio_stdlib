@@ -1,0 +1,110 @@
+//admin 管理权限
+import process;
+import process.token;
+
+namespace process.admin;
+	
+::Advapi32 := ..raw.loadDll("Advapi32.dll")
+OpenProcessToken = ::Advapi32.api( "OpenProcessToken", "pointer(POINTER ProcessHandle,INT DesiredAccess,pointer &TokenHandle)");
+GetTokenInformation = ::Advapi32.api( "GetTokenInformation", "int(POINTER TokenHandle,int infoClass,struct &TokenInfo,INT len,INT &retLen)");
+	
+isLeastPrivileges = function(hProcess){
+	var admin,xpVersion = isRunAs(hProcess);
+	return !(xpVersion || admin)
+}
+
+isRunAs = function(hProcess) { 
+	var token = ..process.token(hProcess);
+	var elevation = token.elevation();
+	token.close();
+	return elevation;
+} 
+
+runas = function(file,parameters,showCmd,workdir,hwnd,wait,waitTimeout){ 
+	if( !file ) file = ..io._exepath;
+	var operation = !_WINXP ? "runas" : "open";
+	return ..process.execute( file, parameters,operation,showCmd,workdir,hwnd,wait,waitTimeout)
+}
+
+runasWait = function( file,parameters,showCmd,workdir,hwnd,waitTimeout){
+	return runas(file,parameters,showCmd,workdir,hwnd,"close",waitTimeout)
+}
+
+runasWaitInput = function( file,parameters,showCmd,workdir,hwnd,waitTimeout){
+	return runas(file,parameters,showCmd,workdir,hwnd,"input",waitTimeout)
+}
+
+runasLeastPrivileges = function(path,arguments,workdir,taskName){
+	if( (  _WINXP) || ( ! isRunAs() ) ){
+		..process.execute(path,arguments);
+		return true;
+	};
+	
+	var ret;
+	try{
+		import com; 
+		var schedule = ..com.CreateObject("Schedule.Service");
+		schedule.Connect();
+				
+		var root = schedule.GetFolder("\") 
+		if(!taskName) taskName = ..io._exefile;
+		try{ root.DeleteTask( taskName ); }
+			
+		var taskDef = schedule.NewTask(0); 
+		var regInf = taskDef.getRegistrationInfo();
+		regInf.Description = taskName;
+		regInf.Author = "runas_leastPrivileges";
+			
+		var pri = taskDef.getPrincipal();
+		pri.Id = "runas_leastPrivileges_principal";
+		pri.LogonType = schedule.TASK_LOGON_INTERACTIVE_TOKEN;
+		pri.RunLevel = schedule.TASK_RUNLEVEL_LUA //least privileges
+			
+		var settings = taskDef.getSettings(); 
+		settings.StartWhenAvailable = true;
+		
+		var tg = taskDef.getTriggers().Create(schedule.TASK_TRIGGER_REGISTRATION);
+		tg.Id = "runas_leastPrivileges_trigger"
+		tg.Delay = "PT0S" //0秒后立即执行
+		
+		var act = taskDef.getActions().Create( schedule.TASK_ACTION_EXEC )
+		act.Path = ..io.fullpath(path)
+		act.Arguments = ..process.joinArguments(arguments);
+		act.WorkingDirectory = workdir || ..io.splitpath(path).dir;
+			
+		root.RegisterTaskDefinition(taskName, taskDef, schedule.TASK_CREATE_OR_UPDATE,"","", schedule.TASK_LOGON_INTERACTIVE_TOKEN); 
+		sleep(10); try{  root.DeleteTask(taskName ); } 
+		ret = true;
+	}	
+	catch(e){
+		..process.execute(path,arguments);
+	}
+	return ret;
+}
+
+changeMsgFilter = function(hwnd,msg,flag,filter){
+    if(flag===null) flag = 1/*_MSGFLT_ALLOW*/
+	if(::User32.ChangeWindowMessageFilterEx){
+		return ::User32.ChangeWindowMessageFilterExB(hwnd,msg,flag,filter)
+	}
+}
+
+enableDropMsg = function(hwnd,flag){
+	changeMsgFilter(hwnd,0x233/*_WM_DROPFILES*/,flag);
+	changeMsgFilter(hwnd,0x49,flag);
+}
+
+runas_wait = runasWait 
+runas_waitInput = runasWaitInput;
+runas_leastPrivileges = runasLeastPrivileges;
+
+/**intellisense(process.admin)
+isLeastPrivileges() = 进程是否运行于VISTA以后的系统并且无管理权限\n可选在参数中指定进程句柄,不指定则默认取当前进程权限
+isRunAs(.(进程句柄) = 判断进程是否以管理权限运行,\n成功返回true,XP返回flase,以及majorVersion版本号,\n参数可选,默认为当前句柄 
+runas(.(执行程序路径,启动参数,窗口显示样式,工作目录,窗口句柄,等待选项) = 运行应用程序,\n如果是vista以后系统请求管理权限,\n省略参数@1则默认指定为当前EXE路径,其他参数可选
+runasWait(.(执行程序路径,启动参数,窗口显示样式,工作目录,窗口句柄) = 运行应用程序,并等待进程结束,\n如果是vista以后系统请求管理权限,,\n省略参数@1则默认指定为当前EXE路径,其他参数可选
+runasWaitInput(.("__", parameters="",showCmd,workdir=",hwnd=0) = 运行应用程序,并等待界面激活输入状态,\n如果是vista以后系统请求管理权限,,\n省略参数@1则默认指定为当前EXE路径,其他参数可选
+runasLeastPrivileges(.(执行程序路径,启动参数,工作目录,任务名) = 管理权限进程内降权以非管理权限启动进程,进程如果已创建则忽略,\n注意启动程序路径应明确指定,以斜杠开头或其他绝对路径\n启动参数可以是一个数组或文本也可以不指定,任务名不必指定
+changeMsgFilter(.(hwnd,msg,flag,filter) = 修改拥有管理权限的进程窗口消息过滤规则,\n@flag参数默认为_MSGFLT_ALLOW,@filter参数可省略,\n此函数用法请参考源码与MSDN
+enableDropMsg(.(hwnd,flag) = 允许指定的窗口接收拖放消息,\n@flag参数默认为_MSGFLT_ALLOW
+end intellisense**/

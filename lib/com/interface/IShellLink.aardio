@@ -1,0 +1,35 @@
+import com.interface;
+import com.interface.IPersistFile;
+namespace  com.interface;
+
+class IShellLink{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer GetPath = "int(ustring& pszFile,int cch,struct pfd,INT fFlags)";
+	pointer GetIDList = "int(pointer &ppidl)";
+	pointer SetIDList = "int(pointer pidl)";
+	pointer GetDescription = "int(ustring& pszName,int cch)";
+	pointer SetDescription= "int(ustring pszName)";
+	pointer GetWorkingDirectory= "int(ustring& pszDir,int cch)";
+	pointer SetWorkingDirectory = "int(ustring pszDir)";
+	pointer GetArguments= "int(ustring& pszArgs,int cch)";
+	pointer SetArguments= "int(ustring pszArgs)";
+	pointer GetHotkey = "int(WORD &pwHotkey)";
+	pointer SetHotkey = "int(WORD wHotkey)";
+	pointer GetShowCmd = "int(int &piShowCmd)";
+	pointer SetShowCmd = "int(int iShowCmd)";
+	pointer GetIconLocation= "int(ustring& pszIconPath,int cch,int &piIcon)";
+	pointer SetIconLocation = "int(ustring pszIconPath,int iIcon)";
+	pointer SetRelativePath = "int(ustring pszPathRel,INT dwReserved)";
+	pointer Resolve  = "int(int hwnd,INT fFlags)";
+	pointer SetPath = "int(ustring pszFile)"
+}
+IShellLink.IID = "{000214F9-0000-0000-C000-000000000046}";
+
+ /**intellisense()
+_SLGP_SHORTPATH=@0x1/*_SLGP_SHORTPATH*/
+_SLGP_UNCPRIORITY=@0x2/*_SLGP_UNCPRIORITY*/
+_SLGP_RAWPATH=@0x4/*_SLGP_RAWPATH*/
+_SLGP_RELATIVEPRIORITY=@0x8/*_SLGP_RELATIVEPRIORITY*/
+end intellisense**/

@@ -1,0 +1,222 @@
+//message 消息对象
+import protobuf.parser.template;
+
+namespace protobuf.parser
+
+class field { 
+	fieldIndex = fieldIndex ; 
+	varName = varName; 
+	fullTypeName = fullTypeName;
+	default = defValue;   
+}
+
+class message{
+	ctor( ){
+		this.fields = {}
+		this.subMessage = {}
+		this.subEnum = {}
+		this.parent = null; 
+	};
+	push = function( field ){ 
+		..table.push( this.fields, field );
+	} 
+	nameSpace = "";
+	
+	findType = function(name,member){
+		 
+		if(!name)
+			error("参数不能为null",2)
+			
+		var msg = this;
+		do{ 
+			if( msg.subMessage[name] || msg.subEnum[name] ){
+				
+				var t = combineNamespace( combineNamespace( msg.nameSpace,msg.name) ,name);
+				if(member)
+					t = combineNamespace( t,member)
+					 
+				return ".." + t;
+			}
+		
+			msg = msg.parent
+		}while(msg) 
+		 
+		error("Error message type:" + name,2)
+		 
+	} 
+
+	serializeSubEnum = function(){
+		var template = ..protobuf.parser.template;
+		
+		var tabEnum = {};
+		for(name,body in this.subEnum){
+			var enum = template.enum.format(
+				name = name;
+				body = body;
+			)
+			..table.push(tabEnum,enum ); 
+		} 
+		
+		var strSubEnum = "";
+		if( #tabEnum ){
+			strSubEnum = indentString(  ..string.join(tabEnum,'\r\n'),"    "); 
+		}
+		return strSubEnum;
+	}
+	
+	serializeField = function(){
+		var template = ..protobuf.parser.template;
+			
+		var tabField = {};
+		var tabMetaField = {};
+		for(i=1;#this.fields;1){
+			var field = this.fields[i];
+			 
+			var fieldValue;
+			var fieldMetaTemplate;
+			if(field.repeated){
+				fieldValue = "{ is_array = true; }"
+				fieldMetaTemplate = template.fieldArrayMeta;
+			}
+			elseif(..string.endWith(field.varName,"time",true) ){
+				fieldValue = field.default===null?"null":field.default;
+				fieldMetaTemplate = template.fieldTimeMeta;
+			}
+			else{
+				fieldValue = field.default===null?"null":field.default;
+				fieldMetaTemplate = template.fieldMeta;
+			}
+			
+			..table.push(tabField,template.field.format(
+				idx = field.fieldIndex;
+				typeName = field.fullTypeName;
+				value = fieldValue; 
+			)); 
+			
+			..table.push(tabMetaField,fieldMetaTemplate.format(
+				fieldIndex = field.fieldIndex;
+				varName = field.varName;
+			)); 
+		}
+		
+		var strTabField = "";
+		var strMetaField = "";
+		
+		if( #tabField ){
+			strTabField= indentString(  ..string.join(tabField,'\r\n'),"    "); 
+			strMetaField  = indentString( ..string.join(tabMetaField,'\r\n'),"    ");
+		}
+		return strTabField,strMetaField;
+	}
+		
+	serializeIntellisense = function(indentSpace=""){
+		var template = ..protobuf.parser.template;
+		
+		var intellisense = '/**intelli' + 'sense()\r\n'
+		var intellPath = combineNamespace( this.nameSpace,this.name) 
+		intellCls = ..string.replace( intellPath,"@.","_");
+		
+		var intellClsDot = "!" + intellCls + '.'
+		intellisense ++= intellPath + " = " + 'protobuf消息对象\r\n'
+		intellisense ++= intellPath + "() = " + '创建protobuf消息对象\\n' + intellClsDot + '\r\n' 
+		intellisense ++= intellClsDot  + 'parseFromString(__/*字符串*/) = 二进制数据反序列化到消息对象\\n此函数自动清空所有数组值,但不会重置其他非数组字段值.\\n因此应对新创建的对象调用此函数.\r\n'
+		intellisense ++= intellClsDot  + 'serializeToString() = 序列化消息对象,返回二进制字符串\r\n'
+		
+		for(i=1;#this.fields;1){ 
+			var field = this.fields[i]
+			var vtype = ..string.trim(field.fullTypeName,".")
+			var scalarType = ..string.startWith(vtype,"protobuf.type.")
+			var inellCustomType = ..string.replace( vtype,"@.","_")
+			if(field.repeated){ 
+				intellisense ++= intellClsDot ++ field.varName + "Length = " + '返回数组长度\r\n';
+				intellisense ++= intellClsDot ++ field.varName + "Array = " + '返回原始数组\r\n';
+				if( !scalarType ){
+					intellisense ++= intellClsDot + field.varName + "() = " + "!" + inellCustomType + '.\r\n';  
+				}
+				intellisense = ..string.concat( intellisense ,  intellClsDot , field.varName 
+						, "(1__/*索引*/) = "  , field.comment ,field.comment ? "\n" , vtype , '\r\n' );
+			}
+			else{ 
+				intellisense = ..string.concat( intellisense ,  intellClsDot , field.varName 
+						, " = "  , field.comment ,field.comment ? "\n" ,scalarType? vtype :  ("!" + inellCustomType + ".") , '\r\n' ); 
+			}
+		} 
+		intellisense ++= "end intell" + "isense**/";	
+		
+		return intellisense; 
+	}
+	
+	serializeSubMessage = function(indentSpace=""){
+		var tabSubMessage = {};
+		for(k,message in this.subMessage){   
+			..table.push(tabSubMessage,message.serialize( indentSpace + "	" ) ); 
+		} 
+		return  ..string.join(tabSubMessage,'\r\n');  
+	}
+	
+	serialize = function(indentSpace=""){
+		var template = ..protobuf.parser.template;
+		var fileds,fieldMetas = this.serializeField(indentSpace);
+		
+		var clsDefine = template.classDefine.format(
+			className = this.name;
+			fileds = fileds
+		);
+		clsDefine = indentString(clsDefine,indentSpace);
+		
+		var clsNamespace = template.classNamespace.format(
+			className = this.name;
+			fieldMetas = fieldMetas;
+			subClasses = this.serializeSubMessage(indentSpace);
+			subEnums = this.serializeSubEnum(indentSpace);
+		);
+		clsNamespace = indentString(clsNamespace,indentSpace);
+		
+		return clsDefine + '\r\n' + clsNamespace + '\r\n' + this.serializeIntellisense(indentSpace);
+	}
+}
+
+namespace message{
+    indentString = function(str,space){
+    	return  space ++ ..string.replace(str,"\n",'\n'+space)
+    }
+    
+    scalarTypes = {
+    	double = '..protobuf.type.double';
+    	float = '..protobuf.type.float';
+    	int32 = '..protobuf.type.int32';
+    	int64 = '..protobuf.type.int64';
+        uint32 = '..protobuf.type.uint32';
+        uint64 = '..protobuf.type.uint64';
+        sint32 = '..protobuf.type.sint32';
+        sint64 = '..protobuf.type.sint64';
+        fixed32 = '..protobuf.type.fixed32'; 
+        fixed64 = '..protobuf.type.fixed64';
+        sfixed32 = '..protobuf.type.sfixed32';
+        sfixed64 = '..protobuf.type.sfixed64';
+        bool = '..protobuf.type.bool';
+        string = '..protobuf.type.string';
+        bytes =  '..protobuf.type.bytes'
+    };
+    
+    combineNamespace = function(path,name){
+    	if(!name)
+    		error("name 不能为空",2)
+    	return ..string.trim(
+    		..string.format("%s.%s",path,name )
+    		,"."
+    	)
+    }
+}
+ 
+
+/**intellisense()
+?protobuf.parser.field = !protobufparserfield.
+!protobufparserfield.index = 字段索引
+!protobufparserfield.varName = 字段名称
+!protobufparserfield.fullTypeName = 字段类型名
+!protobufparserfield.defValue = 字段默认值
+!protobufparserfield.isArray =  是否数组
+!protobufparserfield.isOptional = 是否可选
+?protobuf.parser.field = !protobufparserfield.
+end intellisense**/

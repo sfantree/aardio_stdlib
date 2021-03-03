@@ -1,0 +1,57 @@
+//增、删、改、查
+
+import console;
+import sqlServer;
+
+//打开数据库
+var db= sqlServer( 
+    ["Data Source"]= "IP地址,服务端口";
+    ["Database"]= "数据库名";
+    ["User ID"]  = "用户名";
+    ["Password"]= "用户密码"; 
+)
+
+//创建表
+if(!db.existsTable("aardioTestDb") ){
+	db.exec("create table aardioTestDb (url char(130), comment char(120), photo binary(200) NULL)")
+}
+
+//使用命令参数 - 参数化可避免SQL注入
+var cmd = db.createCommand( "INSERT INTO aardioTestDb(url,comment,photo) VALUES(@url,@comment,@photo)" );  
+
+//绑定命令参数,二进制字段只能用这种方法插入
+cmd.bind( 
+	url = "http://bbs.aardio.com";
+	comment = "hi!";
+	photo   = raw.buffer("Buffer") //也可用 string.loadBuffer() 加载文件
+)
+
+//执行命令
+cmd.execute(); 
+
+//增 - 调用 access.formatParameter() 格式化命名参数生成SQL语句
+db.exec( "INSERT INTO aardioTestDb(url,comment) VALUES(@url,@comment)",{
+	url = "http://bbs.aardio.com";
+	comment = "字符串包含'单引号' 测试一下";
+} )
+
+//改
+db.exec("update aardioTestDb set url='%s' WHERE comment='%s' ","http://www.aardio.com","这是说明")
+ 
+//查
+for(rs in db.each("SELECT * from aardioTestDb") ){ 
+	console.log( rs("url").value,rs("comment").value,rs("photo").value )  
+}
+ 
+//将查询结果转换为普通数组
+var tab = db.getTable("SELECT * FROM aardioTestDb");
+console.dump(tab);
+
+//删 - 自动调用 string.format() 函数格式化SQL语句,简单拼接字符串应避免包含单引号
+db.exec("delete from aardioTestDb where url='%s'","http://www.aardio.com");
+
+
+//关闭数据库连接
+db.close();
+
+console.pause();

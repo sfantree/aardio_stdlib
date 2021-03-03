@@ -1,0 +1,57 @@
+//3)使用模块 
+
+/*
+aardio中文件路径开始为斜杠（或反斜杠）表示应用程序根目录，
+在工程中根目录为工程目录，工程之外单独运行的aardio文件根目录就是文件所在的目录，发布生成EXE后就是EXE所在的目录.
+而文件路径开始为波浪线指的是EXE所在的目录（开发时为aardio.exe所在目录）
+
+默认的python搜索模块的路径为:
+"~\lib\py\.res\Lib.zip"
+"~\lib\py\.res\"
+"\"
+"\py"
+
+python模块如果需要用到DLL（或pyd文件）,
+请在py扩展库目录下面找到~\lib\py\.res\DLLs 并将DLL文件放到这里面。
+aardio中的python解释器是32位版本，DLL请选用兼容python同一版本的模块，
+关于python的版本信息，可调用 py.run() 打开解释器查看。 
+*/
+import console;
+console.open();//在导入py前打开控制台可以显示python输出
+
+import py;//这里是导入Python3.4,改成import py2 就是导入Python2.7
+
+//可以自己添加模块搜索路径，例如：
+//py.appendPath("C:\Python34\Lib\site-packages\");
+ 
+var pyCode = /**
+import urllib.request
+def getHtml(url): 
+    b = urllib.request.urlopen(url).read()
+    return b.decode("utf-8")
+**/
+string.save("/myHttp.py",pyCode );//创建一个创建的模块文件
+ 
+//试试在python中import上面保存的测试模块
+var myHttp = py.import("myHttp");
+var str = myHttp.getHtml("http://www.aardio.com" );
+
+console.log( str );
+console.pause()
+/*
+aardio与python的import语句基本用法类似，
+python与aardio的import语句都是用来导入模块，
+都要求文件名与模块路径与文件路径保持一致。
+
+但aardio的import语句语简单，
+Python的import语句则有很多复杂的功能，例如：
+	from 模块名 import 函数名 
+	from 模块名 import *
+	from hashlib import md5 as md5New
+等等用法。
+
+aardio需要在import过来的库中用namespace定义名字空间，
+而Python并不需要这么做，文件放到哪里模块名字就变成什么，
+所以经常会在python代码中看到这句代码 if __name__ == "__main__":
+如果一个库被直接执行 __name__ 的值就是 "__main__",否则就是当前导入的模块名字或者当前类的名字，
+*/

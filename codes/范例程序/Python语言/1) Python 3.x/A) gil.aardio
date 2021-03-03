@@ -1,0 +1,49 @@
+//A)多线程GIL
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=1163;bottom=753)
+winform.add(
+button={cls="button";text="button";left=876;top=663;right=1102;bottom=723;z=2};
+edit={cls="edit";left=11;top=16;right=1140;bottom=625;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+/*
+要点1、一定要在主线程导入python库
+主线程会负责创建python虚拟机，主线程退出不能再在任何线程调用python.
+*/
+import py;
+
+/*
+要点2、一定要在主线程释放GIL，之后任何python调用都在在py.lock里执行
+注意，只有你确实要在多个线程并发调用python时，才需要使用GIL。
+*/
+py.releaseThread();
+
+pyThread = function(winform){
+	import py; 
+	
+	/*
+	要点3、启用GIL以后，任何python调用都必须在py.lock里执行
+	python并不支持真正的多线程,所有调用都要加锁互斥运行。
+	*/
+	py.lock(
+		function(){
+			var hashlib = py.import("hashlib"); 
+			var md5 = hashlib.md5()
+			md5.update( raw.buffer("注意这个函数的参数不是字符串而是字节数组（相当于aardio中的buffer）") ); 
+			winform.edit.print(thread.getId(), tostring(md5.hexdigest()) ); 				
+		}
+	) 
+}
+
+
+winform.button.oncommand = function(id,event){
+   
+	for(i=1;10;1){
+    	thread.invoke( pyThread,winform )  
+    }
+}
+
+winform.show() 
+win.loopMessage();

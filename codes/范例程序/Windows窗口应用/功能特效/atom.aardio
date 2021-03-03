@@ -1,0 +1,29 @@
+//原子窗体一例
+
+/*
+有时候进程需要禁止重复运行,但主窗体可能并不是最先启动的(例如登录界面、欢迎界面等等)
+这时候就不方便在第一个窗体使用原子窗体禁止重复启动,可以改用 process.mutex 创建互斥体来禁止进程重复启动。
+仍然可以通过原子窗体尝试查找主窗体,实现用户双击EXE激活已经启动的主窗体的效果。
+*/
+
+//创建互斥体
+import process.mutex;
+var mutex = process.mutex("互斥体.唯一标识") 
+if( mutex.conflict ){
+    import win.ui.atom;
+    var atom,hwndConflict = win.ui.atom.find("原子窗体.唯一标识")
+    if( hwndConflict ) win.setForeground(hwndConflict);
+    return;
+} 
+
+import win.ui; 
+/*DSG{{*/
+var winform = win.form(parent=...; text="aardio form";right=349;bottom=249 )
+winform.add(  )
+/*}}*/
+
+import win.ui.atom 
+winform.atom("原子窗体.唯一标识"); 
+
+winform.show() 
+win.loopMessage(); 

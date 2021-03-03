@@ -1,0 +1,12 @@
+
+import com.interface;
+namespace  com.interface;
+
+class IPersist{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer GetClassID = "int(struct &pClassID)"; 
+}
+IPersist.IID = "{0000010c-0000-0000-C000-000000000046}";
+ 

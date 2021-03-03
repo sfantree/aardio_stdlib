@@ -1,0 +1,26 @@
+import com.interface; 
+namespace  com.interface;
+
+class IClassFactory{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer CreateInstance = "int(pointer pUnkownOuter,struct iid,pointer& ppv)";
+	pointer LockServer = "int(bool bLock)"; 
+}
+IClassFactory.IID = "{00000001-0000-0000-C000-000000000046}";
+
+ 
+IClassFactory.Query = function(obj){
+	return ..com.interface(obj,IClassFactory)
+}   
+
+/**intellisense()
+com.interface.IClassFactory.Query(__/*com对象或指针*/) = 查询并创建IClassFactory接口
+!IClassFactory.AddRef() = 引用计数加一,返回引用计数
+!IClassFactory.Release() = 引用计数减一,返回引用计数
+!IClassFactory.QueryInterface(__/*接口数*/) = 参数是接口类,参考com.interface.IUnknown源码
+!IClassFactory.CreateInstance(__) =  
+!IClassFactory.LockServer(__) =  
+com.interface.IClassFactory.Query() = !IClassFactory. 
+end intellisense**/

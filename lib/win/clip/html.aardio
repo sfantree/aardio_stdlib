@@ -1,0 +1,127 @@
+//html 复制操作
+import win.clip;
+import util.metaProperty;
+namespace win.clip;
+
+class html{
+	@_metaProperty;
+}
+
+namespace html{
+
+	CF_HTML = ::User32.RegisterClipboardFormat("HTML Format"); 
+	_metaProperty = ..util.metaProperty(
+		read = function(){
+			var cbHtml;
+			if(!::User32.OpenClipboard(0))
+				return;	
+				
+			var hClip =  topointer( User32.GetClipboardData(CF_HTML) );
+			if(hClip){
+				var p = ::GlobalLock(hClip)
+				if(p){ 
+					cbHtml = ..raw.str(p);
+					::GlobalUnlock(hClip)
+				}
+			} 
+			::User32.CloseClipboard();
+			if( cbHtml && owner.parse(cbHtml)) return owner;
+		}
+		write = function(htmlFragment,utf8){
+			var cbHtml = owner.stringify(htmlFragment,utf8)
+			if(cbHtml){
+				if(!::User32.OpenClipboard(0))
+					return;	
+						
+				User32.EmptyClipboard();
+				 
+				var clipbuffer = ::GlobalAlloc(0x2000/*_GMEM_DDESHARE*/, #cbHtml+1);
+    			var buffer =  ::GlobalLock(clipbuffer); 
+    			::CopyMemory(buffer,cbHtml,#cbHtml+1); 
+				::GlobalUnlock(clipbuffer); 
+				
+				var hdl =  topointer( ::User32.SetClipboardData(CF_HTML,clipbuffer) );
+				::User32.CloseClipboard();
+				return hdl;
+			} 
+		}
+		stringify = function(htmlFragment,utf8){
+			if( utf8 === null ) utf8 = true;
+			
+			if( htmlFragment ){
+				var startFragment = ..string.find(htmlFragment,"@<!--StartFragment-->");
+				var endFragment = ..string.find(htmlFragment,"@<!--EndFragment-->");
+				if( startFragment ){
+					owner[["html"]] = htmlFragment; 
+				}
+				else {
+					owner[["fragment"]] = htmlFragment;
+				}
+			}
+			
+			var cbHtml='Version:1.0\r\nStartHTML:000000000\r\nEndHTML:000000000\r\nStartFragment:000000000\r\nEndFragment:000000000\r\n';
+			
+			var cbData  = owner[["html"]];
+			
+			if(!cbData ){
+				if( owner[["fragment"]] ){
+					var fragment = owner[["fragment"]]  
+					owner[["html"]] = ..string.format("<html><body><!--StartFragment-->%s<!--EndFragment--></body></html>",fragment )
+					cbData  = owner[["html"]];
+					
+				}
+				else{
+					return;
+				}
+			}
+
+			if(!utf8) cbData  = ..string.fromto(cbData ,0,65001);
+			var startFragment = ..string.find(cbData ,"@<!--StartFragment-->");
+			var endFragment = ..string.find(cbData ,"@<!--EndFragment-->");
+			cbHtml = ..string.replace( cbHtml,"StartFragment\:000000000","StartFragment:" + ..string.format("%09d",#cbHtml + startFragment + #"<!--StartFragment--" ) )
+			cbHtml = ..string.replace( cbHtml,"EndFragment\:000000000","EndFragment:" + ..string.format("%09d",#cbHtml + endFragment - 1  ) )
+			cbHtml = ..string.replace( cbHtml,"StartHTML\:000000000","StartHTML:" + ..string.format("%09d", #cbHtml) )
+			cbHtml = ..string.replace( cbHtml,"EndHTML\:000000000","EndHTML:" + ..string.format("%09d", #cbHtml + #cbData) )
+			owner[["ClipboardData"]] = cbHtml + cbData ;
+			
+			return owner[["ClipboardData"]];
+		}
+		parse = function(cbData ,utf8){
+			if( utf8 === null ) utf8 = true;
+			if(!utf8) cbData  = ..string.fromto(cbData ,0,65001);
+			var startHTML = ..string.match(cbData ,"StartHTML\:(\d+)")
+			var headstr = ..string.slice(cbData ,1,tonumber(startHTML,10)-1);
+
+			var head = {}
+   	    	for k,v in ..string.gmatch(headstr ,"([^\:\r\n]+)\:([^\r\n]+)") { 
+   	    		if( ..string.match(v,"^\d+$") ) v = tonumber(v,10)
+   	    		head[k] = v;
+   	    	}
+   	    	
+   	    	if(head.StartHTML===null)return false;
+   	    	if(head.StartFragment===null)return false;
+			owner[["ClipboardData"]] = cbData ; 
+   	    	owner[["head"]] = head;
+   	    	owner[["html"]] = ..string.slice(cbData ,head.StartHTML+1,head.EndHTML);
+   	    	owner[["fragment"]] =  ..string.slice( cbData ,head.StartFragment+1,head.EndFragment);
+   	    	return owner; 
+		}
+	)
+}
+
+/**intellisense()
+win.clip.html = 剪贴板HTML操作
+win.clip.html() = 创建剪贴板HTML对象\n!win_clip_html.
+!win_clip_html.parse(.(剪贴板数据,是否UTF8) = 解析剪贴板数据,\n参数@2默认为true,注意HTML在剪贴板为UTF8编码\n成功返回对象自身
+!win_clip_html.stringify(.(HTML,是否UTF8) = 参数@1如果省略则获取对象的html或fragment属性生成复制数据\n成功返回可写入剪贴板的数据
+!win_clip_html.write(.(剪贴板数据,是否UTF8) = 参数@1如果省略则获取对象的html或fragment属性生成复制数据\n成功返回真值
+!win_clip_html.read() = 读取并解析剪贴板HTML\n成功返回对象自身\n!win_clip_html.
+!win_clip_html.parse() = !win_clip_html.
+!win_clip_html.ClipboardData  = 剪贴板数据,UTF8编码\n该属性在解析剪贴板数据时自动生成,不要修改该属性
+!win_clip_html.StartFragment = 复制的片段开始位置\n该属性在解析剪贴板数据时自动生成,不要修改该属性
+!win_clip_html.EndFragment = 复制的片段结束位置\n该属性在解析剪贴板数据时自动生成,不要修改该属性
+!win_clip_html.StartHTML = HTML开始位置\n该属性在解析剪贴板数据时自动生成,不要修改该属性
+!win_clip_html.EndHTML = HTML结束位置\n不要修改该属性
+!win_clip_html.html = HTML
+!win_clip_html.fragment = HTML中需要复制的片段
+end intellisense**/

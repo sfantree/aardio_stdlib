@@ -1,0 +1,135 @@
+//dirWatcher 目录监视器
+import fsys.file;
+import thread.command;
+
+namespace fsys;
+
+class dirWatcher{
+	ctor( dir ){
+		if( ! ..io.exist(dir) )
+			error("请指定正确的目录参数",2);
+			
+		this = ..fsys.file(dir,0x1/*_FILE_LIST_DIRECTORY*/
+			,7/*_FILE_SHARE_READ | _FILE_SHARE_WRITE | _FILE_SHARE_DELETE*/
+			,0x3/*_OPEN_EXISTING*/
+			,0x2000000/*_FILE_FLAG_BACKUP_SEMANTICS*/ );
+		
+		//缓冲区必须32位对齐,不可大于64KB	
+		var buffer = ..raw.buffer(0x10000/*64KB*/); 
+	};
+	readDirectoryChanges = function( flags = 0x5F/*_FILE_NOTIFY_CHANGE_NORMAL_ALL*/,subTree=true){ 
+		var bufLen = #buffer; 
+		var ok,size = ReadDirectoryChangesW( owner.hfile,buffer,bufLen,subTree,flags,0,{} );
+		if( ok ){
+			var offset = 0; 
+			var entry = { 
+				INT NextEntryOffset;
+				INT Action;
+    			INT FileNameLength;
+			}
+			var changes = {}; 
+			var convert = ..raw.convert;
+			var push = ..table.push;
+			do{
+				
+				convert( buffer, entry,offset);  
+				var path = ..raw.tostring(buffer,offset + 13,offset + 12 + entry.FileNameLength );  
+				push(changes,{filename = ..string.fromUnicode(path);filenameW = path; action=entry.Action;actionText = ACTION_TEXT[entry.Action]});
+				offset = offset + entry.NextEntryOffset; 
+			}while(entry.NextEntryOffset ? ( offset + 14/*12+WCHAR*/ <= size ) )
+			return changes;
+		}  	
+	}; 
+	eachChanges = function( flags,subTree){
+		var shift = ..table.remove; 
+		var changes = this.readDirectoryChanges();
+		var item,action;
+		return function(){
+			var item = shift(changes);
+			if(!item){
+				changes = this.readDirectoryChanges(flags,subTree);
+				item =  shift(changes);
+			}
+			return item.filename,item.action,item.actionText,item
+		} 	
+	};
+}
+ 
+namespace dirWatcher{
+	ReadDirectoryChangesW = ::Kernel32.api( "ReadDirectoryChangesW", "bool(pointer hDir,pointer buf,INT len,bool subtree,INT filter,INT& bytesRet,struct overlapped, pointer completionRoutine)");
+ 
+	class FILE_NOTIFY_INFORMATION{
+    	INT NextEntryOffset;
+    	INT Action;
+    	INT FileNameLength;
+	} 
+	
+    ACTION_TEXT = {
+		[ 1/*_FILE_ACTION_ADDED*/ ] = "添加文件";
+		[ 2/*_FILE_ACTION_REMOVED*/ ] = "移除文件";
+		[ 3/*_FILE_ACTION_MODIFIED*/ ] = "文件被修改";
+		[ 4/*_FILE_ACTION_RENAMED_OLD_NAME*/ ] = "重命名:原文件名";
+		[ 5/*_FILE_ACTION_RENAMED_NEW_NAME*/ ] = "重命名:新文件名";
+	}	
+	
+	thread = class {
+		ctor( onFileChange,dir,flags,subTree){
+			this._dir = dir;
+			this.ptrStopKey =  ..raw.realloc(1);//构造一个进程唯一的指针地址
+			this.listener = ..thread.command();
+			this.listener.onFileChange = onFileChange;
+			..table.gc(this,"close");
+			
+			this._thrdHandle = ..thread.create( 
+				function(dir,hwndListener,flags,subTree,ptrStopKey){
+					import thread.command; 
+					import fsys.dirWatcher; 
+					
+					watcher = fsys.dirWatcher( dir );
+					for( filename,action,actionText,item in watcher.eachChanges(flags,subTree) ){
+						if ( ..thread.get(ptrStopKey) ) break;
+						thread.command.post(hwndListener,"onFileChange",filename,action,actionText,item.filenameW );  
+					} 
+				},dir,this.listener.hwnd,flags,subTree,this.ptrStopKey
+			) 
+		}; 
+		close = function(){ 
+			if(!this.ptrStopKey) return;
+			
+			this.listener.onFileChange = null;
+			..thread.set(this.ptrStopKey,true);
+			
+    		do{ 
+    			var file = ..fsys.file.temp(this._dir + "\fsys.dirWatcher.~") or ..fsys.file.temp( ..io.tmpname() );
+    			if( file ) file.close();
+    		}while(!..thread.waitOne(this._thrdHandle,1000) )
+    		
+    		this.ptrStopKey = ..raw.realloc(0,this.ptrStopKey)
+		} 
+	}
+	 
+}
+
+/**intellisense()
+fsys.dirWatcher = 目录监视器
+fsys.dirWatcher("__/*目录路径*/") = 创建目录监视器
+fsys.dirWatcher() = !dirWatcher.
+!dirWatcher.eachChanges(选项,是否监视子目录) = @for( filename,action,actionText in ??.eachChanges() ){
+	io.print( filename,actionText,action & 0x10/*_FILE_NOTIFY_CHANGE_LAST_WRITE*/ ) 
+}
+!dirWatcher.readDirectoryChanges(.(选项,是否监视子目录) = 读取目录发生的变更\n返回值为数组,数组成员为一个table对象\nfilename字段表明变更的目录,action字段表明变更类型\naction为 _FILE_NOTIFY_CHANGE_ 前缀的常量标志
+!dirWatcher.readDirectoryChanges() = !dirWatcherEntry.
+!dirWatcher.close() = 关闭
+!dirWatcherEntry.filename = 文件名
+!dirWatcherEntry.filenameW = Unicode文件名
+!dirWatcherEntry.action = 变更类型
+!dirWatcherEntry.actionText = 变更类型说明
+fsys.dirWatcher.thread(回调函数,监视目录,选项) = @.thread(\n	function(filename,action,actionText){\n		\n	},__/*监视目录路径*/ );
+fsys.dirWatcher.thread() = !fsys_dirWatcher_thread.
+!fsys_dirWatcher_thread.close() = 关闭对象
+_FILE_ACTION_ADDED=@1/*_FILE_ACTION_ADDED*/
+_FILE_ACTION_REMOVED=@2/*_FILE_ACTION_REMOVED*/
+_FILE_ACTION_MODIFIED=@3/*_FILE_ACTION_MODIFIED*/
+_FILE_ACTION_RENAMED_OLD_NAME=@4/*_FILE_ACTION_RENAMED_OLD_NAME*/
+_FILE_ACTION_RENAMED_NEW_NAME=@5/*_FILE_ACTION_RENAMED_NEW_NAME*/
+end intellisense**/

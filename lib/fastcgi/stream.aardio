@@ -1,0 +1,100 @@
+﻿//stream 文件流
+namespace fastcgi;
+
+class stream{
+	ctor(stream){
+		if(! ( stream && stream.read && stream.write ) ){ 
+			error("构造参数不是有效的流对象",2); 
+		}
+		this = stream;
+	};
+	writeRecord  = function (fcgiRecord) {
+		var header = { 
+			BYTE version = 1;
+			BYTE type = fcgiRecord.type; 
+			WORD requestId = ..raw.swap(fcgiRecord.requestId,"WORD");
+			WORD contentLength;
+			BYTE paddingLength;
+			BYTE reserved;
+		};
+		
+		var contentData,contentLength,paddingLength = fcgiRecord.contentData,fcgiRecord.contentLength;
+		if( contentData ){
+			if(!contentLength){
+				if( contentData[["_struct"]]){
+					contentLength = ..raw.sizeof(contentData);
+				}
+				else {
+					contentLength = #contentData;
+				}
+			}
+			header.contentLength = ..raw.swap(contentLength,"WORD");
+			paddingLength = contentLength % 8 ;
+			if(paddingLength) {
+				paddingLength = 8 - paddingLength;
+				header.paddingLength = paddingLength;
+			}
+		} 
+
+		this.write(header);
+		if(contentData){  
+			if( type(contentData) == type.buffer ){
+				this.writeBuffer(contentData,contentLength);
+			}
+			else this.write(contentData);
+			
+			if(paddingLength) this.writeBuffer( ..raw.buffer(paddingLength) );
+		}
+	};   
+	readRecord = function(buffer){
+		
+		var fcgiRecord = { 
+			BYTE version = 1;
+			BYTE type;
+			WORD requestId;
+			WORD contentLength;
+			BYTE paddingLength;
+			BYTE reserved; 
+		}; 
+		if( ! this.read(fcgiRecord) ){
+			return null/*exit*/;
+		}
+		if( fcgiRecord.version != /*FCGI_VERSION_*/1 ){
+			return null,"Unknown fastcgi version v" + fcgiRecord.version;
+		}
+		 
+		fcgiRecord.requestId = ..raw.swap(fcgiRecord.requestId,"WORD");
+ 		fcgiRecord.contentLength = ..raw.swap(fcgiRecord.contentLength,"WORD");
+		 	
+		if (fcgiRecord.contentLength > 0) { 
+		
+			if (fcgiRecord.type === 1/*_FCGI_BEGIN_REQUEST*/){
+				var beginRequestData = {
+					WORD role;
+					BYTE flags;
+					BYTE reserved[5]; 
+				}
+				if ( ! this.read(beginRequestData) ) {
+					return;
+				}
+				beginRequestData.role = ..raw.swap(beginRequestData.role,"WORD");
+				fcgiRecord.contentData = beginRequestData;
+				
+			}
+			else{
+				if(buffer){
+					this.readBuffer(buffer,fcgiRecord.contentLength);
+					fcgiRecord.contentData = buffer;
+				}
+				else {
+					fcgiRecord.contentData = this.read(fcgiRecord.contentLength);
+				} 
+			}
+		} 
+				
+		if ( fcgiRecord.paddingLength > 0 ) {
+			this.read(fcgiRecord.paddingLength);
+		} 
+		return fcgiRecord; 
+	};
+}

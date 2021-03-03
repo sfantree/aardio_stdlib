@@ -1,0 +1,180 @@
+//lex 词法分析
+namespace protobuf.parser
+
+class lex{
+
+	ctor( code ){
+		this.code = code;
+		this.current_pos = 1;
+		this.current = this.code[1]
+		this.token = null;
+		this.data = null;
+		this.line = 1; 
+		 
+	};
+	
+	testNext = function(tk){
+		if( this.token == tk ){
+			this.next();
+			return true;
+		}
+	}
+	
+	check = function(tk,lev=2){
+		if( this.token != tk ){ 
+			error("expect token:"+this.getTokenName(tk) + " but:" + this.getTokenName(this.token) + " DATA: """ +(this.data : "") + '"\nline:' + this.line,lev)
+		}
+		
+	}
+	
+	checkNext = function(tk){
+		this.check(tk,3)
+		this.next();  
+	}
+	
+	getTokenName = function(tk){
+		if( tk == _tk_number)
+			return "number";
+		elseif( tk == _tk_keyword){
+			return "keyword"
+		}
+		elseif(!tk){
+			return "null";
+		}
+		else {
+			return ..string.pack(tk);
+		} 
+	}
+	
+	moveTo = function(pos){
+		this.current_pos = pos;
+		this.current = this.code[this.current_pos]
+	}
+	
+	matchNext = function(p){
+		var i,j = ..string.find(this.code,p,this.current_pos-1); 
+		this.moveTo(j+1);
+		this.next();
+		
+        var result = ..string.slice(this.code,i,j); 
+        ..string.replace(
+        	result,"\n",
+        	function(){
+        		this.line++;
+       		}
+        )
+        return result;
+	}
+	 
+	next  = function(){
+		var current = this.current;
+		var pos = this.current_pos;
+		var code = this.code;
+		var token,data,comment;
+		
+		while( current ){ LEXLOOP:
+			
+			select( current ) {
+				case '\n'#{
+					this.line++;
+				}
+				case '\r'#,'\t'#,' '# {
+				}
+		 
+				case '"'#  {
+					var start = pos;
+					pos++;
+					current = code[pos];
+					while(current!='"'#){ 
+						
+						if(current=='\\'# && code[pos+1]=='"'#){
+							pos+=2;
+						}
+						pos++;
+						current = code[pos];
+					}
+					
+					pos++;
+					token,data = _tk_string,..string.slice(code,start,pos-1);//注意要包含两侧的引号
+					break LEXLOOP;
+					 
+				}
+				case '/'#  {
+					if( code[pos+1]  == '/'#){
+						pos+=2;
+						
+						var b = pos;
+						current = code[pos];
+						while( current && (current!='\r'#) && (current!='\n'#) ) { 
+							pos++;
+							current = code[pos];	
+						} 
+						comment = ..string.slice(code,b,pos);
+					}
+				} 
+				case '='#  {
+					token,data = current 
+					pos++;
+					break LEXLOOP;
+				}
+				else {
+			 
+					if( (current >='0'#) && (current <='9'#) ){
+						var n,l = tonumber( ..string.slice(code,pos) );
+						pos+=l; 
+						
+						token,data = _tk_number,n 
+						break LEXLOOP;
+					}
+					elseif( ( (current >='a'#) && (current <='z'#) ) || ( (current >='A'#) && (current <='Z'#) ) || current='_'# ){
+				
+						var b,e = ..string.find(code,"[\w._]+",pos);
+						var k = ..string.slice(code,b,e); 
+						pos = e+1; 
+						
+						//if( code[ pos ] == '_'# ) {
+							//error("aardio不允许名字空间、类名中包含下划线",2);
+						//}
+						
+						token,data = _tk_keyword,..string.replace(k,"@_","");
+						break LEXLOOP;
+					}
+					else {
+						pos++;
+						token,data = current,..string.pack(current);
+						break LEXLOOP
+					} 
+				}
+			}
+		
+			pos++;
+			current = this.code[pos]  
+		}
+		
+		this.current_pos = pos;
+		this.current = this.code[this.current_pos]
+		this.token = token;
+		this.data = data;
+		this.comment = comment;
+		return token,data;
+		 
+	} 
+}
+
+namespace lex{
+	_tk_number = 1;
+	_tk_keyword = 2;
+}
+
+/**intellisense()
+?protobuf.parser.lex = !protobuflex.
+!protobuflex.next() = 向下做词法分析
+!protobuflex.testNext(__) = 忽略指定的Token 
+!protobuflex.check(__) = 检测是否存在指定的Token
+!protobuflex.checkNext(__) = 检测是否存在指定的Token,并向下词法分析
+!protobuflex.token = 当前token;
+!protobuflex.data = 当前数据;
+protobuf.parser.lex._tk_number = 数值
+protobuf.parser.lex._tk_string = 字符串
+protobuf.parser.lex._tk_keyword = 关键词
+end intellisense**/

@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project ver="10" name="触发器" libEmbed="true" icon="..." CompanyName="单位名称" FileDescription="附加说明......" LegalCopyright="Copyright (C) 作者 2011" ProductName="aardio工程17" InternalName="aardio工程17" FileVersion="0.0.1.001" ProductVersion="0.0.1.001" publishDir="/dist/" ui="win" output="触发器.exe">
+	<file name="main.aardio" path="default.main.aardio" comment="default.main.aardio"/>
+	<file name="publish.aardio" path="publish.aardio" comment="发布后触发"/>
+	<file name="before-publish.aardio" path="before-publish.aardio" comment="发布前触发"/>
+	<file name="init.aardio" path="init.aardio" comment="启动触发"/>
+	<file name="openProject.aardio" path="openProject.aardio" comment="打开工程触发"/>
+	<file name="edit.aardio" path="edit.aardio" comment="打开外部编辑器触发"/>
+	<folder name="资源文件" path="res" embed="true"/>
+</project>

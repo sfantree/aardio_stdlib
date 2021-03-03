@@ -1,0 +1,241 @@
+﻿//jsonClient RPC客户端
+import wsock.tcp.client;
+import web.json;
+
+namespace wsock.tcp;
+
+class jsonClient{
+	ctor( ip,port ){
+		this.rpc = {
+			url = url;
+			client = ..wsock.tcp.client();
+			charset = "UTF-8"; 
+			version = "2.0";
+			endCallback = {};
+			varargs = true; 
+			postData = function( reqData ){
+				owner.lastResponseData = null;
+				owner.lastStatusCode = null;
+				
+				var jsonData = ..web.json.stringify(reqData);
+				if( owner.afterJsonStringify ) {
+					jsonData = owner.afterJsonStringify(jsonData);
+					if(!jsonData) return;
+				};
+				
+				if(!owner.client.write( jsonData )){
+					return null,"服务端已断开";
+				};
+				
+				if( reqData.id === null){
+					if(!owner.transaction){
+						owner.client.close();
+						return;
+					}
+				}
+				
+				var rspData;
+				var len = 100;
+				var slp = ..win ? ..win.delay : sleep;
+				var str = "";
+				var inputCodepage;
+				if(!utf8) inputCodepage = 0;
+				
+				while( slp(10) ){
+					var c,err = owner.client.peek(len);
+					if( err ){
+						owner.client.close();
+						return null,"服务端已断开";
+					}
+					
+					if(#c){
+						owner.client.read(#c);
+						str = str ++ c;
+						
+						var json = ..web.json.tryParse(str,,inputCodepage);
+						if( json === null ){
+							len = len * 2;
+						}
+						else {
+							owner.lastResponseData = str;
+							if( owner.beforeJsonParse ) {
+								str = owner.beforeJsonParse(str);
+								if(!str) return;
+								
+								json = ..web.json.tryParse(str,,inputCodepage);
+							}
+							
+							rspData = json;
+							break ;
+						}
+					}
+				}
+				
+				if( rspData ) {   
+					
+					if(owner.transaction){
+						if(#rspData){
+							for(i=1;#rspData;1){
+								if(rspData[i].id){
+									var cb = owner.endCallback[rspData[i].id];
+    								if(cb){
+    									owner.endCallback[rspData[i].id] = null;
+    									if( cb.end ){
+    										cb.end( rspData[i].result,rspData[i].error )
+    									}
+    								};
+    							}
+							}
+						}
+						return true;
+					} 
+					return rspData;
+				}
+			}; 
+			notify = function(method,...){  
+				var reqData = {
+					jsonrpc = owner.version;
+					method = method;
+				}
+				
+				if( owner.varargs ){
+					reqData.params = {...};
+				}
+				else {
+					reqData.params = ...;
+				}
+				
+				if( owner[["beforeRequest"]] ){
+					reqData = owner.beforeRequest(reqData);
+				}; 
+				
+				if( owner[["transaction"]]  ){ 
+					..table.push(owner.transaction,reqData);
+					return;
+				}; 
+				return owner.postData( reqData );	
+			};
+			xcall = function(method,...){   
+				
+				var reqData = {
+					jsonrpc = owner.version;
+					method = method;
+					id = method;
+				}
+				
+				if( owner.varargs ){
+					reqData.params = {...};
+				}
+				else {
+					reqData.params = ...;
+				}
+				
+				if( owner[["beforeRequest"]] ){
+					reqData = owner.beforeRequest(reqData);
+				}; 
+				
+				if( owner[["transaction"]]  ){
+					var cb = {};
+					cb.method = method; 
+					reqData.id = ..table.push(owner.endCallback,cb);
+					
+					..table.push(owner.transaction,reqData);
+					return cb;
+				} 
+				return owner.postData( reqData );
+			}; 
+			beginTrans = function(){
+				owner.transaction = {};
+				owner.endCallback = {};
+			};
+			commitTrans = function(){
+				return owner.postData(owner.transaction);
+			};
+			rollbackTrans = function(){
+				owner.transaction = null;
+				owner.endCallback = null;
+			}; 
+			lastStatusMessage = function(){
+				if(owner.lastStatusCode)return ..inet.httpStatusCode[owner.lastStatusCode],owner.lastStatusCode;
+			};
+			lastResponse = function(){ 
+				var s = owner[["lastResponseData"]];
+				if( ..console && _STUDIO_INVOKED ) ..console.log(s) else ..io.print(s);
+				return s;
+			};
+			close = function(){
+				owner.http.close();
+			};
+		};
+		
+		if( ! this.rpc.client.connect( ip,port ) ){
+			return null,"连接服务端失败";
+		}
+	};
+	
+	@_meta
+}
+
+namespace jsonClient { 
+ 
+	_meta = {
+  	
+    	_get = function(k){
+        	
+    		if( type(k) == type.string ){
+    			
+    			if( owner[["method"]] ){
+    				k = owner[["method"]] + "." + k;
+    			}
+    			
+    			owner[[k]] = {
+    				rpc = owner[["rpc"]];
+    				method = k;
+    				@_meta;
+    			}
+    			return owner[[k]];
+    		}
+    	} 
+    	_call = function( ... ){ 
+				return owner.rpc.xcall( owner.method, ...) ;
+		}
+	}
+}
+ 
+ 
+/**intellisense()
+wsock.tcp.jsonClient = JSON-RPC 2.0客户端\n因为此对象varargs默认值为true,而aardio中null值等价为空,所以可以兼容JSON-RPC 1.0\n[关于JSON-RPC 2.0](http://www.jsonrpc.org/specification)
+wsock.tcp.jsonClient(.(主机,端口) = 创建REST客户端\n也可以在第一个参数中使用冒号分隔主机与端口
+wsock.tcp.jsonClient() = !wsock_rpcJsonClient. 
+!wsock_rpcJsonClient.? = 远程对象名或远程方法名字\n远程函数调用成功返回以下对象\nresult = 返回值\nerror = 错误信息,该值与result不能同时非空\nerror.message = 错误描述\nerror.code = 错误代码\nerror.data = 错误数据\n\n调用失败第一个返回值为null，第二个返回值为错误信息\n\n如果调用rpc.beginTrans函数开始一个批量调用\n则服务器应答时回调返回值的end成员函数\n!wsock_rpcJsonClient.
+!wsock_rpcJsonClient.rpc = RPC本地客户端对象\n所以本地函数放在这个对象里面\n用户不得添加、删除、修改此对象的任何成员
+end intellisense**/ 
+
+/**intellisense(!wsock_rpcJsonClient.rpc)
+setAuth(.("用户名","密码") = 设置HTTP登录用户名,密码 
+lastStatusCode = 获取最近一次请求返回的HTTP状态码\n100 ~ 101 为信息提示\n200 ~ 206 表示请求成功\n300 ~ 305 表示重定向\n400 ~ 415 表求客户端请求出错\n500 ~ 505 表示服务端错误
+lastStatusMessage() = 获取最近返回的HTTP状态码文本描述\n第二个返回值为状态码
+lastResponse() = 获取最后一次服务器返回的原始数据,\n如果控制台已打开或在开发环境中导入console库则在控制台输出数据\n下载文件时该值为空
+http = 用于执行http请求的inet.http对象\n!inet_http.
+close() = 关闭RPC客户端并释放资源
+beginTrans() = 开始批量调用\n批量调用时单次调用的返回值是一个表\n可对返回值指定end成员函数，\nend函数会在commitTrans提交批量调用成功后被触发
+commitTrans() = 完成批量调用 
+rollbackTrans() = 撤消尚未提交的批量调用
+notify(.("函数名",参数) = 发送通知,服务器不返回值,\n如果varargs属性指定为true时将不定个数参数合为数组，\nvarargs为false时直接发送参数
+xcall(.("函数名",参数) = 调用远程函数,\n如果varargs属性指定为true时将不定个数参数合为数组，\nvarargs为false时直接发送参数,\n也可以不使用request直接使用函数名调用
+charset = 获取或修改编码,默认为"UTF-8",\n因为JSON规定了Unicode编码方案,所以不建议也不应该修改这个值\n\n如果指定为除"UTF-8"之外的值，则按本机默认代码页转换服务端编码
+version = 值为JSON-RPC协议版本："2.0"\n不应该修改这个值
+varargs = 默认值为true,\n如果要向下兼容JSON-RPC 1.0,这个值必须是true,\n值为true时将不定个数的参数放入数组发送给服务端\n值为false时直接将单个参数发送给服务端\n\nJSON-RPC 2.0一个会制造混乱的地方：\n如果params是一个数组，并没有规定是展开为一个参数，还是作为一个数组参数。\n\n目前aardio的RPC服务端会负责展开数组作为多个参数，\n但客户端需要在这里手动设置
+beforeRequest(请求数据) = @.beforeRequest = function(reqData){
+	__/*此回调事件在发送请求前触发\nreqData.params是即将发送的参数*/
+	return reqData;
+}
+beforeJsonParse = @.beforeJsonParse = function(jsonData){
+    __/*可以在这里解密服务端数据,返回null中止本次调用*/
+	return jsonData;
+}
+afterJsonStringify = @.afterJsonStringify = function(jsonData){
+    __/*可以在这里加密客户端JSON,返回null中止本次调用*/
+	return jsonData;
+}
+end intellisense**/ 

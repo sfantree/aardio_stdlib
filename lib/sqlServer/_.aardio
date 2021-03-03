@@ -1,0 +1,533 @@
+﻿import com;
+import string.list;
+import time.ole;
+
+class sqlServer {
+
+	ctor( param,...){
+		var connectionString;
+		if( type(param) == type.table ){
+			var tList = ..string.list(,";","=")
+			tList.mixin(param) 
+			
+			if( !tList.find("DSN") ){
+				if( !tList.find("Provider") )  tList.Provider="SQLOLEDB.1";
+				if( !tList.find("Data Source","Server") )  tList["Data Source"]=".";
+				if( !tList.find("Integrated Security","Password","PWD") ){
+					tList["Integrated Security"]="SSPI"; //windows身份验证模式 
+				}
+			};
+			
+			connectionString = tostring( tList );
+		}
+		else { 
+			if( !param ) error("请指定数据库连接串",2) 
+			connectionString = ..string.format( param,... ); 
+		}
+
+		var conn = ..com.CreateObject("ADODB.Connection")
+		conn.ConnectionString = connectionString;
+		var ok,err = call(conn.open,conn);
+		if(!ok) return null,"打开数据库连接失败:" +err;
+		
+		this.connection = conn;
+		this._tables = {@{_weak="kv"}}
+		..table.gc(this,"close");
+	}; 
+	getCatalog = function(){
+		if( this.catalog ) return this.catalog;
+		this.catalog = ..com.CreateObject("ADOX.Catalog")  
+		this.catalog.ActiveConnection = this.connection; 
+		return this.catalog;	
+	};
+	eachTableObject = function(){
+		var cat = this.getCatalog();
+	 
+		var next,items,idx = ..com.each(cat.Tables);  
+		var tbl;
+		return function(){
+			idx,tbl = invoke(next,items,idx) 
+			if( tbl ) return tbl.getName(),tbl.getType(),tbl;
+		}  
+	}; 
+	findTableObject = function(name,cache=true){
+		if(cache && this._tables[name] ) return this._tables[name];
+		
+		var cat = this.getCatalog();
+		cat.Tables.Refresh();
+		for index,tbl in ..com.each(cat.Tables) {
+			if( tbl.Type = "TABLE" and tbl.Name = name ){
+				if(cache) this._tables[name] = tbl;
+				return tbl;
+			}
+		}	
+	};
+	existsTable = function(name){ 
+		return !!this.findTableObject(name);
+	}; 
+	findProcedureObject = function(name){	
+		var cat = this.getCatalog();
+		cat.Procedures.Refresh();
+		
+		if(!..string.find(name,"\;\d+$") ) name = name + ";1"
+		for index,tbl in ..com.each(cat.Procedures) {
+			if( tbl.Name = name ){
+				return tbl;
+			}
+		}	
+	};
+	existsProcedure = function(name){ 
+		return !!this.findProcedureObject(name);
+	}; 
+	exec = function(sql,...){ 
+		if( ... )sql = formatSqlParameters(sql,...); 
+		var ret,err = call(conn.Execute,conn,sql ); 
+		if(!ret) error(err,2);
+		return ret;
+	}; 
+	openRecordSet = function(sql,cursorType,lockType,...){
+		var rs = ..com.CreateObject("ADODB.RecordSet"); 
+		if( ... )sql = formatSqlParameters(sql,...);
+		var ok,err = call(rs.Open,rs,sql,conn,cursorType,lockType);
+		if(!ok) return null,err;
+		
+		return rs;
+	};
+	getRows = function(sql,...){
+		var rs,err = owner.openRecordSet(sql,,,...);
+		if(!rs) error(err,2);
+		 
+		var recordCount = 0;
+		var eof = rs.eof;
+		var data = eof ? { @{} } : rs.GetRows();  
+		
+		var fields = {};
+		var name; 
+		for( i=1;rs.Fields.Count ){
+			var name = rs.Fields(i-1).Name;
+			if(#name){
+				fields[i]  = name;
+				data[ name ] = data[ i ]; 
+			}
+			
+			if(!eof){
+				var _,len = ..table.range(data[ i ]);
+				recordCount = ..math.max(len,recordCount);
+			}
+		} 
+		
+		rs.close();
+		
+		data@.recordCount = recordCount;
+		data@.fields = fields; 
+		return data;
+	};
+	getTable = function(sql,...){
+		var data,err = this.getRows(sql,...);
+		if(!data) error(err,2);
+		
+        var result = {}; 
+        var v; 
+        var rowCount = data@.recordCount;
+        var trim = ..string.trimright; 
+        var fields = data@.fields;
+        for(c=1;#data){
+            var col = data[c];
+            var name = fields[c];
+            if(!#name) name = c;
+            
+            if(c>1){
+            	for(r=1;rowCount){
+        			v = col[r];
+        			if( type( v ) == "string" ) v = trim(v);
+        			elseif( ..time.istime(v) ) v = ..time.ole(v);
+        		
+        			result[r][name]  = v;
+        		} 
+        	}
+        	else {
+        		for(r=1;rowCount){
+        			v = col[r];
+        			if( type( v ) == "string" ) v = trim(v);
+        			elseif( ..time.istime(v) ) v = ..time.ole(v);
+        			
+        			result[r] = { [name]  = v };
+        		} 
+        	}
+        }
+        
+        result.fields = fields;
+		return result;
+	};
+	stepQuery = function(...){
+		return this.getTable(...)[[1]];
+	};
+	rowCount = function(){
+		return this.stepQuery("SELECT @@rowcount")[[1]];
+	};
+	each = function(sql,...){  
+        var rs,err = this.openRecordSet(sql,,,...);
+       	var first = true;
+       	if(!rs)error(err,2);
+
+        return function(){ 
+        	if(!first) rs.movenext(); 
+        	else first = false;
+   
+            if( rs.eof )   return;
+ 			return rs;
+ 			
+        },function(){ rs.close();   } ;
+    }; 
+	createCommand = function(sql,...){
+		var cmd = ..com.CreateObject("ADODB.Command") 
+		cmd.activeConnection = this.connection;
+		cmd.commandType = ..string.find(sql,"\s\S") ? 1/*adCmdText*/ : 4/*adCmdStoredProc*/;
+		
+		if( ... )sql = formatSqlParameters(sql,...);
+		cmd.commandText = sql;
+		cmd.namedParameters = true;
+		
+		var getParameterType = function(value){
+			var adType,adSize; 
+			var t = type(value);
+			
+			select(t) {
+				case "string" {
+					adType = 129/*adChar*/
+					value = ..string.toUnicode(value);
+					adSize = #value/2;
+				}
+				case "number" {
+					adType = 3/*adInteger*/
+					adSize = 8;
+				}
+				case "buffer" {
+					adType = 204/*adVarBinaryr*/
+					adSize = #value;
+				}
+				case "boolean" {
+					adType = 11/*adBoolean*/
+					adSize = 1;
+				}
+				case "null"{
+					adType = 0/*adEmpty*/;
+					adSize = 0;
+				}
+				else {
+					if( ..time.istime(value) ){
+						adType = 7/*adDate*/;
+						adSize = 8;
+						value = tonumber(..time.ole(value));
+					}
+					else { 
+						error("自动识别类型遇到错误")
+					}
+					
+				}
+			}
+			
+			return adType,adSize,value;
+		}
+		
+		cmd[["addParameter"]] = function(name,value,opt=1/*_adParamInput*/,adType,adSize){
+			var adType,adSize,value = getParameterType(value);  
+			var param = cmd.CreateParameter("@"+name,adType,opt,adSize,value);
+			cmd.Parameters.Append(param);  
+			return param;	
+		}; 
+		cmd[["bind"]] = function(parameters){ 
+			if( type(parameters) == type.table ){
+				
+				if(  cmd.parameters.Count ){
+					var p,n,v;
+					for(i=1;cmd.parameters.Count;1){
+						p = cmd.parameters(i-1);
+						n = ..string.right(p.name,-2) 
+						v = parameters[n];
+						if(cmd.commandType != 4){
+							p.Type,p.Size,v = getParameterType(v);   
+						}
+						p.Value = v; 
+					}
+					return;
+				}
+					
+				if( cmd.commandType == 4 ){
+					for(name,value in parameters){
+						cmd.addParameter(name,value); 
+					}
+					return cmd;
+				}
+				
+				cmd.CommandText = ..string.replace(sql,"[\@\?](<:+>|<\w+>)",
+						function(name){
+							cmd.addParameter(name,parameters[name]); 
+							return "?"; //OLEDB不支持命名参数
+						}
+					)	
+				return cmd;
+			}
+			
+			//已废弃,勿用	
+			return {
+				parameters = function(tParam){ return cmd.bind(tParam); }
+			}
+		}; 
+		
+		cmd["executeNoRecords"] = function(ra,parameters){
+			cmd.execute(ra,parameters,cmd.adExecuteNoRecords);
+		};
+		
+		cmd["executeStream"] = function(ra,parameters){
+			cmd.execute(ra,parameters,cmd.adExecuteStream);
+		};
+		cmd[["getRows"]] = function(...){
+			var rs,err = cmd.execute(...); 
+			if(!rs) error(err,2);
+		 	
+			var recordCount = 0;
+			var closed = (rs.State == rs.AdStateClosed);
+			var eof = closed || rs.eof;
+			var data = eof ? { @{} } : rs.GetRows();  
+			
+			var fields = {};
+			var name; 
+			for( i=1;rs.Fields.Count ){
+				var name = rs.Fields(i-1).Name;
+				if(#name){
+					fields[i]  = name;
+					data[ name ] = data[ i ]; 
+				}
+				
+				if(!eof){
+					var _,len = ..table.range(data[ i ]);
+					recordCount = ..math.max(len,recordCount);
+				}
+			} 
+			
+			if(!closed)rs.close();
+			data@.recordCount = recordCount;
+			data@.fields = fields; 
+			return data;
+		};
+		cmd[["getTable"]] = function(...){
+			var data,err = cmd.getRows(...);
+			if(!data) error(err,2);
+			
+        	var result = {}; 
+        	var v; 
+        	var rowCount = data@.recordCount;
+        	var trim = ..string.trimright; 
+        	var fields = data@.fields;
+        	for(c=1;#data){
+            	var col = data[c];
+            	var name = fields[c];
+            	if(!#name) name = c;
+            	
+            	if(c>1){
+            		for(r=1;rowCount){
+        				v = col[r];
+        				if( type( v ) == "string" ) v = trim(v);
+        				elseif( ..time.istime(v) ) v = ..time.ole(v);
+        			
+        				result[r][name]  = v;
+        			} 
+        		}
+        		else {
+        			for(r=1;rowCount){
+        				v = col[r];
+        				if( type( v ) == "string" ) v = trim(v);
+        				elseif( ..time.istime(v) ) v = ..time.ole(v);
+        				
+        				result[r] = { [name]  = v };
+        			} 
+        		}
+        	}
+        	
+        	result.fields = fields;
+			return result;
+		};
+		cmd[["stepQuery"]] = function(...){
+			return cmd.getTable(...)[[1]];
+		};
+		cmd["rowCount"] = function(){
+			return this.stepQuery("SELECT @@rowcount")[[1]];
+		};
+		cmd[["each"]] = function(...){  
+        	var rs,err = cmd.execute(...); 
+       		var first = true;
+       		if(!rs)error(err,2);
+       		
+        	return function(){ 
+        		if(!first) rs.movenext(); 
+        		else first = false;
+   	
+            	if( rs.eof )   return;
+ 				return rs;
+ 				
+        	},function(){ rs.close();   } ;
+    	}; 
+    	
+		return cmd;
+	}; 
+	
+	close = function(){
+		if(conn){
+			conn.close();
+			conn = null;
+			this.connection = null;
+		}
+	};
+	@_meta;
+} 
+
+namespace sqlServer {
+
+	_meta = {
+		_get = function(k){
+			if( ..string.cmp(k,"ad",2) == 0 ){
+				owner[[k]] = owner.connection[k];
+				return owner[[k]];	
+			};
+		}
+	};
+	
+	formatSqlParameters = function(sql,...) {
+	
+		if( type( ... ) == "table" ){
+			var param = ...;
+			return ..string.replace(sql,"\@(<:+>|<\w+>)",
+				function(name){
+					var v =  param[name] 
+					
+					var t  = type(v);	
+					if( t = "string" ){
+						return "'" +  ..string.replace(v,"'","''") + "'";
+					}
+					elseif( t = "number" ){
+						return tostring(v);
+					}
+					elseif( t = "boolean" ){
+						return v ? "1" : "0";
+					}
+					elseif( ( t = "table" ) && ..time.istime(v) ) {
+						var f = v.format;
+						v.format = "%Y-%m-%d %H:%M:%S";
+						var ret  = "'" +  tostring(v) + "'";
+						v.format = f;
+						return ret;
+					} 
+					return ..string.replace(tostring(v),"\p","");
+				} 
+			); 
+		} 
+		
+		return ..string.format(sql,...);
+	}
+}
+
+/**intellisense()
+sqlServer( 连接参数表 ) = @sqlServer( \n	["Data Source"] = "127.0.0.1,7788";\n	["Database"] = "数据库名__";\n	["User ID"] = "用户名";\n	["Password"] = "密码"; \n)
+sqlServer( "数据库连接语句",其他格式化参数 ) = @sqlServer("Provider=SQLOLEDB.1;Data Source=.\SQLEXPRESS;Database=数据库名;User ID=登录名;Password=登录密码");
+打开数据库连接,\n如果指定的数据库不存在将自动创建数据库文件\n如果存在格式化参数，则调用string.fomat格式化连接串
+sqlServer() = !sqlServer.
+sqlServer.formatSqlParameters(sql,其他格式化参数) = 如果格式化参数为一个表,则替换所有命名参数,\n否则调用 string.format 函数格式化SQL
+end intellisense**/
+
+/**intellisense(!sqlServer)
+? = 可直接使用对象的成员获取ADO组件提供的COM常量\n这些常量名的前缀都是 ad
+close() = 关闭数据库连接
+getTable(.("select * from [表名]",其他格式化参数) = 返回查询结果集数组\n每个元素代表一行,每行由N个键值对列组成\n返回值的fields成员记录了所有数据列的字段名\n结果集为空也会返回空数组,使用#操作符获取结果集长度
+getRows() = 查询并返回包含结果数据的数组\n此函数返回的数据是先列后行,与getTable相反,\n数组由所有列的数据组成,每个列都是由多个行组成的数组\n可以使用 返回数据[ 列号 ][ 行号 ] 获取对应的值,\n也可以使用 数据.字段名[列号] 获取对应的值\n\n返回数组的元表中使用recordCount记录了总行数,\n结果集为空也会返回空数组,可使用 @.recordCount判断记录集的行数\n元表中的fields字段则是记录了所有字段名的数组.\n\n所有值后面的占位空白没有去除\n可使用getTable函数获取处理过空白占位符的数据,\n或参考该函数源码自行处理尾部空白
+stepQuery(.("select * from [表名]",其他格式化参数) = 返回查询结果集第一行的数据,由键值对列组成\n无数据返回null
+rowCount() = 返回上次执行增、删、改、查等SQL影响的记录行数
+openRecordSet(.(sql,游标类型,锁定方法,其他格式化SQL参数) = 打开记录集,游标类型如下:\n0:默认值,启动一个只能向前移动的游标\n1:打开键集类型游标,允许任意移动，并且允许更改记录集\n2:打开动态类型游标,许所有操作，其他用户对记录集的添加、删除、更改在此记录集中\n3:打开静态类型游标\n\n锁定方法如下：\n1:默认值,不能改变数据\n2:悲观锁,编辑时立即锁定数据源的记录\n3:乐观锁,只在调用Update 方法时才锁定记\n4: 乐观批更新
+exec(.(sql,其他格式化SQL参数) =  如果格式化参数为一个表,则替换所有命名参数,\n否则调用 string.format 函数格式化SQL
+createCommand(.(sql,其他格式化SQL参数) = 创建命令对象\n 如果格式化参数为一个表,则替换所有命名参数,\n否则调用 string.format 函数格式化SQL
+existsTable(.("表名") = 判断数据库中是否存在指定表
+existsProcedure(.("存储过程名") = 判断数据库中是否存在指定存储过程
+each(sql,其他格式化参数) = @for(rs in ??.each("select * from [表名]") ){ 
+	io.print( rs("字段名").value );__
+}
+each() = !sqlServer_rs.
+createCommand() = !sqlServer_cmd.
+connection = 连接对象
+ 
+connection.ConnectionString = 连接串
+connection.Errors = 错误集合
+connection.Errors.count = 错误数
+connection.Errors(.(0) = 参数指定错误索引
+connection.Errors() = !ado_conn_err.
+
+findTableObject() = !ADOX_Catalog_tbl.
+findTableObject(.("表名") = 返回表对象
+findProcedureObject(.("存储过程名") = 返回存储过程对象
+eachTableObject = @for(tbName,tbType,tbObj in ??.eachTableObject() ){
+	
+}
+eachTableObject() = !ADOX_Catalog_tbl.
+end intellisense**/
+
+/**intellisense(!sqlServer_rs)
+close() = 关闭记录集 
+eof = 是否移动到尾部 
+end intellisense**/
+
+/**intellisense(!sqlServer_cmd)
+commandText = 要执行的SQL命令语句
+commandType = 命令类型\n普通SQL为1，存储过程为4
+execute(.(ra,parameters.option) = 执行查询,所有参数可选\n参数ra 返回受查询影响的记录的数目 \n参数parameters 用 SQL 语句传递的参数值 \n参数options 一个或者多个 CommandTypeEnum 或 ExecuteOptionEnum 值 
+executeStream(.(ra,parameters) = 执行查询返回流,所有参数可选\n参数ra 返回受查询影响的记录的数目 \n参数parameters 用 SQL 语句传递的参数值
+executeNoRecords(.(ra,parameters) = 执行查询不返回记录集,所有参数可选\n参数ra 返回受查询影响的记录的数目 \n参数parameters 用 SQL 语句传递的参数值
+cancel() = 取消执行
+getTable() = 执行SQL命令返回查询结果集数组\n每个元素代表一行,每行由N个键值对列组成\n返回值的fields成员记录了所有数据列的字段名\n结果集为空也会返回空数组,使用#操作符获取结果集长度
+getRows() = 查询并返回包含结果数据的SafeArray数组\n此函数返回的数据是先列后行,与getTable相反,\n数组由所有列的数据组成,每个列都是由多个行组成的数组\n可以使用 返回数据[ 列号 ][ 行号 ] 获取对应的值,\n也可以使用 数据.字段名[列号] 获取对应的值\n\n返回数组的元表中使用recordCount记录了总行数,\n结果集为空也会返回空数组,可使用 @.recordCount判断记录集的行数\n元表中的fields字段则是记录了所有字段名的数组.\n\n所有值后面的占位空白没有去除\n可使用getTable函数获取处理过空白占位符的数据,\n或参考该函数源码自行处理尾部空白
+stepQuery() = 执行SQL命令\n返回查询结果集第一行的数据,由键值对列组成\n无数据返回null
+rowCount() = 返回上次执行增、删、改、查等SQL影响的记录行数
+each() = @for(rs in ??.each() ){ 
+	io.print( rs(0).value );__/*执行SQL命令并遍历结果集*/
+}
+createParameter(.(名字,字段类型,参数类型,字段大小,参数值) = 创建参数\n参数中用到的常量请使用COM对象的成员常量获取,\n例如cmd.adLongVarWChar\n这个函数创建的参数还需要调用parameters.append添加到执行参数中\n\n不建议直接调用此函数，可以使用更简单的addParameter或bind函数添加参数
+parameters = 参数列表
+parameters.append(.(参数对象) = 添加参数\n注意access的参数对象虽然必须设置正确的名字,\n但实际上他只按添加顺序执行
+parameters.count() = 返回参数长度
+parameters.delete(.(索引) = 删除参数
+parameters.refresh() = 刷新参数
+parameters("__/*参数名*/") = 返回已添加的参数
+bind(__) = 参数是一个表,\n可使用多个键值对批量指定SQL命令对象的多个参数,\n此函数会按参数在SQL中出现的顺序逐个添加参数,\nSQL语句中所有参数名前面必须额外添加@前缀,\n此函数返回命令对象自身
+addParameter( = 调用createParameter创建参数对象,\n设置值并添加到SQL执行参数中\n注意如果直接使用这个函数添加参数,\nSQL语句中应当用?号作为参数占位符,\n参数只按添加顺序匹配SQL中的参数
+addParameter(.(名字,值,参数类型,字段类型,字段大小) = 直接添加SQL执行参数\n除名字，值以外的其他参数不必要设置\n返回创建的参数对象\n\n\n注意access的参数对象虽然必须设置正确的名字,\n但实际上他只按添加顺序执行
+bind() = !sqlServer_cmd.
+addParameter() = !sqlServer_parameter.
+parameters() = !sqlServer_parameter.
+end intellisense**/
+
+/**intellisense(!sqlServer_parameter) 
+value = 参数值
+direction = 参数的类型，默认是adParamInput
+name = 参数名称
+size  = 数据长度
+end intellisense**/
+
+/**intellisense(!ado_conn_err)
+Description = 错误描述
+Number = 错误代码
+Source = 错误对象
+SQLState = 数据源 
+NativeError = 数据源错误代码
+end intellisense**/
+
+/**intellisense(!ADOX_Catalog_tbl)
+Columns = 列集合
+Columns.Count = 总数
+Columns(.("列名") = 参数也可以写数值索引
+Columns() = !ADOX_Catalog_column.
+end intellisense**/
+
+/**intellisense(!ADOX_Catalog_column)
+Name = 列名
+Type = 类型
+DefinedSize = 字段大小 
+
+end intellisense**/

@@ -1,0 +1,196 @@
+import ide;
+import fsys.dlg;
+import win.util.tray
+import protobuf.parser
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="protobuf编译器";right=538;bottom=295;parent=...)
+winform.add(
+btnGenText={cls="button";text="编译生成";left=408;top=225;right=520;bottom=253;db=1;dr=1;z=5};
+btnOpenProtoFile={cls="button";text="选择proto文件...";left=414;top=6;right=526;bottom=33;dr=1;dt=1;z=2};
+cmbLang={cls="combobox";left=273;top=228;right=397;bottom=248;db=1;dr=1;edge=1;items={"aardio语言";"C++语言";"C++语言( Lite )";"Java语言";"python语言"};mode="dropdown";z=6};
+editOutDir={cls="edit";text="\res\";left=18;top=36;right=405;bottom=61;disabled=1;dl=1;dr=1;dt=1;edge=1;multiline=1;z=7};
+editProto={cls="edit";left=18;top=69;right=524;bottom=215;db=1;dl=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=4};
+editProtoFilePath={cls="edit";left=18;top=8;right=406;bottom=33;dl=1;dr=1;dt=1;edge=1;multiline=1;z=1};
+lbTip={cls="static";text="本程序编译proto描述文件,并自动在用户库中生成类库代码
+建议将此代码文件置入您的工程目录下,打开工程后运行该代码.";left=16;top=261;right=524;bottom=288;db=1;dl=1;transparent=1;z=3};
+tnOpenOutDir={cls="button";text="选择输出目录";left=414;top=35;right=526;bottom=62;dr=1;dt=1;z=8}
+)
+/*}}*/
+
+winform.cmbLang.oncommand = function(id,event){
+	winform.editProto.disabled = (winform.cmbLang.selIndex!=1)
+	if( winform.cmbLang.selIndex!=1){
+		winform.editOutDir.disabled = false; 
+		winform.editOutDir.text = "\res\out\"
+		if( ! #winform.editProtoFilePath.text ){
+			if( #winform.editProto.text ){
+				string.save("\res\temp.proto", winform.editProto.text )
+				winform.editProtoFilePath.text  = "\res\temp.proto"
+			}
+		}
+	}
+	else {
+		winform.editOutDir.disabled = true;
+		winform.editOutDir.text = "\res\"
+	}
+	
+	 
+}
+
+
+winform.cmbLang.selIndex = 1;
+
+winform.editProto.text = /*
+message Person {
+	required string name = 1;
+	required int32 id = 2;
+	optional string email = 3;
+	
+	enum PhoneType {
+		MOBILE = 0;
+		HOME = 1;
+		WORK = 2;
+	}
+	
+	message PhoneNumber {
+		required string number = 1;
+		optional PhoneType type = 2 [default = HOME];
+	}
+	// a simple comment
+	repeated PhoneNumber phone = 4;
+}
+	
+message AddressBook {
+	repeated Person person = 1;
+}
+*/
+
+import process;
+protoc = function( out_type,out_dir,protofile_path){
+	out_dir = io.fullpath( out_dir )  
+	fsys.createDir(out_dir)
+	
+	protofile_path = io.fullpath(protofile_path)
+	var tpath  = io.splitpath(protofile_path)
+	
+	protofile_shortpath = fsys.shortpath(protofile_path)
+	var tshortpath  = io.splitpath(protofile_shortpath)
+ 
+ 	io.open()
+	var prcs = process( 
+		fsys.shortpath( "\res\protoc.exe" ),
+		' --proto_path=' + tshortpath.dir 
+		+' --' + out_type + '=' + fsys.shortpath ( out_dir ) 
+		+ ' ' + fsys.joinpath(tshortpath.dir,tpath.file)   
+	) 
+	thread.wait( prcs.thandle );
+	io.close()
+}
+
+winform.btnGenText.oncommand = function(id,event){
+	var selText = winform.cmbLang.selText;
+	
+	if( selText == "aardio语言"){
+		var p = protobuf.parser();
+		p.parse( winform.editProto.text )
+		winform.lbTip.text = "编译完成,已添加protobuf类到用户库" 
+	}
+	else {
+	
+		if( ! io.exist("\res\protoc.exe") ){ 
+			if( ..win.msgboxTest(  "未找到其他语言的编译器，需要现在下载吗?","aardio") ){ 
+		 		import inet.downBox;
+				var downBox = inet.downBox(winform,"aardio - 下载Protobuf编译器",true) 
+				if( not downBox.download(
+					"http://download.aardio.com/v10.files/tool/protoc.zip","/protoc.zip"
+	 				,null,null,"")  
+	 			) {  
+					return;
+				}
+				
+				try{
+					import console;
+					import zlib.unzip;
+					zlib.unzip.extract( "/protoc.zip","/res",
+						function(fileName,extractPath,fileInfo,size,unitSize,unitName){
+							console.log("正在解压缩",extractPath)
+							return true;
+						}
+					)
+					io.close()
+				} 
+		 		
+				if( !..io.exist("\res\protoc.exe" ) ){
+					winform.msgboxErr("下载Protobuf编译器失败","aardio")
+					return;
+				} 
+			}
+			else {
+				return;
+			}
+		}
+		
+		if( ! io.exist(winform.editProtoFilePath.text) ){
+			winform.msgbox("请指定有效的proto文件路径","标题")
+			winform.editProtoFilePath.setFocus()
+			return;
+		}
+		var map = { ["C++语言"]="cpp_out";["Java语言"]="java_out";["python语言"]="python_out";["C++语言( Lite )"]="cpp_out" };
+		
+		var protoPath = winform.editProtoFilePath.text
+		if( selText = "C++语言( Lite )" ){
+			var str = string.load(protoPath)
+			str = 'option optimize_for = LITE_RUNTIME;\r\n' + str;
+			string.save(protoPath, str)
+		}
+		else {
+			var str = string.load(protoPath)
+			str = 'option optimize_for = LITE_RUNTIME;\r\n' + str;
+			str = string.replace(str,'@option optimize_for = LITE_RUNTIME;\r\n',"");
+			string.save(protoPath, str)	
+		}
+		
+		protoc(  map[selText],winform.editOutDir.text, winform.editProtoFilePath.text);
+		process.explore_select(winform.editOutDir.text)
+		winform.lbTip.text = '已输出到:' + io.fullpath(winform.editOutDir.text)
+		win.util.tray.pop('已生成类库,请打开目录\n' + io.fullpath(winform.editOutDir.text),"Protobuf UI")
+	}
+	
+}
+ 
+
+winform.btnOpenProtoFile.oncommand = function(id,event){
+	var path  = fsys.dlg.open("proto描述文件|*.proto||")
+	if(path)
+		winform.editProtoFilePath.text = path;
+		 
+	var tpath = io.splitpath( path )
+	if( string.cmp(tpath.ext,".proto") != 0 ){
+		winform.msgbox("不是有效的proto文件","错误")
+		return;
+	}
+	winform.editProto.text = string.load(path)
+}
+
+winform.tnOpenOutDir.oncommand = function(id,event){
+	var path  = fsys.dlg.opendir( )
+	if(path)
+		winform.editOutDir.text = path
+	else {
+		winform.editOutDir.text = "";
+	} 
+}
+
+winform.wndproc = function(hwnd,message,wParam,lParam){
+	select(message) {//判断消息类型
+		case 0x233/*_WM_DROPFILES*/  { 
+			winform.editProtoFilePath.text = win.getDropFile(wParam )[1];   
+		} 
+	}
+}//endproc
+ 
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();
+return winform;

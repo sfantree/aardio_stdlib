@@ -1,0 +1,38 @@
+import win.ui;
+import win.ui.menu;
+import win.ui.toolbar;
+/*DSG{{*/
+var winform = ..win.form(text="aardio form";right=349;bottom=249;parent=...)
+winform.add()
+/*}}*/
+
+/*==========菜 单==============*/
+winform.popmenu = win.ui.popmenu(winform);//创建弹出菜单
+var idFileNew = winform.popmenu.add(
+	'新建',
+	function(id){ 
+		win.msgbox("新建");
+	}
+);
+winform.popmenu.add();//分隔线
+winform.popmenu.add('&exit',function(id){ winform.close() })
+win.ui.menu(winform).add('file',winform.popmenu)
+
+/*==========工具条==============*/
+var toolbar = win.ui.toolbar(winform);
+toolbar.create( style = 0x1000/*_TBSTYLE_LIST*/ ); // 创建工具条
+toolbar.showLabel = true; //在按钮上显示文字
+toolbar.imageList = win.imageList( 16, 16 ).add($"\res\toolbar.gif",0xFF00FF/*透明色*/) ; 
+
+toolbar.add();// 添加分隔条
+toolbar.add( "新建", , 1,idFileNew/*重用现有命令ID*/ );
+toolbar.add(
+	"禁用", 
+	function (id) { 
+		toolbar.getButton(3).disabled = false; 
+		toolbar.getButtonById(id).disabled = true;
+	}, 2
+); 
+
+winform.show(true) 
+win.loopMessage(); 

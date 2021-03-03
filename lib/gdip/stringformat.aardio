@@ -1,0 +1,112 @@
+//stringformat 文本格式
+namespace gdip ;
+import gdip.core;
+class stringformat { 
+
+	ctor( formatAttributes=0,language=0 ){ 
+		this.pStringFormat = gdip.assert2(  gdip.CreateStringFormat (formatAttributes,language)   )   
+		if(!this.pStringFormat) error("参数错误",2) 
+		..table.gc(this,"delete");
+	}
+
+	@_metaProperty//元表指向属性表
+}
+
+namespace stringformat {
+
+	self.gdip = ..gdip;
+	var gdip = gdip;
+	
+	_metaProperty = ..util.metaProperty(
+	
+	 	align = {
+			_get = function(){ 
+				return gdip.assert2(  gdip.GetStringFormatAlign(owner[["pStringFormat"]], 0) ); 
+			} 
+			_set = function(v){ 
+				gdip.assert2( gdip.SetStringFormatAlign(owner[["pStringFormat"]], v) );
+			}  	
+		}; 
+		
+		lineAlign = {
+			_get = function(){ 
+				return gdip.assert2(  gdip.GetStringFormatLineAlign(owner[["pStringFormat"]], 0) ); 
+			} 
+			_set = function(v){ 
+				gdip.assert2( gdip.SetStringFormatLineAlign(owner[["pStringFormat"]], v) );
+			}  	
+		}; 
+		
+		flags = {
+			_get = function(){ 
+				return gdip.assert2(  gdip.GetStringFormatFlags(owner[["pStringFormat"]], 0) ); 
+			} 
+			_set = function(v){ 
+				gdip.assert2( gdip.SetStringFormatFlags(owner[["pStringFormat"]], v) );
+			}  	
+		}; 
+		trimming = {
+			_get = function(){ 
+				return gdip.assert2(  gdip.GetStringFormatTrimming(owner[["pStringFormat"]], 0) ); 
+			} 
+			_set = function(v){ 
+				gdip.assert2( gdip.SetStringFormatTrimming(owner[["pStringFormat"]], v) );
+			}  	
+		};
+	 	hotkeyPrefix = {
+			_get = function(){ 
+				return gdip.assert2(  gdip.GetStringFormatHotkeyPrefix(owner[["pStringFormat"]], 0) ); 
+			} 
+			_set = function(v){ 
+				gdip.assert2( gdip.SetStringFormatHotkeyPrefix(owner[["pStringFormat"]], v) );
+			}  	
+		};
+		delete = function(){
+			if( owner[["pStringFormat"]] ){
+				gdip.DeleteStringFormat(owner[["pStringFormat"]])
+				owner[["pStringFormat"]] = null;
+			}
+		};
+		//自动转换为API指针
+		_topointer = function(){
+			return owner[["pStringFormat"]];
+		}
+	) 
+	
+	genericTypographic = function(){
+		var sf = {ptr value};
+		::Gdiplus.GdipStringFormatGetGenericTypographic(sf);
+		var sf = {pStringFormat = sf.value;@_metaProperty};
+		..table.gc(sf,"delete");
+		return sf;
+	}
+}
+ 
+var $ = _dll; //http://msdn.microsoft.com/en-us/library/ms534052(v=vs.85).aspx
+/*intellisense(gdip)*/ 
+CreateStringFormat = $.api("GdipCreateStringFormat","int(int formatAttributes,word language,pointer& StringFormat)")
+DeleteStringFormat = $.api("GdipDeleteStringFormat","int(PTR strFmt)")
+SetStringFormatAlign = $.api("GdipSetStringFormatAlign","int(PTR strFmt,int align)")
+GetStringFormatAlign = $.api("GdipGetStringFormatAlign","int(PTR strFmt,int& align)")
+CloneStringFormat = $.api("GdipCloneStringFormat","int(PTR strFmt,int& newFormat)")
+SetStringFormatFlags = $.api("GdipSetStringFormatFlags","int(PTR strFmt,int flags)")
+GetStringFormatFlags = $.api("GdipGetStringFormatFlags","int(PTR strFmt,int& flags)")
+SetStringFormatLineAlign = $.api("GdipSetStringFormatLineAlign","int(PTR strFmt,int align)")
+GetStringFormatLineAlign = $.api("GdipGetStringFormatLineAlign","int(PTR strFmt,int& align)")
+SetStringFormatHotkeyPrefix = $.api("GdipSetStringFormatHotkeyPrefix","int(PTR strFmt,int hkPrefix)")
+GetStringFormatHotkeyPrefix = $.api("GdipGetStringFormatHotkeyPrefix","int(PTR strFmt,int& hkPrefix)")
+SetStringFormatTrimming = $.api("GdipSetStringFormatTrimming","int(PTR strFmt,int trimming)")
+GetStringFormatTrimming = $.api("GdipGetStringFormatTrimming","int(PTR strFmt,int& trimming)")
+/*end intellisense*/
+ 
+/**intellisense()
+gdip.stringformat(.(formatAttributes,language) = 创建文本格式对象\n参数都是可选参数,默认值为0
+!gdipstringformat.lineAlign = @.lineAlign = _GdipStringAlignment__ ;
+!gdipstringformat.align = @.align = _GdipStringAlignment__ ;
+!gdipstringformat.flags = @.flags = _GdipStringFormatFlags__ ;
+!gdipstringformat.hotkeyPrefix = @.hotkeyPrefix = _GdipHotkeyPrefix__ ; 
+!gdipstringformat.trimming = @.trimming = _GdipStringTrimming__ ; 
+!gdipstringformat.delete() = 删除对象
+gdip.stringformat.genericTypographic() = 返回一个格式对象\n测量字符串的长度时，禁止GDI+添加额外长度或宽度\n测量结果偏小\n!gdipstringformat.
+gdip.stringformat() = !gdipstringformat.
+end intellisense**/

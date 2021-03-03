@@ -1,0 +1,149 @@
+//progress 进度条
+import win.ui.ctrl.metaProperty;//导入控件属性元表支持
+namespace win.ui.ctrl;  
+
+class progress{
+    ctor(parent,tParam){ 
+    	if(tParam){
+    		tParam.cls = "msctls_progress32";
+			if(tParam.edge) tParam.style |= 0x20000/*_WS_EX_STATICEDGE*/;	
+		} 
+		 
+		this._private  = {
+			step = 10;
+		}
+    }
+	@_metaProperty;
+}
+
+progress._metaProperty =  metaProperty(
+	bgcolor = {
+		_get = function(){
+			return ::SendMessage(owner.hwnd,0x40E/*_PBM_GETBKCOLOR*/);
+		}
+		_set = function(v){
+			::SendMessageInt(owner.hwnd,0x2001/*_PBM_SETBKCOLOR*/,0,v);
+		} 
+	};
+	color = {
+		_get = function(){
+			return ::SendMessage(owner.hwnd,0x40F/*_PBM_GETBARCOLOR*/);
+		}
+		_set = function(v){
+			::SendMessageInt(owner.hwnd,0x409/*_PBM_SETBARCOLOR*/,0,v);
+		} 
+	};
+	setRange = function(min,max){ 
+		if( max===null ) max = min;
+		if( min===null ) min = max;
+		if( max > 0xFFFF ){
+			error("最大值不能大于0xFFFF",2);
+		}
+
+		owner.step = 1;
+		owner.pos = min;
+ 		 ::SendMessageInt(owner.hwnd, 0x401/*_PBM_SETRANGE*/, 0,::MAKELONG(min,max)  );
+ 	};
+	min = {
+		_get = function(){ 
+			return ::SendMessageInt(owner.hwnd, 0x407/*_PBM_GETRANGE*/, 1,0);
+		}
+		_set = function( v ){
+			owner.setRange( v,owner.max);
+		} 	
+	}; 
+	max = {
+		_get = function(){  
+			return ::SendMessageInt(owner.hwnd, 0x407/*_PBM_GETRANGE*/, 0,0 );
+		}
+		_set = function( v ){
+			if( v > 0xFFFF ) error("最大值不能大于0xFFFF",2);
+			owner.setRange( owner.min,v);
+		}	
+	};
+	pos = {
+		_get = function(){
+			return  ::SendMessage(owner.hwnd,0x408/*_PBM_GETPOS*/);
+		}
+		_set = function( v ){
+		     ::SendMessageInt(owner.hwnd, 0x402/*_PBM_SETPOS*/, v, 0)
+		} 	
+	};
+	delta = function(v){
+		::SendMessageInt(owner.hwnd, 0x403/*_PBM_DELTAPOS*/, v, 0)
+	};
+	stepIt = function(){
+		return ::SendMessage(owner.hwnd,0x405/*_PBM_STEPIT*/);
+	};
+	step =  {
+		_get = function(){ 
+			return owner._private.step;
+		}
+		_set = function( v ){ 
+			 owner._private.step = v;
+		     ::SendMessageInt(owner.hwnd, 0x404/*_PBM_SETSTEP*/,v,0)
+		} 	
+	};
+	startProgress = function(interval){
+		if(owner.animationId) owner.clearInterval(owner.animationId)
+		owner.hide = false;
+		var this = owner;
+		var max = this.max;
+		owner.animationId = owner.setInterval(interval:10,function(){
+			if( this.stepIt() >= max ) this.pos = this.min;
+		})
+	};
+	stopProgress = function(){
+		if(owner.animationId) owner.clearInterval(owner.animationId);
+		owner.animationId = null;
+		owner.hide = true;
+	};
+)
+
+/***intellisense()
+win.ui.ctrl.progress = 进度条控件支持库
+win.ui.ctrl.progress() = 进度条控件\n!progress.
+?win.ui.ctrl.progress  =!progress.
+!progress.delta(.(偏移值) = 修改当前进度,参数指定相对于当前进度的偏移值
+!progress.stepIt() = 进度条前进一个增量\n返回步进前位置
+!progress.step = 设置stepIt()函数的步进增量\n默认为10
+!progress.pos = 进度条当前值,不能大于0xFFFF,不要使用负数
+!progress.setRange(.(最小值,最大值) = 设置进度条最大值,最小值\n注意值不能大于0xFFFF,不要使用负数
+!progress.hwnd = 控件句柄
+!progress.id = 控件ID
+!progress._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!progress.getParent() = 返回父窗口\n!static.
+!progress.setParent(__/*控件对象*/) = 改变父窗口 
+!progress.hide = 控件是否隐藏
+!progress.disabled = 是否禁用
+!progress.left = 左侧坐标
+!progress.right = 右侧坐标
+!progress.top = 顶部坐标
+!progress.bottom = 底部坐标
+!progress.width = 宽度
+!progress.height = 高度
+!progress.redraw() = 刷新
+!progress.show(true__) = 显示控件
+!progress.getRect() = 控件区块位置(::RECT结构体)
+!progress.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!progress.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!progress.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!progress.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+!progress.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!progress.max = 最大值,注意不能大于0xFFFF,不要使用负数
+!progress.min = 最小值,注意不能大于0xFFFF,不要使用负数
+!progress.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!progress.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!progress.capture = 是否捕获全局鼠标消息
+!progress.close() = 关闭控件窗
+!progress.invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+!progress.invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+!progress.update() = 重绘invalidate函数指定的区块
+!progress.setFocus() = 设置焦点 
+!progress.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!progress.getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd)
+!progress.orphanWindow() = 使控件脱离原来的窗口,可以显示在父窗口外面,\n但仍然显示在原来的位置,继续如影随形的跟随父窗口移动或改变大小,\n控件原来的固定边距等参数仍然有效
+!progress.threadCallable() = 开启此控件的跨线程调用功能
+!progress.startProgress() = 显示进条,并显示循环滚动进度的动画,\n可选在参数中指定动画间隔时,以毫秒为单位
+!progress.stopProgress() = 停止显示循环滚动进度动画,隐藏进度条
+end intellisense***/

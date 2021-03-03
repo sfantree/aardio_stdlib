@@ -1,0 +1,25 @@
+﻿import ide;
+import fsys;
+
+if(!#ide.getConfig("first_build_warning")){
+    import win.dlg.message
+    win.dlg.message(ide.getMainHwnd()).warn('生成 EXE 文件以前请务必关闭安全监控类软件，\n并暂停系统自带的 Windows Defender 实时保护服务，\n以避免生成 EXE 时卡顿或异常。')
+	ide.setConfig("first_build_warning","true");
+	
+}
+
+var projectPath = ide.getProjectPath(); 
+var projectFileName = io.splitpath(projectPath).name; 
+var builder = fsys.joinpath(ide.getProjectDir(),".build\" + projectFileName + ".init.aardio"); 
+if( io.exist( builder ) ){   
+	var tHnd = thread.create(builder)
+	if(tHnd){
+		thread.waitOne(tHnd);
+		raw.closehandle(tHnd);
+	}
+} 
+else {
+	import fsys;
+	fsys.createParentDir(builder)
+	string.save(builder,'//发布前触发\nimport ide;') 
+} 

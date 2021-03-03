@@ -1,0 +1,56 @@
+//动态加载子项演示
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="树形控件动态加载子项演示";right=349;bottom=249)
+winform.add(
+button={cls="button";text="查找动态加载的子项";left=136;top=200;right=305;bottom=242;z=2};
+treeview={cls="treeview";left=22;top=17;right=326;bottom=192;asel=1;bgcolor=15793151;edge=1;vscroll=1;z=1}
+)
+/*}}*/
+
+import fsys;
+winform.treeview.onnotify = function(id,code,ptr){
+
+ 	 if( code = 0xFFFFFE3A/*_TVN_ITEMEXPANDINGW*/){  
+ 	 	var nmtv = winform.treeview.getNotifyMessage(code,ptr) 
+ 	 	if(nmtv.action & 2/*_TVE_EXPAND*/) { 
+			var tvi = winform.treeview.getItem(nmtv.itemNew.hItem)    
+    		if( ! winform.treeview.isExpandedOnce(nmtv.itemNew.hItem) ) {  
+    			 var _,files = fsys.list("~\codes\范例程序\") 
+         		 winform.treeview.insertItem( files,tvi.hItem) 
+    		}
+		}
+ 	 	
+ 	 }
+	/**
+	 elseif( code == 0xFFFFFE3C/*_TVN_GETDISPINFOW*/){ 
+	 	var dispInfo = winform.treeview.getNotifyDispInfo(code,ptr) 
+	 	if( dispInfo ? dispInfo.item ) {
+	 		if( ( dispInfo.item.mask & 0x40/*_TVIF_CHILDREN*/ ) ){ 
+	 			dispInfo.item.cChildren = 1; 
+	 			raw.mixin(ptr,dispInfo);
+	 		} 
+	 	}
+	 } 
+	**/
+}
+
+/**
+如果cChildren指定为 -1/*_I_CHILDRENCALLBACK*/ 会调用_TVN_GETDISPINFOW获取节点数,
+这种方式在节点数目太多时性能较差会出现卡顿现象，而且没有什么意义，所以直接把cChildren指定为1就可以。
+**/
+winform.treeview.insertItem( { 
+        text = "范例"; 
+        cChildren = 1; //指定节点有有一个或多个动态加载的子项,这里只要指定为1，指定为其他数目无意义
+} ) 
+ 
+winform.button.oncommand = function(id,event){ 
+	var hItem = winform.treeview.findPath("范例\HTMLayout")
+	if( hItem ) {
+		winform.treeview.setSelected(hItem);
+		winform.treeview.setItemText(hItem,"HTMLayout2") 
+	}
+} 
+	
+winform.show() 
+win.loopMessage();

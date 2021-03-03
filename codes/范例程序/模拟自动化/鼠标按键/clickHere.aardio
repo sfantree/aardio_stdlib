@@ -1,0 +1,32 @@
+//简单鼠标连点
+
+import win;
+import win.util.tray
+import key.hook;
+import mouse;
+
+/*
+按1开始连点
+按2停止
+按3退出","简单连点程序
+*/
+
+hook = key.hook()
+hook.proc=function(msg,vkcode,scancode){
+    var kn = key.getName( vkcode );
+    if( kn=="1"  ){
+        clickHere = true;
+    }
+    elseif( kn=="2"  ){
+        clickHere = false;
+    }
+    elseif( kn=="3"  ){
+        win.quitMessage()
+    }
+  
+}
+
+while( win.delay(1) ){
+    if( clickHere )
+        mouse.click();
+}

@@ -1,0 +1,696 @@
+﻿import web.rest.jsonClient;
+import chrome.path;
+import fsys.version;
+import zlib.httpFile;
+import fsys;
+import wsock;
+import process.popen;
+import win;
+import winex;
+
+namespace chrome;
+
+class driver{
+	ctor(chromePath,driverPath,installTitle){
+		if(!driverPath){
+			if(!chromePath){ chromePath = ..chrome.path(); } 
+			if(!chromePath) return null;
+			
+			driverPath = ..io.exist( ..fsys.path.replaceFile(chromePath,"chromedriver.exe") );
+			if(!driverPath){
+				var vInfo = ..fsys.version.getInfo(chromePath);
+				if(!vInfo[["productVersion"]][["major"]]){
+					return null,"获取 chrome版本失败"
+				}
+				
+				var productVersion = vInfo.productVersion;
+				var convert = versionConvert[vInfo.productName];
+				if( convert ){
+					var v2 = convert( tostring(vInfo.productVersion));
+					if(v2) productVersion = v2;
+				} 
+				
+				if(!productVersion){
+					return null,"未找到匹配的chromeDriver版本"
+				}
+				
+				this.chromeVersion = productVersion;
+				driverPath = requirePath(productVersion,installTitle);
+				if(!driverPath){
+					return null,"未找到匹配的chromeDriver版本"
+				}	
+			}
+		}
+		elseif(!..io.exist(driverPath)){ 
+			driverPath = requirePath(tostring(driverPath),installTitle);
+			if(!driverPath){
+				return null,"未找到匹配的chromeDriver版本"
+			}
+		}
+		
+		this.chromePath = chromePath;
+		this.driverPath = driverPath;
+		this.client = ..web.rest.jsonClient();
+		this.client._chromeDriver = this;
+	};
+	startServer = function(port,...){
+		if( this.server ) return this.server;
+		if(!port) port = ..wsock.getFreePort();
+		this.port = port;
+			
+		if( type(...) == type.table ){
+			this.server = ..process.popen(this.driverPath,{this.driverPath;"--port=" + port},...);
+		}
+		else {
+			this.server = ..process.popen(this.driverPath,this.driverPath,"--port=" + port,...);
+		}
+		
+		if(!this.server) return null,"启动chromeDriver失败";
+		this.server.beforeClose = function(){
+			this.server.process.terminate();
+		}
+		this.url = "http://localhost:" + this.port; 
+		this.clientApi = this.client.api(this.url);
+		return this.server;
+	};
+	addArguments = function(...){
+		if( !this.chromeArguments )this.chromeArguments ={};
+		if( type(...) == type.table ) ..table.append(this.chromeArguments,...)
+		else ..table.push( this.chromeArguments,... );
+	};
+	removeArguments = function(...){
+		if( !this.excludeSwitches )this.excludeSwitches ={};
+		if( type(...) == type.table ) ..table.append(this.excludeSwitches,...)
+		else ..table.push( this.excludeSwitches,... );
+	};
+	setOptions = function(opt){
+		if( !this.chromeOptions )this.chromeOptions ={};
+		this.chromeOptions = ..table.assign(this.chromeOptions,opt);
+	};
+	setProxy = function(proxy){
+		if( !this.chromeProxy )this.chromeProxy ={};
+		this.chromeProxy = ..table.assign(this.chromeProxy,proxy);	
+	};
+	getCapabilities = function(cap){
+		if( !cap ) cap = {};
+		cap.browserName = "chrome";
+			
+		cap.chromeOptions = ..table.assign( cap.chromeOptions,this.chromeOptions,{
+			binary = this.chromePath; 
+		});
+		
+		if(this.chromeProxy && !cap.proxy){
+			cap.proxy = this.chromeProxy;
+		}
+		
+		var enableLogging = false;
+		if( this.chromeArguments ) {
+			cap.chromeOptions.args = ..table.append(cap.chromeOptions.args:{},this.chromeArguments);
+			enableLogging = ..table.some(this.chromeArguments ,lambda(v) ..string.indexOf(v,"--enable-logging") );
+		}
+		
+		if(!enableLogging){
+			cap.chromeOptions.excludeSwitches = ..table.append({"enable-logging"},cap.chromeOptions.excludeSwitches);
+		}
+		
+		if( this.excludeSwitches ){
+			cap.chromeOptions.excludeSwitches = ..table.append(cap.chromeOptions.excludeSwitches:{},this.excludeSwitches);
+		}
+		
+		if(cap.chromeOptions.excludeSwitches){
+			cap.chromeOptions.excludeSwitches = ..table.map(cap.chromeOptions.excludeSwitches,function(v,k,result){
+				if( ..string.startWith(v,"--" ) ) return ..string.right(v,-3);
+				return v;
+			})	
+		}
+		
+		if( this.debuggerPort ){
+			this.debuggerAddress = "127.0.0.1:" + this.debuggerPort
+		}
+		
+		if( this.debuggerAddress ){
+			cap.chromeOptions = ..table.assign( cap.chromeOptions,this.chromeOptions,{
+				debuggerAddress = this.debuggerAddress; 
+			});
+		}
+		
+		if(cap.chromeOptions.debuggerAddress){
+			cap.chromeOptions.binary = null;
+			cap.chromeOptions.excludeSwitches = null;
+		}
+		
+		return cap
+	};
+	createBrowser = function(desiredCapabilities,requiredCapabilities){
+		if(!this.startServer())return;
+
+		return ..thread.lock("chrome.driver.3F5D9C63-5F8D-4190-83F7-F5C82DAF4E5A",function(){
+			var chromeWins = {}
+			for hwnd,title,threadId,processId in ..winex.each( "Chrome_WidgetWin_1") { 
+				chromeWins[hwnd] = processId;
+			}
+	
+			var ses = this.clientApi.session(
+				desiredCapabilities = this.getCapabilities(desiredCapabilities);
+				requiredCapabilities = requiredCapabilities; 
+			);
+	
+			for hwnd,title,threadId,processId in ..winex.each( "Chrome_WidgetWin_1") { 
+				if(!chromeWins[hwnd]){
+					if( !..win.isVisible(hwnd) ) continue;
+					if( ..win.getOwner(hwnd) ) continue;
+					//如果有其他进程在此时创建相同类名的窗口,这里有可能会获取到错误的句柄
+					ses.hwndChrome = hwnd;
+				}
+			} 
+			return ses;			
+		})
+
+	};
+	startBrowser = function(desiredCapabilities,requiredCapabilities){
+		var sessionInfo = this.createBrowser(desiredCapabilities,requiredCapabilities);
+		if(sessionInfo[["sessionId"]]){ 
+			if(sessionInfo[["status"]]!==0){
+				error(sessionInfo[["value"]][["message"]],2)
+			}
+			
+			this.sessionInfo = sessionInfo;
+			var ses = this.clientApi.session[sessionInfo.sessionId]
+			if(ses){ 
+				ses[["sessionInfo"]] = sessionInfo; 
+				ses =  chromeSessionEx(ses);
+				ses.hwndChrome = sessionInfo.hwndChrome;
+				ses.restClient = this.client;
+				return ses;
+			}
+		}
+	};
+	attach = function(debuggerPort,desiredCap,requiredCap){
+		if(debuggerPort===null){
+			error("必须指定调试端口",2)
+		} 
+	
+		this.debuggerPort = debuggerPort;
+		return this.startBrowser(desiredCap,requiredCap);
+	};
+	startAppBrowser = function(app,args,desiredCap,requiredCap){
+		if( type(app) == "string" ){
+			this.setOptions( args = {"--app="+app} );
+			return this.startBrowser(desiredCap,requiredCap);
+		}
+		
+		this.setOptions( args = args );
+		
+		var ses;
+		if( ..string.startWith(app.indexUrl,"http:",true) || ..string.startWith(app.indexUrl,"https:",true) ){
+			ses = this.startBrowser(desiredCap,requiredCap);
+		}
+		else {
+			//避免单线程异步嵌入服务器无法响应当前线程请求
+			var afterSend = this.client.afterSend;
+			this.client.afterSend = function(){ ..win.delay(500);}
+			es = this.startBrowser(desiredCap,requiredCap);	
+			this.client.afterSend = afterSend;
+		}
+		
+		if(ses){
+			ses.loadScript( app.getUrl("/aardio.js") );
+			..win.delay(100);
+			return ses;	
+		}
+	};
+	lastRequestUrl = function(){
+		return this.client.lastRequestUrl;
+	};
+	lastResponse = function(){
+		return this.client.lastResponse();
+	};
+	close = function(){ 
+		if(this.server){
+			this.server.close();
+			this.server = null;
+		}
+	};
+}
+
+namespace driver{
+	
+	//扩展会话API
+	class chromeSessionEx{
+		ctor( session ){
+			this = session;
+		};
+		go = function(url){
+			return owner.url( url = url )
+		};
+		close = function(){
+			this.window.delete();
+		};
+		closeAll = function(){ 
+			for( index,window,title,url in this.eachWindow() ){
+				this.window.delete();
+			} 
+		};
+		query  = function(opt){
+			var ele;
+			if( opt ){
+				var k,v = ..table.next(opt);
+				if(!k) return;
+				ele = owner.element( using = k; value = v; );
+			}
+			else {
+				ele = owner.element.active();
+			}
+			
+			var id = ele[["value"]][["ELEMENT"]];
+			if(id){ 
+				return chromeElementEx( owner,this.element,id );
+			}
+		};
+		queryAll = function(opt){ 
+			var k,v = ..table.next(opt);
+			if(!k) return;
+			var eles = owner.elements( using = k; value = v; );
+				
+			if(eles[["status"]] === 0){
+				var result = {};
+				for i,e in ..table.eachIndex(eles[["value"]]){  
+					if( e[["ELEMENT"]] ) ..table.push(result,chromeElementEx( owner,this.element,e[["ELEMENT"]]) );	
+				}
+				return result;
+			}
+		};
+		querySelector = function(css){
+			return owner.query(
+				["css selector"] = css;
+			)
+		}; 
+		querySelectorAll = function(css){
+			return owner.queryAll(
+				["css selector"] = css;
+			)
+		};
+		doCdpCmd = function(cmd, cmd_args){
+			return owner.goog.cdp.execute(
+				cmd=cmd;
+				params=cmd_args
+			)
+		};
+		doScript = function(script,...){
+			var ret =  owner.execute/*.sync*/(
+				script = script;
+				args = {@{_type="array"};...}
+			)
+			
+			if( ret[["status"]] === 0 ){
+				var r = ret.value;
+				if( type(r) == type.table ){
+					if( r.ELEMENT ) return chromeElementEx( owner,this.element,r[["ELEMENT"]]); 
+					
+					return ..table.mapDeep(r,function(v,k,result){ 
+						if( k == "ELEMENT" ) {
+							var e = chromeElementEx( this,this.element,v); 
+							..table.assign(result,e);
+							result@ = e@;
+							return;
+						}
+						return v; 
+					})
+				}
+						
+				return r;
+			}
+			
+			return null,ret;
+		};
+		loadScript = function(jsfile){
+			this.restClient.notify(
+				function(){
+					var js = ..string.load(jsfile);
+					if(js){
+						return this.doScript(js);
+					};
+					
+					this.doScript(`
+					var head = document.getElementsByTagName('head').item(0);
+					var js = document.createElement('script');
+					js.src = arguments[0];
+					js.type = 'text/javascript';  
+					js.defer = true;   
+					head.appendChild(js);
+					`,jsfile );	
+				}
+			); 
+		};
+		notify = function(func,...){
+			this.restClient.notify(func,...);
+		};
+		getCurrentUrl = function(){
+			var result = this.url.get();
+			if( result[["status"]] == 0 )  return result.value;
+		};
+		getCurrentTitle = function(){
+			var result = this.title.get();
+			if( result[["status"]] == 0 )  return result.value;
+		};
+		getCurrentWindow = function(){
+			var result = this.window_handle.get();
+			if( result[["status"]] == 0 )  return result.value;
+		};
+		switchWindow = function(wnd){
+			var result = this.window.post( name = wnd );
+			return result[["status"]] == 0;
+		};
+		findTitle = function(str){
+			var cur = this.getCurrentWindow();
+			for( index,window,title,url in this.eachWindow() ){
+				if( title ? ..string.find(title,str) ) return true;
+			}
+			this.switchWindow( cur );
+		};
+		findUrl = function(str){
+			var cur = this.getCurrentWindow();
+			for( index,window,title,url in this.eachWindow() ){
+				if( url ? ..string.find(url,str) ) return true;
+			}
+			this.switchWindow( cur );
+		};
+		waitTitle = function(str,...){
+			return ..win.wait( lambda() this.findTitle(str),... ) 
+		};
+		waitUrl = function(str,...){
+			return ..win.wait( lambda() this.findUrl(str),... ) 
+		};
+		eachWindow = function(){
+			var info = this.window_handles.get();
+			if( info[["status"]] != 0 ) return function(){}
+			
+			var windows = info.value;
+			var i,wnd; 
+			return function(){
+				i,wnd = ..table.next(windows,i);
+				if(i){
+					var result = this.window.post( name = wnd )
+					if( result[["status"]] == 0 ) { 
+						return i,wnd,this.getCurrentTitle(),this.getCurrentUrl();
+					}
+				}
+			} 
+		};
+	}
+	
+	namespace chromeSessionEx{
+		
+		//扩展元素API
+		class chromeElementEx{
+			ctor( parent,element,id ){
+				this = element[id];
+				this.ELEMENT = id;
+				..table.define(this,"ELEMENT");//WebElement JSON Object
+				
+				this.query = parent.query;
+				this.queryAll = parent.queryAll;
+				this.querySelector = parent.querySelector;
+				this.querySelectorAll = parent.querySelectorAll;
+			};
+			setValue = function(...){
+				return this.value(
+					value = { ... };
+				)
+			};
+			innerText = function(){
+				var r = this.text.get();
+				if( r[["status"]] === 0 ){
+					return r.value
+				}
+			};
+		}
+	}
+	
+	chrome2driverVersion ={
+		["78"] = "78.0.3904.70";
+		["77"] = "77.0.3865.40";
+		["76"] = "76.0.3809.12";
+		["75"] = "75.0.3770.8";
+		["73"] = "2.46";
+		["71"] = "2.45";
+		["70"] = "2.42";
+		["68"] = "2.41";
+		["66"] = "2.37";
+		["65"] = "2.36";
+		["64"] = "2.35"; 
+		["63"] = "2.34"; 
+		["62"] = "2.33"; 
+		["61"] = "2.32"; 
+		["60"] = "2.31"; 
+		["58"] = "2.29"; 
+		["57"] = "2.28";
+		["56"] = "2.27";
+		["55"] = "2.26";
+		["54"] = "2.24";
+		["53"] = "2.23";
+		["52"] = "2.22";	
+		["50"] = "2.21";
+		["48"] = "2.20";
+		["47"] = "2.19";
+		["46"] = "2.18";
+		["45"] = "2.16";
+		["43"] = "2.15";
+		["42"] = "2.14";
+		["41"] = "2.13";
+		["40"] = "2.12";
+		["36"] = "2.10";
+		["34"] = "2.9";
+		["33"] = "2.8";
+		["32"] = "2.6";	
+	} 
+	
+	updateVersionData = function(){
+		var http = ..web.rest.client();
+		var versionInfo = http.api("https://npm.taobao.org/mirrors/chromedriver/{version}/notes.txt",,"Supports\s*Chrome\s*v|<version\s*>([\d\-]+)")
+		var chromeDriver = http.api("https://npm.taobao.org/mirrors/chromedriver",,{
+			"\<pre>(.+)\</pre>";
+			"\>(\d[\d\.]*)\/\</a>";
+		});
+		
+		var versions = chromeDriver.get();
+		var cur = ..fsys.version("70")
+		if(#versions){
+			for i,ver in ..table.eachIndex(versions){
+				if( ..fsys.version(ver) < cur ) continue;
+				var suportVer = versionInfo[ver].get();
+				if( suportVer ){
+					var vers = ..string.split(suportVer,"-");
+					suportVer = (#vers==2) ? vers[2] : suportVer
+					
+					if(tonumber(suportVer)){
+						if(chrome2driverVersion[suportVer]) continue;
+						chrome2driverVersion[suportVer] = ver;	
+					}
+				} 
+				
+			}	
+		}
+		
+		return chrome2driverVersion;
+	}
+
+	findVersionByMap = function(ver,versionMap,desc){ 
+		ver = ..fsys.version(ver);
+		if(!ver) return;
+		
+		ver.build = 0;
+		ver.revision = 0;
+		if(desc){
+			for src,dst in ..table.eachValue(versionMap,lambda(a,b) ..fsys.version(a) >  ..fsys.version(b) ){  
+				if( ver>=..fsys.version(src)  ){  return dst; }
+			} 
+		}
+		else {
+			for src,dst in ..table.eachValue(versionMap,lambda(a,b) ..fsys.version(a) <  ..fsys.version(b) ){ 
+				if( ver<=..fsys.version(src)  ){ return dst; }
+			}
+		}
+	}
+	
+
+	match = function(vc){
+		var vd = findVersionByMap(vc,chrome2driverVersion,false);
+		if( vd ) return vd; 
+		
+		updateVersionData();
+		
+		var vd = findVersionByMap(vc,chrome2driverVersion,false);
+		if( vd ) return vd; 
+	}
+	
+	requirePath = function(vc,installTitle){
+		
+		var vd = match(vc);
+		if(!vd) return null,"匹配ChromeDriver版本失败"
+		
+		var dir = ..io.appData("aardio/chromeDriver/" + vd); 
+		var path = ..io.joinpath(dir,"chromedriver.exe") ;
+
+		if( ..io.exist(path) ) return path;
+		
+		if(! ..io.exist(path) ){
+			..zlib.httpFile.referer = "https://npm.taobao.org/mirrors/chromedriver/" + vd;
+			..zlib.httpFile.download("https://npm.taobao.org/mirrors/chromedriver/"+vd+"/chromedriver_win32.zip"
+				,installTitle : "正在下载本程序必须的组件(chromeDriver/aardio)",..io.joinpath(dir,"\.download"),dir,"chromedriver_win32.zip"); 
+		}  
+		
+		return ..io.exist( ..io.joinpath(dir,"chromedriver.exe") );
+	}
+	
+	versionConvert = {
+		["Electron"] = function(v){
+			var electron2Chrome = {["0.20"]="39";["0.21"]="41";["0.25"]="42";["0.27"]="43";["0.30"]="44";["0.31"]="45";["0.36"]="47";["0.37"]="49";["1.1"]="50";["1.2"]="51";["1.3"]="52";["1.4"]="54";["1.6"]="56";["1.7"]="58";["1.8"]="59";["2.0"]="61";["3.0"]="66";["4.0"]="69";["5.0"]="72";["6.0"]="76";["7.0"]="78";["8.0"]="80";["9.0"]="83";["9.0"]="83";["10.0"]="85";["11.0"]="87"}
+				var ret = findVersionByMap(v,electron2Chrome,true);
+				return ret;
+		}
+	}
+} 
+
+/**intellisense()
+chrome.driver = 用于调用 ChromeDriver 自动化控制Chrome浏览器\n非chrome官方浏览器请自行指定chromedriver.exe路径\n[JsonWireProtocol]( https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol )
+chrome.driver( = 创建ChromeDriver对象
+chrome.driver(.(chrome路径,ChromeDriver路径) = 创建ChromeDriver对象,失败返回null,错误信息,\n\n如果不指定参数@1，则只能通过远程调试端口直接连接
+chrome.driver(.(chrome路径,chrome主版本) = 创建ChromeDriver对象,失败返回null,错误信息,\n如果不指定参数@1，则只能通过远程调试端口直接连接,\n参数@2必须使用一个字符串或一个数值指定Chrome的主版本号
+chrome.driver(.(chrome路径) = 创建ChromeDriver对象,失败返回null,错误信息,\n\n参数@1如果不指定Chrome.exe路径,aardio会自动获取chrome路径,\naardio会自动搜索chrome.exe同目录下的chromedriver.exe,\n如果指不到会自动获到chrome.exe的版本并自动下载对应版本的的chromedriver.exe\nn可选使用参数@3自定义下载对话框标题
+chrome.driver() = !chromeDriver.
+chrome.driver.match(__) = 传入Chrome主版本号,返回匹配的ChromeDriver版本
+chrome.driver.requirePath(__) = 参数@1使用字符串传入Chrome版本号,\n返回匹配的ChromeDriver路径\n如果未安装该版本ChromeDriver会自动下载安装\n可选使用参数@2自定义下载对话框标题
+chrome.driver.updateVersionData() = 更新并返回最新Chrome,ChromeDriver版本对应数据表
+end intellisense**/
+
+/**intellisense(!chromeDriver)
+setProxy(代理配置) = @.setProxy(\n	proxyType = "manual";\n	httpProxy = "127.0.0.1:12043"\n)
+startServer( = 启动ChromeDriver服务端
+startServer(.(端口,其他启动参数) = 启动ChromeDriver服务端,所有参数可选,\n不指定端口时自动分配空闲端口,不会与其他程序冲突\n如果指定参数@2会作为process.popen的附加启动参数,\n返回process.popen对象
+startServer() = !process_popen.
+server = 服务端进程,process.poen 对象\n!process_popen.
+client = WebDriver API\n!web_restClient.
+clientApi = WebDriver API\n!web_rest_api.
+close() = 关闭ChromeDriver服务端,\n程序退出前也会自动关闭ChromeDriver服务端
+client = web.rest.jsonClient客户端对象\n!web_restClient.
+lastRequestUrl() = 返回最后一次请求的URL
+lastResponse() = 返回最后一次响应的内容
+addArguments(__) = 添加一个或多个Chrome启动参数,\n参数也可以是一个包含多个启动参数的数组\n注意参数中不必要使用引号,多个参数应分开写不要拼接成一个参数\n每个启动参数都是使用两个横杠开始的字符串\n[chrome启动参数大全]( https://peter.sh/experiments/chromium-command-line-switches/ )
+removeArguments(__) = 排除一个或多个Chrome启动参数,\n参数也可以是一个包含多个启动参数的数组
+setOptions(__) = 设置Chrome启动选项,参数应当是键值对组成的表\n[ChromeDriver选项文档](http://chromedriver.chromium.org/capabilities)
+debuggerPort = 指定Chrome远程调试端口\nChrome Driver将直接附加到该浏览器实例
+debuggerAddress = 指定Chrome远程调试地址，\n格式为 IP或主机:端口号，例如 127.0.0.1:38947\nChrome Driver将直接附加到该浏览器实例
+getCapabilities() = 返回浏览器创建会话的desiredCap默认参数\n可选在参数中自定义部分字段
+createBrowser(.(desiredCap,requiredCap) = 打开Chrome并创建会话,返回会话信息,\nstartBrowser会自动调用此函数,参数用法参考startBrowser
+startBrowser( = 打开Chrome并创建会话,返回该会话的REST API对象
+startBrowser(.(desiredCap,requiredCap) = 打开Chrome并创建会话,返回该会话的REST API对象,\n参数可选,aardio自动添加必要的默认参数,\n参数用法参考文档\n[WebDriver协议文档](https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol) \n[Chrome选项文档](http://chromedriver.chromium.org/capabilities)
+attach(.(debuggerPort,desiredCap,requiredCap) = 附加到debuggerPort指定的调试端口,返回该会话的REST API对象,\n如果创建chrome.driver的第一个参数是electron.app或chrome.app,debuggerPort参数可以不指定\n其他参数可选
+startBrowser() = !chromeDriverSes.
+attach() = !chromeDriverSes.
+startAppBrowser( = 打开Chrome并创建APP模式会话,返回该会话的REST API对象
+startAppBrowser(.(app,args,desiredCap,requiredCap) = 打开Chrome并创建APP模式会话,返回该会话的REST API对象\napp应当是一个chrome.app对象,args是包含chrome启动参数的数组\n其他参数为可选参数
+startAppBrowser(.(url,desiredCap,requiredCap) = 打开Chrome并创建APP模式会话,返回该会话的REST API对象\nurl指定要打开的网址,其他参数为可选参数
+startAppBrowser() = !chromeDriverSes.
+end intellisense**/
+
+/**intellisense(!chromeDriverSes)
+? = 可输入任意资源名\n对象负责转换为资源请求URL\n!web_rest_api.
+sessionInfo = 浏览器会话信息
+head = HEAD方法提交请求\n如果该函数返回非null值为成功,请使用lastResponseHeaders获取应答HTTP头\n调用时可以写 head() 或 head.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串
+get = GET方法提交请求,获取资源\n调用时可以写 get() 或 get.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n!web_rest_api.
+post = POST方法提交请求,新增或修改资源\n调用时可以写 post() 或 post.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n!web_rest_api.
+delete = DELETE方法提交请求,删除资源\n调用时可以写 delete() 或 delete.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n!web_rest_api.
+put = PUT方法提交请求,替换或更新资源\n调用时可以写 put() 或 put.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n!web_rest_api.
+patch = PATCH方法提交请求,更新资源\n调用时可以写 patch() 或 patch.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n!web_rest_api.
+close() = 关闭当前会话的当前活动浏览器窗口（输入焦点所在窗口）
+closeAll() = 关闭会话创建的所有浏览器窗口
+go("__") = 打开指定网址\nHTTP接口：GET /session/{session id}/url
+url.get() = 获取当前URL\nHTTP接口：GET	/session/{session id}/url
+query(查询参数) = @.query(["partial link text"]="链接文本"__/*使用指定键值对查询网页元素,不指定参数获取当前活动元素*/)
+querySelector("__") = 指定CSS选择器并返回节点对象\nHTTP接口：POST /session/{session id}/element
+querySelector() = !chromeDriverEle.
+query() = !chromeDriverEle.
+queryAll(查询参数) = @.query(["partial link text"]="链接文本"__/*使用指定键值对查询并返回网页元素数组*/)
+querySelectorAll("__") = 指定CSS选择器并返回节点对象数组\nHTTP接口：POST /session/{session id}/elements
+querySelectorAll() = !chromeDriverEle.
+queryAll() = !chromeDriverEle.
+delete() = 删除会话\nDELETE	/session/{session id}
+status.get() = 获取当前状态\nHTTP接口：GET /status
+timeouts.get() = 获取超时\nHTTP接口：GET /session/{session id}/timeouts
+timeouts(__) = 设置超时\nHTTP接口：POST /session/{session id}/timeouts
+back() = 后退\nHTTP接口：POST /session/{session id}/back
+forward() = 前进\nHTTP接口：POST /session/{session id}/forward
+refresh() = 前进\nHTTP接口：POST /session/{session id}/refresh
+title.get() = 获取标题\nHTTP接口：GET /session/{session id}/title
+window.get() = 获取当前窗口\nHTTP接口：GET /session/{session id}/window
+window.delete() = 关闭当前窗口\nDELETE	/session/{session id}/window
+window(__) = 切换窗口\nHTTP接口：POST /session/{session id}/window
+window.handles.get() = 获取所有窗口句柄\nHTTP接口：GET /session/{session id}/window/handles
+frame(__) = 切换框架\nHTTP接口：POST /session/{session id}/frame
+frame.parent(__) = 切换到父框架\nHTTP接口：POST /session/{session id}/frame/parent
+window.rect.get() = 获取窗口位置\nHTTP接口：GET /session/{session id}/window/rect
+window.rect(__) = 前进\POST	/session/{session id}/window/rect
+window.maximize() = 最大化\nHTTP接口：POST /session/{session id}/window/maximize
+window.minimize() = 最小化\nHTTP接口：POST /session/{session id}/window/minimize
+source.get() = 获取页面源码\nHTTP接口：GET /session/{session id}/source
+doCdpCmd( = 执行CDP命令\nHTTP接口：POST /session/{session id}/goog/cdp/execute
+doScript( = 执行脚本\nHTTP接口：POST /session/{session id}/execute/sync
+doScript(.("JS脚本",其他调用参数) = JS脚本会被放到一个匿名函数中执行,\n可添加任意个调用参数,节点对象可作为参数\n成功返回该匿名函数的返回值,\n失败返回null,以及REST API返回的响应对象
+execute.async(__) = 异步执行脚本\nHTTP接口POST /session/{session id}/execute/async
+loadScript("__") = 加载JS脚本文件\n参数指定JS文件网址\n例如: loadScript("http://libs.baidu.com/jquery/1.10.2/jquery.min.js")\n\n此函数发送请求后立即返回,不会等待脚本加载完成
+cookie.get() = 获取cookie,也可以写为cookie.name.get \nHTTP接口：GET /session/{session id}/cookie
+cookie(__) = 修改cookie\nHTTP接口：GET /session/{session id}/source
+cookie.delete() = 删除cookie,\n也可以写为cookie.name.delete删除指定名字cookie\nDELETE	/session/{session id}/cookie/{name}
+source.get() = 获取页面源码\nHTTP接口：GET /session/{session id}/source
+actions(__) = 执行动作\nHTTP接口：POST /session/{session id}/actions
+actions.delete() = 删除动作\nDELETE	/session/{session id}/actions
+alert.dismiss() = 取消alert\nHTTP接口：POST /session/{session id}/alert/dismiss
+alert.accept() = 取消alert\nHTTP接口：POST /session/{session id}/alert/accept
+alert.text.get() = 获取alert文本\nHTTP接口：GET /session/{session id}/alert/text
+alert.text(__) = 发送alert文本\nHTTP接口：POST /session/{session id}/alert/text
+screenshot.get() = 截屏\nHTTP接口：GET /session/{session id}/screenshot
+getCurrentUrl() = 获取当前URL，成功返回字符串
+getCurrentTitle() = 获取当前网页窗口标题，成功返回字符串
+getCurrentWindow() = 获取当前网页窗口句柄标识，成功返回字符串
+switchWindow(__) = 切换窗口,参数指定窗口句柄标识,成功返回
+findTitle(__) = 查找并等待出现网页窗口标题并切换到该窗口,\n参数指定窗口标题,支持模式匹配语法,成功返回true
+findUrl(__) = 使用网址查找网页窗口并切换到该窗口,\n参数指定网址,支持模式匹配语法,成功返回true
+waitTitle(__) = 等待指定标题的网页窗口并切换到该窗口,\n参数指定窗口标题,支持模式匹配语法,成功返回true
+waitUrl(__) = 等待指定网址的网页窗口并切换到该窗口,\n参数指定网址,支持模式匹配语法,成功返回true
+eachWindow() = @for( index,window,title,url in ??.eachWindow() ){
+	__/*遍历所有窗口,已自动切换焦点到当前遍历的窗口*/
+}
+notify = @.notify(\n	function(){\n		__/*此函数中执行的请求不阻塞，并且忽略返回值*/\n	}\n)	
+end intellisense**/
+
+/**intellisense(!chromeDriverEle)
+? = 可输入任意资源名\n对象负责转换为资源请求URL\n!web_rest_api.
+head = HEAD方法提交请求\n如果该函数返回非null值为成功,请使用lastResponseHeaders获取应答HTTP头\n调用时可以写 head() 或 head.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串
+get = GET方法提交请求,获取资源\n调用时可以写 get() 或 get.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n!web_rest_api.
+post = POST方法提交请求,新增或修改资源\n调用时可以写 post() 或 post.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n!web_rest_api.
+delete = DELETE方法提交请求,删除资源\n调用时可以写 delete() 或 delete.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n!web_rest_api.
+put = PUT方法提交请求,替换或更新资源\n调用时可以写 put() 或 put.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n!web_rest_api.
+patch = PATCH方法提交请求,更新资源\n调用时可以写 patch() 或 patch.其他资源名()\n请求参数可以指定表或字符串,如果是表请求前会转换为字符串\n!web_rest_api.
+query(查询参数) = @.query(["partial link text"]="链接文本"__/*使用指定键值对查询网页元素,不指定参数获取当前活动元素*/)
+querySelector("__") = 指定CSS选择器并返回节点对象\nHTTP接口：POST /session/{session id}/element/{element id}/element
+querySelector() = !chromeDriverEle.
+query() = !chromeDriverEle.
+queryAll(查询参数) = @.query(["partial link text"]="链接文本"__/*使用指定键值对查询并返回网页元素数组*/)
+querySelectorAll("__") = 指定CSS选择器并返回节点对象数组\nHTTP接口：POST /session/{session id}/element/{element id}/elements
+querySelectorAll() = !chromeDriverEle.
+queryAll() = !chromeDriverEle.
+selected.get() = 是否选中\nHTTP接口：GET /session/{session id}/element/{element id}/selected	
+attribute.?.get() = 获取attribute值\nHTTP接口：GET /session/{session id}/element/{element id}/attribute/{name}
+property.?.get() = 获取property值\nHTTP接口：GET /session/{session id}/element/{element id}/attribute/{name}
+css.?.get() = 获取CSS属性值\nHTTP接口：GET /session/{session id}/element/{element id}/css/{property name}
+name.get() = 获取标签名\nHTTP接口：GET /session/{session id}/element/{element id}/name
+rect.get() = 获取元素区块\nHTTP接口：GET /session/{session id}/element/{element id}/rect
+enabled.get() = 元素是否启用\nHTTP接口：GET /session/{session id}/element/{element id}/enabled
+click() = 模拟点击\nHTTP接口：POST /session/{session id}/element/{element id}/click
+clear() = 清空\nHTTP接口：POST /session/{session id}/element/{element id}/clear
+setValue(__) = 使用一个或多个参数指定输入的值\nHTTP接口：POST /session/{session id}/element/{element id}/value
+clear() = 清空\nHTTP接口：POST /session/{session id}/element/{element id}/clear
+screenshot.get() = 截屏\nHTTP接口：GET /session/{session id}/element/{element id}/screenshot
+innerText() = 获取节点文本\nHTTP接口：GET /session/{session id}/element/{element id}/text
+end intellisense**/

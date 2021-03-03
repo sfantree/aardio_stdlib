@@ -1,0 +1,30 @@
+﻿//UIAutomation
+
+import process;
+process.executeWaitInput("notepad.exe"
+    ,io.getSpecial(0x25/*_CSIDL_SYSTEM*/,"drivers\etc\HOSTS"));
+ 
+import dotNet; 
+var clr = dotNet.clr();  
+var appDomain = clr.createAppDomain();
+var UIAutomationTypes = appDomain.load("UIAutomationTypes");
+var TreeScope = UIAutomationTypes.import("System.Windows.Automation.TreeScope"); 
+
+var UIAutomationClient = appDomain.load("UIAutomationClient");
+var Automation = UIAutomationClient.import("System.Windows.Automation");
+var PropertyCondition = UIAutomationClient.import("System.Windows.Automation.PropertyCondition");
+
+var AutomationElement = Automation.AutomationElement;
+var desktop = AutomationElement.RootElement;
+
+var condNotepadClass = Automation.PropertyCondition(AutomationElement.ClassNameProperty,"Notepad")
+var notepad = desktop.FindFirst( TreeScope.Children, condNotepadClass) 
+
+var condEditClass = Automation.PropertyCondition(AutomationElement.ClassNameProperty,"Edit");
+var editBox = notepad.FindFirst( TreeScope.Descendants, condEditClass); 
+
+var textPattern =  editBox.GetCurrentPattern(Automation.TextPattern.Pattern);
+var text = textPattern.DocumentRange.GetText(50)
+
+import win.dlg.message;
+win.dlg.message().info(text + " ……")

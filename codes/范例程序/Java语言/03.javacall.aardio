@@ -1,0 +1,29 @@
+//3、调用Java对象
+
+import console;
+import java; 
+
+var jvm = java();
+
+/*
+创建java类实例,并调用其成员方法,
+注意java会到 "默认类搜寻路径" + "/java/aardio/sample/HelloworldApp.class" 去查找 aardio.sample.HelloworldApp
+*/
+HelloworldApp = jvm.loadClass( "aardio.sample.HelloworldApp");
+
+//修改类的静态成员变量
+HelloworldApp.static_num = 996;
+
+//获取类的静态成员变量
+console.log( HelloworldApp.static_num )
+
+//直接用Java类创建Java对象,跟Java中一样用就行
+var helloworld = HelloworldApp();
+	
+//获取对象的成员字段值
+console.log( helloworld.name );
+
+//调用对象的方法
+console.log( helloworld.test(1) )
+
+console.pause();

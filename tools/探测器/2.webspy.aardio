@@ -1,0 +1,421 @@
+//网页探针
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="网页探针 2.9.5  -  使用aardio语言开发";left=-2;right=712;bottom=459;parent=...;scroll=1)
+winform.add(
+btnGo={cls="button";text="打开";left=228;top=11;right=275;bottom=36;dr=1;dt=1;z=15};
+btnHelp={cls="button";text="相关";left=640;top=368;right=707;bottom=394;db=1;disabled=1;dr=1;z=13};
+btnRun={cls="button";text="运行(F5)";left=640;top=427;right=707;bottom=453;db=1;dr=1;z=12};
+btnSaveAs={cls="button";text="复制";left=640;top=398;right=707;bottom=424;db=1;dr=1;z=11};
+btnback={cls="button";text="<<";left=279;top=11;right=309;bottom=36;dr=1;dt=1;z=8};
+btnforward={cls="button";text=">>";left=313;top=11;right=343;bottom=36;dr=1;dt=1;z=9};
+chkFrameContent={cls="checkbox";text="穿透框架-->";left=584;top=10;right=660;bottom=36;checked=1;dr=1;dt=1;z=10};
+editCode={cls="richedit";left=9;top=368;right=638;bottom=453;db=1;dl=1;dr=1;edge=1;font=LOGFONT(name='Microsoft Sans Serif');hscroll=1;multiline=1;vscroll=1;z=2};
+editUrl={cls="edit";text="http://www.aardio.com";left=9;top=11;right=216;bottom=36;dl=1;dr=1;dt=1;edge=1;z=14};
+editX={cls="edit";left=471;top=13;right=512;bottom=33;dr=1;dt=1;edge=1;multiline=1;z=3};
+editY={cls="edit";left=524;top=13;right=565;bottom=33;dr=1;dt=1;edge=1;multiline=1;z=4};
+lbWeb={cls="static";left=9;top=42;right=706;bottom=365;db=1;dl=1;dr=1;dt=1;edge=1;notify=1;transparent=1;z=1};
+picturebox={cls="picturebox";left=665;top=7;right=700;bottom=39;dr=1;dt=1;notify=1;transparent=1;z=7};
+static2={cls="static";text="ele = wb.fromPoint(  ";left=333;top=18;right=472;bottom=40;align="right";dr=1;dt=1;font=LOGFONT(name='Microsoft Sans Serif');transparent=1;z=5};
+static3={cls="static";text=",";left=515;top=18;right=521;bottom=40;align="right";dr=1;dt=1;font=LOGFONT(name='Microsoft Sans Serif');transparent=1;z=6}
+)
+/*}}*/
+
+import web.form.util;
+var wb = web.form( winform.lbWeb );  
+wb.noScriptErr = true;//禁止脚本错误
+
+wb.BeforeNavigate2=function( pDisp, url, Flags, TargetFrameName, PostData, Headers, Cancel ) { 
+	winform.spyElement = null;   
+	winform.spying = null;
+} 
+
+//开启框架跨域支持
+web.form.util.crossDomain(); 
+
+winform.btnRun.oncommand = function(id,event){
+	global.wb = wb;
+	global.winform = winform; 
+	
+	var func,err = loadcode(winform.editCode.text)
+	if(!func){
+		if( string.find( winform.editCode.text,"/**") )
+			winform.msgbox(err,"载入代码时遇到错误","网页探针")
+		else {
+			winform.msgbox( "请先拖动右上角瞄准器图标到网页上以选定对象.","网页探针")
+		}
+		
+		return;
+	}
+	try{ func() } catch(e){ winform.msgboxErr(e) }
+} 
+ 
+import process;
+winform.btnHelp.oncommand = function(id,event){
+	var url = string.format("http://www.aardio.com/doc/html/dhtml/objects/%s.html", string.lower(winform.spyElement.tagName) )
+	process.execute(url)
+} 
+ 
+//打开网页时触发
+wb.NavigateComplete2=function(pDisp, url) {
+	winform.editUrl.text = wb.location; 
+}  
+
+wb.NewWindow2=function( ppDisp, Cancel) {
+	/*弹出新窗口以前触发 */ 
+	return owner.openproxy /*创建代理窗口捕获网址并在当前窗口打开*/	
+} 
+wb.CommandStateChange=function(cmd,enable) {
+	/*当命令的激活状态改变时触发。它表明何时激活或关闭Back和Forward菜单项或按钮 */ 
+	select(cmd) {
+	
+	 	case 0x2/*_CSC_NAVIGATEBACK*/ {
+	 		winform.btnback.disabled = !enable 
+	 		
+	 	}
+	 	case 0x1/*_CSC_NAVIGATEFORWARD*/ {
+	 		winform.btnforward.disabled = !enable 
+	 	}  
+	}
+} 
+
+winform.btnGo.oncommand = function(id,event){
+	wb.go(winform.editUrl.text)  
+}
+winform.btnforward.oncommand = function(id,event){
+	wb.goForward()
+}
+winform.btnback.oncommand = function(id,event){ 
+	wb.goBack() 
+} 
+
+//-------------------------------------------------
+//内存图像 - 创建自"工具->转义字符串生成器"
+gifCur = 'GIF\56\57a \0 \0\x91\0\0\xc0\xc0\xc0\0\0\xff\0\0\0\xff\xff\xff\33\xff\11XMP DataXMP<?xpacket begin=\34\xef\xbb\xbf\34 id=\34W\53M\48MpCehiHzreSzNTczkc\57d\34?> <x:xmpmeta xmlns:x=\34adobe:ns:meta\47\34 x:xmptk=\34Adobe XMP Core \53\46\48\45c\48\54\48 \54\49\46\49\51\52\55\55\55\44 \50\48\49\48\47\48\50\47\49\50\45\49\55:\51\50:\48\48		\34> <rdf:RDF xmlns:rdf=\34http:\47\47www\46w\51\46org\47\49\57\57\57\47\48\50\47\50\50\45rdf\45syntax\45ns\35\34> <rdf:Description rdf:about=\34\34 xmlns:xmp=\34http:\47\47ns\46adobe\46com\47xap\47\49\46\48\47\34 xmlns:xmpMM=\34http:\47\47ns\46adobe\46com\47xap\47\49\46\48\47mm\47\34 xmlns:stRef=\34http:\47\47ns\46adobe\46com\47xap\47\49\46\48\47sType\47ResourceRef\35\34 xmp:CreatorTool=\34Adobe Photoshop CS\53 Windows\34 xmpMM:InstanceID=\34xmp\46iid:\57\50E\56\53\49\55\48\57D\50\57\49\49DFA\52F\52ED\48\52\51\56\52\57\56EB\54\34 xmpMM:DocumentID=\34xmp\46did:\57\50E\56\53\49\55\49\57D\50\57\49\49DFA\52F\52ED\48\52\51\56\52\57\56EB\54\34> <xmpMM:DerivedFrom stRef:instanceID=\34xmp\46iid:\57\50E\56\53\49\54E\57D\50\57\49\49DFA\52F\52ED\48\52\51\56\52\57\56EB\54\34 stRef:documentID=\34xmp\46did:\57\50E\56\53\49\54F\57D\50\57\49\49DFA\52F\52ED\48\52\51\56\52\57\56EB\54\34\47> <\47rdf:Description> <\47rdf:RDF> <\47x:xmpmeta> <?xpacket end=\34r\34?>\1\xff\xfe\xfd\xfc\xfb\xfa\xf9\xf8\xf7\xf6\xf5\xf4\xf3\xf2\xf1\xf0\xef\xee\xed\xec\xeb\xea\xe9\xe8\xe7\xe6\xe5\xe4\xe3\xe2\xe1\xe0\xdf\xde\xdd\xdc\xdb\xda\xd9\xd8\xd7\xd6\xd5\xd4\xd3\xd2\xd1\xd0\xcf\xce\xcd\xcc\xcb\xca\xc9\xc8\xc7\xc6\xc5\xc4\xc3\xc2\xc1\xc0\xbf\xbe\xbd\xbc\xbb\xba\xb9\xb8\xb7\xb6\xb5\xb4\xb3\xb2\xb1\xb0\xaf\xae\xad\xac\xab\xaa\xa9\xa8\xa7\xa6\xa5\xa4\xa3\xa2\xa1\xa0\x9f\x9e\x9d\x9c\x9b\x9a\x99\x98\x97\x96\x95\x94\x93\x92\x91\x90\x8f\x8e\x8d\x8c\x8b\x8a\x89\x88\x87\x86\x85\x84\x83\x82\x81\x80\x7f\x7e}|{zyxwvutsrqponmlkjihgfedcba`_^]\\[ZYXWVUTSRQPONMLKJIHGFEDCBA@?>=<;:\57\56\55\54\53\52\51\50\49\48\47\46\45\44\43\42\41\40\39\38%\36\35\34\33 \31\30\29\28\27\26\25\24\23\22\21\20\19\18\17\16\15\14\13\12\11\10\9\8
+\7\6\5\4\3\2\1\0\0\33\xf9\4\0\0\0\0\0\44\0\0\0\0 \0 \0\0\2\x8d\x94\x8f\xa9\x9b\xe0 \x82\x9c\xb4V\xf1 \54\xd0z\xbf\x85Y\xf4\x95\18\xf6\48\xea\xba\12\xee\11\xc7\xf2\xec\26\xf4\x8d\xbfv\xce\xcb{\15\28\xfc\x82\xbc\33\45\xd1\51\xc6v\x82Z\19\xa7\xd4\57\15\53\xe8\xd3\xb7\xcc\30\xaf\48\46R:\x8br\xabZ\xdfX\x88\x7eR\xd3h\51\xb6\9\x97\xc6\xcf\xc2s\11\xae\8\xdb\xd9\xd7y{\xb9\23W\xa7\xc6\xe6\x86U\6f\x88\xf8E\xa6\x88\xf8\xd7\xe8\xa8\xf5E\xa7S\xe9D\22\xd5ui\xb9\x96\xa3I\36\25\xba\53Z\xc4Y:\xc8\xa2\xbaP\0\0;'
+gifBlank ='GIF\56\57a \0 \0\x91\0\0\xc0\xc0\xc0\0\0\xff\0\0\0\xff\xff\xff\33\xff\11XMP DataXMP<?xpacket begin=\34\xef\xbb\xbf\34 id=\34W\53M\48MpCehiHzreSzNTczkc\57d\34?> <x:xmpmeta xmlns:x=\34adobe:ns:meta\47\34 x:xmptk=\34Adobe XMP Core \53\46\48\45c\48\54\48 \54\49\46\49\51\52\55\55\55\44 \50\48\49\48\47\48\50\47\49\50\45\49\55:\51\50:\48\48		\34> <rdf:RDF xmlns:rdf=\34http:\47\47www\46w\51\46org\47\49\57\57\57\47\48\50\47\50\50\45rdf\45syntax\45ns\35\34> <rdf:Description rdf:about=\34\34 xmlns:xmp=\34http:\47\47ns\46adobe\46com\47xap\47\49\46\48\47\34 xmlns:xmpMM=\34http:\47\47ns\46adobe\46com\47xap\47\49\46\48\47mm\47\34 xmlns:stRef=\34http:\47\47ns\46adobe\46com\47xap\47\49\46\48\47sType\47ResourceRef\35\34 xmp:CreatorTool=\34Adobe Photoshop CS\53 Windows\34 xmpMM:InstanceID=\34xmp\46iid:\57CCE\48\56\52\57\57D\50\57\49\49DF\56\57BEE\49D\56\49\48\48D\51EA\55\34 xmpMM:DocumentID=\34xmp\46did:\57CCE\48\56\52A\57D\50\57\49\49DF\56\57BEE\49D\56\49\48\48D\51EA\55\34> <xmpMM:DerivedFrom stRef:instanceID=\34xmp\46iid:\57CCE\48\56\52\55\57D\50\57\49\49DF\56\57BEE\49D\56\49\48\48D\51EA\55\34 stRef:documentID=\34xmp\46did:\57CCE\48\56\52\56\57D\50\57\49\49DF\56\57BEE\49D\56\49\48\48D\51EA\55\34\47> <\47rdf:Description> <\47rdf:RDF> <\47x:xmpmeta> <?xpacket end=\34r\34?>\1\xff\xfe\xfd\xfc\xfb\xfa\xf9\xf8\xf7\xf6\xf5\xf4\xf3\xf2\xf1\xf0\xef\xee\xed\xec\xeb\xea\xe9\xe8\xe7\xe6\xe5\xe4\xe3\xe2\xe1\xe0\xdf\xde\xdd\xdc\xdb\xda\xd9\xd8\xd7\xd6\xd5\xd4\xd3\xd2\xd1\xd0\xcf\xce\xcd\xcc\xcb\xca\xc9\xc8\xc7\xc6\xc5\xc4\xc3\xc2\xc1\xc0\xbf\xbe\xbd\xbc\xbb\xba\xb9\xb8\xb7\xb6\xb5\xb4\xb3\xb2\xb1\xb0\xaf\xae\xad\xac\xab\xaa\xa9\xa8\xa7\xa6\xa5\xa4\xa3\xa2\xa1\xa0\x9f\x9e\x9d\x9c\x9b\x9a\x99\x98\x97\x96\x95\x94\x93\x92\x91\x90\x8f\x8e\x8d\x8c\x8b\x8a\x89\x88\x87\x86\x85\x84\x83\x82\x81\x80\x7f\x7e}|{zyxwvutsrqponmlkjihgfedcba`_^]\\[ZYXWVUTSRQPONMLKJIHGFEDCBA@?>=<;:\57\56\55\54\53\52\51\50\49\48\47\46\45\44\43\42\41\40\39\38%\36\35\34\33 \31\30\29\28\27\26\25\24\23\22\21\20\19\18\17\16\15\14\13\12\11\10\9\8\7\6\5\4\3\2\1\0\0\33
+\xf9\4\0\0\0\0\0\44\0\0\0\0 \0 \0\0\2\\\x94\x8f\xa9\x9b\xe0 \x82\x9c\xb4V\xf1 \54\xd0z\xbf\x85Y\xf4\x95\18\xf6\48\xea\xba\12\xee\11\xc7\xf2\xec\26\xf4\x8d\xbfv\xce\xcb{\15\28\xfc\x82\xbc\33\17g<\xd2\x92J\x9f\xa0\x99cBu\xcf\xe9\xb2jufgRkw\xfa\x85\x86\x9bce\xf9x\38\xa6\x83k`\xbb\xf7\46b\xb7Tz\x8c\x85_\21\0\0;'
+
+var hCursor = com.picture.load($"~\tools\探测器\.res\spy.cur").CopyHandle() ;
+//------------------------------------------------- 
+
+var crossHtmlTemplate = /***
+<html>
+<head> 
+<meta http-equiv="Content-Type" content="text/html; charset=%s" />
+<BASE HREF="%s" /> 
+</head>
+<body>
+<div style='font:12px/1.3em;margin:5px;'>
+	%s
+<div>
+</body>
+</html>
+***/ 
+
+//选中对象高亮
+import win.ui.mask;
+var frmMask = win.ui.mask(winform);
+flashRect = function(rc){ 
+    frmMask.setRect(rc);
+    frmMask.show();
+}
+
+import mouse;
+import win.util.tray;
+genCode = function(){
+	winform.spyElement = null;   
+	winform.spying = null; 
+	
+	var spyHwnd = winform.lbWeb.hwnd; 
+	x,y = win.toClient(spyHwnd,mouse.getPos() ); 
+	
+	if(!wb.getDoc()) return; 
+	var docEle = wb.getDoc().documentElement;
+	if(!docEle){
+		return ; 
+	}  
+	
+	var ele = wb.fromPoint(x,y);
+	if( !ele ){
+		return;
+	};
+	
+	var eleFrame;
+	var frameName = ""; 
+	var frameNameWithComma = "";
+	var scrollTop = docEle.scrollTop 
+	var scrollLeft = docEle.scrollLeft  
+	if( winform.chkFrameContent.checked ){
+		  
+		if(ele.tagName="IFRAME" || ele.tagName="FRAME"  ){ 
+			var l,t = wb.getPoint(ele); 
+			x = x-( l - wb.document.documentElement.scrollLeft );
+			y = y-( t - wb.document.documentElement.scrollTop ); 
+			
+			//跨域支持
+			doc = wb.getDoc( ele )  
+			var eleNext = doc.elementFromPoint(x,y  ); 
+			if(eleNext){ 
+				var scrollTop = wb.document.documentElement.scrollTop
+				var scrollLeft = wb.document.documentElement.scrollLeft
+		
+				eleFrame = ele;
+				frameName = eleFrame.name||eleFrame.id 
+				if(#frameName)
+					frameNameWithComma = ',"'+frameName+'"' 
+				else{ 
+					var frames = eleFrame.ownerDocument.frames; 
+					for(i=0;frames.length-1){   
+						var doc = wb.getDoc( i )
+						if( com.GetPointer(doc.body.ownerDocument ) == com.GetPointer(eleNext.ownerDocument) ){
+							frameNameWithComma = ','+tostring(i)
+							break;
+						} 
+					} 
+				} 
+				ele = eleNext;
+			}
+			
+		}
+	}
+
+	if(!ele.outerHTML)
+		return; 
+		
+	var str = string.trim( ele.outerHTML  );
+ 	winform.spyElement = ele
+ 	winform.btnHelp.disabled = false
+ 	 
+ 	var e_x,e_y,e_cx,e_cy = wb.getPos(ele,true) 
+ 	flashRect( ::RECT(e_x,e_y,e_x+e_cx+4,e_y+e_cy+4) )  
+ 
+	if(   ! ( #ele.id || #ele.name )   ){ 
+		var queryOption = {}
+		queryOption.className = ele.className;
+		queryOption.innerHTML = ele.innerHTML;
+		if( queryOption.innerHTML  ){
+			queryOption.innerHTML  = string.left(queryOption.innerHTML ,50,true);
+			if( string.find(queryOption.innerHTML,"\p")  )
+				queryOption.innerHTML  = "@" + queryOption.innerHTML ;
+		}
+		
+		queryOption.src = ele.src;
+		if( queryOption.src  ){
+			queryOption.src  = string.right(queryOption.src ,10,true);
+			queryOption.src  = "@" + queryOption.src ;
+		}
+		else{
+			queryOption.href = ele.href;
+			if( queryOption.href  ){
+				queryOption.href  = string.right(queryOption.href ,50,true);
+				queryOption.href  = "@" + queryOption.href ;
+			}
+		} 
+		
+		queryOption.tagName = ( (#ele.tagName) > 1 )?ele.tagName : ( "^" + ele.tagName + "$" );
+		if( #frameName ){ 
+			qFrameName = string.trim(frameName,",");
+			queryOption.parent = frameName;
+		} 
+		 
+		str = string.concat('var ele = wb.queryEles( '
+			,string.trim( table.tostring(queryOption),"{}" )
+			,' );\r\n//ele.innerHTML="新的值";'
+		);  
+	}
+	else{ 
+		var strGetEle = string.concat('var ele = wb.getEle("',ele.id || ele.name ,'"',frameNameWithComma,')  ');
+		if( ele.tagName == "SELECT"){
+			strGetEle = string.concat('var ele = wb.select("'
+						,ele.id || ele.name
+						,'","'
+						,ele.value
+						,'"'
+						,#frameNameWithComma?",true":""
+						,frameNameWithComma
+						,') //获取命名对象')
+		}
+		elseif( ele.tagName == "INPUT"){ 
+			select(ele.type) { 
+				case "radio","checkbox" {
+					strGetEle = string.concat('var eles = wb.getEles("',ele.id || ele.name,'"',frameNameWithComma,') //获取命名对象\r\nvar ele = eles(0)\r\nele.checked = true;');
+				} 
+				else {
+					strGetEle = string.concat(strGetEle,'\r\nele.value = "',ele.value : "输入新的值",'"')
+				}; 
+			};
+		}
+		str = string.concat("/** ",str,' **/\r\n',strGetEle);
+	} 
+
+	str = str  + "
+import win.util.tray;//导入汽球提示支持库
+win.util.tray(winform).pop( ele.value || ele.innerHTML || ele.outerHTML ) //看看节点取的是否正确"
+	
+	winform.editCode.text = str
+	winform.editX.text = x;
+	winform.editY.text = y; 
+	winform.spying = true;   
+}
+
+import win.cur;  
+winform.picturebox.image = gifCur;
+var timeSpyId;
+winform.picturebox.wndproc = function (hwnd,message,wParam,lParam){
+	select (message){
+		case 0x201/*_WM_LBUTTONDOWN*/{
+		
+			if(timeSpyId)
+				return; 
+			
+			winform.picturebox.image = gifBlank;  
+			winform.picturebox.capture = true;
+			win.cur.beginCur(hCursor);//持续设定鼠标指针
+			 
+			winform.spying = true;  
+			
+			timeSpyId = winform.setInterval(
+				500/*毫秒*/,
+				function(hwnd,msg,id,tick){//定时执行代码
+					genCode()
+					winform.spying = true;
+				}
+			);
+		}
+		case 0x202/*_WM_LBUTTONUP*/{ 
+			if( timeSpyId ){ 
+				winform.clearInterval(timeSpyId)
+				winform.picturebox.image = gifCur; 
+				winform.picturebox.capture = false
+				win.cur.endCur(); //恢复正常鼠标指针 
+				genCode() 
+				winform.spying = false;
+				timeSpyId = null;
+			}
+		}  
+	}
+}
+
+//开启自动完成
+::Shlwapi := ..raw.loadDll("Shlwapi.dll") 
+::Shlwapi.SHAutoComplete( winform.editUrl.hwnd,0/*_SHACF_DEFAULT*/);
+
+var template = /**
+import win.ui;
+/*DSG{{*/
+var winform = win.form(parent=...; scroll=1;text="aardio form";right=349;bottom=249 )
+winform.add(  )
+/*}}*/
+
+import web.form;  
+var wb = web.form( winform );
+
+//打开目标网站
+wb.go("**/
+
+var template2 =/**
+")
+//显示窗体
+winform.show() 
+winform.setPos($$X,$$Y,$$CX,$$CY)
+wb.wait("");//等待指定网址,可以使用模式匹配语法
+
+$$GETELE
+
+//进入消息循环
+win.loopMessage();
+return winform,wb;
+
+**/
+
+var getWebFormCode = function(){
+	var str = winform.editCode.text
+	var code = template ++ winform.editUrl.text ++ template2;
+	var x,y,cx,cy = winform.getPos()
+	code = string.replace(code,"@$$X",x);
+	code = string.replace(code,"@$$Y",x);
+	code = string.replace(code,"@$$CX",cx);
+	code = string.replace(code,"@$$CY",cy);
+	str = string.replace(code,"@$$GETELE",str)	
+	return str;
+}
+
+import win.clip
+winform.btnSaveAs.oncommand = function(id,event){
+	var str = winform.editCode.selText;
+	if(!#str){
+		str = winform.editCode.text 
+		winform.show(0x6/*_SW_MINIMIZE*/)
+	} 
+	win.clip.write(str)	 
+}
+
+import fsys.dlg;
+import win.ui.menu;
+winform.popmenu = win.ui.popmenu(winform);//创建弹出菜单
+
+winform.popmenu.add('生成Web窗体并复制...',function(id){
+	str = getWebFormCode() 
+	if(!str){
+		winform.msgbox("代码不是合法的aardio代码!")
+		return;
+	}
+	win.clip.write(str)	
+	
+});
+import process;
+winform.popmenu.add('生成Web窗体并另存为...',function(id){
+	var str = getWebFormCode();
+	if(!str){
+		winform.msgbox("代码不是合法的aardio代码!")
+		return;
+	}
+	var path = fsys.dlg.save("aardio代码文件|*.aau||","生成aardio代码并另存为......")
+	if(path){
+		string.save(path,str)
+		process.explore_select(path)
+	}
+	
+});
+winform.popmenu.add()
+winform.popmenu.add('复制选定 Ctrl+C',function(id){
+	win.clip.write(winform.editCode.selText)	
+	
+});
+winform.popmenu.add('粘贴 Ctrl+V',function(id){
+	winform.editCode.selText = win.clip.read();
+	
+});
+ 
+wb.html = /***
+<!doctype html> 
+<html>
+<head> 
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+</head>
+<body>
+<div id='test' style='font:12px/1.3em;text-align:right;margin-right:25px;'>
+请将右上角的瞄准器图标用鼠标拖放到这里控测节点内容.<br /><br />
+然后点击右下角“相关”按钮,可以打开该节点相关文档,<br />查看当前节点的属性、成员函数列表.<br /><br />
+获取本程序全部源代码:<br /><a href="http://www.aardio.com/thread-411-1-1.html" target="_blank">http://www.aardio.com/thread-411-1-1.html</a>
+<div>
+</body>
+</html>
+***/  
+winform.editUrl.text = "http://";
+winform.editUrl.setFocus(0,-1);
+
+winform.editCode.wndproc = function(hwnd,message,wParam,lParam){ 
+	if(message== 0x205/*_WM_RBUTTONUP 鼠标右键弹起,弹出菜单*/){
+		var x,y = ::LOWORD(lParam), ::HIWORD(lParam)
+		var l,t = winform.editCode.getPos()
+		winform.popmenu.popup(l+x,t+y);//弹出菜单
+	} elseif (message == 0x100/*_WM_KEYDOWN*/) {
+		if (wParam == 0x74/*_VK_F5*/) winform.btnRun.oncommand();
+	} 
+}
+
+winform.enableDpiScaling();
+winform.show(0x3/*_SW_MAXIMIZE*/);
+win.loopMessage();

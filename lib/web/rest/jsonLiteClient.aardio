@@ -1,0 +1,63 @@
+import web.json;
+import web.rest.client;
+
+namespace web.rest; 
+
+class jsonLiteClient{
+	ctor( ... ){
+		this = ..web.rest.client( ... ); 
+		this.acceptType = "application/json,text/json,*/*";
+		this.stringifyRequestParameters  = function(param,codepage){
+			var p = {};
+			for name,value in param{
+				if( type(value) == "table" && ( ! ( value@ && value@._tostring) ) ){
+					p[name] = ..web.json.stringify(value)
+				}
+				else {
+					p[name] = value;
+				} 
+			}
+			return ..inet.url.stringifyParameters(p,codepage);
+		} 
+		this.parseResponseResult = function(s){
+			if( s="" ) return s;
+			var t = this._http.responseContentType; 
+			if(t){
+				if( ..string.match( t,"[\w\/]*<@@json@>![\W]"  ) ) return ..web.json.parse(s,true);
+				if(t=="application/x-www-form-urlencoded"){
+					var r = ..inet.url.splitParameters(s);
+					for(k,v in r){
+						if(v[1]=='{'# || v[1]=='['#){
+							r[k] = ..web.json.tryParse(v,true) : v;
+						}
+					} 
+					return r;
+				}
+			}
+				
+			s = ..string.trim(s);
+			if( s[1] == '{'# || s[1] == '['# ){
+				return  ..web.json.parse(s,true);
+			}
+			
+			if( s[1]  == '<'# ) return s; 
+			return  ..web.json.parse(s,true);
+		}
+		this.lastResponse = function(){
+			var s = this.lastResponseData;
+			if( s ){
+				s = ..string.trim(s);
+		 		if( s[1] == '{'# || s[1] == '['# && (!this._http.lastReadErrCode ) ){
+		 			s = ..web.json.stringify( ..web.json.parse(s,true),true);
+		 		}
+		 		if( ..console && _STUDIO_INVOKED  ) ..console.log(s) else ..io.print(s);
+		 		return s;
+			}
+		};
+	}; 
+}
+
+/**intellisense()
+web.rest.jsonLiteClient = REST客户端\n请求参数使用UrlEncoded格式\n返回数据自动解析UrlEncoded或JSON格式并返回对象\n\nUrlEncoded解码时会自动解析JSON字段值（必须是对象或数组）
+web.rest.jsonLiteClient() = 创建REST客户端,\n自动解析服务器返回的UrlEncoded或JSON数据,\n可自动解析UrlEncoded包含的JSON字段（必须是对象或数组）\n!web_restClient.
+end intellisense**/

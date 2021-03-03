@@ -1,0 +1,208 @@
+﻿import gdi;
+
+namespace color{
+    
+    rgb = ..gdi.RGB; 
+	argb = ..gdi.ARGB; 
+	getRgb = ..gdi.getRgb; 
+	getRgba = ..gdi.getRgba;
+	rgbReverse = ..gdi.rgbReverse; 
+	argbReverse = ..gdi.argbReverse; 
+	parse = ..gdi.colorParse; 
+	stringify = ..gdi.colorStringify;
+	
+	getHsb = function(clr,gdi){
+		var getRgb = gdi ? getRgb : getRgba;
+		var r,g,b = getRgb(clr);
+		return rgb2hsb(r,g,b);
+	}
+ 	
+ 	hsb = function(h,s,b,gdi){ 
+ 		var rgb = gdi ? rgb : argb;
+ 		return rgb( hsb2rgb(h,s,b) );
+ 	}
+ 	
+    rgb2hsb = function(r,g,b) {
+    	if( 0 > r || r > 255 ) error("R值范围0~255",2) 
+    	if( 0 > g || g > 255 ) error("G值范围0~255",2)  
+    	if( 0 > b || b > 255 ) error("B值范围0~255",2) 
+    	
+    	var rgb =  { r;g;b };  
+    	..table.sort(rgb);  
+    	
+    	var max = rgb[3];  
+    	var min = rgb[1];  
+  		var d = (max - min);
+  		
+  		var s;
+    	var v = max / 255;
+    	if(max == 0) s = 0 else s =  d /  max;
+  	
+    	var h = 0;
+    	if(d){
+    		if (max == r ){
+    			h =  (g - b) * 60 / d;
+    			if (g < b) h = h + 360;
+    		}
+    		elseif (max == g) {  
+        		h = (b - r) * 60 / d + 120;  
+    		} 
+    		else{  
+        		h = (r - g) * 60 / d + 240;  
+    		} 
+    	} 
+  	
+    	return ..math.round(h,2)%360, ..math.round(s,2), ..math.round(v,2);  
+	}
+  
+	hsb2rgb = function(h,s,v) {  
+		h = h % 360;
+    	if( h <0 || h >360 ) error("h值范围0~360",2)
+    	if( s <0 || s >1 ) error("s值范围0~1",2)
+  		if( v <0 || v >1 ) error("v值范围0~1",2)
+  		
+    	var r,g,b = 0,0,0;  
+    	var i = ..math.floor( (h / 60) % 6 );  
+    	var f = (h / 60) - i;  
+    	var p = v * (1 - s);  
+    	var q = v * (1 - f * s);  
+    	var t = v * (1 - (1 - f) * s);  
+  
+    	select (i) {  
+    		case 0{ 
+        		r = v;  
+        		g = t;  
+        		b = p;  
+        	}
+    		case 1{  
+        		r = q;  
+        		g = v;  
+        		b = p;  
+        	}
+    		case 2{  
+        		r = p;  
+        		g = v;  
+        		b = t;  
+        	}
+    		case 3{  
+        		r = p;  
+        		g = q;  
+        		b = v;  
+        	} 
+    		case 4{   
+        		r = t;  
+        		g = p;  
+        		b = v;  
+        	}
+    		case 5{   
+        		r = v;  
+        		g = p;  
+        		b = q;   
+        	}
+    	}  
+    	return ..math.round(r * 255),..math.round(g * 255), ..math.round(b * 255);  
+	}
+	
+	rgb2lab = function(r,g,b){
+    	r,g,b = r/255,g/255,b/255;
+    	r = r>0.04045? (((r+0.055)/1.055) ** 2.4) : r/12.92;
+    	g = g>0.04045? (((g+0.055)/1.055) ** 2.4) : g/12.92;
+    	b = b>0.04045? (((b+0.055)/1.055) ** 2.4) : b/12.92;
+    	var x = 0.412453*r+0.357580*g+0.180423*b;
+    	var y = 0.212671*r+0.715160*g+0.072169*b;
+    	var z = 0.019334*r+0.119193*g+0.950227*b;
+    	
+		x = x/0.95047;
+		z = z/1.08883;
+    	var fx = x > 0.008856 ? (x**(1/3)) : (7.787 * x +0.137931);
+    	var fy = y > 0.008856 ? (y**(1/3)) : (7.787 * y +0.137931);
+    	var fz = z > 0.008856 ? (z**(1/3)) : (7.787 * z +0.137931);
+    	return ..math.round(y > 0.008856 ? (116.0 * fy - 16.0) : (903.3 * y),3), ..math.round(500 * (fx - fy),3), ..math.round(200 * (fy - fz),3);
+	}
+	
+	lab2rgb = function (ll,la,lb){
+		var y = (ll + 16) / 116;
+  		var x = la / 500 + y;
+  		var z = y - lb / 200;
+		x = 0.95047 * ((x * x * x > 0.008856) ? x * x * x : (x - 16/116) / 7.787);
+		y = 1.00000 * ((y * y * y > 0.008856) ? y * y * y : (y - 16/116) / 7.787);
+		z = 1.08883 * ((z * z * z > 0.008856) ? z * z * z : (z - 16/116) / 7.787);
+	
+		var r = x *  3.2406 + y * -1.5372 + z * -0.4986;
+		var g = x * -0.9689 + y *  1.8758 + z *  0.0415;
+		var b = x *  0.0557 + y * -0.2040 + z *  1.0570;
+		r = (r > 0.0031308) ? (1.055 * (r**(1/2.4)) - 0.055) : 12.92 * r;
+		g = (g > 0.0031308) ? (1.055 * (g**(1/2.4)) - 0.055) : 12.92 * g;
+		b = (b > 0.0031308) ? (1.055 * (b**(1/2.4)) - 0.055) : 12.92 * b;
+		if( r<0 ) r = 0 elseif( r > 1 ) r = 1;
+		if( g<0 ) g = 0 elseif( g > 1 ) g = 1;
+		if( b<0 ) b = 0 elseif( b > 1 ) b = 1;
+		return ..math.round(r * 255), ..math.round(g * 255), ..math.round(b * 255)
+	}
+	
+	distance = function(c1,c2,gdi){
+		var get = gdi ? getRgb : getRgba;
+		var r1,g1,b1 = get(c1);
+		var r2,g2,b2 = get(c2);
+		var rm = ..math.floor((r1+r2)/2);
+		var r = r1-r2;
+		var g = g1- g2;
+		var b = b1 - b2;
+		return ..math.sqrt((((512+rm)*r*r)>>8) + 4*g*g + (((767-rm)*b*b)>>8));
+	}; 
+	
+	lightHsb = function(h,s,v,lt){
+		if(lt===null) return v +  (v/2 *-s);
+		if(lt>0){
+			v = v + lt;
+			if(v>1) {
+				s = s - (v -1);
+				if( s < 0 ) s = 0;
+				v = 1;
+			}	
+		}
+		else {
+			s = s + -lt;
+			if(s>1) {
+				v = v - (s -1);
+				if( v < 0 ) v = 0;
+				s = 1;
+			}	
+		}
+		return h,s,v;	
+	}
+	
+	light = function(clr,lt){
+		var r,g,b,a = getRgba(clr);
+		var h,s,v = rgb2hsb(r,g,b);
+		h,s,v = lightHsb(h,s,v,lt)
+		if( lt === null ) return h;
+		r,g,b = hsb2rgb(h,s,v);
+		return argb(r,g,b,a);
+	}
+}
+
+/**intellisense(color)
+rgb(.(红,绿,蓝) = 转换RGB颜色分量为数值
+rgb( = 转换RGB颜色分量为数值
+argb( = 转换ARGB颜色分量为数值,\ngdi+,plus控件等使用argb格式颜色
+argb(.(红,绿,蓝,透明度) = 透明度默认为0xFF,即不透明
+rgbReverse(__/*颜色数值*/) = ARGB颜色转值转RGB,\nRGB分量中R、B的位置互换
+argbReverse(__/*颜色数值*/) = RGB颜色转值转ARGB,\nRGB分量中R、B的位置互换,并修改高位透明分量为0xFF
+getRgb(__/*RGB颜色数值*/) = 返回R(红),G（绿）,B（蓝） 三个分量\nRGB颜色值一般用于GDI,普通控件等
+getRgba(__/*ARGB颜色数值*/) = 返回R(红),G（绿）,B（蓝),A（透明度) 4个分量\n注意透明度为0~0xFF,0xFF为完全不透明,0为完全透明\nARGB颜色值一般用于GDI+,plus控件等
+parse(.("#FFFFFF") = 解析网页兼容的颜色代码\n支持#RGB,#RRGGBB,#RRGGBBAA三种格式,#号可省略,\n#RGB,#RRGGBB返回GDI兼容的RGB值\n#RRGGBBAA返回GDI+兼容的ARGB格式颜色值\n失败返回null
+stringify(.(颜色数值,是否ARGB格式) = 生成网页兼容的文本\n如果是ARGB数值，返回#RRGGBBAA格式字符串\n#RRGGBBAA可用于HTMLayout,Sciter,以及最新版的chrome也可以支持
+rgb2hsb(.(r,g,b) = rgb转hsb,\n返回h(色相),s(饱和度),b(明度)三个值
+hsb2rgb(.(h,s,b) = hsb转rgb,\n返回R(红),G（绿）,B（蓝） 三个值
+rgb2lab(.(r,g,b) = RGB颜色分量转Lab颜色分量[D65],返回L,a,b等三个值
+lab2rgb(.(L,a,b) = Lab颜色分量转RGB颜色分量,返回r,g,b等三个值\n注意Lab,RGB的颜色并非精确的一一对应
+distance(.(clr,clr2,true) = 计算GDI颜色值的色差
+distance(.(clr,clr2) = 计算GDI+颜色值的色差
+getHsb(.(clr,true) = 输入GDI颜色值,\n返回h(色相),s(饱和度),b(明度)三个值
+getHsb(.(clr) = 输入GDI+颜色值,\n返回h(色相),s(饱和度),b(明度)三个值
+hsb(.(h,s,b) = 转换HSB颜色分量为ARGB格式颜色数值\n返回一个值,可用于gdi+,plus控件等
+hsb(.(h,s,b,true) = 转换HSB颜色分量为RGB格式颜色数值\n返回一个值,可用于gdi等
+lightHsb(.(h,s,b,lt) = 输入参数h,s,b指定输入颜色分量\n不指定lt获取hsb颜色的亮度,\n指定lt修改h,s,b的亮度后并返回新的h,s,b分量,lt可以为负值,\n亮度为0到1间的小数表示的百分比
+light(.(argb,lt) = 输入参数为ARGB格式颜色数值，\n不指定lt获取颜色的亮度,\n指定lt修改亮度后并返回新的ARGB格式颜色数值,lt可以为负值,\n亮度为0到1间的小数表示的百分比,亮度为0会改变色相为0
+end intellisense**/

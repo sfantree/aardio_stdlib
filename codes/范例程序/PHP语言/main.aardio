@@ -1,0 +1,44 @@
+//aardio调用PHP代码演示
+import php;
+import console;
+
+//打开控制台
+console.open();
+  
+//PHP代码
+phpcode =/* 
+	$a="我是PHP中的变量a";
+	function main(){
+    	global $a;
+    	return $a." 这是main()函数的返回值";
+	};  
+*/ 
+
+//运行PHP代码 
+php.exec(phpcode)  
+
+//运行PHP代码,调用函数返回值,不要使用eval执行太长的代码,eval不能捕获PHP中的致命错误
+var ret = php.eval("main()") 
+console.log( ret );
+ 
+//运行php代码,返回表达式的值
+var ret = php.eval("8899") 
+console.log( ret );
+
+//再用eval函数访问PHP中的变量
+var ret = php.eval("$a") 
+console.log( ret );
+
+//更简单一些,直接读PHP中的变量
+console.log("直接读取PHP中的变量", php.a ) 
+
+//同上,也可以直接修改PHP中的变量 
+php.global_abc = 2011
+ 
+//================================
+//请注意: PHP返回给aardio的值都是字符串类型
+
+console.pause();
+
+
+  

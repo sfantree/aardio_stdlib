@@ -1,0 +1,4 @@
+import key;
+
+key.send( "abcdeHIJK12345~!@#$%^&*()_+" ); 
+key.pressEx( "CTRL","A" )

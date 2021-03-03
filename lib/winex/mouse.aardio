@@ -1,0 +1,124 @@
+//mouse 鼠标控制
+import winex;
+namespace winex.mouse; 
+
+delay = ..win.delay
+delayDown  = 5;
+delayUp = 1;
+delayClick = 5;
+
+var downDelay = function(){
+	delay( delayDown )
+}
+var upDelay = function(){
+	delay( delayUp )	
+}
+var clickDelay = function(){
+	if( delayClick > delayUp )
+		delay( delayClick - delayUp )	
+}
+
+var send = function(hwnd,cmd,wParam,x=0,y=0){ 
+    var lParam = ( ( (y & 0xFFFF) << 16) | (x & 0xFFFF) ) & 0xFFFFFFFF 
+	::PostMessage(hwnd,cmd,wParam,lParam);
+}
+
+move = function(hwnd,x=0,y=0,wParam=1){
+	send(hwnd,0x200,wParam,x,y)
+}
+
+down = function(hwnd,x=0,y=0,wParam=1){
+	send(hwnd,0x201,wParam,x,y)
+	downDelay()
+}
+
+up = function(hwnd,x=0,y=0,wParam=1){
+	send(hwnd,0x202,wParam,x,y)
+	upDelay();
+}
+
+click = function(hwnd,x=0,y=0,wParam=1){
+	down(hwnd,x,y,wParam); 
+	up(hwnd,x,y,wParam);
+	clickDelay();
+}
+
+clickDB = function(hwnd,x,y,wParam=1){
+	send(hwnd,0x203,wParam,x,y)
+	clickDelay();
+}
+
+namespace mb{
+	roll = function(hwnd,x,y,delta){
+		send(hwnd,0x20A/*_WM_MOUSEWHEEL*/,( (delta & 0xFFFF) << 16) | 0x10,x,y) ;
+	}
+	down = function(hwnd,x,y,wParam=0x10){
+		send(hwnd,0x207,wParam,x,y)
+		downDelay()
+	}
+	up = function(hwnd,x,y,wParam=0x10){
+		send(hwnd,0x208,wParam,x,y)
+		upDelay();
+	}
+	click = function(hwnd,x,y,wParam){
+		down(hwnd,x,y,wParam); 
+		up(hwnd,x,y,wParam);
+		clickDelay();
+	} 
+	clickDB = function(hwnd,x,y,wParam=0x10){
+		send(hwnd,0x209,wParam,x,y)
+		clickDelay();
+	}
+}
+
+namespace rb{
+	down = function(hwnd,x,y,wParam=2){
+		send(hwnd,0x204,wParam,x,y)
+		downDelay()
+	}
+	up = function(hwnd,x,y,wParam=2){
+		send(hwnd,0x205,wParam,x,y)
+		upDelay();
+	}
+	click = function(hwnd,x,y,wParam){
+		down(hwnd,x,y,wParam);  
+		up(hwnd,x,y,wParam);
+		clickDelay();
+	} 
+	clickDB = function(hwnd,x,y,wParam=2){
+		send(hwnd,0x206,wParam,x,y)
+		clickDelay();
+	}
+}
+
+/*intellisense(winex.mouse)
+delay = 指定延时函数,默认为win.delay
+delayDown = 按下后的时间间隔,默认为5
+delayUp = 弹起后的时间间隔,默认为1
+delayClick = 完整击键之间的间隔,默认为5
+down(.(窗口句柄,x,y) = 左键按下\nx,y为目标窗口内坐标\n可选增加wParam参数,用法参考源码
+up(.(窗口句柄,x,y) = 左键弹起\nx,y为目标窗口内坐标\n可选增加wParam参数,用法参考源码
+click(.(窗口句柄,x,y) = 左键单击\nx,y为目标窗口内坐标\n可选增加wParam参数,用法参考源码
+clickDB(.(窗口句柄,x,y) = 左键双击\nx,y为目标窗口内坐标\n可选增加wParam参数,用法参考源码
+move(.(窗口句柄,x,y) = 移动鼠标\nx,y为目标窗口内坐标\n可选增加wParam参数,用法参考源码
+moveTo(.(窗口句柄,x1,y1,x2,y2,步进,延时) = 移动并显示移动轨迹\nx,y为当前窗口内原点坐标，x2,y2为相对原点的坐标\n其他为可选参数
+moveTo(.(窗口句柄,x1,y1,x2,y2,true,步进,延时) = 移动并显示移动轨迹\nx,y为目标窗口内坐标，x2,y2为当前窗口内坐标\n其他为可选参数
+drag(.(窗口句柄,x1,y1,x2,y2,步进,延时) = 按下左键拖动并显示移动轨迹\nx,y为当前窗口内原点坐标，x2,y2为相对原点的坐标\n其他为可选参数
+drag(.(窗口句柄,x1,y1,x2,y2,true,步进,延时) = 按下左键拖动并显示移动轨迹\nx,y为目标窗口内坐标，x2,y2为当前窗口内坐标\n其他为可选参
+end intellisense*/
+
+/*intellisense(winex.mouse.mb)
+down(.(窗口句柄,x,y) = 中键按下\nx,y为目标窗口内坐标 
+up(.(窗口句柄,x,y) = 中键弹起\nx,y为目标窗口内坐标
+click(.(窗口句柄,x,y) = 中键单击\nx,y为目标窗口内坐标
+clickDB(.(窗口句柄,x,y) = 中键双击\nx,y为目标窗口内坐标
+roll(.(窗口句柄,x,y,-3) = 向下滚动\nx,y为目标窗口内坐标
+roll(.(窗口句柄,x,y,3) = 向上滚动\nx,y为目标窗口内坐标
+end intellisense*/
+
+/*intellisense(winex.mouse.rb)
+down(.(窗口句柄,x,y) = 右键按下\nx,y为目标窗口内坐标 
+up(.(窗口句柄,x,y) = 右键弹起\nx,y为目标窗口内坐标
+click(.(窗口句柄,x,y) = 右键单击\nx,y为目标窗口内坐标
+clickDB(.(窗口句柄,x,y) = 右键双击\nx,y为目标窗口内坐标
+end intellisense*/

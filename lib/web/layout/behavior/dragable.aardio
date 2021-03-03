@@ -1,0 +1,69 @@
+//dragable 拖动
+namespace web.layout.behavior { 
+	class dragable{
+		ctor(ltOwner,wbLayout){ {
+			ltOwner.style.position = "absolute"; 
+			var dragMargin = ltOwner.getCustomAttribute("drag-margin");
+			if( dragMargin ){
+				var t = {} 
+				for n in ..string.gmatch( dragMargin,"\S+") { 
+					..table.push( t, (tonumber(n)) ) 
+				} 
+				if(t[1]){
+					this.dragMarginTop = t[1];
+					this.dragMarginRight = t[2] : t[1];
+					this.dragMarginBottom = t[3] : this.dragMarginTop;
+					this.dragMarginLeft = t[4] : this.dragMarginRight ;
+				}
+			}
+			var ltView = ltOwner.parent();
+			var position;
+			while(ltView){
+				position = ltView.style.position; 
+				if( position == "relative" || position == "absolute" ){
+					this.view = ltView;
+					break;
+				}
+				ltView = ltView.parent();
+			} 
+			if(!this.view) this.view = ltOwner.documentElement;
+		} };
+		onMouseDown = function(ltTarget, ltOwner, x, y, ltMouseParams) {
+        	if (ltMouseParams.button_state == 1/*_HL_MAIN_MOUSE_BUTTON*/){
+        		var ltProp = ltTarget.queryParent("[dragable]") ;
+        		if( ltOwner.isChild(ltProp) && ltProp.dragable == "false") return;
+        		
+        		ltOwner.capture = true;
+            	this.dx = x;
+            	this.dy = y;
+            	ltOwner.dragging  = "true";//for css;
+        		ltOwner.update(true); 
+       		}
+    	};
+    	onMouseMove = function(ltTarget, ltOwner, x, y, ltMouseParams) { 
+        	if (ltMouseParams.button_state === 1/*_HL_MAIN_MOUSE_BUTTON*/ && ltOwner.dragging){ 
+        	
+        		with this{
+        			var x,y = ltMouseParams.pos_document.x-dx,ltMouseParams.pos_document.y-dy; 
+        			if( dragMarginTop  ){
+        				if(!this.view) return;
+        				var rcWnd = this.view.getRect(4/*_HL_VIEW_RELATIVE*/);
+        				var rc = ltOwner.getRect(4/*_HL_VIEW_RELATIVE*/ | 0x20/*_HL_BORDER_BOX*/);
+            			if( x <= rcWnd.left + dragMarginLeft ) x = rcWnd.left + dragMarginLeft;
+            			elseif( x + rc.width() >  rcWnd.right - dragMarginRight ) x = rcWnd.right - dragMarginRight - rc.width();
+            			if( y < rcWnd.top + dragMarginTop ) y = rcWnd.top + dragMarginTop;
+            			elseif( y + rc.height() >  rcWnd.bottom - dragMarginBottom  ) y = rcWnd.bottom - dragMarginBottom - rc.height();
+            		} 
+            		ltOwner.setPos(x,y)
+            	}
+        	}
+    	};
+    	onMouseUp = function (ltTarget, ltOwner, x, y, ltMouseParams) {
+        	if (ltMouseParams.button_state === 1/*_HL_MAIN_MOUSE_BUTTON*/ && ltOwner.dragging ) {
+            	ltOwner.capture = false; 
+            	ltOwner.dragging = null;
+            	ltOwner.update(true);
+        	}
+    	}
+	}
+}

@@ -1,0 +1,1974 @@
+//plus 高级图像控件
+import gdip.graphics;
+import gdip.solidBrush;
+import gdip.lineBrush;
+import gdip.pen;
+import gdip.stringformat;
+import gdip.font;
+import gdip.path;
+import win.ui.tracker;
+import win.ui.ctrl.richedit;
+import gdip.textureBrush;
+import win.ui.ctrl.metaProperty;
+import gdip.pathGradientBrush;
+
+namespace win.ui.ctrl;
+
+class plus {
+	ctor( parent,tParam ) {
+		this.state = {};
+		tParam.cls = __className;
+		if(tParam.edge) tParam.exstyle |= 0x20000/*_WS_EX_STATICEDGE*/;  
+		this.transparent = tParam.transparent;
+		this.notify = tParam.notify;
+		this.animation = tParam.animation;
+		this.bkTop = tParam.bkTop : 0;
+		this.bkRight = tParam.bkRight : 0;
+		this.bkBottom = tParam.bkBottom : 0;
+		this.bkLeft = tParam.bkLeft : 0; 
+		this.foreTop = tParam.foreTop : 0;
+		this.foreRight = tParam.foreRight : 0;
+		this.foreBottom = tParam.foreBottom : 0;
+		this.foreLeft = tParam.foreLeft : 0; 
+		this.paddingLeft = tParam.paddingLeft : 0;
+		this.paddingRight = tParam.paddingRight : 0;
+		this.paddingTop = tParam.paddingTop : 0;
+		this.paddingBottom = tParam.paddingBottom : 0;  
+		this.x = tParam.x : 0;
+		this.y = tParam.y : 0;
+	 
+		if(!_WINXP) {
+			if( !tParam.font ) tParam.font = ::LOGFONT(name="Segoe UI");
+			elseif( tParam.font.name=="Tahoma" )  tParam.font.name="Segoe UI";
+		}
+		else {
+			if( !tParam.font ) tParam.font = ::LOGFONT(name="MS Shell Dlg");
+			elseif( tParam.font.name=="Tahoma" )  tParam.font.name="MS Shell Dlg";
+		}
+		
+		if(tParam.font.name!="Segoe UI" || this.transparent){
+			this.textRenderingHint =  3/*_GdipTextRenderingHintAntiAliasGridFit*/;
+		}
+		else {
+			this.textRenderingHint = 5/*_TextRenderingHintClearTypeGridFit*/;
+		}
+		
+		if( tParam.iconStyle[["font"]] != "Segoe UI" || this.transparent){
+			this.iconTextRenderingHint = 3;
+		}
+		else {
+			this.iconTextRenderingHint = 5;
+		}
+		 
+		if(!#tParam.repeat) tParam.repeat = "expand";
+		if(!#tParam.foreRepeat) tParam.foreRepeat = "point"; 
+		this[["(text)"]] = tParam.text;
+		this.smoothingMode = 4/*_GdipSmoothingModeAntiAlias*/;
+		this.interpolationMode = 7/*_InterpolationModeHighQualityBicubic*/;
+		this.clipBk = true;
+		
+		if(tParam.bgcolor!==null){
+			this.backgroundColor = ..gdi.rgbReverse( tParam.bgcolor ) |  0xFF000000;
+			tParam.bgcolor = null;
+		}
+		
+		if(tParam.forecolor!==null){
+			this.foregroundColor = ..gdi.rgbReverse( tParam.forecolor ) |  0xFF000000;
+			tParam.forecolor = null;
+		}
+		
+		if( type(tParam.border) == "number" ){
+			tParam.border = {width=tParam.border;color=0xFF000000}
+		};
+		
+		this.border = tParam.border;
+		tParam.border = null;
+		
+		tParam.style= tParam.style &~0x800000/*_WS_BORDER*/;
+		this.trimming = 3/*_StringTrimmingEllipsisCharacter*/;
+		this.stringFormatFlags = 0x800/*_GdipStringFormatFlagsMeasureTrailingSpaces*/ |  0x1000/*_StringFormatFlagsNoWrap*/;
+		this.hotkeyPrefix = 1/*_GdipHotkeyPrefixShow*/;
+		
+		//先禁用避免触发属性表
+		this[["editable"]] = tParam.editable; 
+		if(tParam.editable){
+			tParam.style= tParam.style &~0x100000/*_WS_HSCROLL*/;
+			tParam.style= tParam.style &~0x200000/*_WS_VSCROLL*/; 
+		}
+		
+		if(tParam.iconColor){
+			tParam.iconColor = ..gdi.argbReverse(tParam.iconColor);
+		}
+	}; 
+	redrawTransparent = function(){
+		if( owner[["initializing"]] ) return;
+		this.updateBitmapCache(true);
+		if(this.drawToBackgroundEnabled){
+			var winform = owner[["_parentForm"]];
+			winform.background.update();
+			winform.invalidate(owner);
+			winform.update();
+			return;
+		}
+		
+		if( ( this.transparent || ( this.isHyperlink() && !this.clipBk) )  ){
+			var hParent = ..win.getParent(owner.hwnd);
+ 			var rc = ..win.getRect(owner.hwnd);
+			::InvalidateRect( hParent,rc,1 ); 
+			::UpdateWindow( hParent );
+			if( ..win.getStyle(hParent,0x2000000/*_WS_CLIPCHILDREN*/) ){
+				::RedrawWindow(this[["hwnd"]],{},null,0x105 /*_RDW_INVALIDATE | _RDW_UPDATENOW*/ );
+			}
+		}
+		else {  
+			::RedrawWindow(this[["hwnd"]],{},null,0x105 /*_RDW_INVALIDATE | _RDW_UPDATENOW*/ );
+		}
+ 	}; 
+ 	redraw = function( flag = 0x105 /*_RDW_INVALIDATE | _RDW_UPDATENOW */ ) {  
+ 		if( owner[["initializing"]] ) return;
+ 		this.updateBitmapCache();
+ 		if(this.drawToBackgroundEnabled){
+			var winform = owner[["_parentForm"]];
+			winform.background.update();
+			winform.invalidate(owner);
+			winform.update();
+			return;
+		}
+		
+		::RedrawWindow(owner[["hwnd"]],{},null,flag);
+ 	};
+ 	predraw = function(){
+ 	 	this.updateBitmapCache(true);
+ 		this.invalidate();	
+ 	};
+ 	_preadjust = function(cx,cy){
+ 		this.updateBitmapCache(true);
+ 		this.invalidate();
+ 		if(this.drawToBackgroundEnabled){
+			var winform = owner[["_parentForm"]];
+			winform.background.update();
+		}
+ 	};
+	_beforeDpiChanged = function(scaleX,scaleY,origScaleX,origScaleY){
+		 this[["(iconFont)"]] = null;
+		 this[["(iconFontOrig)"]] = null;
+	}
+	updateBitmapCache = function(erase){
+		if( owner._closed ) return;
+		if( this.$bitmapCacheUpdating ) return;
+		
+		if( this.cacheBitmap ) { 
+			..gdip.DeleteCachedBitmap(this.cacheBitmap);
+			this.cacheBitmap = null; 
+		}
+		
+		if( !..win.isWindow(this.hwnd) ) return;
+		var foreground = this[["(foreground)"]];
+		var background = this[["(background)"]]; 
+		var rc = this.getClientRect();
+		var width,height = rc.right - rc.left,rc.bottom - rc.top;
+		var bmpMem = ..gdip.bitmap(width,height);
+		if( !bmpMem ) return;
+		 
+		var graphics = bmpMem.graphics;  
+		graphics.smoothingMode = this.smoothingMode;
+		graphics.compositingQuality = 2/*_GdipCompositingQualityHighQuality*/; 
+		graphics.textRenderingHint = this.textRenderingHint;
+		graphics.interpolationMode = this.interpolationMode;;
+
+		var winform = owner[["_parentForm"]];
+		var clipBk = erase && !this.transparent && winform && this.clipBk && (!this.cacheOrphanWindowRect__ );
+		var clipBkRect;
+		if( clipBk ){ 
+			var hdc = graphics.getDc();
+			clipBkRect = ..win.getRect(owner.hwnd);
+			if( this.parent != winform) ..win.mapRect(this.parent.hwnd,winform.hwnd,clipBkRect);
+			winform.background.drawRect(hdc, clipBkRect);
+			graphics.releaseDc(hdc);
+		}
+
+		if( this.scale ) graphics.scaleRect(rc,this.scale,this.scale); 
+		if( !this.argbColor ) this.argbColor = 0xFF000000;
+	
+		this.$bitmapCacheUpdating = true;
+		var dpiScaleX,dpiScaleY = (this.dpiScaleX : 1) ,(this.dpiScaleY : 1);
+		
+		var cancel;
+		if( this.onDrawBackground ){
+			cancel = this.onDrawBackground(graphics,rc,this.backgroundColor,this.argbColor)
+		}
+		
+		if( ! cancel ){
+			if( background ? background.isValid() ){
+				graphics.drawBackground(background,this["(repeat)"]
+					,rc,this.bkTop,this.bkRight,this.bkBottom,this.bkLeft
+					,null,dpiScaleX,dpiScaleY);
+			} 
+			elseif( ( this.backgroundColor !== null ) && ( this.mode != "trackbar" ) ){
+				
+				var pixelOffsetMode = graphics.pixelOffsetMode;
+				graphics.pixelOffsetMode = 4/*_PixelOffsetModeHalf*/;
+			
+				if( ( this.linearGradient !== null ) && (this.foregroundColor!==null)){
+					if(this.linearGradient>=0){
+						var rf = rc.float();
+						rf.angle = this.linearGradient; 
+						var brush = ..gdip.lineBrush(rf,this.backgroundColor,this.foregroundColor);
+						graphics.fillRectangle( brush,0,0,width,height);
+						brush.delete();
+					}
+					else {
+						var pathGradient = ..gdip.path();
+						pathGradient.addEllipse(rc.left,rc.top,rc.width(),rc.height());
+						
+						var brush = ..gdip.pathGradientBrush(pathGradient);
+						brush.setCenterColor(this.backgroundColor);
+						brush.setSurroundColors(this.foregroundColor);
+						brush.gammaCorrection = true;
+						graphics.fillEllipse(brush,0,0,width,height);
+						brush.delete();	
+						pathGradient.delete();
+					}
+				}
+				elseif( ! this[["(progress-clip-path)"]] ) {
+					var brush = ..gdip.solidBrush(this.backgroundColor);
+					graphics.fillRectangle( brush,0,0,width,height);
+					brush.delete();	
+				}
+				
+				graphics.pixelOffsetMode = pixelOffsetMode;
+			}
+		} 
+		
+		var rcContent = ::RECT();
+		rcContent.right = rc.right - owner.paddingRight;
+		rcContent.bottom = rc.bottom - owner.paddingBottom;
+		rcContent.left = owner.paddingLeft;
+		rcContent.top = owner.paddingTop;
+			
+		cancel = false;
+		if( this.onDrawContent ){
+			cancel = this.onDrawContent(graphics,rc,this.argbColor,rcContent)
+		}
+		
+		var rcText;
+		if( ! cancel ){
+			var hasForeground = foreground ? foreground.isValid();
+			var text = this[["(text)"]];
+			if( #text or this.onDrawString ){ 
+				var x,y = this.paddingLeft*dpiScaleX,this.paddingTop*dpiScaleY;
+				if( ( background ? this.state[["active"]] ? (!this[["(progress-range)"]])  ) ) { x++;y++; };
+				rcText = ::RECTF(x,y,width - x - this.paddingRight*dpiScaleX,height - y - this.paddingBottom*dpiScaleY);
+			}
+			
+			var pixelOffsetMode = graphics.pixelOffsetMode;
+			graphics.pixelOffsetMode = 2/*_PixelOffsetModeHighQuality*/
+			
+			if( this[["(progress-range)"]] && this[["(progress-pos)"]]!== null && this.mode ){
+				var rcTrackBar;
+				var rc = {left=this.paddingLeft*dpiScaleX;top=this.paddingTop*dpiScaleY;
+					right=width - this.paddingRight*dpiScaleX;bottom=height- this.paddingBottom*dpiScaleY};
+				
+				var w = rc.right - rc.left;
+				var h = rc.bottom - rc.top;
+				var r = (this[["(progress-pos)"]])/(this[["(progress-range)"]]);
+				
+				var path = this[["(progress-clip-path)"]];
+				if( path && this.mode=="pie" ){
+				 	path.reset(); 
+				 	if(this.backgroundColor!==null){
+				 		path.addEllipse(rc.left,rc.top,w,h);
+				 		graphics.setClipPath(path,0/*_GdipCombineModeReplace*/);
+				 		var brush = ..gdip.solidBrush(this.backgroundColor);
+						graphics.fillEllipse( brush,0,0,width,height);
+						brush.delete();
+				 	}
+				 	
+				 	path.reset(); 
+				 	path.addPie( rc.left ,rc.top,w,h,90,360 * r );
+				 	graphics.setClipPath(path,1/*_CombineModeIntersect*/);
+				}
+				else{
+				 	if( this.mode = "trackbar" ){ 
+				 		var bx,by,bcx,bcy;
+				 		if( r > 1 ) r = 1;
+				 		if( w > h ){
+				 			var p = this.foreLeft + this.foreRight; 
+				 			rc.right = rc.left + (w - p) * r + p;
+				 			if(rcText && this.align == "right") rcText.width = rc.right - rcText.x;
+				 			bx,by,bcx,bcy = 0,rc.top,width,rc.bottom-rc.top; 
+				 				
+				 			if( (!hasForeground) && this.foreRight){
+								var left = rc.right- this.foreRight;
+								rcTrackBar = ::RECT(left,0,left+this.foreRight,height); 	
+							} 
+				 		}
+				 		else {
+				 			var p = this.foreTop + this.foreBottom;
+				 			rc.top = rc.bottom - ( h - p) * r - p ;
+				 			if(rcText && this.valign == "top") { rcText.y = rc.top; rcText.height = rc.bottom - rc.top; };
+				 			bx,by,bcx,bcy = rc.left,0,rc.right-rc.left,height; 
+				 			
+				 			if((!hasForeground) && this.foreTop){ 
+								rcTrackBar = ::RECT(0,rc.top,width,rc.top+this.foreTop);
+							}
+				 		}
+				 		
+				 		if(this.backgroundColor!==null){
+				 			if( (this.linearGradient>=0) && (this.foregroundColor!=null) ) {
+								var rf = ::RECTF(bx,by,bcx,bcy);
+								rf.angle = this.linearGradient; 
+								var brush = ..gdip.lineBrush(rf,this.backgroundColor,this.foregroundColor);
+								graphics.fillRectangle(brush,bx,by,bcx,bcy);
+								brush.delete();
+							}
+							else {
+								var brush = ..gdip.solidBrush(this.backgroundColor);
+								graphics.fillRectangle( brush,bx,by,bcx,bcy);
+								brush.delete();
+							}
+				 		}
+				 	}
+				 	else{
+				 		if( w > h ){
+				 			w = ( w - this.foreLeft ) * r + this.foreLeft;
+				 			graphics.setClipRect(rc.left,rc.top,w,h,0/*_GdipCombineModeReplace*/); 
+				 			if(rcText && this.align == "right") { rcText.width = ( rc.left + w ) - rcText.x };
+				 		}
+				 		else {
+				 			var top = rc.bottom - ( h - this.foreBottom ) * r - this.foreBottom;
+				 			graphics.setClipRect(rc.left,top,w,rc.bottom,0/*_GdipCombineModeReplace*/);
+				 			if(rcText && this.valign == "top") { rcText.y =  top; rcText.height = rc.bottom - top; };
+				 		} 
+				 	}
+				}
+				
+				if(hasForeground){
+				 	graphics.drawBackground(foreground,this["(foreRepeat)"]
+						,rc,this.foreTop,this.foreRight,this.foreBottom,this.foreLeft,this.imageAttributes
+						,dpiScaleX,dpiScaleY);
+				}
+				else {
+					if( this.linearGradient === null ){
+						var brush = ..gdip.solidBrush(this.foregroundColor);
+						graphics.fillRectangle( brush,rc.left,rc.top,rc.right-rc.left,rc.bottom-rc.top);
+						brush.delete() 
+					}
+						
+					if(rcTrackBar && this.argbColor){ 
+						var brush = ..gdip.solidBrush(this.argbColor);
+						if(this.border[["radius"]]){
+							if(this.border[["radius"]]<0){
+								graphics.fillEllipse( brush,rcTrackBar.xywh() );
+							}
+							else {
+								var path = ..gdip.path(1/*_FillModeWinding*/)
+								path.addRoundRect(rcTrackBar,this.border.radius);
+								graphics.fillPath(brush,path);
+								path.delete();
+							}
+						}
+						else {
+							graphics.fillRectangle( brush,rcTrackBar.xywh() ); 
+						}
+						
+						brush.delete();
+					}
+				}
+				
+				graphics.resetClip();
+			}
+			elseif(hasForeground){  
+				
+				if( this["(foreRepeat)"] != "point"){
+					 rc = ::RECT(this.paddingLeft,this.paddingTop,width - this.paddingRight,height- this.paddingBottom);
+				}
+				elseif( background ?  #text ? this.state[["active"]]  ){
+					rc.left = rc.left + 1;
+					rc.top = rc.top + 1;
+				} 
+							 
+				if( this.border[["radius"]] && this.border[["radius"]]  < 0 ){
+					
+					if( graphics.transform(this["(foreRepeat)"],foreground,rc,this.x,this.y) ){
+        				var textureBrush = ..gdip.textureBrush(foreground,this.imageAttributes );
+        				graphics.fillEllipse(textureBrush,0,0,foreground.width,foreground.height);
+    					textureBrush.delete();
+    					graphics.resetTransform();
+    					if( this.scale ) graphics.scaleRect(this.getClientRect(),this.scale,this.scale);
+        			} 
+        			else { 
+						var bmpMem2 = ..gdip.bitmap(foreground.width,foreground.height);
+					 	var textureBrush = ..gdip.textureBrush(foreground,this.imageAttributes);
+					 	var g = bmpMem2.getGraphics();
+						g.smoothingMode = this.smoothingMode;
+        				g.fillEllipse(textureBrush,0,0,foreground.width,foreground.height);
+    					textureBrush.delete(); 
+    					
+				 		graphics.drawBackground(bmpMem2,this["(foreRepeat)"]
+							,rc,this.foreTop,this.foreRight,this.foreBottom,this.foreLeft
+							,null,dpiScaleX,dpiScaleY); 
+    					
+    					bmpMem2.dispose(); 
+        			}
+				} 
+				elseif( this["(foreRepeat)"] == "point"){
+					
+					graphics.drawImagePoint(foreground,rc,this.x,this.y,this.imageAttributes,dpiScaleX,dpiScaleY)
+				}
+				else {
+				 	graphics.drawBackground(foreground,this["(foreRepeat)"]
+						,rc,this.foreTop,this.foreRight,this.foreBottom,this.foreLeft,this.imageAttributes
+						,dpiScaleX,dpiScaleY); 
+				} 
+				
+				
+			}
+			elseif( this.foregroundColor !== null ){
+				if( this.linearGradient === null ){
+					var rc = ::RECT(this.paddingLeft*dpiScaleX,this.paddingTop*dpiScaleY,width - this.paddingRight*dpiScaleX,height- this.paddingBottom*dpiScaleY);
+					var brush = ..gdip.solidBrush(this.foregroundColor);
+					if( this.border[["radius"]] && this.border[["radius"]]  < 0 ){
+						graphics.fillEllipse(brush,rc.xywh());
+					}
+					else {
+						graphics.fillRectangle(brush,rc.xywh());
+					} 
+					
+					brush.delete();	
+				} 
+			}
+			
+			if( this.onDrawForegroundEnd ){
+				this.onDrawForegroundEnd(graphics,rc,rcContent);
+			}
+			
+			graphics.pixelOffsetMode = pixelOffsetMode; 
+		}
+		
+		if( type(this.border) == "table" ){  
+			var pixelOffsetMode = graphics.pixelOffsetMode;
+			graphics.pixelOffsetMode = 3/*_PixelOffsetModeNone*/;
+			
+			var border = this.border;
+			var left,top,right,bottom = border.left,border.top,border.right,border.bottom;
+			if( ( left===null) && ( top ===null) && ( right ===null) && ( bottom === null)  ){ 
+				if( border.width && border.color ){	
+					var w1 = ..math.floor((border.width-1)/2);
+					var w2 = ..math.ceil(border.width/2);  
+					var rc = ::RECT(rc.left+w1,rc.top+w1,rc.right-w2,rc.bottom-w2);
+					
+					if( border.radius && ( border.radius > 0 ) ){ 
+						var pen = ..gdip.pen(border.color,border.width);
+						var pathRadius = ..gdip.path(1/*_FillModeWinding*/)
+						pathRadius.addRoundRect(rc,this.border.radius);
+						graphics.drawPath(pen,pathRadius);
+						pathRadius.delete();	
+						pen.delete() 
+					}
+					else {
+						var pen = ..gdip.pen(border.color,border.width);
+						graphics.drawRectangle(pen,rc.left,rc.top,rc.width(),rc.height());
+						pen.delete();
+					}
+				}
+			}
+			else{ 
+				var padding = border.padding : 0;
+				
+				if( border.width ){
+					if( left === null ) left =  border.width;
+					if( top === null ) top =  border.width;
+					if( right === null ) right =  border.width;
+					if( bottom === null ) bottom =  border.width;
+				}
+				
+				if( left ){
+					var w = ..math.floor((left-1)/2);
+					var color = border.leftColor ;
+					if( color === null ) color = border.color;
+					
+					if( color != null ) {
+						var pen = ..gdip.pen( color,left);
+						graphics.drawLine(pen,rc.left+w,rc.top-1+padding*dpiScaleY,rc.left+w,rc.bottom-padding*dpiScaleY);
+						pen.delete();
+					}
+				}
+				if( top ){
+					var w = ..math.floor((top-1)/2);
+					var color = border.topColor ;
+					if( color === null ) color = border.color;
+					
+					if( color != null ) {
+						var pen = ..gdip.pen( color,top);
+						graphics.drawLine(pen,rc.left-1+padding*dpiScaleX,rc.top+w,rc.right-padding*dpiScaleX,rc.top+w);
+						pen.delete();
+					}
+				}
+				
+				if( right ){
+					var w = ..math.ceil(right/2);
+					var color = border.rightColor ; 
+					if( color === null ) color = border.color;
+					
+					if( color != null ) {
+						var pen = ..gdip.pen( color,right);
+						graphics.drawLine(pen,rc.right-w,rc.top-1+padding*dpiScaleY,rc.right-w,rc.bottom-padding*dpiScaleY);
+						pen.delete();
+					}
+				}
+				
+				if( bottom ){
+					var w = ..math.ceil(bottom/2);
+					var color = border.bottomColor ; 
+					if( color === null ) color = border.color;
+					
+					if( color != null ) {
+						var pen = ..gdip.pen( color,bottom);
+						graphics.drawLine(pen,rc.left-1+padding*dpiScaleX,rc.bottom-w,rc.right-padding*dpiScaleX,rc.bottom-w);
+						pen.delete();
+					}
+				}
+			}
+			
+			graphics.pixelOffsetMode = pixelOffsetMode;
+		}
+		
+		if( this[["(iconText)"]] && this.iconStyle ){  
+			var iconStyle = this.iconStyle; 
+			var strformat = ..gdip.stringformat();    
+			strformat.align = __stringAlignment[ iconStyle.align : "center" ] 
+			strformat.lineAlign = __stringAlignment[ iconStyle.valign : "center" ] 
+			
+			var padding = iconStyle.padding;
+			var x,y = (padding[["left"]]:0)*dpiScaleX,(padding[["top"]]:0)*dpiScaleY;
+			var rcText = ::RECTF(x,y,width - x - ((padding[["right"]]:0)*dpiScaleX),height- y - ((padding[["bottom"]]:0)*dpiScaleY));
+			if( background ? this.state[["active"]] ){
+				rcText.x = rcText.x + 1;
+				rcText.y = rcText.y + 1;
+			}
+			
+			if( iconStyle.font ) {
+				var color = this.iconColor
+				if(color===null)color=this.argbColor;
+				var brush = ..gdip.solidBrush(color);
+				
+				if((!this[["(iconFont)"]]) || (this[["(iconFontOrig)"]]!=iconStyle.font) ){
+					var hdc = ::GetDC(owner.hwnd);
+					iconStyle.font.stripPoint(hdc);
+					var h = iconStyle.font.h;
+					if( this.dpiScaleY ) iconStyle.font.h = h * this.dpiScaleY;
+					this[["(iconFont)"]] = ..gdip.font( hdc,iconStyle.font ); 
+					this[["(iconFontOrig)"]] = iconStyle.font;
+					
+					iconStyle.font.h = h;
+					::ReleaseDC(owner.hwnd,hdc);  	
+				}   
+				
+				var hint = graphics.textRenderingHint;
+				graphics.textRenderingHint = this.iconTextRenderingHint;
+				graphics.drawString( this[["(iconText)"]],this[["(iconFont)"]],rcText, strformat,brush); 
+				graphics.textRenderingHint = hint;
+				brush.delete();
+			}
+			
+			strformat.delete();
+		}
+		
+		if( rcText ){  
+			
+			var text = this[["(text)"]];
+			var strformat = ..gdip.stringformat();  
+			strformat.align = __stringAlignment[ this.align : "center" ] 
+			strformat.lineAlign = __stringAlignment[ this.valign : "center" ] 
+			strformat.hotkeyPrefix = this.hotkeyPrefix; 
+			strformat.flags = this.stringFormatFlags; 
+			if(this.trimming!==null) strformat.trimming = this.trimming;
+			
+			var brush = ..gdip.solidBrush( this.argbColor );
+			if( this[["(font)"]] ) {
+				var p = this.textPadding;
+				if( p ){
+					..table.mix(p,{left=0;top=0;right=0;bottom=0});
+					rcText.x = rcText.x + p.left*dpiScaleX;
+					rcText.y = rcText.y + p.top*dpiScaleY; 
+					rcText.width = rcText.width - p.left*dpiScaleX - p.right*dpiScaleX;
+					rcText.height = rcText.height - p.top*dpiScaleY - p.bottom*dpiScaleY;
+				}
+				
+				if( !this.onDrawString ){
+					var map = this.fontCharMap;
+					if(map){
+						var w = rcText.width/#text;
+						var rc  = ::RECT(rcText.x,rcText.y,rcText.x+w,rcText.y+rcText.height) 
+    					..string.replace(text,":|.",function(c){ 
+    						if(map[c]){ 
+    							graphics.drawBackground(map[c],"scale",rc,,,,,,dpiScaleX,dpiScaleY);	
+    							rc.offset(w,0);
+    						} 
+    					})	
+					}
+					else {
+						graphics.drawString( text ,this[["(font)"]],rcText, strformat,brush);
+					}
+				}
+				else{
+					this.onDrawString(graphics,text,this[["(font)"]],rcText, strformat,brush)	
+				}
+			}
+			brush.delete();
+			strformat.delete();
+		}
+		
+		if( this.border[["radius"]] && this.border[["radius"]]  > 0 ){
+			var rc = this.getClientRect();
+			var width,height = rc.right - rc.left,rc.bottom - rc.top;
+			var bmpMem2 = ..gdip.bitmap(width,height); 
+			var path = ..gdip.path(1/*_FillModeWinding*/)
+			path.addRoundRect(rc,this.border.radius);
+			
+			var textureBrush = ..gdip.textureBrush( bmpMem );
+			var g = bmpMem2.getGraphics();
+			g.smoothingMode = this.smoothingMode;
+			
+			if( clipBkRect ){ 
+				var hdc = g.getDc(); 
+				winform.background.drawRect(hdc,clipBkRect);
+				g.releaseDc(hdc);
+			}
+			
+        	g.fillPath(textureBrush,path);
+    		textureBrush.delete(); 
+    		path.delete();
+    		
+    		if( this.onDrawEnd ){ this.onDrawEnd(g,rc); } 
+    		bmpMem.dispose();
+    		bmpMem = bmpMem2;
+		}
+		else {
+			if( this.onDrawEnd ){ this.onDrawEnd(graphics,this.getClientRect()); } 
+		}
+		
+		graphics.delete();
+		graphics = ..gdip.graphics(this) 
+		this.cacheBitmap = graphics.createCachedBitmap(bmpMem);  
+		graphics.delete();
+		bmpMem.dispose();
+		
+		this.cacheBitmapWidth = width;
+		this.cacheBitmapHeight = height;
+		
+		if( this.cacheOrphanWindowRect__ ){
+		
+		 	..gdi.layeredBuffer( this.hwnd,  
+        		function( hdc,hMemDc,hMemBitmap,width,height ){
+        			var graphics = ..gdip.graphics(hMemDc); 
+					graphics.drawCachedBitmap(this.cacheBitmap,0,0);
+					graphics.delete(); 
+            	 	
+        			..gdi.updateLayeredWindow( this.hwnd,hMemDc,::SIZE(width,height) ,..gdi.blendFunction()  ); 
+        		}
+        	)
+		}
+		
+		this.$bitmapCacheUpdating = false;
+		return this.cacheBitmap;
+	};
+	drawToDevice = function(hdc,x,y){
+		if(x===null)x,y = owner.getPos();
+		var graphics = ..gdip.graphics(hdc);
+		var cacheBitmap =  owner.cacheBitmap : owner.predraw();
+		if(cacheBitmap) graphics.drawCachedBitmap(cacheBitmap,x,y); 
+		graphics.delete();
+	};
+	drawToGraphics = function(graphics,x,y){ 
+		if(x===null)x,y = owner.getPos();
+		var cacheBitmap =  owner.cacheBitmap : owner.predraw();
+		if(cacheBitmap) graphics.drawCachedBitmap(cacheBitmap,x,y);  
+	};
+	directDrawBackgroundOnly = function(){
+		if(this.drawToBackgroundEnabled) return;
+		if( !..win.getStyle(this.hwnd,0x40000000/*_WS_CHILD*/) ) return;
+		
+		this.clipBk = false;
+		this.drawToBackgroundEnabled = true;
+		this.modifyStyleEx(,0x20/*_WS_EX_TRANSPARENT*/)
+		
+		this.wndproc = { 
+			[ 0xF/*_WM_PAINT*/] = function (hwnd, message, wParam, lParam) {   
+			  	var ps = ::PAINTSTRUCT(); 
+				var hdc,ps = ::BeginPaint(hwnd, ps);
+				::EndPaint(hwnd, ps);
+				return 1; 
+			}
+		}
+		
+		owner.onDirectDrawBackground = function(hdc,graphics){
+			if(graphics) return owner.drawToGraphics(graphics);
+			
+    		graphics = ..gdip.graphics(hdc);
+    		owner.drawToGraphics(graphics);
+    		graphics.delete();	
+		}
+	
+	};
+	onCreated = function () {  
+	
+		this.wndproc = { 
+			[ 0xF/*_WM_PAINT*/] = function (hwnd, message, wParam, lParam) {   
+			 
+			 	..gdi.paintBuffer( hwnd,
+			 	    function( hdc,hMemDc,hMemBitmap,width,height,rcPaint,fErase,paintStruct ){
+			 	    	if( ! ( (width == this.cacheBitmapWidth) && (height == this.cacheBitmapHeight ) ) ){
+							this.updateBitmapCache();
+						}  
+						if(this.cacheBitmap){
+			 	        	var graphics = ..gdip.graphics(hMemDc); 
+							graphics.setClipRect( rcPaint.left,rcPaint.top,rcPaint.right,rcPaint.bottom,0/*_GdipCombineModeReplace*/);
+							graphics.drawCachedBitmap(this.cacheBitmap,0,0);
+							graphics.delete();
+						}
+			 	    } 
+			 	);
+			 	
+				return 1; 
+			}
+			[ 0x14/*_WM_ERASEBKGND*/] = function (hwnd, uMsg, wParam, lParam) {
+				return 0;
+			} 
+			[ 0xC/*_WM_SETTEXT*/ ] = function (hwnd, uMsg, wParam, lParam) {
+				if(lParam){
+				 	var text = ..string.fromUnicode( topointer(lParam),,true ); 
+				 	if( text != this[["(text)"]] ){
+				 		if(owner[["(editable)"]]) {
+							if( owner[["(cueBanner)"]] ){
+					 			if( text==""){
+									owner.editBox.color = owner[["(cueBannerColor)"]];
+									owner[["(cueBannerPwdChr)"]] = owner.editBox.passwordChar;
+									owner.editBox.passwordChar = null;
+									owner.editBox.text = owner[["(cueBanner)"]];
+									owner.cueBannerTextShowing = true;
+								}
+								elseif(owner.cueBannerTextShowing ){
+									owner.editBox.color = owner.color;
+									owner.editBox.passwordChar = owner[["(cueBannerPwdChr)"]];
+									owner.editBox.text = text;
+									owner.cueBannerTextShowing = false;
+								}
+								else {
+									owner.editBox.text = text;
+								}
+								
+							}
+							else{ owner.editBox.text = text; }
+				 		}
+				 		else{
+				 			this[["(text)"]]  = text;
+							this.redrawTransparent();
+						}
+					}
+				}
+			} 
+			[ 0x84/*_WM_NCHITTEST*/ ] = function (hwnd, uMsg, wParam, lParam) {
+				if( !this.notify ) return 0xFFFFFFFF/*_HTTRANSPARENT*/;
+				return 1/*_HTCLIENT*/
+			}
+			[ 0x87/*_WM_GETDLGCODE*/ ] = function (hwnd, uMsg, wParam, lParam) {
+				if(owner.mode="trackbar"){
+					return 1/*_DLGC_WANTARROWS*/
+				}
+				return this.notify? 0x2000/*_DLGC_BUTTON*/ : 0x100/*_DLGC_STATIC*/;
+			} 
+			[ 0x20/*_WM_SETCURSOR*/ ] = function (hwnd, uMsg, wParam, lParam) {   
+				 if( this.isHyperlink() ){
+				 	::SetCursor( __cursor_hand ); 
+				 	return true; 
+				 }
+			} 
+		}
+
+		if( this.notify ){ 
+			..win.ui.tracker(this);
+		}
+		
+		if( this[["editable"]] ){
+			var cls = this[["editable"]];
+			this[["editable"]]  = null;
+			this.createEditBox( cls = ( cls==="edit"?cls:null ) );	
+		}
+		
+		if(this.onPlusCreated)this.onPlusCreated();
+		this.predraw();//不加会导致WS_POPUP上TextRenderingHintClearTypeGridFit出现残影
+	};
+	_onDestroy = function(){
+		var foreground = this[["(foreground)"]];
+		var background = this[["(background)"]];
+		this[["(foreground)"]] = null;
+		this[["(background)"]] = null;
+		
+		if( this.cacheBitmap ) {
+			var cacheBitmap = this.cacheBitmap;
+			this.cacheBitmap = null;
+			
+			..gdip.DeleteCachedBitmap(cacheBitmap); 
+		}
+		if( this[["(progress-clip-path)"]]) this[["(progress-clip-path)"]].delete();
+		if( this["(font)"] ) {
+			this["(font)"].delete();   
+			this["(font)"] = null;
+		}
+
+		if(this[["(iconFont)"]]){
+			this[["(iconFont)"]].delete();   
+			this[["(iconFont)"]] = null;
+			this[["(iconFontOrig)"]] = null;
+		}   
+		
+		if(this.animationId) this.clearInterval(this.animationId);
+	};
+	@_metaProperty
+}
+
+namespace plus {
+
+	_metaProperty = ..win.ui.ctrl.metaProperty( 
+		_onStateChange = function(state){
+			if(!state) state = owner.state;
+			var setting = owner[["(skin-setting)"]];  
+			if( setting ){ 
+				var text = owner[["(unchecked-text)"]];
+				var iconText = owner[["(unchecked-iconText)"]];
+				
+				if( owner.state.checked ) {
+					setting = setting[["checked"]] : setting; 
+					text = owner[["(checked-text)"]];
+					iconText = owner[["(checked-iconText)"]];
+				};
+				 
+				if( text && ( text != owner[["(text)"]] ) ){ 
+					owner.text = text;
+				}
+				 
+				if( iconText ){ 
+					owner[["(iconText)"]] = iconText;
+				}
+				
+				var bt = setting[["background"]];
+				var ft = setting[["foreground"]];
+				var ct = setting[["color"]];
+				var ci = setting[["iconColor"]];
+				var dt = setting[["border"]];
+				var st = setting[["scale"]];
+				
+				var getStyle = function(t,k){
+					if( k && t[[k]]!==null ) return t[[k]];
+					if( t[["focus"]] !==null ) return t[["focus"]];
+					return t[["default"]]
+				}
+				
+				var b,f,c,i,d,s;
+				if( state.disabled ) {
+					b = bt[["disabled"]]
+					f = ft[["disabled"]]
+					c = ct[["disabled"]]
+					i = ci[["disabled"]]
+					d = dt[["disabled"]]
+					s = st[["disabled"]]
+				} 
+				elseif( state.active ){
+					b = getStyle(bt,"active");
+					f = getStyle(ft,"active");
+					c = getStyle(ct,"active");
+					i = getStyle(ci,"active");
+					d = getStyle(dt,"active");
+					s = getStyle(st,"active");
+				}
+				elseif( state.hover ){ 
+					b = getStyle(bt,"hover");
+					f = getStyle(ft,"hover");
+					c = getStyle(ct,"hover");
+					i = getStyle(ci,"hover");
+					d = getStyle(dt,"hover");
+					s = getStyle(st,"hover");
+				} 
+				elseif( state.focus ){
+					b = getStyle(bt);
+					f = getStyle(ft);
+					c = getStyle(ct);
+					i = getStyle(ci);
+					d = getStyle(dt);
+					s = getStyle(st);
+				} 
+				else {
+					b = bt[["default"]]
+					f = ft[["default"]]
+					c = ct[["default"]]
+					i = ci[["default"]]
+					d = dt[["default"]]
+					s = st[["default"]]
+				}
+				
+				owner.scale = s;
+				if(dt) owner.border = d;
+				if(bt) owner.setBackground(b,,false);
+				if(ft) owner.setForeground(f,,false);
+				owner.iconColor = i : ci[["default"]];
+				owner.argbColor = c : ct[["default"]];
+				
+				if( owner.onStateChange ) owner.onStateChange(state);
+				
+				var newStyle = {
+					b = b;
+					f = f;
+					c = c;
+					i = i;
+					d = d;
+					s = s;
+					t = owner[["(iconText)"]];
+				}
+				var preStyle = owner[["(preStyle)"]];
+				if( ( preStyle[["b"]] != newStyle.b )
+					|| ( preStyle[["f"]] != newStyle.f )
+					|| ( preStyle[["c"]] != newStyle.c )
+					|| ( preStyle[["i"]] != newStyle.i )
+					|| ( preStyle[["d"]] != newStyle.d )
+					|| ( preStyle[["s"]] != newStyle.s ) 
+					|| ( preStyle[["t"]] != newStyle.t ) ){
+					owner.redrawTransparent();
+				};
+				owner[["(preStyle)"]] = newStyle;
+				
+				return;
+			}
+			
+			if( owner.onStateChange ) owner.onStateChange(state);
+		};
+		checked = {
+			_get = function () {
+				return owner.state.checked;
+			}
+			_set = function (v) {
+				if(v!=owner.state.checked){
+					if( !owner.notify ) owner.notify = true;
+					..win.ui.tracker(owner);
+			
+					if( v ? owner.radioGroup ){ owner.radioClick() }
+					else owner.state.checked = v;
+					owner._onStateChange(owner.state);
+				}
+			}
+		};
+		skin = function(s,clone){ 
+			if( type(s) != type.table ) error("参数@1类型错误",2);
+			if( s.group ) owner.radioGroup = s.group;
+			if(clone){
+				s = ..table.clone(s);
+			}
+			
+			owner[["(checked-text)"]] = null;
+			owner[["(checked-iconText)"]] = null;
+				
+			if( s.checked ){
+				if( type(s.checked) != type.table) error("checked字段必须是表对象",2); 
+				if( !s.checked.color ) s.checked.color = {}; 
+				
+				if( #s.checked.iconText ){
+					if(!owner[["(unchecked-iconText)"]]  ){
+						owner[["(unchecked-iconText)"]] = s.iconText : owner.iconText;
+					}
+					 
+					owner[["(checked-iconText)"]] = s.checked.iconText;	
+				}
+				if( #s.checked.text ){
+					
+					var current = owner[["(unchecked-text)"]] : owner.text;
+					var ck = s.checked.text;
+					var unck = s.text;
+					
+					var a  = ..string.split(current," ",2); 
+					if( #a == 2 ){ 
+						if( ck && ! ..string.indexOf(ck," ") ){
+							ck = ck + " " + a[#a];	
+						}
+						if( unck && ( !..string.indexOf(unck," ") ) ){
+							unck = unck + " " + a[#a];	
+						}
+					}
+					
+					if(!owner[["(unchecked-text)"]]  ){
+						owner[["(unchecked-text)"]] = unck : owner.text;
+					}
+					 
+					owner[["(checked-text)"]] = ck;	
+				}
+				
+				if( s.checked.border ) if(!s.border)s.border={};
+				if( s.checked.background ) if(!s.background)s.background={};
+				if( s.checked.foreground ) if(!s.foreground)s.foreground={};
+			}
+			
+			if(!owner[["(checked-text)"]]) {
+				if(owner[["(unchecked-text)"]]  ) owner.text=owner[["(unchecked-text)"]];
+				owner[["(unchecked-text)"]] = null;
+			}
+			
+			if(!owner[["(checked-iconText)"]]) {
+				if(owner[["(unchecked-iconText)"]]  ) owner.text=owner[["(unchecked-iconText)"]];
+				owner[["(unchecked-iconText)"]] = null;
+			}
+			
+			if( s.background ) {
+				if( s.background.default === null ) { s.background.default = owner.getBackground() : owner.backgroundColor; }
+				elseif(!owner[["(skin-setting)"]]){
+				    var old = owner.setBackground(s.background.default,,false);
+				    //if( old ? ( ! old.isCached() ) ) { old.dispose(); }
+				} 
+			};
+			
+			if( s.foreground ){ 
+				if( s.foreground.default === null ) { s.foreground.default = owner.getForeground(); }
+				elseif(!owner[["(skin-setting)"]]){
+				    var old = owner.setForeground(s.foreground.default,,false);
+				    //if( old ? ( ! old.isCached() ) ) { old.dispose(); }
+				} 
+			}
+			
+			if( s.border ){ 
+				if( s.border.default === null ) { s.border.default = owner.border; }
+			}
+			
+			if( !s.color ) s.color = {};
+			..table.mix( s.color,{ default = owner.argbColor;disabled = ::GetSysColor(0x11/*_COLOR_GRAYTEXT*/)| ( 0xFF << 24 ) } ); 
+			
+			if( s.checked ){
+				if( s.checked.color.default=== null ) s.checked.color.default = s.color.default; 
+			}
+			
+			if( owner.iconColor ) {
+				s.iconColor = ..table.mix(s.iconColor,{default=owner.iconColor} );
+			}
+			
+			owner[["(skin-setting)"]] = s;
+			
+			//开启[事件回调属性
+			if( !owner.notify ) {
+				owner.notify = true;
+				..win.ui.tracker(owner);
+			}
+			
+			owner._onStateChange(owner.state);
+		};
+		background = {
+			_get = function () {
+				return owner.getBackground();
+			}
+			_set = function (v) {
+				var old = owner.setBackground(v,,!owner[["initializing"]]);
+				//if( old ? ( ! old.isCached() ) ) { old.dispose(); }
+			}
+		}
+		foreground = {
+			_get = function () {
+				return owner.getForeground();
+			}
+			_set = function (v) {
+				var old = owner.setForeground(v,, !owner[["initializing"]]); 
+				//if( old ? ( ! old.isCached() ) ) { old.dispose(); }
+			}
+		}
+		repeat = {
+			_get = function () {
+				return owner.getRepeat();
+			}
+			_set = function (v) {
+				owner.setRepeat(v, !owner[["initializing"]]); 
+			}
+		}
+		getRepeat = function(){
+			return owner[["(repeat)"]];
+		};
+		setRepeat = function(v,redraw=true){
+			owner[["(repeat)"]] = v; 
+			if( redraw ) owner.redrawTransparent();
+		};
+		foreRepeat = {
+			_get = function () {
+				return owner.getForeRepeat();
+			}
+			_set = function (v) {
+				owner.setForeRepeate(v, !owner[["initializing"]]); 
+			}
+		}
+		getForeRepeat = function(){
+			return owner[["(foreRepeat)"]];
+		};
+		setForeRepeate = function(v,redraw=true){
+			owner[["(foreRepeat)"]] = v; 
+			if( redraw ) owner.redrawTransparent();
+		}; 
+		getBackground = function(){
+			return owner[["(background)"]];
+		};
+		setBackground = function(bmp,cacheName,redraw=true){
+			var background = owner[["(background)"]];
+			
+			if(type(bmp)==type.number){
+				if( background ) background.stopAnimation();
+				owner[["(background)"]] = null;
+				
+				if( bmp == owner.backgroundColor ) return;
+				owner.backgroundColor = bmp;
+				
+				if( redraw ) owner.redrawTransparent(); 
+				return;
+			}
+			owner.backgroundColor = null;
+			if( bmp == background ) return;
+			
+			var old = background;
+			if( bmp ){
+				background = ..gdip.loadCachedBitmap(bmp,cacheName); 
+				if( background ){ 
+					if( old ) old.stopAnimation();
+					if( owner.animation === null ||  (owner.animation) ){
+						background.createAnimation(owner,owner.redrawTransparent);
+					} 
+					owner[["(background)"]] = background;
+				} 
+				else {
+					return;
+				} 
+			}
+			else {
+				owner[["(background)"]] = null;
+			}
+			
+			if( redraw ) owner.redrawTransparent(); 
+			return old;  
+		};
+		getForeground = function(){
+			return owner[["(foreground)"]];
+		};
+		setForeground  = function(bmp,cacheName,redraw=true){
+			var foreground = owner[["(foreground)"]];
+			
+			if(type(bmp)==type.number){
+				if( foreground ) foreground.stopAnimation();
+				owner[["(foreground)"]] = null;
+				
+				if( bmp == owner.foregroundColor ) return;
+				owner.foregroundColor = bmp;
+				
+				if( redraw ) owner.redrawTransparent(); 
+				return;
+			}
+			owner.foregroundColor = null;
+			if( bmp == foreground ) return;
+			
+			var old = foreground;
+			if( bmp ){
+				foreground = ..gdip.loadCachedBitmap(bmp,cacheName); 
+				if( foreground ){ 
+					if( old ) old.stopAnimation();
+					if( owner.animation === null ||  (owner.animation) ){ 
+						foreground.createAnimation(owner,owner.redrawTransparent);
+					}
+					owner[["(foreground)"]] = foreground;
+				}
+				else {
+					return;
+				}
+			}
+			else {
+				owner[["(foreground)"]] = null;
+			}
+			
+			if( redraw ) owner.redrawTransparent();
+			return old;  
+		}; 
+		isHyperlink = function(){
+			return ( owner.notify ? #owner[["(text)"]] ? ( !owner[["(background)"]] ) ? ( !owner[["(foreground)"]] ) );
+		};
+		setFocus = function(text){
+			if(text!==null){owner.text=text}
+			if(owner[["editBox"]]) return owner.editBox.setFocus();
+			..win.setFocus(owner.hwnd)
+		}; 
+		createEditBox = function(p){
+			if( ( p !== null ) && (type(p) != type.table) ) error("参数错误",2)
+			
+			if(owner[["editBox"]]){
+				if(p===null) return owner.editBox;
+				owner[["(editable)"]] = null;
+				owner.editBox.close();
+			}
+			
+			var tp = owner.textPadding : {left=0;right=0;top=0;bottom=0};;
+			
+			var margin = { 
+				marginLeft=(owner.paddingLeft + (tp[["left"]]:0))*owner.dpiScaleX;
+				marginRight=(owner.paddingRight + (tp[["right"]]:0))*owner.dpiScaleX;
+				marginBottom=(owner.paddingBottom + (tp[["bottom"]]:0))*owner.dpiScaleY;
+				marginTop=(owner.paddingTop + (tp[["top"]]:0))*owner.dpiScaleY;
+			} 
+			
+			var param  = ..table.assign({
+					hidesel = owner.hidesel;
+					align=owner.align : "center";
+					color=owner.color;
+					font=owner.getFont();
+					disabled=owner.disabled;
+					multiline=owner.multiline;
+					autovscroll=owner.autovscroll;
+					autohscroll=owner.autohscroll;
+					hscroll=owner.hscroll;
+					vscroll=owner.vscroll;
+					password=owner.password;
+					wrap=owner.wrap;
+					link=owner.link;
+					tabstop=owner.tabstop;
+					acceptfiles=owner.acceptfiles;
+					num=owner.num;
+					dpiScaleX=owner.dpiScaleX;
+					dpiScaleY=owner.dpiScaleY;
+				},p,margin);
+				
+			if(!param.cls){ param.cls="richedit" }
+			if(param.cls=="richedit" ){param.transparent=true;}
+			else { 
+				if( (owner.backgroundColor !== null) && (0xFF000000 >>> 24 == 0xFF  ) ){
+					param.bgcolor = ..gdi.rgbReverse(owner.backgroundColor);
+				}
+			}
+			
+			var text = owner.text;
+			if(#text){owner.text = "";}
+			param.text = text;
+			
+			owner.addCtrl({editBox = param});
+			if(owner[["editBox"]].enablePopMenu) owner[["editBox"]].enablePopMenu();
+			owner.translateCommand();
+			
+			owner[["(editable)"]] = param.cls="richedit"?1:"edit";			
+			if( !owner.notify )  owner.notify = true;
+			..win.ui.tracker(owner);
+			
+			var this = owner;
+			owner[["editBox"]]._onStateChange = function(state){
+				this.state.focus = state.focus;
+				if(this.editState===false) return this._onStateChange();
+				
+				var hover = state.hover;
+				state.hover = this.state.hover : state.hover;
+				this._onStateChange(state);
+				state.hover = hover;
+			}
+			
+			owner[["editBox"]] = ..win.ui.tracker(owner[["editBox"]]);
+			var rc = owner.getClientRect();
+			rc.left = rc.left + margin.marginLeft;
+			rc.top = rc.top + margin.marginTop;
+			rc.right = rc.right - margin.marginRight;
+			rc.bottom = rc.bottom - margin.marginBottom;
+			owner[["editBox"]].setRect(rc);
+			return owner[["editBox"]];
+		};
+		passwordChar = {
+			_get = function(){ return owner.editBox.passwordChar};
+			_set = function( v ){
+				if(!owner.cueBannerTextShowing) {
+					owner.editBox.passwordChar = v;
+					owner.editBox.redrawTransparent();
+				}
+				owner[["(cueBannerPwdChr)"]] = v;
+			} 	
+		};
+		setCueBannerText = function(txt,color){
+			var this = owner;
+			var ed = owner.editBox;
+			
+			this[["(cueBanner)"]] = txt;
+			if(!txt){
+				this[["(cueBannerColor)"]] = null;
+				return;	
+			}
+			
+			this[["(cueBannerColor)"]] = color===null?0x999999:color;
+			
+			if((..win.getFocus()!=ed.hwnd) && (ed.text=="") ){
+				ed.color = this[["(cueBannerColor)"]];
+				this[["(cueBannerPwdChr)"]] = ed.passwordChar;
+				ed.passwordChar = null;
+				ed.text = this[["(cueBanner)"]];
+				this.cueBannerTextShowing = true;
+			};
+			if(!ed._precommand){
+				
+				ed._precommand = function(id,ev){
+					if(ev==0x200/*_EN_KILLFOCUS*/){
+						if(ed.text==""){
+							ed.color = this[["(cueBannerColor)"]];
+							this[["(cueBannerPwdChr)"]] = ed.passwordChar;
+							ed.passwordChar = null;
+							ed.text = this[["(cueBanner)"]];
+							this.cueBannerTextShowing = true;
+						}
+					}
+					elseif(ev==0x100/*_EN_SETFOCUS*/){
+						if(this.cueBannerTextShowing){
+							this.cueBannerTextShowing = false;
+							ed.passwordChar = this[["(cueBannerPwdChr)"]];
+							ed.color = this.color;
+							ed.text = "";
+						}
+					}
+				} 	
+			}
+			
+			if(this.cueBannerTextShowing){
+				ed.text = this[["(cueBanner)"]];
+			}
+		};
+		editable  = {
+			_get = function () {  
+				return owner[["(editable)"]];
+			}
+			_set = function (v) {
+				if( v == owner[["(editable)"]] ) return;
+				
+				if(v){
+					
+					if(owner[["editBox"]] && (owner[["editBox"]].cls!=(v==="edit"?v:"richedit")) ){
+						owner[["(editable)"]] = null;
+						owner[["editBox"]].close();
+						owner[["editBox"]] = null;
+					}
+					
+					if(!owner[["editBox"]]) {
+						return owner.createEditBox( cls = ( v==="edit"?v:null ) );
+					}
+					
+					owner.editBox.text = owner[["(text)"]];
+					owner[["(text)"]] = null;
+					owner.editBox.hide = false;
+				}
+				else {
+					if(owner.editBox){
+						owner.editBox.hide = true;
+						owner[["(text)"]] = owner.editBox.text;
+						owner.editBox.hide = true;
+					}
+				}
+				
+				owner[["(editable)"]] = v;
+				owner.redrawTransparent(); 
+			}
+		}; 
+		disabled = {
+			_get = function(){ 
+				return ..win.getStyle(owner[["hwnd"]],0x8000000/*_WS_DISABLED*/ ) 
+			}
+			_set = function(v){
+				if(owner[["(editable)"]]) owner.editBox.disabled = v;
+				..win.enable(owner[["hwnd"]],!v?1:0);  
+			}
+		};
+		iconText = {
+			_get = function(){  
+				return owner[["(iconText)"]];
+			}
+			_set = function(v){
+				if(owner[["(unchecked-iconText)"]]){
+					if(owner.checked) owner[["(checked-iconText)"]] = v;
+					else owner[["(unchecked-iconText)"]] = v;
+				}
+				
+				owner[["(iconText)"]] = v;  
+				owner.redrawTransparent();
+			}
+		};
+		text = {
+			_get = function(){ 
+				if(owner[["(editable)"]]) return owner.cueBannerTextShowing ?"" : owner.editBox.text;
+				return ..win.getText( owner[["hwnd"]] );
+			}
+			_set = function(v){
+				if(owner[["(unchecked-text)"]]){
+					if(owner.checked) owner[["(checked-text)"]] = v;
+					else owner[["(unchecked-text)"]] = v;
+				}
+				
+				..win.setText( owner[["hwnd"]],v !== null ? tostring(v) : "" );  
+				owner.redrawTransparent();
+			}
+		};
+		color = {
+			_get = function(){ 
+				return ..gdi.rgbReverse(owner.argbColor : 0)
+			}
+			_set = function(v){
+				owner.argbColor = ..gdi.argbReverse( v!=-1? v : 0 );
+				if(owner[["editBox"]]) owner[["editBox"]].color = v;
+				else owner.redrawTransparent();
+			}
+		};
+		progressPercentage  = {
+			_get = function () { 
+				if(!owner[["(progress-range)"]]) return 100;
+				return ..math.min( 100, ..math.round( owner[["(progress-pos)"]] / owner[["(progress-range)"]],2) * 100 );
+			}
+			_set = function (v) {
+				if(!owner[["(progress-range)"]]) {
+					if( owner[["(progress-range)"]] === 0 ) return;
+					error("请先设定进度区间",2);
+				}
+				if( v<1) v = 1;if(v>100)v=100;
+				if(owner.state.active) return;
+				
+				owner[["(progress-pos)"]] = owner[["(progress-range)"]] * ( v/100 );
+				if( owner[["onPosChanged"]] ) owner.onPosChanged( owner[["(progress-min)"]] + owner[["(progress-pos)"]] );
+				owner.redrawTransparent();
+			}
+		}; 
+		progressPos = {
+			_get = function () {
+				if(!owner[["(progress-range)"]]) return 0;
+				return owner[["(progress-min)"]] + owner[["(progress-pos)"]];
+			}
+			_set = function (v) {
+				if( v === null ) error("进度值不能为空",2);
+				if(!owner[["(progress-range)"]]) {
+					if( owner[["(progress-range)"]] === 0 ) return;
+					error("请先设定进度区间",2);
+				}
+				if(owner.state.active) return;
+				
+				v = ..math.max(v, owner[["(progress-min)"]])
+				owner[["(progress-pos)"]] = ..math.min( v - owner[["(progress-min)"]],owner[["(progress-range)"]]);
+				if( owner[["onPosChanged"]] ) owner.onPosChanged(owner[["(progress-min)"]] + owner[["(progress-pos)"]] );
+				owner.redrawTransparent();
+			}
+		}; 
+		setTrackbarRange = function(min,max){
+			if( type(min) != "number") error("参数@1不是有效的数值",2)
+			if( type(max) != "number") error("参数@2不是有效的数值",2)
+			
+			owner.setProgressRange(min,max);
+			owner.mode = "trackbar";
+			
+			var rc = owner.getClientRect(); 
+			var w = rc.right - rc.left;
+			var h = rc.bottom - rc.top; 
+			
+			if( w > h ){
+				owner.onMouseDrag = function(wParam,lParam){
+					var dpiScaleX,dpiScaleY = (owner.dpiScaleX : 1) ,(owner.dpiScaleY : 1);
+					
+					var x = ..win.getMessagePos(lParam);
+					var rc = owner.getClientRect(); 
+					var min = owner[["(progress-min)"]];
+					var range = owner[["(progress-range)"]]; 
+					var p = owner.foreLeft + owner.foreRight/2;
+					var left = rc.left + owner.paddingLeft*dpiScaleX;  
+					var pos = x > owner.paddingLeft*dpiScaleX  ? ..math.ceil( range * ( ( x - (owner.paddingLeft*dpiScaleX) - p ) 
+						/ (rc.right - owner.paddingLeft*dpiScaleX  - owner.paddingRight*dpiScaleX  - p  ) ) )  : 0;
+						
+					if( pos > range ) pos = range;
+					elseif( pos < 0 ) pos = 0; 
+					
+					owner[["(progress-pos)"]] = pos;
+					owner.redrawTransparent(); 
+					if( owner[["onPosChanged"]] ) owner.onPosChanged(min + pos,true);
+				}
+			}
+			else {
+				owner.onMouseDrag = function(wParam,lParam){
+					var x,y = ..win.getMessagePos(lParam);
+					var rc = owner.getClientRect(); 
+					var min = owner[["(progress-min)"]];
+					var range = owner[["(progress-range)"]];
+				 
+					var bottom = rc.bottom - owner.paddingBottom *dpiScaleY- owner.foreBottom;  
+					var p = owner.paddingTop*dpiScaleY + (owner.foreTop)/2;
+					var pos = y < bottom - p ? ..math.ceil( range * ( ( bottom - y - owner.foreTop/2  ) / (bottom - p ) ) ) : 0;
+					if( pos > range ) pos = range;
+					elseif( pos < 0 ) pos = 0;
+					
+					owner[["(progress-pos)"]] = pos;
+					owner.redrawTransparent(); 
+					if( owner[["onPosChanged"]] ) owner.onPosChanged( owner[["(progress-min)"]] + pos,true);
+				}
+			}
+			
+			owner.onMouseDown = owner.onMouseDrag; 
+			
+			owner.onKeyDown = function(vk,lParam){
+				var pos = owner[["(progress-pos)"]];
+				if(vk==0x25/*_VK_LEFT*/ || vk==0x28/*_VK_DOWN*/) pos = pos-1; 
+				elseif(vk==0x27/*_VK_RIGHT*/ || vk==0x26/*_VK_UP*/ ) pos = pos+1; 
+				else return; 
+				
+				if( pos > owner[["(progress-range)"]] ) pos = owner[["(progress-range)"]];
+				elseif( pos < 0 ) pos = 0;
+				
+				owner[["(progress-pos)"]] = pos;
+				owner.redrawTransparent();
+				
+				if( owner[["onPosChanged"]] ) owner.onPosChanged(owner[["(progress-min)"]] + pos,true);
+			}
+			
+			//开启[事件回调]属性
+			if( !owner.notify ) {
+				owner.notify = true;
+				..win.ui.tracker(owner);
+			}
+		};
+		setPieRange = function(min,max){
+			if( type(min) != "number") error("参数@1不是有效的数值",2)
+			if( type(max) != "number") error("参数@2不是有效的数值",2) 
+			
+			owner[["(progress-clip-path)"]] = ..gdip.path();
+			owner.setProgressRange(min,max);
+			owner.mode = "pie";
+		};
+		getProgressRange = function(){
+			var min = owner[["(progress-min)"]];
+			return min,min + owner[["(progress-range)"]];
+		};
+		setProgressRange = function(min,max){
+			if( type(min) != "number") error("参数@1不是有效的数值",2)
+			if( type(max) != "number") error("参数@2不是有效的数值",2)
+			if( max < min ){
+				var temp = min;min=max;max=temp;
+			}
+			if( min == max ) {
+				if( min == 1 ) min = 0;
+			}
+			
+			owner[["(progress-min)"]] = min;
+			owner[["(progress-range)"]] = max -min;
+			owner[["(progress-pos)"]] = 0;
+			owner.mode = "progress";
+		}; 
+		stepProgress = function(i,redraw){
+			if( i === null ) i =  1;
+			if( redraw === null ) redraw = true;
+			var p,r = owner[["(progress-pos)"]],owner[["(progress-range)"]]; 
+			if(!r) {
+				if( r === 0 ) return;
+				error("请先设定进度区间",2);
+			}
+			p = p + i;
+			var ret;
+			if( p < 0 ) p = 0;
+			elseif( p > r ) p = r;
+			else ret = true;
+			
+			owner[["(progress-pos)"]] = p;
+			if( owner[["onPosChanged"]] ) owner.onPosChanged( owner[["(progress-min)"]] + p);
+			if(redraw) owner.redrawTransparent(); 
+			return ret;
+		};
+		getFont = function(){
+			if(owner["(font)"]){
+				var graphics = ..gdip.graphics(owner);
+				var lf = owner["(font)"].getLogFont(graphics);
+				graphics.delete();
+				return lf;
+			} 
+		};
+		setFont = function(f,own = true ){
+			if( type(f) == type.pointer ){
+				var lf = LOGFONT(); 
+				if( !::GetObject(f, ..raw.sizeof(lf), lf) ) return;
+				if(own) ::DeleteObject(f);
+				f = lf;
+			}
+			else {
+				if(type(f) != type.table ) error("参数错误@1",2)
+				f = ::LOGFONT(f);
+			}
+			
+			if( f.handle && own) f.deleteIndirect();
+				
+			if(f.color) {
+				owner.color = f.color
+				owner.argbColor = ..gdi.rgbReverse( f.color ) | ( 0xFF << 24 ) 
+			}
+
+			var hdc = ::GetDC(owner.hwnd);
+			owner[["(font)"]] = ..gdip.font( hdc,f ); 
+			::ReleaseDC(owner.hwnd,hdc);  
+
+			return true; 
+		}; 
+		setFontEx = function(font){
+			if( type.rget(font) == "gdip.font" && font.getLogFont ){
+				owner[["(font)"]] = font;
+			}
+		};
+		getFontEx = function(){
+			return owner[["(font)"]];
+		};
+		startAnimation = function(interval,begining,change){
+			if(owner.animationId) owner.clearInterval(owner.animationId)
+			var this = owner;
+			this.animationState = (begining === null ? true : begining );
+			
+			var timestamp = ..time.tick();
+			if( this.onAnimation ) this.animationState = this.onAnimation(this.animationState,begining,change,0);
+			owner.animationId = owner.setInterval(interval,function(){
+			
+				if( this.onAnimation ){
+					this.animationState = this.onAnimation(this.animationState,begining,change,..time.tick() - timestamp);
+					if( !this.animationState ) return this.stopAnimation()
+				}
+				this.redrawTransparent();
+			})
+		};
+		stopAnimation = function(){
+			if(owner.animationId) owner.clearInterval(owner.animationId);
+			owner.animationId = null;
+			owner.animationState = null;
+			owner.redrawTransparent();
+		};
+		startProgress = function(interval,step=1){
+			owner.hide = false;
+			owner.startAnimation(interval:10);
+			owner.onAnimation = function(state){
+				if(! owner.stepProgress(step,false) ) owner.progressPos = 0
+				return true;
+			}
+		};
+		stopProgress = function(){
+			owner.stopAnimation();
+			owner.hide = true;
+		};
+		measureString = function(text){
+			var result;
+			var rcText;
+			if(!text) text = owner[["(text)"]]; 
+			var graphics = ..gdip.graphics(owner);
+			
+			var rc = owner.getClientRect();
+			var width,height = rc.right - rc.left,rc.bottom - rc.top;
+
+			var dpiScaleX,dpiScaleY = (owner.dpiScaleX : 1) ,(owner.dpiScaleY : 1);
+			var tp = owner.textPadding : {left=0;right=0;top=0;bottom=0};
+			var x,y = (owner.paddingLeft+tp.left)*dpiScaleX,(owner.paddingTop+tp.top)*dpiScaleY;
+			rcText = ::RECTF(x,y,width - x - (owner.paddingRight+tp.right)*dpiScaleX,height - y - (owner.paddingBottom+tp.bottom)*dpiScaleY);
+			 
+			var strformat = ..gdip.stringformat();  
+			strformat.align = __stringAlignment[ owner.align : "center" ] 
+			strformat.lineAlign = __stringAlignment[ owner.valign : "center" ] 
+			strformat.hotkeyPrefix = owner.hotkeyPrefix; 
+			strformat.flags = owner.stringFormatFlags; 
+			if(owner.trimming!==null) strformat.trimming = owner.trimming;
+			
+			var brush = ..gdip.solidBrush( owner.argbColor );
+			if( owner[["(font)"]] ) {
+				result = graphics.measureString(text,owner[["(font)"]],rcText, strformat,brush);
+			};
+			
+			brush.delete();
+			strformat.delete(); 	
+			graphics.delete();
+			
+			return result;
+		};
+		fitContent = function(){
+			var rc = owner.measureString();
+			if(rc){
+				var dpiScaleX,dpiScaleY = (owner.dpiScaleX : 1) ,(owner.dpiScaleY : 1);
+				var tp = owner.textPadding: {left=0;right=0;top=0;bottom=0};;
+				owner.setPos(,,rc.width + (owner.paddingLeft+tp.left)*dpiScaleX + (owner.paddingRight+tp.right)*dpiScaleX + 1
+					,rc.height + (owner.paddingTop+tp.top)*dpiScaleY + (owner.paddingBottom+tp.bottom)*dpiScaleY +1 );
+				return true;
+			}
+		};
+		show = function(flag) {    
+			..win.show(owner[["hwnd"]],flag);
+			owner.state.hover = false;
+		};
+	);
+	
+	__cursor_hand  = ::LoadCursor(,topointer(32649/*_IDC_HAND*/));
+	__stringAlignment = { 
+		top =0/*_GdipStringAlignmentNear*/ ;bottom = 2/*_GdipStringAlignmentFar*/ ;
+		left =0/*_GdipStringAlignmentNear*/ ; right = 2/*_GdipStringAlignmentFar*/;
+		center = 1/*_GdipStringAlignmentCenter*/;
+	}	
+	__className = ..win.registerClassEx( "AAPicturePlus2",{
+		lpfnWndProc = ::DefWindowProc; //必须移除static的回调函数,否则读写text会内存错误
+		style = 0x408B/*_CS_HREDRAW | _CS_VREDRAW | _CS_PARENTDC | _CS_GLOBALCLASS | _CS_DBLCLKS*/
+		},"static" ); 
+}
+
+/***intellisense(!ui_ctrl_plus.)
+notify = 是否启用事件回调\n设为false将不能响应鼠标按键等交互事件
+setFontEx(.(字体) = 设置gdip.font字体\n字体由控件接管并负责释放
+getFontEx() = 返回gdip.font字体\n注意字体生命期由控件管理\n!gdipfont.
+textRenderingHint = @.textRenderingHint = _GdipTextRenderingHint__ ;
+iconTextRenderingHint = @.textRenderingHint = _GdipTextRenderingHint__ ;
+smoothingMode = 绘图画布默认抗锯齿模式,\n默认值为_GdipSmoothingModeAntiAlias
+interpolationMode = 图像缩放时的默认插值模式,\n默认值为_GdipInterpolationModeHighQualityBicubic
+trimming = @.trimming = _GdipStringTrimming__ ;
+stringFormatFlags = @.stringFormatFlags = _GdipStringFormatFlagsMeasureTrailingSpaces__ ; 
+hotkeyPrefix = @.hotkeyPrefix = _GdipHotkeyPrefixShow__ ;
+isHyperlink() = 控件不设置背景、前景\n但设置了显示文本,并启用事件回调则该值返回真
+checked = 该属性可用于切换选取状态
+radioGroup = 用于指定单选按钮分组名称\n也可以在skin函数的group属性中指定该值
+radioValue() = 单选模式下选中控件的文本
+radioClick() = 单选模式下选中控件
+progressPercentage = 进度条当前百分比
+progressPos = 进度条当前值
+focusOnClick = 设为false时禁止在单击控件时设置此控件为焦点控件
+setTrackbarRange( = 设置滑块范围,并切换到滑块显示模式,\n用户拖动滑块时触发onPosChanged事件，可用于获取当前位置
+setTrackbarRange(.(最小值,最大值) = 如果使用图像制作滑块控件,\n请将背景、前景图像设为九宫格拉伸的expand模式,\n使用前景切图在右侧或顶部预留滑块位置不拉伸,\n如果未指定前景图像,aardio将自动使用当前字体颜色绘制滑块按钮,\n同样通过前景切图预留滑块大小,边框圆角属性将作用于滑块按钮,\n前景色将用于绘制滑块左侧或底部,背景色将用于绘制滑块右侧或顶部,\n前景边距将同时限制背景前景色的大小，但不会作用于背景图像
+setPieRange( = 设置扇形进度条范围,
+setPieRange(.(最小值,最大值) = 切换为扇形进度条模式\n在此模式下前景图或前景色被裁剪为扇形,\n如果有背景色则被裁剪为圆角,背景图不裁剪,\n如果指定背景图、前景图,应设为center显示模式以使圆心对齐
+setProgressRange( = 设置进度条范围\n调用了此函数将会强制使用expand显示模式\n水平进度条文本右对齐,垂直进度条文本上对齐时将限制文本输出于前景内部\n否则不改变文本输出位置\n可选用textPadding属性指定文本内边距
+getProgressRange() = 返回进度条最小值,最大值
+setProgressRange(.(最小值,最大值) = 设置进度条范围\n调用了此函数将会强制使用expand显示模式
+stepProgress( = 增加进度条的值
+stepProgress(.(步进单位,是否刷新) = 步进单位可以省略,默认为1\n参数@2可省略,默认为true\n进度条到尾部或头部则返回false,否则返回true
+passwordChar = 指定隐藏密码的占位字符,\n例如指定为"*"隐藏密码,指定为null正常显示文本\n如果调用了setCueBannerText，passwordChar不会影响提示文本
+setCueBannerText(.("提示文本") = 打开编辑模式,\n并且指定文本为空时的显示的默认提示文本\n注意指定提示文本以后,\n不应再直接访问editBox的text,passwordChar属性,\n请改为读写plus控件的text,passwordChar属性
+bkTop = 背景图expand模式下九宫格切图的顶部切线
+bkRight = 背景图expand模式下九宫格切图的右侧切线\n如果控件显示为水平滑块控件,此属性用于预留滑块按钮大小
+bkBottom = 背景图expand模式下九宫格切图的底部切线
+bkLeft = 背景图expand模式下九宫格切图的左侧切线
+foreTop = 前景图expand模式下九宫格切图的顶部切线\n如果控件显示为垂直滑块控件,此属性用于预留滑块按钮大小
+foreRight = 前景图expand模式下九宫格切图的右侧切线
+foreBottom = 前景图expand模式下九宫格切图的底部切线
+foreLeft = 前景图expand模式下九宫格切图的左侧切线
+argbColor = ARGB格式字体颜色,支持半透明\n注意plus控件、GDI+都是ARGB格式数值表示颜色分量,即:0xAARRGGBB\n与RGB的分量顺序是反过来的
+color = RGB格式字体颜色,\n如果启用了编辑模式,可同步修改编辑框字体颜色,\n注意使用argbColor修改颜色不能同步修改编辑框颜色
+setRepeat(.("模式",是否重绘) = 修改背景显示模式\n支持模式expand,stretch,center,tile,scale
+setForeRepeat(.("模式",是否重绘) = 修改前景显示模式\n支持模式expand,stretch,center,tile,scale
+repeat = 背景显示模式\n支持模式expand,stretch,center,tile,scale\expand模式foreTop,foreRight,foreBottom,foreLeft为九宫格切图坐标\n其他模式为显示边距
+foreRepeat = 前景显示模式\n支持模式expand,stretch,center,tile,scale\n如果为null则foreLeft,foreRight为偏移坐标\expand模式foreTop,foreRight,foreBottom,foreLeft为九宫格切图坐标\n其他模式为显示边距
+background = 背景图像\n也可以使用0xAARRGGBB格式的数值指定一个颜色值\n指定一个路径或资源路径控件将自动缓存使用频繁的图像\n内存图像建议使用setBackground函数指定缓存名\n!gdipbitmap.
+foreground = 前景图像\n也可以使用0xAARRGGBB格式的数值指定一个颜色值\n指定一个路径或资源路径控件将自动缓存使用频繁的图像\n内存图像建议使用setForeground函数指定缓存名\n如果边框圆角设为-1,前景图或前景色会裁剪为圆形后输出,\n!gdipbitmap.
+getBackground() = 返回背景图像,返回值为gdip.bitmap对象\n此函数不会返回背景色，仅返回背景图像,\n如果不存在背景图像返回null\n!gdipbitmap.
+getForeground() = 返回前景图像,返回值为gdip.bitmap对象\n此函数不会返回前景色，仅返回前景图像,\n如果不存在前景图像返回null\n!gdipbitmap.
+backgroundColor = 当前状态背景颜色,\n修改背景色建议设置background属性为数值即可
+foregroundColor = 当前状态前景颜色,\n修改背景色建议设置foreground属性为数值即可
+linearGradient = 数值,指定背景色线性渐变的角度,\n渐变从背色颜色开始,到前景颜色结束\n只有背景、前景都指定了当前状态下的颜色值才有效,\n270,90为垂直方向的渐变\n180,360为水平方向的渐变\n\n此属性指定为负数启用圆形径向渐变,此时background为中心颜色，foreground为环绕颜色
+setBackground( = 修改背景图像
+setBackground(.(背景图像,缓存名,刷新重绘) = 参数@1也可以使用0xAARRGGBB格式的数值指定一个颜色值,\n缓存名为可选参数,默认以路径为缓存名,设为false禁止缓存,\n如果参数@1是图像数据则可以使用参数@2指定缓存名\n刷新重绘参数@3默认为true\n该函数设置成功返回原来的背景图
+setBackground(.(背景图像,false) = 加载背景图像并禁用缓存
+setForeground( = 修改前景图像
+setForeground(.(前景图像,缓存名,刷新重绘) = 修改前景图像\n参数@1也可以使用0xAARRGGBB格式的数值指定一个颜色值,\n缓存名为可选参数,默认以路径为缓存名,设为false禁止缓存,\n如果参数@1是图像数据则可以使用参数@2指定缓存名\n刷新重绘参数@3默认为true\n该函数设置成功返回原来的前景图
+setForeground(.(背景图像,false) = 加载前景图像并禁用缓存
+setForeground(.(颜色数值) = 修改foregroundColor的值\n注意plus控件、GDI+都是ARGB格式数值表示颜色分量,即:0xAARRGGBB\n与RGB的分量顺序是反过来的
+createEditBox(创建控件参数) = @.createEditBox( \n	vscroll = true; \n	hscroll = true; \n	multiline = true;\n);__/*创建并启用透明背景的richedit文本编辑框，可用参数与窗体设计器相同，\n创建文本框时应用plus控件预设的字体、颜色、水平对齐方式，\n并且使用plus控件预设的内边距限制文本编辑框显示范围。\n\n可使用editBox属性访问此文本编辑框，\n可通过设置plus控件的editable属性显示或隐藏文本编辑框*/
+editable = 是否允许编辑文本\n如果此值设为true则切换到可编辑模式,\n也可以指定要嵌入的编辑框的类名，例如"edit",\n不指定类名则创建透明背景的richedit文本编辑框\n\n在首次切换到可编辑模式下创建文本框，\n并同步应用plus控件预设的字体、颜色、水平对齐方式，\n并使用plus控件预设的内边距限制文本编辑框显示范围。\n\n可使用editBox属性访问此文本编辑框，\n如果文本编辑框已创建，再次修改editable仅显示或隐藏文本编辑框
+editBox = 文本编辑框,此文本框也是一个win.ui.tracker对象,\n!richedit.
+editState = 允许共享内部编辑框的外观状态,不指定默认值为true,\n如果希望利用文本边距、前景边距等模拟分离按钮\n可将此值显示指定为false
+state.hover = 鼠标是否在控件上方\n注意直接修改该状态控件不负责重绘
+state.focus = 是否已得到焦点\n注意直接修改该状态控件不负责重绘
+state.active = 鼠标或键盘键按下状态\n注意直接修改该状态控件不负责重绘
+state.disabled = 已禁用\n注意直接修改该状态控件不负责重绘 
+state.checked = 是否选中状态\n注意直接修改该状态控件不负责重绘
+state.dragging = 是否按下鼠标且正在拖动
+oncommand = @.oncommand = function( id,event ){
+	__/*控件被单击*/
+}
+onnotify = @.onnotify = function(id,code,ptr){
+	__/*处理通知消息,\nplus控件默认不发送通知消息,\n但如果绑定tooltip控件这些会触发这个事件*/
+} 
+onPosChanged = @.onPosChanged = function( pos,thumbTrack ){
+	__/*进度值变更,\n如果此事件由用户在滑块上点按鼠标触发,则thumbTrack参数为true*/
+}
+onDrawContent = @.onDrawContent = function(graphics,rc,foreColor,rcContent){
+	__/*自绘前景,\ngraphics 为gdip.graphics对象(GDI+画板),\nforeColor为当前状态前景色,ARGB格式,不会出现null值,\nrc为客户区RECT结构体,rcContent为去掉内边距后的RECT结构体,\n返回真取消绘制文本、前景等默认操作*/
+}
+onDrawForegroundEnd = @.onDrawForegroundEnd = function(graphics,rc,rcContent){
+	__/*背景前景绘制后,绘制文本前触发此事件,\ngraphics 为gdip.graphics对象(GDI+画板),\nrc为客户区RECT结构体,rcContent为去掉内边距后的RECT结构体*/
+}
+onDrawEnd = @.onDrawEnd = function(graphics,rc){
+	__/*所有绘制操作结束触发此事件,\ngraphics 为gdip.graphics对象(GDI+画板),\nrc为客户区RECT结构体*/
+}
+onDrawBackground = @.onDrawBackground = function(graphics,rc,bkColor,foreColor){
+	__/*自绘背景,\ngraphics 为gdip.graphics对象(GDI+画板),\nrc为绘图区块,\nbkColor为当前状态背景色,AGGB格式,可能为null\nforeColor为当前状态前景色,ARGB格式,不会出现null值\n返回真取消默认的背景绘图*/
+}
+onDrawString = @.onDrawString = function(graphics,text,font,rectf,strformat,brush){
+    __/*自定义输出文本,请不要删除传入参数中的GDI+对象*/
+    graphics.drawString(text,font,rectf,strformat,brush);
+}
+onMouseEnter = @.onMouseEnter = function(wParam,lParam){
+	__/*鼠标移入*/
+}
+onMouseLeave = @.onMouseLeave = function(wParam,lParam){
+	__/*鼠标移出*/
+}
+onMouseHover = @.onMouseHover = function(wParam,lParam){
+	__/*鼠标悬停*/
+}
+onMouseMove = @.onMouseMove = function(wParam,lParam){
+	if( wParam & 0x1/*_MK_LBUTTON*/ ){
+		var x,y = win.getMessagePos(lParam);
+		__/*鼠标移动*/
+	}
+}
+onMouseDrag = @.onMouseDrag = function(wParam,lParam){
+	__/*鼠标左键按下拖动,\n自动捕获鼠标,允许拖出控件范围*/
+}
+onMouseDown = @.onMouseDown = function(wParam,lParam){
+    var x,y = win.getMessagePos(lParam);
+	__/*鼠标左键按下,\norphanWindow模式下如果阻止控件得到焦点,此事件不会被触发*/
+} 
+onMouseUp = @.onMouseUp = function(wParam,lParam){
+    var x,y = win.getMessagePos(lParam);
+	__/*鼠标左键弹起*/
+}
+onMouseClick = @.onMouseClick = function(wParam,lParam){
+    var x,y = win.getMessagePos(lParam);
+	__/*鼠标左键在控件上单击,\norphanWindow模式下如果阻止控件得到焦点,此事件不会被触发*/
+}
+onMouseDrag = @.onMouseDrag = function(wParam,lParam){ 
+    var x,y = win.getMessagePos(lParam);
+	__/*鼠标左键按下拖动,\n自动捕获鼠标,允许拖出控件范围*/ 
+}
+onMouseDoubuleClick = @.onMouseDoubuleClick = function(wParam,lParam){
+    var x,y = win.getMessagePos(lParam);
+	__/*鼠标左键双击*/
+}
+onKeyDown = @.onKeyDown = function(keyCode,lParam,repeat){
+	__/*按下键盘键*/
+}
+onKeyUp = @.onKeyUp = function(keyCode,lParam){
+	__/*放开键盘键*/
+}
+onSysKeyDown = @.onSysKeyDown = function(keyCode,lParam,repeat){
+	if(keyCode!=0x12/*_VK_ALT*/){
+		__/*按下键盘ALT组合键*/		
+	}
+}
+onSysKeyUp = @.onSysKeyUp = function(keyCode,lParam){
+	__/*放开键盘键*/
+}
+onFocusGot(hLostFocus) = @.onFocusGot = function(hLostFocus){
+	..win.setFocus(hLostFocus);__/*得到焦点触发此事件,hLostFocus为失去焦点的窗口句柄,\n如果在这里将hLostFocus恢复焦点,则阻止当前窗口得到焦点*/
+}
+onFocusLost(hFocus) = @.onFocusLost = function(hFocus){
+	__/*失去焦点触发此事件,hFocus为得到焦点的窗口句柄*/
+}
+onStateChange = @.onStateChange = function(state){
+	__/*状态已改变*/
+}
+onSelectChange = @.onSelectChange = function(prev){
+	__/*单选模式下已选中当前控件,prev为之前选中的控件*/
+}
+onMouseActivate = @.onMouseActivate = function(hwndTop,hitTest,message){\n	return _MA___/*鼠标点击并且将要激活窗口时触发此事件\nhwndTop表示被激活的顶层窗口,\nhitTest参数请参考WM_NCHITTEST消息\nmessage为鼠标消息ID\n返回值的作用请参数MSDN*/\n}
+skin(样式表,是否禁止共享样式) = @.skin({\n	foreground = { \n		hover = "/res/images/button-hover.png";\n		focus = "/res/images/button-focus.png";\n		active = "/res/images/button-active.png";\n		disabled = 0xFFCCCCCC; \n	};\n	color = {\n		hover = 0xF00000FF;__/*用格式为0xAARRGGBB的16进制数值,指定鼠标放到控件上的字体颜色,\nAA为透明度,RR为红色分量,GG为绿色分量,BB为蓝色分量*/ \n	};\n	border = { \n		hover = {left=5;color=0xFFFF0000;padding=15;} \n	}; \n})
+cls = 设计时类名
+className = 运行时类名
+hwnd = 控件句柄
+id = 控件ID
+text = 控件文本
+disabledText = @.disabledText = {'\uF254';'\uF251';'\uF252';'\uF253';'\uF250'}__/*指定文本时,禁用此控件,并显示指定文本,\n指定一个数组时,控件将创建动画逐帧显示数组里的文字图标,\n如果控件配置了iconStyle属性,则使用iconText属性显示数组内的文字图标,\n指定为null时,启用此控件,并恢复控件禁用之前的text、iconText属性*/
+getForm() = 如果是窗体返回自身\n如果是控件则返回_parentForm\n!winform.
+isForm = 窗体返回true,控件返回false
+_parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+getParent() = 返回父窗口\n
+setParent(__/*控件对象*/) = 改变父窗口 
+addCtrl = @.addCtrl(\n	button={ cls="button";text="button";left=33;top=32;right=126;bottom=81;autoResize=false }  \n)
+translateAccelerator = @.translateAccelerator = function(msg){ \n	__/*返回是否快捷键*/\n} 
+adjust = @.adjust = function( cx,cy,wParam ) {	 \n	__ \n};  
+adjust() = 调整窗口 - 自定义事件函数
+_embedObject = 嵌入OLE控件对象\n!embedObject.
+createEmbed(.("类名",容器对象) = 嵌入OLE控件,\n容器对象哦可选参数,返回容器对象,
+createEmbed() = !embedObject.
+hide = 控件是否隐藏
+disabled = 是否禁用
+left = 左侧坐标
+right = 右侧坐标
+top = 顶部坐标
+bottom = 底部坐标
+width = 宽度
+height = 高度 
+setRedraw(false) = 禁止重绘
+setRedraw(true) = 恢复重绘
+redraw() = 刷新重绘\n不重绘背景,速度较快
+redrawTransparent() = 刷新重绘\n如果控件添加了透明样式 _WS_EX_TRANSPARENT 则重绘窗口背景
+predraw() = 刷新位图缓存并准备下次重绘
+show(true__) = 显示控件
+getRect() = 控件区块位置(::RECT结构体)
+getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+setRect(rc) = 设置控件区块位置(::RECT结构体)  
+setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+getFont() = 返回控件LOGFONT字体\n!logfont.
+setFont(__/*指定字体*/) = 指定LOGFONT字体对象,或逻辑字体句柄 
+setFont(混入字体属性) = @.setFont(point=10;name="宋体");
+theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+capture = 是否捕获全局鼠标消息
+close() = 关闭控件窗口
+invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+update() = 重绘invalidate函数指定的区块
+setFocus() = 设置焦点\n可选在参数中指定新的控件文本\n如果启用了编辑模式,此函数将光标移动文本尾部
+tabNext(.(移动焦点,是否反向) = 获取下一个支持tab控制焦点的控件\n参数@1为true会自动移动焦点到该控件\n参数@2为true则获取上一个控件,否则获取下一个控件
+tabNext() = !static.
+setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+getPos() = 返回相对父窗口客户区的坐标,宽,高,\n参数为true返回屏幕坐标,宽,高,\nx,y,cx,cy=win.getPos(hwnd)
+messageOnly() = 将窗口转换为message-only window\n该窗口不可见,仅用于消息分发
+setInterval(.(间隔时间,回调函数) = 创建定时器\n间隔时间以毫秒为单位
+changeInterval(.(定时器ID,间隔时间,回调函数) = 重新设置间隔时间或回调函数
+orphanWindow(true) = 使控件脱离原来的窗口,可以显示在父窗口外面,\n但仍然显示在原来的位置,继续如影随形的跟随父窗口移动或改变大小,\n控件原来的固定边距等参数仍然有效\n\n如果要保持透明参数必须为true
+clearInterval(__/*定时器ID*/) = 删除定时器
+animationState =  此属性表示动画当前状态值,值null或false表示动画已停止
+onAnimation(state,begining,change,timestamp) = @.onAnimation = function(state,begining,change,timestamp){
+    __/*动画触发此函数,state 参数是上次返回的值\n可以使用plus控件的animationState属性获取这里的返回值,\nbegining,change为调用startAnimation指定的参数,\ntimestamp 参数为动画已执行的时间,\n返回值为false或null停止动画*/
+	return state
+}
+startAnimation( = 启动动画定时器,\n可以在控件的onAnimation动画事件函数中修改外观,\n或者在控件的onDrawContent等绘图事件函数中直接输出动画 
+startAnimation(.(interval,begining,change) = 启动动画定时器,\ninterval参数指定动画时间间隔，以毫秒为单位,\n@begining 指定初始状态值,@change 指定动画完成后的状态值,\n可选参数 @begining,@change 会传给 onAnimation 回调函数作为调用参数
+stopAnimation() = 停止动画定时器
+startProgress() = 启动进度条动画,并显示进度条,\n可选用参数@1指定间隔毫秒,可选用参数@2指定每次推进的进度\n必须调用setProgressRange函数事先指定进度范围\n必须指定前景色、或前景图
+stopProgress() = 停止进度条动画,并隐藏进度条
+animationId = 动画定时器ID\n不可改动，可用于判断动画是否启动
+saveScale() = 根据控件当前位置、缩放比例，更新控件的设计时位置参数。\n以避免下次窗口缩放自适应调整控件当前位置更改被清除，\n控件所有调整位置的属性或成员函数已自动调用此函数。
+reloadScale() = 按设计时位置参数、重新调整控件位置以适应窗口当前缩放比例。\n父窗口缩放时会自动执行此操作。\n默认在启动窗口消息循环时会自适应调整所有控件。\n所以在启动消息循环前添加控件不必调用此函数。
+threadCallable() = 开启此控件的跨线程调用功能
+x = 前景x坐标,仅用于point绘图模式,\n1、0到1之间的小数表示百分比，负数表示右侧反向坐标
+y = 前景y坐标,仅用于point绘图模式,\n1、0到1之间的小数表示百分比，负数表示底部反向坐标
+measureString() = 返回文本输出后的区出大小,返回值为RECTF对象\n可选在参数中指定要输出的文本,不指定则取当前显示文本,\n!rectf.
+fitContent () = 控件调整大小调整到适应当前显示字数
+textPadding = @.textPadding = {
+	left = 0;
+	top = 0;
+	bottom = 0;
+	right = 0;__/*指定文本输出内边距,在前景内边距上叠加,可以使用负数,仅对文本有效*/
+}
+fontCharMap = 指定自定义字符映射表,\n键为字符,值为用于显示字符的gdip.bitmap对象\n如果指定了此属性则忽略字体大小,使用textPadding以及内边距限制输出大小
+sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+publish("__/*发布消息名*/",) = 在窗口所在界面线程发布消息,\n运行界面线程所有所有调用subscribe函数订阅此消息的函数,\n可添加任意个触发参数
+disablePaint() = 禁用默认绘图操作
+drawToDevice(.(hdc,x,y) = 输出控件图像到hdc参数指定的GDI绘图设备,\nx,y为输出坐标,如果绘图到父窗口,x,y参数可省略
+drawToGraphics(.(graphics,x,y) = 输出控件图像到hdc参数指定的GDI+画板,\nx,y为输出坐标,如果绘图到父窗口,x,y参数可省略
+directDrawBackgroundOnly() = 允许直接在背景窗口上画图\n并禁止控件在自己的窗口绘图
+paddingLeft = 前景左边距\n可限制前景以及文本,文本还可以使用textPadding属性进一步增减边距\n\n滑块模式下,此属性将同时作用于背景色，作不会作用于背景图像
+paddingTop = 前景上边距\n可限制前景以及文本,文本还可以使用textPadding属性进一步增减边距\n\n滑块模式下,此属性将同时作用于背景色，作不会作用于背景图像
+paddingRight = 前景右边距\n可限制前景以及文本,文本还可以使用textPadding属性进一步增减边距\n\n滑块模式下,此属性将同时作用于背景色，作不会作用于背景图像
+paddingBottom = 前景下边距\n可限制前景以及文本,文本还可以使用textPadding属性进一步增减边距\n\n滑块模式下,此属性将同时作用于背景色，作不会作用于背景图像
+reduce(array,callback,debounce) = @.reduce(\n	{'\uF254';'\uF251';'\uF252';'\uF253';'\uF250'}__/*在这里指定要遍历处理每个元素的数组或表,\n并在回调函数中返回每次需要间隔的延时,以毫秒为单位,返回0或空值中断处理,\n回调参数为下一个元素的值和索引,处理完后回调参数为null,\n如果此时未返回null或0退出处理函数,将返回第一个元素继续遍历*/,\n	function(value,index){\n		if(value) ??.text = value;\n		return 150;\n	} \n)
+imageAttributes = 可选使用一个gdip.imageAttributes对象对前景图像进行自动调色\n如果需要在不同状态下调色,可以在onStateChange事件里动态设置调色矩阵\n!gdip_imgattr.
+iconText = 指定文本图标\n使用iconStyle指定字体与样式
+iconColor = 字体图标颜色,支持半透明,\n支持使用skin函数动态切换此样﻿式,\n此颜色存储为ARGB格式，即:0xAARRGGBB,注意在创建控件的初始化参数中必须传入RGB格式颜色值,\n\n请注意在未指定指属性时,图标字体默认与字体使用相同的颜色
+iconStyle = @.iconStyle = {
+    font=LOGFONT(h=-38;name='FontAwesome'); 
+    align="left";valign="top";padding={bottom=50}__/*用于指定iconText显示样式*/
+}
+end intellisense***/
+
+/**intellisense()
+?win.ui.ctrl.plus = !ui_ctrl_plus.
+win.ui.ctrl.plus() = 高级图像控件\n!ui_ctrl_plus.
+win.ui.ctrl.plus = 高级图像控件
+end intellisense**/

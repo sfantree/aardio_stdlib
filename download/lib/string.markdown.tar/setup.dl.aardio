@@ -1,0 +1,10 @@
+import fsys; 
+fsys.createDir("~\lib\string\");
+fsys.copy( "\markdown","~\lib\string\" ); 
+
+
+import ide;
+ide.refreshStdLib();
+
+import win;
+win.msgboxTimeout("string.markdown扩展库已安装成功!","aardio- string.markdown扩展库安装程序")

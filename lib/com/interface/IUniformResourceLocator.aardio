@@ -1,0 +1,18 @@
+import com.interface;
+import com.interface.IPersistFile;
+namespace  com.interface;
+
+class IUniformResourceLocator{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	};  
+	pointer SetURL = "int(str url,INT flag)";
+	pointer GetURL  = "int(pointer &url)";
+	pointer InvokeCommand  = "int(struct &url)";
+	
+}
+IUniformResourceLocator.IID = "{fbf23b80-e3f0-101b-8488-00aa003e56f8}"; 
+
+ /**intellisense()
+com.interface.IUniformResourceLocator = Url快捷方式接口
+end intellisense**/

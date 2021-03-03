@@ -1,0 +1,16 @@
+//拖动桌面图标
+//拖动图标//模拟鼠标按键
+
+import win.util.tray;
+import mouse;
+import key;
+
+ 
+win.msgboxTimeout("请关闭对话框,并点选桌面图标","3秒后自动关闭") 
+key.pressEx( "LWIN","D"); //模拟按键显示桌面 
+
+mouse.wait(); //待鼠标单击桌面图标 
+sleep(1000) //这里不等一下,就变成双击了
+
+
+mouse.drag(250,120) 

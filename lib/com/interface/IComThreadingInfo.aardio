@@ -1,0 +1,37 @@
+
+import com.interface; 
+namespace  com.interface;
+
+class IComThreadingInfo{
+	ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer GetCurrentApartmentType = "int(int &pAptType)";
+	pointer GetCurrentThreadType = "int(int &pThreadType)";
+	pointer GetCurrentLogicalThreadId = "int(struct &pguidLogicalThreadId)"; 
+	pointer SetCurrentLogicalThreadId = "int(struct rguid)"; 
+}
+IComThreadingInfo.IID = "{000001ce-0000-0000-C000-000000000046}";
+
+CoGetContextToken = ::Ole32.api("CoGetContextToken","int(pointer &pToken)" );
+IComThreadingInfo.Query = function(){
+	var hr,token = CoGetContextToken();//MSDN: Don't release the returned pointer
+	if(  (hr)>=0/*_SUCCEEDED*/ ){
+		return  ..com.interface(token,IComThreadingInfo)
+	} 
+}   
+
+/**intellisense()
+com.interface.IComThreadingInfo() = 创建IComThreadingInfo接口
+com.interface.IComThreadingInfo.Query() = 返回线程IComThreadingInfo对象,无需参数,\n!IComThreadingInfo.
+!IComThreadingInfo.GetCurrentApartmentType(0) = 返回线程套间类型
+!IComThreadingInfo.GetCurrentThreadType(0) = 返回 _THDTYPE_BLOCKMESSAGES 表示当前线程没有消息循环(MTA)\n返回 _THDTYPE_PROCESSMESSAGES 表示线程有消息循环(STA)
+
+_APTTYPE_CURRENT=@-1/*_APTTYPE_CURRENT*/
+_APTTYPE_STA=@0/*_APTTYPE_STA*/
+_APTTYPE_MTA=@1/*_APTTYPE_MTA*/
+_APTTYPE_NA=@2/*_APTTYPE_NA*/
+_APTTYPE_MAINSTA=@3/*_APTTYPE_MAINSTA*/
+_THDTYPE_BLOCKMESSAGES=@0/*_THDTYPE_BLOCKMESSAGES*/
+_THDTYPE_PROCESSMESSAGES=@1/*_THDTYPE_PROCESSMESSAGES*/
+end intellisense**/

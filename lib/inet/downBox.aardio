@@ -1,0 +1,232 @@
+//downBox 下载对话框
+
+import fsys;
+import inet.httpFile;
+import win.ui;
+import win.ui.ctrl.plus; 
+import win.ui.ctrl.static;
+import win.ui.ctrl.bk;
+
+namespace inet; 
+
+class  downBox{
+	ctor(...){
+		this = ..win._form(text="正在下载.....";right=504;bottom=155;border="none";max=false;min=false;mode="popup";parent=...)
+		this.add(
+		bk={cls="bk";left=0;top=0;right=505;bottom=27;bgcolor=16777215;forecolor=8421504;linearGradient=0;z=4};
+		caption={cls="static";text="正在下载.....";left=21;top=5;right=355;bottom=21;transparent=1;z=5};
+		labInfo={cls="plus";left=21;top=44;right=465;bottom=65;align="left";z=3};
+		labProgress={cls="static";text="正在连接......";left=21;top=107;right=465;bottom=128;notify=1;transparent=1;z=2};
+		progress={cls="plus";left=21;top=69;right=486;bottom=96;align="right";bgcolor=6447459;forecolor=9959653;hide=1;iconColor=10409;notify=1;textPadding={right=15};z=1}
+		)
+	
+		this.wndproc = {
+			[ 0xC/*_WM_SETTEXT*/ ] = function (hwnd, uMsg, wParam, lParam) {
+				if(lParam){
+					this.caption.text = ..string.fromUnicode( topointer(lParam),,true ); 
+				}
+			}
+		}
+		
+		..win.ui.simpleWindow2(this);
+		
+		this.parent,this.text,this.closeTimeout = ...
+		if(# this.text)this.caption.text = this.text;
+		if( this.closeTimeout ? type( this.closeTimeout ) != type.number ) this.closeTimeout = 1000;
+	};  
+	test = function(url,path,cfg,... ){
+		if( type(url) != type.string ) return null;
+		if( type(path) != type.string ) return null;
+		
+		..fsys.createParentDir(path);
+		var remoteFile = ..inet.httpFile(url,path,cfg,... );
+		var ok = remoteFile.test();
+		this.statusCode = remoteFile.statusCode; 
+		this.contentLength = remoteFile.contentLength;
+		this.modified = remoteFile.modified;
+		return ok;
+	};
+	download = function(url,path,cfg,userAgent,proxy,proxyBypass,flags){ 
+		if( type(url) != type.string ) error("参数@1错误",2);
+		if( type(path) != type.string ) error("参数@2错误",2);
+		this.complete = false;
+			
+		this.onInitDialog = function(hwnd,message,wParam,lParam) { 
+			this.show();
+
+			..thread.invoke(downloadThread,this,url,path,cfg,userAgent:this.userAgent,proxy,proxyBypass,flags) 
+		}
+		return this.doModal();
+	};
+	removeResumeFile = function(){
+		if(this.resumePath){
+			..io.remove(this.resumePath);
+			this.resumePath = null;
+		}
+	};
+	onError = function(err){
+		this.labProgress.text = err;
+		this.progress.iconText = "";
+	};
+	onComplete = function(info){
+		this.labInfo.text = info;
+		this.progress.iconText = "";
+	};
+	onStatusChange = function(txt){
+		this.labProgress.text = txt;	
+	};
+	onReceiveBegin = function(contentLength,progresRange){
+		if(contentLength){
+			this.labProgress.text = "文件大小: " + ..fsys.formatSize(contentLength);
+		}
+		else {
+			this.labProgress.text = "文件大小: 未知"
+		}
+		
+		//初始化进度条
+		this.progress.setProgressRange(0,progresRange);
+		this.progress.progressPos = 0;
+		this.progress.hide = false; 
+	}
+	onReceive = function(totalDownSize,progressPos,sizePs){
+		this.labInfo.text = "下载大小: " + ..fsys.formatSize(totalDownSize)
+			+ " 下载速度：" + ..math.size64(sizePs).format() + "/s";
+			
+		this.progress.progressPos = progressPos;  
+	};
+} 
+
+namespace downBox{ 
+	import win;
+	import win.ui;   
+	import win.ui.simpleWindow2;
+	
+	downloadThread = function(this,url,path,cfg,userAgent,proxy,proxyBypass,flags){
+		import fsys;
+		import inet.httpFile;
+		
+		if( !path ){
+			return this.onError("存储路径不能为空")
+		}
+		
+		var remoteFile = inet.httpFile(url,path,cfg ,userAgent, proxy,proxyBypass,flags);
+		if( !remoteFile ){
+			return this.onError("存储路径错误") 
+		}
+		
+		remoteFile.bufferSize = this.bufferSize;
+		if( this.cookies ){
+			remoteFile.session.disableCookies();
+			remoteFile.session.addHeaders ={cookie = this.cookies };
+		}
+
+		var totalDownSize = 0;
+		var progressBlockSize;
+		
+		remoteFile.onReceiveBegin = function(statusCode,contentLength,fileSize){
+					
+			if(contentLength){
+				contentLength = contentLength + fileSize; 
+				this.onReceiveBegin(contentLength,1000);
+			}
+			else { 
+				this.onReceiveBegin(,1000);
+				contentLength = 1000000;
+			} 
+			
+				if( statusCode == 206/*断点续传*/ ){
+				totalDownSize = fileSize;
+			}
+			
+			progressBlockSize = contentLength/1000;
+		}
+		
+		var time_tick = ..time.tick;
+		var tkPrev = 0;
+		var sizePs = 0;
+		remoteFile.onReceive = function(str,size,contentLength){ 
+			if( !this.continueModal ) return false;
+			
+			totalDownSize = totalDownSize + size;
+			sizePs = sizePs + size; 
+			var tkCurrent = time_tick();
+			var ms = tkCurrent - tkPrev;
+			if( ms > 1000 ){
+				this.onReceive(totalDownSize,totalDownSize/progressBlockSize,sizePs/(ms/1000))
+				sizePs = 0;
+				tkPrev = tkCurrent;
+			}
+		}
+		
+		var ret,err,fileSize = remoteFile.download(this.headers,this.referer) 
+		this.statusCode = remoteFile.statusCode; 
+		this.contentLength = remoteFile.contentLength;
+		this.modified = remoteFile.modified;
+		this.resumePath = remoteFile.resumePath;
+		
+		if( ret ) {
+			this.onStatusChange( "文件大小: " + fsys.formatSize(fileSize) );
+			
+			if(err)
+				this.onComplete("已完成,无须重新下载:" + path)
+			else {
+				this.onComplete("下载完毕:" + path);
+			} 
+			
+			this.complete = remoteFile.complete;
+			if( this.endProc ){
+				this.endProc(ret,fileSize,err);
+			}
+			
+			if( this.closeTimeout ){
+				sleep(this.closeTimeout); 
+				this.endModal( remoteFile.path )
+			}
+			this.dialogResult = remoteFile.path;
+		}
+		else {
+			this.onError( err : "未知错误/下载未完成" )
+		}
+		
+		remoteFile.close();	
+	}
+	
+}
+	
+/***intellisense()
+inet.downBox = 下载对话框
+inet.downBox() = 创建一个下载对话框\n!inet_downBox. 
+inet.downBox(.(父窗口,"标题",下载成功关闭超时) = 所有参数可选\n参数@3可选指定下载成功自动关闭对话框的超时值,单位毫秒
+!inet_downBox.text = 对话框标题
+!inet_downBox.bufferSize = 缓冲区大小\n不指定则默认为128KB
+!inet_downBox.labProgress = 显示进度信息\n!static.
+!inet_downBox.labInfo = 显示信息\n!static.
+!inet_downBox.progress = 进度条\n!plus.
+!inet_downBox.cookies = 自定义HTTP请求头中的请求cookie
+!inet_downBox.userAgent = 指定下载时的请求User Agent
+!inet_downBox.headers = 指定下载时的请求HTTP头
+!inet_downBox.referer = 指定下载时的引用页
+!inet_downBox.download( = 弹出下载对话框并开始下载文件
+!inet_downBox.download(.(URL,存储路径,配置文件,userAgent,proxy,->->-> ) = 下载文件\n参数@1指定下载网址\n参数@2可以指定目录或文件路径,目录必须以反斜杠结尾,\n其他参数可省略\n下载成功返回存储文路径\nuserAgent,proxy等可选参数用于创建http对象,参考inet.http构造函数说明
+!inet_downBox.test(.(URL,存储路径,配置文件,userAgent,proxy,->->-> ) = 检测是否已下载最新文件\n参数@1指定下载网址\n参数@2可以指定目录或文件路径,目录必须以反斜杠结尾,\n已下载文件未变更返回true\n需要下载或续传返回false,下载错误返回null\nuserAgent,proxy等可选参数用于创建http对象,参考inet.http构造函数说明
+!inet_downBox.setPos(.(x,y,宽,高,插入位置,参数) = 调整窗口位置或排序\n所有参数可选 
+!inet_downBox.getPos() = 返回相对坐标,宽,高 
+!inet_downBox.topmost()=窗体始终最前
+!inet_downBox.topmost(false)=取消窗体始终最前
+!inet_downBox.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!inet_downBox.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos  
+!inet_downBox.setInterval = @var tmId = ??.setInterval( \n	1000,\n	function(id){\n		/*定时回调函数*/\n	} \n)
+!inet_downBox.clearInterval(__/*请输入ID*/) = 删除定时器
+!inet_downBox.changeInterval(__/*请输入ID*/,1000) = 重新设定定时器的延时时间
+!inet_downBox.setTimeout(.(函数名,延时,其他参数) = 延时执行函数
+!inet_downBox.complete = 是否下载完成
+!inet_downBox.statusCode = HTTP状态码
+!inet_downBox.contentLength = 文件长度\n如果文件长度为零,并且modified属性为false,表示不需要重新下载
+!inet_downBox.removeResumeFile() = 移除断点续传配置文件
+!inet_downBox.modified = 文件在上次下载以后是否修改过
+!inet_downBox.endProc = @.endProc = function(ret,fileSize,unmodified){
+	if(!unmodified)
+		owner.endModal();
+} 
+?inet.downBox = !inet_downBox.
+end intellisense***/

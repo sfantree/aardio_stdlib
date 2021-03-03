@@ -1,0 +1,36 @@
+﻿//毛玻璃效果
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="毛玻璃效果";right=759;bottom=469)
+winform.add()
+/*}}*/
+
+var dwm = raw.loadDll("dwmapi.dll");
+var aero = function(hwnd){
+	if(_WIN10_LATER){  
+		var accent = {
+			int AccentState = 3;
+			INT AccentFlags = 0;
+			INT GradientColor = 0;
+			INT AnimationId = 0;
+		};
+	
+		::User32.SetWindowCompositionAttribute(hwnd,{
+			INT Attrib = 19;
+			ptr pvData = raw.buffer(accent);
+			INT cbData = raw.sizeof(accent);
+		});
+	}
+	elseif(_WIN7_LATER) {
+		var result = {bool enabled};
+		dwm.DwmIsCompositionEnabled(result)
+		if(result.enabled){
+			dwm.DwmEnableBlurBehindWindow(hwnd,{ int flags=3;int enable=1;int rgnBlur;int transition})
+		} 
+	}	
+}
+aero( winform.hwnd );
+
+
+winform.show();
+win.loopMessage();

@@ -1,0 +1,168 @@
+//database 文本数据
+namespace string;
+
+class database{
+	ctor(separator,quote){
+		this.separator = separator : '\t';
+		this.quote = quote : '"';
+		this.datatable = {};
+	};
+	parse = function(str){
+		var sep = this.separator[1] : '\t'#;
+		var q = this.quote ? this.quote[1];
+		var dt = {};
+		var push = ..table.push; 
+		
+		var row = {};
+		var len = #str;
+		var chr;
+  
+		for(i=1;len;1){ 
+			chr = str[i];
+			if( chr == sep ) { push( row,""); continue;  }
+			if( chr == ' ' || chr == '\t') { continue;  }
+			
+			var col = {};
+			if( q ? chr == q ){
+				for(j=i+1;len;1){
+					i=j;
+					chr = str[j];
+					if( chr & 0x80 ){
+						push(col,chr)
+						continue ;
+					}
+					if( chr = q ) {
+						if( str[j+1] = q ){  j++; };
+						else{ break; }
+					}
+					push(col,chr);
+				}
+				
+				for(j=i+1;len;1){ 
+					chr = str[i+1];
+					if( chr == '\r'# || chr == '\n'# ) break;
+					if( chr == sep ){ 
+						if(#col)push(row,..string.pack(col)); 
+						else push(row,"");
+						i++;
+						col={};
+					}
+				}
+				
+				chr = str[i+1];
+				if( chr == '\r'# || chr == '\n'# ) {
+					if(#col)push(row,..string.pack(col));else push(row,"");
+					if(#row)push( dt,row )
+					row = {};
+					i++;
+					
+					if(chr == '\r'#  && str[i+1]=='\n'#){i++;}
+					continue; 
+				}
+			}
+			else {
+				for(j=i;len;1){
+					i=j;
+					chr = str[j];
+					if( chr & 0x80 ){
+						push(col,chr)
+						continue ;
+					}
+					if( chr = sep ) {
+						if(#col)push(row,..string.pack(col)); 
+						else push(row,"");
+						continue 2;
+					}
+					if( chr == '\r'# || chr == '\n'# ) { 
+						if(#col)push(row,..string.pack(col));else push(row,"");
+						
+						if(#row){ push( dt,row ) }
+						row = {}; 
+						
+						if(chr == '\r'#  && str[i+1]=='\n'#){i++;}
+						continue 2; 
+					}
+					push(col,chr);
+				}	
+			} 
+			
+			if(#col)push(row,..string.pack(col)); 
+		}  
+		
+		if(#row){ push( dt,row ) } 
+		return dt;
+	}
+	stringify = function(tab){ 
+		if(!tab){
+			tab = this.datatable;
+			this.datatable = {};
+		}
+		if( tab.fields ){
+			var fields = tab.fields;
+			var dt = { fields }
+			for(r=1;#tab;1){
+				var row = {};
+				for(i=1;#fields;1){
+					..table.push(row,tab[r][ fields[i] ] )
+				} 
+				..table.push(dt,row);
+			}
+			return this.stringify(dt);
+		}
+		
+		var q = this.quote;
+		var q2 = q ? ( q ++ q );
+		var dt = {};
+		for(r=1;#tab;1){
+			var row = tab[r];
+			var line = {};
+			for(c=1;#row;1){
+				var col = tostring(row[c]); 
+				if( q ){
+					if(  ..string.indexOf(col,this.separator )
+						|| (    ..string.indexOf(col,q ) ) ){
+						col = '"' + ..string.replace( col, "@@"+q, q2  ) + '"'; 
+					}
+				}
+				..table.push(line,col);
+			}
+			..table.push(dt,..string.join(line,this.separator) );
+		}
+		return ..string.join(dt,'\r\n');
+	}
+	stringifyA = function(tab){
+		return ..string.fromto(this.stringify(tab)); 
+	}
+	load = function(path){
+		var s = ..string.load(path);
+		if( s[1] == 0xEF  && s[2] == 0xBB && s[3] == 0xBF ){
+			s = ..string.right(s,-4);
+		}
+		else {
+			s = ..string.fromto(s,0,65001);
+		} 
+		return this.parse(s);
+	};
+	save = function(path,tab){
+		..string.save(path,'\xEF\xBB\xBF');
+		..string.save(path, this.stringify(tab) ,true );
+	};
+	push = function(...){ 
+		..table.push( this.datatable,{ ... } );
+	}
+	
+}
+
+/**intellisense()
+string.database = TXT,CSV格式数据库简单解析\n注意文本数据规范不统一,不同的程序解析结果可能有差异
+string.database(.(分隔符,文本包含符) = 创建TXT,CSV格式数据库解析器,\n参数可以省略,默认使用制表符作为分隔符,双引号包含文本
+string.database() = !string_database.
+!string_database.separator = 列分隔符
+!string_database.quote = 文本包含符
+!string_database.parse(.(文本) = 解析并返回数组
+!string_database.stringify(.(数据数组) = 生成UTF8文本\n如果不指定参数,则使用之前调用push函数添加的数据
+!string_database.stringifyA(.(数据数组) = 生成ANSI文本\n如果不指定参数,则使用之前调用push函数添加的数据
+!string_database.push(.(->->->) = 添加多个列到一行数据,\n之后可以调用stringify()生成文本
+!string_database.load(.(文件路径) = 加载并解析文件，返回数组,\n文件开头有UTF-8 BOM则以UTF-8编码读入内容,\n否则以ANSI编码读入并转换为UTF-8
+!string_database.save(.(文件路径,数据数组) = 在指定文件写入UTF-8 BOM，\n然后将数据转换为UTF-8文本写入文件\n如果不指定参数,则使用之前调用push函数添加的数据
+end intellisense**/

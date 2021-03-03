@@ -1,0 +1,171 @@
+//path 路径对象 
+import gdip.core;
+namespace gdip;
+
+class path {
+	ctor(brushmode){
+		brushmode = brushmode : 0/*_GdipFillModeAlternate*/;
+		if(type(brushmode) == "number"){
+			this.pPath = gdip.assert2(  gdip.CreatePath (brushmode )  ) 
+		}
+		
+		if(!this.pPath) error("参数错误",2)
+		..table.gc(this,"delete");
+	
+	}
+
+	@_metaProperty
+}
+
+namespace path {
+
+	self.gdip = ..gdip;
+	var gdip = gdip; 
+	
+	_metaProperty = ..util.metaProperty( 
+		addPath = function(ap,connect){
+			if(!ap[["pPath"]]) error("参数@1类型错误",2);
+			gdip.assert2(
+				gdip.AddPathPath( owner[["pPath"]],ap[["pPath"]], connect : 0)
+			);	
+		};
+		addstring = function( str,family,style,emSize,rclayout,strformat ){
+			gdip.assert2(
+				gdip.AddPathString( owner[["pPath"]],..string.toUnicode(str), -1, family, style, emSize, rclayout, strformat)
+			);
+			
+		};
+		addLine = function(x1,y1,x2,y2){
+			gdip.assert2(
+				gdip.AddPathLine( owner[["pPath"]],x1,y1,x2,y2)
+			);
+		};
+		addArc = function(x,y,width,height,startAngle,sweepAngle){
+			gdip.assert2(
+				gdip.AddPathArc( owner[["pPath"]],x,y,width,height,startAngle,sweepAngle)
+			);
+		};
+		addBezier = function(x1,y1,x2,y2,x3,y3,x4,y4){
+			gdip.assert2(
+				gdip.AddPathBezier( owner[["pPath"]],x1,y1,x2,y2,x3,y3,x4,y4)
+			);
+		};
+		addPie = function(x,y,width,height,startAngle,sweepAngle){
+			gdip.assert2(
+				gdip.AddPathPie( owner[["pPath"]],x,y,width,height,startAngle,sweepAngle)
+			);
+		};
+		addEllipse = function(x,y,width,height){
+			gdip.assert2(
+				gdip.AddPathEllipse( owner[["pPath"]],x,y,width,height)
+			);
+		};
+		addRectangle = function(x,y,width,height){
+			gdip.assert2(
+				gdip.AddPathRectangle( owner[["pPath"]],x,y,width,height)
+			);
+		}; 
+		addRoundRect = function(r,r1,r2,r3,r4) {
+			var x = r.left;  
+            var y = r.top; 
+            var x2 = r.right;
+            var y2 = r.bottom;
+            var w = x2 - x;  
+            var h = y2 - y; 
+            if( r1 > w/2 ) r1 = w/2; 
+            if( r1 > h/2 ) r1 = h/2; 
+            if( r2 === null ) r2 = r1;
+            if( r3 === null ) r3 = r1;
+            if( r4 === null ) r4 = r2;
+            
+            var p = owner[["pPath"]];
+            with(gdip){
+                AddPathBezier(p,x,y + r1,x,y,x + r1,y,x + r1,y);  
+                AddPathLine(p,x + r1,y,x2 - r2,y);  
+                AddPathBezier(p,x2 - r2,y,x2,y,x2,y + r2,x2,y + r2);  
+                AddPathLine(p,x2,y + r2,x2,y2 - r3);  
+                AddPathBezier(p,x2,y2 - r3,x2,y2,x2 - r3,y2,x2 - r3,y2);  
+                AddPathLine(p,x2 - r3,y2,x + r4,y2);  
+                AddPathBezier(p,x + r4,y2,x,y2,x,y2 - r4,x,y2 - r4);   
+                AddPathLine(p,x,y2 - r4,x,y + r1); 
+            }
+		}; 
+		addCurve = function(...){
+			var points = { ... }; 
+			gdip.assert2( gdip.AddPathCurve(owner[["pPath"]] ,{ float points[] = points },#points/2  ) );  
+		};
+		addClosedCurve = function(...){
+			var points = { ... }; 
+			gdip.assert2( gdip.AddPathClosedCurve(owner[["pPath"]] ,{ float points[] = points },#points/2  ) );  
+		};
+		addPolygon = function(...){
+			var points = { ... }; 
+			gdip.assert2( gdip.AddPathPolygon(owner[["pPath"]] ,{ float points[] = points },#points/2  ) );  
+		};
+		startFigure = function(){
+			gdip.StartPathFigure(owner[["pPath"]])
+		};
+		closeFigure = function(){
+			gdip.ClosePathFigure(owner[["pPath"]])
+		};
+		closeAllFigure = function(){
+			gdip.ClosePathFigures(owner[["pPath"]])
+		};
+		reset = function(){
+			gdip.ResetPath(owner[["pPath"]])
+		};
+		delete = function(){
+			if( owner[["pPath"]] ){
+				gdip.DeletePath(owner[["pPath"]])
+				owner[["pPath"]] = null;
+			}
+		};
+		//自动转换为API指针
+		_topointer = function(){
+			return owner[["pPath"]];
+		}
+	)  
+}
+
+var $ = _dll; //http://msdn.microsoft.com/en-us/library/ms534039(v=vs.85).aspx
+/*intellisense(gdip)*/
+CreatePath = $.api("GdipCreatePath","int(int brushmode,pointer& Path)")
+StartPathFigure = $.api("GdipStartPathFigure","int(PTR path)")
+ClosePathFigure = $.api("GdipClosePathFigure","int(PTR path)")
+ClosePathFigures = $.api("GdipClosePathFigures","int(PTR path)")
+AddPathPath = $.api("GdipAddPathPath","int(PTR path,pointer addingPath,int bConnect)")
+AddPathCurve = $.api("GdipAddPathCurve","int(PTR path,struct Points,int count)")
+AddPathClosedCurve = $.api("GdipAddPathClosedCurve","int(PTR path,struct Points,int count)")
+AddPathPolygon = $.api("GdipAddPathPolygon","int(PTR path,struct Points,int count)") 
+AddPathString = $.api("GdipAddPathString","int(PTR path,string str,int Length,pointer family,int style,float emSize,struct& layoutRect,ptr strFmt)")
+AddPathLine = $.api("GdipAddPathLine","int(PTR path,float x1,float y1,float x2,float y2)") 
+AddPathArc = $.api("GdipAddPathArc","int(PTR path,float x,float y,float width,float height,float startAngle,float sweepAngle)")
+AddPathBezier = $.api("GdipAddPathBezier","int(PTR path,float x1,float y1,float x2,float y2,float x3,float y3,float x4,float y4)")
+AddPathRectangle = $.api("GdipAddPathRectangle","int(PTR path,float x,float y,float width,float height)") 
+AddPathEllipse = $.api("GdipAddPathEllipse","int(PTR path,float x,float y,float width,float height)")
+AddPathPie = $.api("GdipAddPathPie","int(PTR path,float x,float y,float width,float height,float startAngle,float sweepAngle)")
+ClonePath = $.api("GdipClonePath","int(PTR path,int& clonePath)")
+DeletePath = $.api("GdipDeletePath","int(PTR path)")
+ResetPath = $.api("GdipResetPath","int(PTR path)")
+/*end intellisense*/
+ 
+/**intellisense()
+gdip.path(_GdipFillMode__) = 创建路径对象
+!gdippath.startFigure() = 不闭合开始新图形
+!gdippath.closeFigure() = 闭合当前图形开始新图
+!gdippath.closeAllFigure() = 闭合所有图形开始新图
+!gdippath.addstring(.(( str,family,style,emSize,rclayout,strformat ) = 添加字符串 
+!gdippath.addLine(.(x1,y1,x2,y2) = 添加直线
+!gdippath.addArc(.(x,y,width,height,startAngle,sweepAngle) = 添加椭圆弧\nstartAngle:起始角度,以度为单位从X轴顺时针测量\nsweepAngle:startAngle 和弧线末尾之间的角度
+!gdippath.addBezier(.(x1,y1,x2,y2,x3,y3,x4,y4) = 添加贝塞尔曲线\n4个坐标点分别为：起始锚点，起始控制点，结束锚点，结束控制点
+!gdippath.addPie(.(x,y,width,height,startAngle,sweepAngle) = 添加一个扇形轮廓\nstartAngle:起始角度,以度为单位从X轴顺时针测量\nsweepAngle:startAngle 和弧线末尾之间的角度
+!gdippath.addEllipse(.(x,y,width,height) = 添加椭圆
+!gdippath.addRectangle(.(x,y,width,height) = 添加矩形
+!gdippath.addRoundRect(.(RECT,圆角大小) = 添加圆角矩形\n圆角大小也可以使用四个值,自左上角开始顺时针为序:\n左上,右上,右下,左下
+!gdippath.addCurve(.(x1,y1,x2,y2,->->->) = 添加曲线\n参数使用任意个成对的数值参数表示曲线经过坐标
+!gdippath.addClosedCurve(.(x1,y1,x2,y2,->->->) = 添加闭合曲线\n参数使用任意个成对的数值参数表示曲线经过坐标
+!gdippath.addPolygon(.(x1,y1,x2,y2,->->->) = 添加多边形
+!gdippath.reset() = 重置为空路径
+!gdippath.delete() = 释放路径对象
+gdip.path() = !gdippath.
+end intellisense**/

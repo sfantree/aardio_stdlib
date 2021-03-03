@@ -1,0 +1,39 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add(
+button={cls="button";text="调用python显示图片";left=448;top=360;right=640;bottom=416;z=2};
+plus={cls="plus";left=80;top=80;right=680;bottom=264;repeat="center";z=1}
+)
+/*}}*/
+
+/*
+导出一个名字为"aardio"的模块，
+在python中可以使用 import aardio导入。
+
+可以使用此方法导出任何其他的aardio表，Python中可以访问导出表中的成员函数,
+除函数以外的成员不导出，但是可以在被调用函数中用owner对象访问自身的其他成员变量。
+*/
+import py;
+py.export.aardio ={ 
+	showImage = function(bytes){ 
+		winform.plus.background =  bytes;
+	} 
+}
+
+var pyCode = /**
+import aardio;
+import urllib.request;
+def testPy():
+    b = urllib.request.urlopen("http://bbs.aardio.com/static/image/common/aardio.png").read()
+    print(b)
+    aardio.showImage(b)
+**/
+py.exec( pyCode );//运行Python代码
+
+winform.button.oncommand = function(id,event){
+	py.main.testPy(); //调用python函数
+}
+
+winform.show() 
+win.loopMessage();

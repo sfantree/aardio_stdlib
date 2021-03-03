@@ -1,0 +1,66 @@
+﻿//inputBox 输入框
+import win.ui;
+import win.ui.ctrl.edit;
+import win.ui.ctrl.button;
+import win.ui.ctrl.static;
+
+namespace win;  
+
+class  inputBox{
+	ctor(parent,password){  
+			
+		this = ..win._form(cls="";text="aardio form";right=442;bottom=137;border="dialog frame";exmode="none";max=false;min=false;mode="popup";parent=parent)
+		this.add(
+			btnCancel={cls="button";text="取消";left=298;top=87;right=372;bottom=115;db=1;dr=1;z=2};
+			btnOk={cls="button";text="确定";left=205;top=87;right=279;bottom=115;db=1;dr=1;style=1;z=1};
+			info={cls="static";text="请输入";left=20;top=20;right=350;bottom=38;dl=1;dt=1;notify=1;transparent=1;z=4};
+			input={cls="edit";left=20;top=46;right=423;bottom=71;dl=1;dt=1;edge=1;password=password;z=3}
+		)
+		
+		this.onInitDialog = function(hwnd,message,wParam,lParam){
+			this.input.setFocus();
+		};
+		
+		this.btnCancel.oncommand = function(id,event){
+			this.endModal();
+		};
+		
+		this.btnOk.oncommand = function(id,event){ 
+			this.endModal( this.input.text );
+		};  
+		
+		this.onOk = function(){
+	    	this.endModal( this.input.text );
+		}; 
+		
+		this.onCancel = function(){
+	    	this.endModal();
+		}; 
+	} 
+}
+ 
+/***intellisense()
+win.inputBox = 输入对话框 
+win.inputBox( = 创建一个输入对话框
+win.inputBox(.(父窗口,密码模式） =  创建一个输入对话框,所有参数可选\n设置密码模式输入框输入内容显示为星号
+win.inputBox() = !wininputBox.
+end intellisense***/
+
+/***intellisense(!wininputBox)
+doModal() = 弹出输入对话框\n该函数返回用户输入的值\n取消则返回null空值
+onInitDialog = @.onInitDialog = function(hwnd,message,wParam,lParam){\n	??.center()__/*输入框初始化完成触发该函数*/\n}
+center() = 居中显示
+info = !edit.
+input = !edit.
+text = 输入框标题
+setPos(.(x,y,宽,高,插入位置,参数) = 调整窗口位置或排序\n所有参数可选 
+getPos() = 返回相对坐标,宽,高 
+topmost()=窗体始终最前
+topmost(false)=取消窗体始终最前
+modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos  
+setInterval = @var tmId = ??.setInterval( \n	1000,\n	function(id){\n		/*定时回调函数*/\n	} \n)
+clearInterval(__/*请输入ID*/) = 删除定时器
+changeInterval(__/*请输入ID*/,1000) = 重新设定定时器的延时时间
+setTimeout(.(函数名,延时,其他参数) = 延时执行函数
+end intellisense***/

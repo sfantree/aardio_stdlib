@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project ver="10" name="protobufc_ui" libEmbed="true" icon="...">
+	<file name="main.aardio" path="main.aau"/>
+	<folder name="资源文件" path="res" embed="true">
+		<file name="protoc.exe" path="res\protoc.exe" comment="res\protoc.exe"/>
+	</folder>
+</project>

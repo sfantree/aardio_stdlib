@@ -1,0 +1,87 @@
+//0)基础语法
+?>
+<title>介绍Python基础语法,试试直接按F5运行此页</title>
+
+<h1>语句块</h1>
+
+<pre style="font-size:16px;">
+aardio类似JS，C语言等C系语言，使用{} 包含语句块。
+
+但是Python这方面是非常特殊的，使用缩进表示语句块，
+要非常小心，任何时候手一抖多按少按一个空格都可能会导致语句错误。
+
+#下面是一段Python代码示例
+def func(x,y,*t):
+	print("python用相同的缩进区别不同的语句块");
+	print("不能在本行前再来一个缩进建立新的语句块,而在aardio中你可以随时自由建立新的独立的语句块。");
+	print("参数名前加一个*号表示不定个数匿名参数(实际上是一个tuple元组):",t)
+	return x + y; 
+</pre>
+
+<h1>不定参数</h1>
+
+<pre style="font-size:16px;">
+上一个示例我们已经看到了，
+Python在参数名前加一个*号表示不定个数匿名参数。
+参数名前加两个星号表示以dict类型传递任意个有名字的参数。
+
+而在aardio中用 ... 表示不定个数的参数，跟普通变量用法一样，
+而使用表作为参数就是任意个有名字的参数了，例如
+console.dump(
+	a = 123;
+	b = "其实参数就是一个普通的表"
+)
+</pre>
+
+<h1>关键字,大小写</h1>
+
+<pre style="font-size:16px;">
+# 注意python里很多关键字都是首字符大写的，
+if True: #aardio里是true,注意是小写
+    print( 'Yes, it is true')
+    
+而aardio关键字以及所有其他的东西基本都是首字符小写，非常统一的驼峰式命名
+在aardio中只有全局常量，外部API,外部COM函数等会首字符大写。
+</pre>
+
+<h1>变量</h1>
+
+<pre style="font-size:16px;">
+python与aardio的变量命名规则基本类似，
+例如标识符（变量或常量名等）首字符不能是数值，可以是下划线或字母。
+python与aardio一样同样是大小写敏感的语言， Name与name 表示的不是同一个对象名字
+
+python中函数内部声明变量默认为局部变量,全局变量声明应显式加上global关键字。
+恰恰相反的是,aardio中变量默认为全局变量并且无需声明可以直接使用,而局部变量需要用var语句显示声明。
+
+注意 python 中访问不存在的变量会抛出 NameError 异常，
+而访问对象不存在的属性会抛出 AttributeError,KeyError，
+所以在 python 中检测一个变量是否存在就需要用 try语句捕获 NameError 异常,
+或者用 locals().has_key('变量名') globals().has_key('变量名') 判断。
+
+在 aardio中简单一些，可以直接判断null 值，例如
+if( 不存在的变量 === null ) { io.print("变量不存在") 
+</pre>
+
+<h1>异常</h1>
+
+<pre style="font-size:16px;">
+Python是一个大量使用异常的语言，到处都写满try语句，
+任何一个小事都能触发异常，例如访问一个不存在的属性等等，
+
+python中常见的一些异常：
+
+SyntaxError	语法错误
+RuntimeError 运行时错误
+NameError 尝试访问一个没有申明的变量
+ValueError	传给函数的参数类型不正确，比如给int()函数传入字符串形
+AttributeError	尝试访问未知的对象属性
+KeyError 请求一个不存在的字典关键字，可以看到python中字典的键(key)与对象的属性(attribute)是区别对待的,aardio是不区分的
+IndexError 索引超出序列范围
+ZeroDivisionError 除数为0
+IOError	输入输出错误（比如你要读的文件不存在）
+
+aardio虽然有try语句，但很少需要使用，
+在 aardio 中一个函数失败惯例多会返回两个返回值，即 null,错误信息。
+aardio在设计中倾向于返回null以及错误来使程序可以简单的继续执行，只有特别严重不应该犯的错误才会抛出异常.
+</pre>

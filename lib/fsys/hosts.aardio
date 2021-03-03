@@ -1,0 +1,78 @@
+﻿//hosts 文件
+import fsys;
+import fsys.acl;
+
+namespace fsys.hosts;
+
+dnsapi = ..raw.loadDll("dnsapi.dll")
+path = ..fsys.getSpecial(0x25 /*_CSIDL_SYSTEM*/,"\drivers\etc\hosts");;
+
+flushDns = function(host){
+	return host ? dnsapi.DnsFlushResolverCacheB() : dnsapi.DnsFlushResolverCacheEntry_A(host); 
+}
+	
+update = function(hostSet){ 
+	var hostContent = ..string.load(path) : "";
+	hostContent = hostContent ? ..string.removeBom(hostContent);
+	
+	for(host,ip in hostSet){
+		hostContent,count = ..string.replace( hostContent,"!\N\d+\.\d+\.\d+\.\d+\s*(<@" + host + "@>\S?!)",ip + " \1")
+		if( !count) {
+			if( !count) { hostContent = hostContent + '\r\n' + ip + " " + host; }
+		}  
+	}
+	
+	if(!..string.endWith(hostContent,'\r\n')){
+		hostContent = hostContent + '\r\n';
+	}
+
+	if( ..string.save(path,hostContent) ){
+		for(host in hostSet){
+			dnsapi.DnsFlushResolverCacheEntry_A(host); 
+		}   
+		return true;
+	}
+}
+
+load = function(){
+	var ret = {};
+	var str = ..string.load(path);
+	str = str ? ..string.removeBom(str);
+	
+	if(str){
+		for(line in ..string.lines(str) ){
+			line = ..string.trim(line);
+			if(#line && line[1]!='#'#){
+				var ip,domain = ..string.match(line,"(\S+)\s+(\S+)");
+				ret[domain] = ip
+			} 
+		}		
+	}
+ 
+	return ret;
+}
+
+loadText = function(){
+	return ..string.load(path);
+}
+
+saveText = function(text){
+	..fsys.attrib(path,1/*_FILE_ATTRIBUTE_READONLY*/);
+	return ..string.save(path,text);
+}
+
+ownCacls = function(){
+    var out,err = ..fsys.acl.ownCacls(path);
+    ..fsys.attrib(path,1/*_FILE_ATTRIBUTE_READONLY*/);
+	return out,err;
+}
+
+/**intellisense(fsys.hosts)
+path = HOSTS文件路径
+update(hostSetting) = @.update(\n	[__/*在这里指定要在host中修改IP的域名*/] = "127.0.0.1";\n) 
+load() = 自host文件中读取一个表，每个键值对表示一个域名对应的IP
+loadText() = 自host文件直接读取文本内容
+saveText(__) = 将参数指定的文本保存到host文件
+ownCacls() = 获取host文件的控制权限，\n当前进程需要以管理权限启动
+flushDns() = 清空DNSxe
+end intellisense**/

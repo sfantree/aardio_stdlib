@@ -1,0 +1,42 @@
+//编辑树形控件
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="树形控件编辑项文本 演示";right=349;bottom=249;parent=...)
+winform.add(
+btnSelectAll={cls="button";text="编辑选定项";left=172;top=206;right=271;bottom=232;z=2};
+treeview={cls="treeview";left=22;top=17;right=326;bottom=190;asel=false;bgcolor=15793151;edge=1;editable=1;exstyle=131072;style=256;z=1}
+)
+/*}}*/
+
+var hitem = winform.treeview.insertItem( text="程序目录" );
+var hSubItem = winform.treeview.insertItem( { text="子目录" },hitem/*父节点*/);
+
+winform.treeview.onnotify = function(id,code,ptr){
+	 if(code = 0xFFFFFE35/*_TVN_BEGINLABELEDITW*/ ){  
+	 	return false; //允许编辑项
+	 }
+	 if( code == 0xFFFFFE34/*_TVN_ENDLABELEDITW*/ ){
+	 	var dispInfo = winform.treeview.getNotifyDispInfo(code,ptr)
+	 	if( dispInfo[["item"]][["text"]] ) { //取消为空
+	 		winform.treeview.setItemText( dispInfo.item.hItem, dispInfo.item.text ) ;
+	 	}
+	 } 
+}
+
+hitem = winform.treeview.insertItem( { 
+        text = "children数组指定子节点"; 
+        children = { 
+            { text = "子节点"  };
+            { text = "子节点2" };
+        }
+} ) 
+  
+winform.btnSelectAll.oncommand = function(id,event){  
+	winform.treeview.editLabel( winform.treeview.getSelection() ) 
+} 
+	
+winform.show() 
+win.loopMessage();
+
+ 
+

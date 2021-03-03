@@ -1,0 +1,70 @@
+﻿import process.popen;
+
+namespace process.php;
+
+class cgi{
+	ctor(response,request,cgiPath,iniPath,...){
+		
+		if(!iniPath){
+			iniPath = ..io.joinpath(..io.splitpath(cgiPath).dir,"php.ini");
+		}
+	
+		request.environ.REDIRECT_STATUS = 200;
+		var prcs,err = ..process.popen(cgiPath, {"-c";..io.fullpath(iniPath);...}, {environment = request.environ });
+		if(!prcs){
+			response.error(err);
+			return; 
+		}
+		
+		prcs.codepage = 65001;
+		if(request.contentLength){
+			prcs.write( request.postData() )
+		} 
+		
+		var ok,out,err = prcs.wait();
+		prcs.close();
+		
+		if(#out) { 
+			response.charset = "";
+			
+			if(#err){..io.stderr.write(err);}
+			var strHeaders,body = ..string.match(out,'(.+?)\r\n\r\n(.*)'); 
+			
+			var httpHeaders = ..string.splitEx(strHeaders,"\r\n");
+			var lastHeaderKey;
+			for(i=#httpHeaders;1;-1){
+				var line = httpHeaders[i];
+				if(line[1]==' ' || line[1]=='\t'){
+					if(lastHeaderKey){ httpHeaders[ lastHeaderKey ] = httpHeaders[ lastHeaderKey ] ++ ..string.trimleft(line); }
+					continue;
+				};
+					
+				var h = ..string.splitEx(line,"\:\s*",2); 
+				if(#h == 2){
+					var k = ..string.lower(h[1]);
+					var v = h[2];
+
+					if(k=="content-type"){
+						response.contentType = v;
+					}
+					elseif(k=="status"){
+						response.status = v;
+					}
+					else {
+						response.headers[h[1]] = v;
+					} 
+				}  
+			}
+			
+			response.write(body); 
+		}
+		elseif(#err){ 
+			response.error(err) 
+		}
+	} 
+}
+
+/**intellisense()
+process.php.cgi = 用于HTTP服务器创建PHP CGI进程\n适用于 wsock.tcp.simpleHttpServer 或 wsock.tcp.asynHttpServer
+process.php.cgi(.(response,request,cgiPath,iniPath,->->->) = @response,@request参数为HTTP服务器的请求与响应对象,\n@cgiPath指定php-cgi.exe的路径,\n@iniPath为可选参数，用于指定php.ini的路径,\n可选添加任意个php-cgi.exe的启动参数
+end intellisense**/

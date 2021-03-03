@@ -1,0 +1,46 @@
+namespace coroutine;
+ 
+main = function(){} 
+current = main
+
+run = function(func,...){
+	main = func
+	current = main
+	main(...);
+}
+
+create = function(f){
+	var task = ..fiber.create(
+		function(...){
+			return null,f(...)
+		}
+	)
+	return function(...){
+		return rget(2,assert(..fiber.resume (task,...) )  ) 
+	} 
+} 
+  
+var tright = ..table.right;
+transfer = function(work,...){ 
+	if( current != main ) { 
+		return ..fiber.yield(work : main,...)
+	}
+	else{
+		var arg = { (work : main) ;...}
+		while(work){
+			current = work
+			if work == main { 
+				return tright(arg,-2) 
+			} 
+			arg = { work( tright(arg,-2) ) } 
+			work = arg[1];
+		}  
+	}
+}
+ 
+/**intellisense(coroutine)
+main = 主函数
+create.(__/*启动函数*/) = 创建协程
+transfer(__/*协程对象*/,) = 把控制权及附加的不定个参数分派给协程对象\n省略参数@1则切换到主函数
+run(__/*主函数*/, ) = 将函数设为协程主函数,并启动协同程序.\n可在此传入不定个参数给主函数
+end intellisense**/

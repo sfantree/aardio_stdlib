@@ -1,0 +1,82 @@
+//3)使用模块 
+
+/*
+aardio中文件路径开始为斜杠（或反斜杠）表示应用程序根目录，
+在工程中根目录为工程目录，工程之外单独运行的aardio文件根目录就是文件所在的目录，发布生成EXE后就是EXE所在的目录.
+而文件路径开始为波浪线指的是EXE所在的目录（开发时为aardio.exe所在目录）
+
+默认的python搜索模块的路径为:
+"~\lib\py2\.res\Lib.zip"
+"~\lib\py2\.res\"
+"\"
+"\py2" 
+
+python模块如果需要用到DLL（或pyd文件）,
+请在py扩展库目录下面找到~\lib\py\.res\DLLs 并将DLL文件放到这里面。
+aardio中的python解释器是32位版本，DLL请选用兼容python同一版本的模块，
+关于python的版本信息，可调用 py.run() 打开解释器查看。 
+*/
+import console;
+console.open()
+import py2;//这里是导入python2.7,改成import py就是导入python3.4
+
+//可以自己添加模块搜索路径，例如：
+py2.appendPath("\Lib\site-packages\");
+ 
+/*
+python2.7的编码问题乱得一塌糊涂。
+一般把代码转为ANSI编码才能正常执行， py2.exec 函数已强制转为ansi编码。
+
+类似下面这样UTF8编码直接存为py2代码文件，
+就要在代码前面加上 #-*-coding:utf-8-*-
+
+涉及文件路径的必须用GBK编码，控制台也打印中文也不太正常等等要有心理准备。
+aardio传参给python2.7，字符串一律编码为ANSI，而unicode字符串直接传给python中的unicode类型，
+返回字符串一律转为UTF8，python中的unicode类型直接取回为aardio中的unicode字符串。
+
+python2.7中二进制与文本不分，所以无法自动识别二进制，
+如果要读取二进制参数，使用 py2.object对象的parseBuffer()函数获取。
+*/
+
+var code = /**
+#-*-coding:utf-8-*-
+import requests
+def getHtml(url): 
+    r = requests.get(url)
+    r.encoding='utf-8'
+    return r.text 
+**/
+string.save("/myHttp.py",code )
+ 
+var myHttp = py2.import("myHttp");
+var str = myHttp.getHtml("http://www.aardio.com" );
+console.log( str );
+
+console.pause()
+/*
+python2.7使用的是VC90(VC2008)的运行库，
+而VC90使用了坑人的WinSxS动态加载DLL技术，要绿色打包python非常的困难，
+python2.7的官方版本是直接给安装包安装VC90的运行库，
+
+我曾经写了一个库 raw.activationContext试图直接加载VC90的DLL，
+但虽然加载成功了，python2.7还是找不到DLL无法加载。
+
+还好微软自VC2010开始废弃了这个技术，
+所以aardio里的python2.7是使用VC10编译的版本，
+我删除了一些不常用且体积大的模块。
+
+如果你需要其他的模块，请到 
+http://pan.baidu.com/s/1o7O2sbw 
+这里下载，这个压缩包里已经包含了python的全部模块，以及第三方模块，
+该版本来自：http://p-nand-q.com/python/2015.07.12-python2710-x32.7z 
+
+因此你可以愉快的绿色打包python运行库了，
+当你在aardio中调用import py2或import py2以后，
+生成EXE就会自动复制python运行库到exe同一目录下。
+
+python运行需要大量的模块、DLL(py2d)等组件，
+所以不要浪费时间去追求生成独立EXE，这样的生成工具有一大堆的坑等着你去踩，
+这年头你基本找不到几个正经的软件只有一个EXE的，
+所以不要在这上面浪费时间。
+*/
+ 

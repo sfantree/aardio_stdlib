@@ -1,0 +1,161 @@
+//util 语言扩展
+namespace util;
+
+var unpack = ..table.unpack;
+var range = ..table.range;
+var shift1 = ..table.remove;
+var push = ..table.push;
+
+apply = function( f,ownerTable,args ){ 
+	var ret = { call( f,ownerTable,unpack(args,range(args) ) ) }; 
+	if( !ret[1] ) error(ret[2],2)
+	shift1(ret);
+	return unpack( ret,range(ret) );
+}
+
+bind = function(f,...){
+	if( !isCallable(f))
+		error("参数1须是函数对象",2)
+		
+	var d = {...} 	 
+	var d1,d2 = range(d) 
+	var slot = 1; 
+	
+	var inst = {};
+	for(i=1;d2 ){ 
+		if(d[i]===null) break; 
+		push(inst,d[i]); slot=i;
+	};
+	slot++;
+	 
+	return function( ... ){
+		var args = ..table.assign({},inst); 
+		if( ... !== null ) push(args,...);   
+		
+		for(i=slot;d2){  
+			if( (args[i]===null) && (d[i]!==null) ){
+				args[i] = d[i] 
+			} 
+		} 
+		var _,len = range(args); 
+		var ret = { call( f,owner,unpack(args,1,len ) ) }; 
+		if( !ret[1] ) error(ret[2],2)
+		shift1(ret);
+		var _,len = range(ret)
+		return unpack( ret,1,len) );
+	}
+}
+
+hitch = function(ownerTable,f,...){
+	if( type(f )== type.string )
+		f = ownerTable[f]
+	
+	if(!isCallable(f))
+		error("参数2指定了无效的函数",2)
+			
+	var r = function(...){ 
+		var ret = { call( f,ownerTable,... ) }; 
+		if( !ret[1] ) error(ret[2],2)
+		shift1(ret);
+		return unpack( ret,range(ret) );
+	} 
+	return ...? bind(r,...) : r
+}
+
+before = function(targetOwner,targetMethod,adviceOwner,advice){
+	targetOwner := global;
+	var name;
+	if( type(targetMethod)=="string" ){
+		name = targetMethod;
+		targetMethod = targetOwner[[name]]
+	} 
+	
+	if(advice){
+		if( type(advice)=="string" )
+			advice = adviceOwner[advice]
+	}
+	else { 
+		advice = adviceOwner;
+		adviceOwner = targetOwner;
+	} 
+	
+	var f;
+	if( targetMethod && advice ){  
+		f = function(...){  
+			var ok,ret = call( advice,adviceOwner,... );
+			if(!ok) error(ret,2) 
+			if(ret!==null) return ret;
+			
+			var ret = { call( targetMethod,targetOwner,... ) }; 
+			if( !ret[1] ) error(ret[2],2)
+			shift1(ret);
+			return unpack( ret,range(ret) );
+		}  
+	}
+	else {
+		f = targetMethod : advice
+	}
+	
+	if( name ) targetOwner[name] = f;
+	return f;
+} 
+connect = before;
+
+after = function(targetOwner,targetMethod,adviceOwner,advice){
+	targetOwner := global;
+	var name;
+	if( type(targetMethod)=="string" ){
+		name = targetMethod;
+		targetMethod = targetOwner[[name]]
+	} 
+	
+	if(advice){
+		if( type(advice)=="string" )
+			advice = adviceOwner[advice]
+	}
+	else { 
+		advice = adviceOwner;
+		adviceOwner = targetOwner;
+	} 
+	
+	var f;
+	if( targetMethod && advice ){  
+		f = function(...){  
+			var retOrig = { call( targetMethod,targetOwner,... ) }; 
+			if( !retOrig[1] ) error(retOrig[2],2);
+			
+			var retHandle = { call( advice,adviceOwner,... ) };
+			if( !retHandle[1] ) error(retHandle[2],2); 
+			if( retHandle[2]!==null ) retOrig = retHandle; 
+			
+			shift1(retOrig);
+			return unpack( retOrig,range(retOrig) );
+		}  
+	}
+	else {
+		f = targetMethod : advice
+	}
+	
+	if( name ) targetOwner[name] = f;
+	return f;
+}
+
+isCallable = function(f){
+	var t = type(f);
+	return t=="function" || t = "class" || ( f@ ? f@._call );	
+} 
+
+/**intellisense(util)
+isCallable(.(对象) = 检测对象是否可作为函数调用
+apply(.(函数,owner,参数表) = 用法类似call\n调用函数并显示指定owner参数\n参数三为参数表(table数组)\n该函数在遇到错误时抛出异常
+after(.(目标对象,成员函数,钩子函数) = 创建并返回一个函数对象,\n在调用目标函数之后调用钩子函数\n钩子函数如果首个返回值非空则替换目标函数的全部返回值\n如果目标函数或钩子函数为空,返回非空函数 .\n\n参数一省略则默认为global对象
+after(.(目标对象,成员函数名,钩子函数) = 创建并返回一个函数对象,\n在调用目标函数之后调用钩子函数\n\n如果参数二为字符串,则直接更新原函数
+after(.(目标对象,成员函数名,钩子对象,钩子函数名) = 创建并返回一个函数对象象,\n在调用目标函数之后调用钩子函数\n目标对象绑定为成员函数的owner参数,\n钩子对象绑定为钩子函数的owner参数
+before(.(目标对象,成员函数,钩子函数) = 创建并返回一个函数对象,\n在调用目标函数之前调用钩子函数\n钩子函数无返回值则调用目标函数返回值\n如果目标函数或钩子函数为空,返回非空函数 .\n\n参数一省略则默认为global对象
+before(.(目标对象,成员函数名,钩子函数) = 创建并返回一个函数对象,\n在调用目标函数之前调用钩子函数\n\n如果参数二为字符串,则直接更新原函数
+before(.(目标对象,成员函数名,钩子对象,钩子函数名) = 创建并返回一个函数对象象,\n在调用目标函数之前调用钩子函数\n目标对象绑定为成员函数的owner参数,\n钩子对象绑定为钩子函数的owner参数
+connect() = 该函数名已废弃,请使用before函数或after替代
+bind(.(目标函数,不定参数) = 该函数生成一个函数对象以调用目标函数\n可按目标函数形参顺序指定任意个默认实参值\n第一个出现的null参数对应返回函数的第一个调用实参
+hitch(.(owner对象,函数对象) = 为函数绑定owner对象\n可选在后面绑定任意个默认实参\n第一个出现的null参数对应返回函数的第一个调用实参
+hitch(.(owner对象,函数方法名) = 为函数绑定owner对象\n可选在后面绑定任意个默认实参\n第一个出现的null参数对应返回函数的第一个调用实参
+end intellisense**/

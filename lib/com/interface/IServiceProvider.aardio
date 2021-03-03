@@ -1,0 +1,16 @@
+ 
+import com.interface;
+namespace  com.interface;
+
+class IServiceProvider{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer QueryService = "int(struct guidService,struct riid,pointer &ppvObject)"; 
+}
+IServiceProvider.IID = "{6d5140c1-7436-11ce-8034-00aa006009fa}";
+ 
+/**intellisense()
+com.interface.IServiceProvider = IServiceProvider接口
+end intellisense**/
+

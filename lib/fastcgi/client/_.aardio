@@ -1,0 +1,797 @@
+﻿import fastcgi.stream;
+import fastcgi.nameValuePairs; 
+import fsys.file;
+import fsys.multipartFormData;
+import inet.url;
+import inet.httpStatusCode;
+import sessionHandler.default;
+import web.json;
+import web;
+import crypt;
+
+namespace fastcgi;
+
+class client{
+	requestStdin = function(outBuffer){
+		var fcgiStream = this.stream; 
+		while(true){  
+			var fcgiRecord,errMessage = fcgiStream.readRecord(outBuffer); 
+			if(!fcgiRecord) return null,errMessage; 
+			
+			if( (fcgiRecord.requestId !== this.lastRequestId) 
+				|| ( fcgiRecord.type === 1/*_FCGI_BEGIN_REQUEST*/ ) ) { 
+				this.endRequest(fcgiRecord.requestId,1/*_FCGI_CANT_MPX_CONN*/);
+				continue;
+			} 
+		
+			if (fcgiRecord.type == 5/*_FCGI_STDIN*/) {
+				if( fcgiRecord.contentData ){
+					return fcgiRecord;
+				}
+				else {
+					return;
+				}
+			} 
+			else { 
+				if( fcgiRecord.type == 2/*FCGI_ABORT_REQUEST*/){
+					this.endRequest(fcgiRecord.requestId,0/*_FCGI_REQUEST_COMPLETE*/)
+					return null/*abort*/;
+				}
+				
+				if( fcgiRecord.requestId == 0 ){
+					this.onRequestManagement(fcgiRecord);
+				}
+				else {
+					error( "expected:FCGI_STDIN got:" + fcgiRecord.type,2);
+				}
+			} 
+		}
+	};
+	readStdinData = function(){
+		var stdinData = {};
+		while( 
+		    var fcgiRecord;
+		    fcgiRecord = this.requestStdin(); 
+		    fcgiRecord 
+		) {
+			..table.push(stdinData,fcgiRecord.contentData);	
+		}
+		
+		if(#stdinData) return ..string.join(stdinData);
+		return "";
+	};
+	readUploadFile = function(request){
+		var tempDir = ..io.joinpath("/config/temp/",..string.match(request.host,"[^\:]+")  );
+		if(!..io.createDir(tempDir)) error("Unable to create directory:"+tempDir,2);
+		
+		var pid = ::Kernel32.GetCurrentProcessId();
+		var tempPathId = ..time.tick();
+		var tempPath = ..io.joinpath(tempDir,tempPathId)
+		while( ..io.exist(tempPath)){
+			tempPathId++;
+			tempPath = ..io.joinpath(tempDir,pid ++ tempPathId);
+		}
+
+		var file,err = ..io.open(tempPath,"w+b");
+		if(!file) error(..string.concat("Upload failed: ",err) ,2);
+		
+		var outBuffer = ..raw.buffer(65535);
+		while( 
+			var fcgiRecord; 
+			fcgiRecord = this.requestStdin(outBuffer); 
+		    fcgiRecord
+		) {
+			file.writeBuffer(outBuffer,fcgiRecord.contentLength);	
+		} 
+		
+		
+		file.close();
+		tempPath = ..io.fullpath( tempPath );
+		this.tempUploadPath = tempPath;
+		request.tempUploadPath = tempPath;
+		return request.tempUploadPath;
+	};
+	requestParams = function(){
+		var fcgiStream = this.stream; 
+		var paramsDecoder = ..fastcgi.nameValuePairs.decoder(); 
+		var data;
+		
+		while(true){ 
+			var fcgiRecord,errMessage = fcgiStream.readRecord(); 
+			if(!fcgiRecord) return null,errMessage; 
+			
+			if( (fcgiRecord.requestId !== this.lastRequestId) || (fcgiRecord.type === 1/*_FCGI_BEGIN_REQUEST*/) ){
+				this.endRequest(fcgiRecord.requestId,1/*_FCGI_CANT_MPX_CONN*/);
+				continue;
+			} 
+		
+			if (fcgiRecord.type === 4/*_FCGI_PARAMS*/) { 
+				if( fcgiRecord.contentData ){
+					paramsDecoder.push(fcgiRecord.contentData);
+				}
+				else {
+					return paramsDecoder.parse();
+				}
+			} 
+			else { 
+				if( fcgiRecord.type == 2/*FCGI_ABORT_REQUEST*/){
+					this.endRequest(fcgiRecord.requestId,0/*_FCGI_REQUEST_COMPLETE*/)
+					return null/*abort*/;
+				}
+				
+				if( fcgiRecord.requestId == 0 ){
+					this.onRequestManagement(fcgiRecord);
+				}
+				else {
+					return null,"expected:FCGI_PARAMS got:" + fcgiRecord.type;
+				}
+			}
+		}  
+	};
+	beginRequest = function(){
+	
+		this.lastErrorMessage = null;
+		var fcgiStream = this.stream; 
+		
+		while(true){
+			var fcgiRecord,errMessage = fcgiStream.readRecord();
+			if(!fcgiRecord) return null,errMessage;
+			
+			if (fcgiRecord.type === 1/*_FCGI_BEGIN_REQUEST*/) {
+				if( fcgiRecord.contentData.role != 1/*_FCGI_RESPONDER*/ ){
+					this.endRequest(fcgiRecord.requestId,3/*_FCGI_UNKNOWN_ROLE*/);
+				}
+				else{
+					this.lastRequestId = fcgiRecord.requestId;
+					return fcgiRecord;
+				}
+			}
+			elseif (fcgiRecord.type == 5/*_FCGI_STDIN*/) { } 
+			else { 
+				if( fcgiRecord.type == 2/*FCGI_ABORT_REQUEST*/){
+					this.endRequest(fcgiRecord.requestId,0/*_FCGI_REQUEST_COMPLETE*/)
+					return null/*abort*/;
+				}
+				
+				if( fcgiRecord.requestId == 0 ){
+					this.onRequestManagement(fcgiRecord);
+				}
+				else {
+					return null,"expected:FCGI_BEGIN_REQUEST got:" + fcgiRecord.type;
+				}
+				
+			}
+			
+		} 
+	} 
+	endRequest = function (requestId,protocolStatus,appStatus){ 
+		if(!protocolStatus) protocolStatus = 0;
+		if(!appStatus) appStatus = 0;
+		this.stream.writeRecord({
+			type = 3/*_FCGI_END_REQUEST*/;
+			requestId = requestId : this.lastRequestId;
+			contentData = {
+				BYTE appStatusB3=  (appStatus >> 24) & 0xFF;
+				BYTE appStatusB2 = (appStatus >> 16) & 0xFF;
+				BYTE appStatusB1 = (appStatus >> 8) & 0xFF;
+				BYTE appStatusB0 = appStatus & 0xFF;
+				BYTE protocolStatus = protocolStatus;
+				BYTE reserved[3]; 
+			}
+		});
+	}
+	onRequestUnknown = function (fcgiRecord){ 
+		
+		this.stream.writeRecord({
+			type = 11/*_FCGI_UNKNOWN_TYPE*/;
+			requestId = fcgiRecord.requestId;
+			contentData = {
+				BYTE type = fcgiRecord.type; 
+				BYTE reserved[7]; 
+			}
+		});
+	};
+	onRequestManagement = function(fcgiRecord){ 
+		if( fcgiRecord.type == 9/*_FCGI_GET_VALUES*/  ){ 
+			var paramsDecoder = ..fastcgi.nameValuePairs.decoder();
+			var values = paramsDecoder.parse(fcgiRecord.contentData);  
+			
+			values.FCGI_MAX_CONNS = '1';
+			values.FCGI_MAX_REQS = '1';
+			values.FCGI_MPXS_CONNS = '0';
+			var encoder = ..fastcgi.nameValuePairs.encoder(); 
+			var contentData = encoder.build(values);
+			this.stream.writeRecord({
+				type = 10/*_FCGI_GET_VALUES */;
+				contentData = contentData
+			});
+		}
+		else {
+			this.onRequestUnknown(fcgiRecord);
+		}
+		
+	};
+	
+	eachRequest = function(){ 
+		
+		var fcgiStream = this.stream; 
+		if(!fcgiStream){ 
+			return function(){ };
+		}
+		
+		return function(response){
+		 	if(response) response.close(true);
+		 	
+			var beginRequestInfo,errMessage = this.beginRequest(); 
+			if(!beginRequestInfo) {
+				this.lastErrorMessage = errMessage;
+				return null;
+			} 
+
+			var environ,errMessage = this.requestParams();  
+			if(!environ) {
+				this.lastErrorMessage = errMessage;
+				return null;
+			}
+			
+			if( !#(environ.REQUEST_SCHEME) ){
+				environ.REQUEST_SCHEME = "http";
+				if( (environ.HTTPS == 'on' ) || ( environ.SERVER_PORT == "443" ) ) environ.REQUEST_SCHEME = "https"; 
+			}
+			
+			if( environ.HTTP_X_ORIGINAL_URL ){
+				environ.REQUEST_URI = environ.HTTP_X_ORIGINAL_URL;
+			}
+			
+			if( #environ.PATH_INFO  ){
+				environ.PATH_INFO = ..string.split(environ.PATH_INFO,"?")[1];
+				if(#environ.SCRIPT_NAME){
+					if( !..string.startWith(environ.PATH_INFO, environ.SCRIPT_NAME) ){
+						environ.PATH_INFO = environ.SCRIPT_NAME ++  environ.PATH_INFO;
+						if(!#environ.PATH_TRANSLATED) environ.PATH_TRANSLATED =  environ.SCRIPT_FILENAME ++  environ.PATH_INFO;
+					}
+				}
+			}
+			else {
+				if(#environ.SCRIPT_NAME){
+					environ.PATH_INFO = environ.SCRIPT_NAME;
+				}
+				elseif( #environ.REQUEST_URI )	{
+					environ.PATH_INFO = ..string.split(environ.REQUEST_URI,"?")[1];
+				}
+				if(!#environ.PATH_TRANSLATED) environ.PATH_TRANSLATED =  environ.SCRIPT_FILENAME;
+			}
+			
+			if( !(#environ.REQUEST_URI) ){
+				environ.REQUEST_URI = environ.PATH_INFO;
+				if( environ.QUERY_STRING  ) environ.REQUEST_URI = environ.REQUEST_URI + "?" +  environ.QUERY_STRING;
+			};
+			
+			environ.URL = ..string.fromto(environ.URL,0,65001);
+			environ.REQUEST_URI = ..string.fromto(environ.REQUEST_URI,0,65001);
+			environ.PATH_INFO = ..string.fromto(..string.split(environ.PATH_INFO,"?")[1],0,65001);
+			environ.PATH_TRANSLATED = ..string.fromto(environ.PATH_TRANSLATED,0,65001);
+			environ.SCRIPT_NAME = ..string.fromto(environ.SCRIPT_NAME,0,65001);
+			environ.SCRIPT_FILENAME = ..string.fromto(environ.SCRIPT_FILENAME,0,65001);
+			environ.DOCUMENT_ROOT = ..string.fromto(environ.DOCUMENT_ROOT,0,65001);
+			
+			var httpHeaders = {};
+			for(k,v in environ){
+				 if( ..string.startWith(k,"HTTP_") ){
+				 	k = ..string.replace(..string.lower(..string.right(k,-6)),"_","-" ); 
+				 	httpHeaders[k] = v;
+				 }
+			}
+			httpHeaders@ = { _type="object" };
+			
+			var cookies = #(environ.HTTP_COOKIE) ? ..inet.url.splitParameters(environ.HTTP_COOKIE,"\;\s*") : {}; 
+			var queryString = #(environ.QUERY_STRING) ? ..inet.url.splitParameters(environ.QUERY_STRING,"\&\s*") : {};
+			var response,request;
+			request = {
+				environ = environ;
+				headers = httpHeaders;
+				cookies = cookies;
+				get = queryString;
+				files = {};
+				documentRoot = environ.DOCUMENT_ROOT;
+				contentType = environ.CONTENT_TYPE;
+				contentLength = tonumber(environ.CONTENT_LENGTH:"0",10);
+				method = environ.REQUEST_METHOD;
+				protocol = environ.SERVER_PROTOCOL;
+				host = environ.HTTP_HOST;
+				serverPort = tonumber(environ.SERVER_PORT:"80",10); 
+				remoteAddr = environ.REMOTE_ADDR;
+				path = environ.PATH_INFO;
+				uri = environ.REQUEST_URI;
+				scheme = environ.REQUEST_SCHEME;
+				sessionId = cookies.aardiosessid;
+				createSessionId = function(){
+					owner.sessionId = ..crypt.md5(  ..string.format("%d|%.15s|%d|%d|%d|%0.8f",tonumber(..time()),
+						environ.REMOTE_ADDR : environ.HTTP_USER_AGENT : "",::Kernel32.GetCurrentProcessId(),..time.tick(),beginRequestInfo.requestId,..math.random() ) );
+				};
+				postData = function(){
+					if(owner._raw_stdin_data) return owner._raw_stdin_data; 
+					owner._raw_stdin_data = this.readStdinData() : "";
+					return owner._raw_stdin_data;
+				};
+				readUploadFile = function(){
+					if( owner.tempUploadPath ) return owner.tempUploadPath;
+					if( owner._raw_stdin_data) return;
+					owner._raw_stdin_data = "";
+				
+					return this.readUploadFile(owner);
+				};
+				postFileData = function(){
+				
+					if(!environ.CONTENT_TYPE) return;
+					if( owner._raw_stdin_data || owner._raw_file_data ) return owner._raw_file_data;
+					
+					if ( ..string.startWith(environ.CONTENT_TYPE,"multipart/form-data",true) ) {
+						var boundary = ..string.match(environ.CONTENT_TYPE,"boundary\s*=\s*(\S+)");
+						if(!boundary){
+							response.status = "400 Bad Request";
+							response.write("Missing boundary in multipart/form-data!"); 
+							response.close();
+						}
+						
+						var tempPath,err = owner.readUploadFile(); 
+						if(tempPath) {
+							import fsys.multipartFormData;
+							owner._raw_file_data= ..fsys.multipartFormData(tempPath,boundary);
+							if(owner._raw_file_data) return owner._raw_file_data;
+						}
+						
+						response.status = "400 Bad Request";
+						response.write("Request format is invalid: multipart/form-data!",err); 
+						response.close();
+					}
+				};
+				query = function(k){
+					return queryString[k] || request.post[[k]];
+				}; 
+			};
+			
+			if(!request.host){
+				request.host = environ.SERVER_NAME;
+				if( request.serverPort !=80) request.host = request.host + ":" + request.serverPort;
+			};
+			request.url = request.scheme + "://"  + request.host  ++ request.path;
+			
+			if( ! request.sessionId ){ request.createSessionId(); }		
+			var sesData,sesHandler,sesExpires;
+			var session;
+			session = {
+				start = function(expires){
+					for(name,handler in ..sessionHandler){
+						if( name == "default" ) continue;
+						if( handler[["startSession"]] ) {
+							sesHandler = handler;
+							break;
+						}
+					}
+					if(!sesHandler) sesHandler = ..sessionHandler.default;
+					sesData = sesHandler.startSession(expires);
+					sesExpires = expires;
+				};
+				clear = function(){
+					sesData = {};
+					if(sesHandler) sesHandler.clearSession();
+					else session.start();
+				}; 
+				save = function(){
+					if(sesHandler) sesHandler.saveSession(sesData,sesExpires);
+				};  
+				@{
+					_set = function(k,v){
+						if(!sesHandler) session.start();
+						
+    					sesData[[k]] = v;
+    					sesHandler.updateSession(sesData,k,v);
+    				}; 
+    				_get = function(k){
+    					if(!sesHandler) session.start();
+    					
+    					return sesData[[k]];
+    				}; 	 
+				}
+			} 	
+	
+			response = {
+				headers = {};
+				cookies = {};
+				contentType = "text/html";
+				["close"] = function(continueRunning){
+					if(owner.closed){ 
+						if((!continueRunning) && (!response.continueRunning) )error(null);
+						return;
+					}
+					if( ! owner._headersWritten ) owner.open();
+					
+					owner.flush();	
+					this.endRequest( ,0/*_FCGI_REQUEST_COMPLETE*/,0);
+					session.save();
+					
+					if( request.tempUploadPath ){
+						var ret,err = ..io.remove( request.tempUploadPath );
+						request.tempUploadPath = null;
+					}
+					owner.closed = true;
+					if((!continueRunning) && (!response.continueRunning) )error(null);
+				}
+				["open"] = function(){
+					if( owner._headersWritten ) return; 
+					owner._headersWritten = true;
+					
+					owner.status =  owner.status ? ..inet.httpStatusCode.format(owner.status) : "200 OK";
+					owner.write("Status: ", owner.status,'\r\n');
+					
+					if( owner.preheaders ){
+						var h = ..web.joinHeaders(owner.preheaders);
+						owner.write(h);
+					};
+					owner.write("Content-Type: ",owner.contentType:"text/html","; charset=",owner.charset : "UTF-8", '\r\n');
+					
+					for (k, v in owner.headers) {
+						if( type(v) != 'table' ){
+							owner.write(k, ": ", v, '\r\n');
+						}
+						else{
+							for(i=1;#v) owner.write(k, ": ", v[i], '\r\n');
+						}
+					}	
+
+					if( owner.cookies ){
+						if(!owner.cookieDomain) owner.cookieDomain = ..string.match(request.host,"[^\:]+");
+						if(!owner.cookiePath) owner.cookiePath ="/";
+						
+						var push = ..table.push;
+						for(k,v in owner.cookies){ 
+							if ( type(v) == type.table ) { 
+								if( !v.value ){
+									owner.write("Set-Cookie:",..inet.url.encode(k)
+										,"=deleted; expires=" + tostring(  ..time.gmt(1) ) );  
+								}
+								var s = { ..inet.url.encode(tostring(v.value)) };
+								
+								if(v.expires && ..time.istime(v.expires)  ){ 
+									push(s,"expires=" + tostring( ..time.gmt(v.expires) ) );
+								}
+								elseif(v.maxAge){
+									push(s,"max-age=" + v.maxAge );
+								};
+								push(s,"domain=" + (v.domain : owner.cookieDomain) );
+								push(s,"path=" +  (v.path : owner.cookiePath) );
+								if(v.httpOnly || ((v.httpOnly === null ) && owner.cookieHttpOnly)) push(s,"HttpOnly");
+							    if(v.secure || ((v.secure === null ) && owner.cookieSecure)) push(s,"Secure");
+								owner.write("Set-Cookie:",..inet.url.encode(k),"=",..string.join(s,"; ") ); 
+							} 
+							else{
+								if( v=="" ){
+									owner.write("Set-Cookie:",..inet.url.encode(k)
+										,"=deleted; expires=" + tostring(  ..time.gmt(1)) );  
+								}
+								else{
+									owner.write("Set-Cookie:",..inet.url.encode(k),"=",..inet.url.encode(tostring(v)) ); 
+									owner.write('; domain=',owner.cookieDomain ,"; path=",owner.cookiePath);
+								}
+							}
+							owner.write('\r\n');
+						}
+					}
+					
+					if(  request.sessionId ){
+						owner.write("Set-Cookie:AARDIOSESSID=" + request.sessionId + '; domain=' + owner.cookieDomain + '; path=/; HttpOnly');
+						if( owner.cookieSecure ) owner.write("; Secure");
+						owner.write('\r\n');
+					}
+					owner.write('\r\n');
+				};
+				outputBuffer = ..raw.buffer(65535);
+				outputBufferSize = 0;
+				flush = function(){
+					if( owner.outputBufferSize  ){
+						this.stream.writeRecord( 
+							requestId = this.lastRequestId;
+							type = 6/*_FCGI_STDOUT*/;
+							contentData = owner.outputBuffer; 
+							contentLength = owner.outputBufferSize;
+						); 
+						owner.outputBufferSize = 0;
+						owner.outputBuffer[1] = 0;
+					}
+				};
+				writeBuffer = function(buffer,len){
+					if( buffer === null ) return;
+					if( owner.closed ) return; 
+					if( #buffer > 65535 ) error("缓冲区长度不应大于65535字节",2);
+					
+					if( ! owner._headersWritten ) owner.open();
+					this.stream.writeRecord( 
+						requestId = this.lastRequestId;
+						type = 6/*_FCGI_STDOUT*/;
+						contentData = buffer;
+						contentLength = len;
+					); 
+				};
+				write = function(s,...){
+					if( s === null ) return;
+					if( owner.closed ) return; 
+					if( ! owner._headersWritten ) owner.open();
+					
+					var ts = type(s);
+					if( ts == 'table' ){
+						if(s[["_struct"]]) {
+							if( s@[["_tostring"]] ) s = tostring(s);
+							else{
+								owner.flush();
+								this.stream.writeRecord( 
+									requestId = this.lastRequestId;
+									type = 6/*_FCGI_STDOUT*/;
+									contentData = s;
+								); 
+								s = null;
+							}
+						}
+						else s = ..web.json.stringify(s,owner.jsonPrettyPrint);
+					}
+					elseif( (ts != 'string') && (ts != 'buffer') ){
+						s = tostring(s);
+					};
+					
+					var len = #s;
+					if(!len){}
+					elseif( len < 32767 ){
+						if( 65535 - owner.outputBufferSize < len  ){ owner.flush();} 
+						owner.outputBufferSize = ..raw.concat(owner.outputBuffer,s,owner.outputBufferSize); 
+					}
+					else{
+						owner.flush();
+						for(i=1;len;65535){
+							this.stream.writeRecord( 
+								requestId = this.lastRequestId;
+								type = 6/*_FCGI_STDOUT*/;
+								contentData = ..string.slice(s,i,i+ 65534) 
+							); 
+						}
+					}
+				
+					if(...===null) return;
+					return owner.write(...);	
+				};
+				redirect = function(url,status){
+					owner.status = status : "302 Moved Temporarily";
+					if(!..inet.url.is(url,0x0/*_URLIS_URL*/)){
+						if(!..io.exist(request.path,4)){ 
+							var pathDoc =  ..io.joinpath(request.path,owner.defalutDocument);
+							if( ..io.exist(request.path,0) && ( ..io.exist(pathDoc,4) ) ){
+								if(!..string.endWith(request.path,"/") )request.path=request.path+"/";
+							}
+						}
+						url=..inet.url.joinpath(request.scheme + "://"  + request.host  ++request.path,url);
+					}
+					owner.headers["Location"] = url;
+    				owner.close();
+				};
+				error = function(s,...){
+					if( s === null ) return;
+					if( owner.closed ) return;
+					if( ! owner._headersWritten ) owner.open();
+					
+					if( type(s) == type.table ) s = ..web.json.stringify(s,true);
+					else s = tostring(s);
+					
+					var len = #s;
+					for(i=1;len;65535){ 
+						this.stream.writeRecord( 
+							requestId = this.lastRequestId;
+							type = 7/*_FCGI_STDERR*/;
+							contentData = ..string.slice(s,i,i+ 65535)
+						); 
+					}
+					
+					if(...===null)return owner.close();
+					return owner.error(...);
+				};
+				customErrors = this.customErrors : {};
+				errorStatus = function(status){
+					if( response.customErrors[status] )  {
+						if(owner["errorStatusHandled"] === response.customErrors[status] ){
+							response.error("Handle already running!");
+							return;
+						}
+						owner["errorStatusHandled"] = response.customErrors[status];
+						
+						response.customErrors[status](response);
+					}
+					else{
+						response.status = ..inet.httpStatusCode.format(status);
+						response.write(response.status);
+					}
+					response.close();
+				};
+				defalutDocument = "main.aardio";
+				loadcode = function(path,...){
+					if(!path) path = request.path;
+					if(!..io.exist(path,4)){
+						var pathDoc =  ..io.joinpath(path,response.defalutDocument);
+						if( ..io.exist(path,0) && ( ..io.exist(pathDoc,4) ) ){ 
+							if(!..string.endWith(request.path,"/") )request.path=request.path+"/";
+							path = pathDoc;
+						}
+	 					else{
+	 						return response.errorStatus(404); 
+	 					}
+					}
+					elseif( ! ..string.endWith(path,".aardio",true) ) {
+						return response.errorStatus(403); 
+					}
+					
+
+					var page,err = loadcode( path );
+					if(!page){
+						response.error(err); 
+						return;
+					}
+					invoke(page,...,...);
+				}
+			}
+			
+			
+			if (environ.REQUEST_METHOD == "POST") {
+				if (  environ.CONTENT_TYPE && ..string.find(environ.CONTENT_TYPE,"@@application/x-www-form-urlencoded") ) {
+					var postData = request.postData();
+					if(postData) request.post = ..inet.url.splitParameters(postData,'\&');
+				}
+			}
+			
+			..request = request;
+			..response = response;
+			..session = session;
+			return response,request,session;
+		} 
+	}
+	getStream = function(){
+		if(!this.stream){
+			var hStdInputHandle = topointer( ::Kernel32.GetStdHandle(-10/*_STD_INPUT_HANDLE*/) );
+			if( hStdInputHandle && ( hStdInputHandle != _INVALID_HANDLE_VALUE ) ) {
+				if( ( ::Kernel32.GetStdHandle(-11/*_STD_OUTPUT_HANDLE*/) == -1/*_INVALID_HANDLE_NUM*/ ) 
+					&& ( ::Kernel32.GetStdHandle(-12/*_STD_ERROR_HANDLE*/) == -1/*_INVALID_HANDLE_NUM*/ )
+				) { 
+					this.stream = ..fastcgi.stream( ..fsys.file( hStdInputHandle ,"r+")  ); 
+				}
+				else {
+					//CGI
+				} 
+			}
+		}
+		return this.stream;
+	}
+	run = function(app){
+		if( !this.getStream() ) error(_STUDIO_INVOKED?"请发布为EXE文件,并在FastCGI服务器中安装运行!":"创建FastCGI文件流失败,请在FastCGI服务器中安装运行此程序!",2);
+		
+		for( response,request,session in this.eachRequest() ){
+			if( ..string.startWith( request.path,"/config/",true ) ) {
+				response.status = "403 Forbidden";
+			}
+			elseif( ..string.startWith( request.path,"/lib/",true ) ) {
+				response.status = "403 Forbidden";
+			}
+			else{
+				global.print = function(...){ response.write(...)  };
+				
+				var err;
+				var f = ..fiber.create( 
+					function(response,request,session){
+						var r,e = callex(,app,,response,request,session);
+						if(!r) err = e; 
+					},request.documentRoot ); 
+				
+				..fiber.resume (f,response,request,session); 
+				response.continueRunning = true;
+				
+				if(err) response.error('<!doctype html><html><head><meta charset="utf-8"></head><body><pre>',err,'</pre></body></html>'); 
+			}
+			response.close(true);
+		} 
+		
+		if( this.lastErrorMessage ){
+			error(this.lastErrorMessage);
+		};
+		
+		if( this.tempUploadPath ){
+			..io.remove(this.tempUploadPath );
+			this.tempUploadPath = null;
+		}
+	} 
+}
+
+/**intellisense()
+request = Web服务端请求对象,\nrequest对象必须由服务端框架自动维护，\n用户发起不同的请求时request对象都是不同的，\n并且由服务端框架自动设置为全局变量。\n注意在单线程异步HTTP服务端内，应优先通过函数参数传递此对象,\n\nrequest的接口规范由标准库中fastcgi.client定义，\n目前aardio提供的所有HTTP服务端框架都兼容此接口。
+response =  Web服务端响应对象,\nresponse对象必须由服务端框架自动维护，\n用户发起不同的请求时response对象都是不同的，\n并且由服务端框架自动设置为全局变量。\n注意在单线程异步HTTP服务端内，应优先通过函数参数传递此对象,\n\nresponse的接口规范由标准库中fastcgi.client定义，\n目前aardio提供的所有HTTP服务端框架都兼容此接口。
+end intellisense**/
+
+/**intellisense(request)
+headers["__"] = HTTP请求头,表对象,\n所有请求头的键名已全部转为小写,请求头的值值都是字符串类型\n\nhttp服务端可选同时以数组形式保存原始http头\n数组的第个元素都是包含键、值两个元素的子数组\n但服务端可选不使用数组存放任何HTTP头
+environ = CGI环境变量,\n环境变量是由多个键值对组成的表,\n所有具有值的变量都是字符串类型,即使是端口号也不可能出现数值\n键名必须大写
+cookies[__] = @.cookies["__/*名字请小写*/"]
+get["__"] = URL请求参数\n名值对组成的表对象,参数名一律小写
+post["__"] = 提交表单参数\n名值对组成的表对象,参数名一律小写
+query("__") = 返回URL参数或表单参数\n参数名请一律小写
+documentRoot = 应用程序根目录
+contentType = 请求信息的MIME类型
+contentLength = 请求消息正文的长度\n数值
+method = HTTP请求方法\n例如"GET"、"POST"
+protocol = HTTP协议版本
+host = 请求的网站域名
+remoteAddr = 客户端IP地址
+scheme = 请求URL中协议部分,值为"http"或"https"
+url = 请求URL\n不带GET参数
+uri = 请求路径\n带GET参数
+serverPort = 请求的服务器端口，数值
+path = URL中的路径部份\n注意请求路径不能开始于"/config/","/lib/"
+scheme = URL协议部份
+sessionId = 会话ID,\n应用程序需要自行管理会话过期时间
+createSessionId() = 应用程序可调用此函数重新创建新的会话ID
+keepAlive = 客户端是否请求保持连接
+postData() = 获取原始上传数据\nmultipart/form-data表单上传的文件数据应使用postFileData函数读取
+postFileData() = 可以使用此函数判断当前请求是否上传文件\n获取multipart/form-data表单上传的文件数据\n如果无上传数据返回空值,\n解析出错返回空值并发送400错误后关闭页面输出\n\n此函数的返回值是一个fsys.multipartFormData对象\n关于数据的格式请参考标准库中该对象的文档,\n!stdfsysmultipartFormData.
+end intellisense**/
+
+/**intellisense(response)
+write(__) = 输出一个或多个值,\n参数将自动转换为字符串对象\n可直接输出结构体,其他table转换为JSON输出
+writeBuffer(.(缓冲区,长度) = 输出缓冲区数据
+redirect("__") = 302重定向,\n必须在页面尚未输出响应头时调用,\n参数@1可以是相对路径或任意网址,\n此函数终止执行页面后续代码 
+redirect("__",301) = 301重定向,\n必须在页面尚未输出响应头时调用,\n参数@1可以是相对路径或任意网址,\n此函数终止执行页面后续代码 
+close() = 关闭输出\n此函数终止执行页面后续代码
+close(true) = 关闭页面输出\n但继续执行页面后续代码
+closed = HTTP应答对象是否已关闭\n用于判断本次HTTP应答是否已被 response.close 函数关闭\n因为response.close() 会抛出空异常自动退出当前代码,\n所以一般不需要判断这个值\n此属性的值应由HTTP服务器自动维护,用户不可修改
+error(__) = 输出一个或多个500错误信息,\n必须在页面尚未输出响应头时调用,\n参数将自动转换为字符串对象\ntable转换为格式化的对象输出\n此函数终止执行页面后续代码  
+errorStatus(__) = 参数为HTTP错误代码\n触发自定义错误处理函数、或返回对应HTTP状态码\n必须在页面尚未输出响应头时调用,\n此函数终止执行页面后续代码 
+cookieSecure = 设为true所有cookie默认加上secure属性
+cookieHttpOnly = 设为true所有cookie默认加上HttpOnly属性
+cookieDomain = 默认cookie域名
+cookiePath = 默认cookie目录
+preheaders = 指定在headers发送到客户端以前发送的HTTP头\n此值将使用 web.joinHeaders 函数格式化然后再发送\n可以指定字符串,数组,或键值对,键值对的值可以是多个值组成的数组\n如果参数是键值对,自动对值中的宽字符按UTF-8编码进行UrlEncode编码
+headers[__] = 响应HTTP头,\n值可以是字符串、或者多个字符串值组成的数组,\n值是数组时则自动输出多个名值对到客户端,\n键名的每个单词的首字母必须大写、其他字母必须小写\n注意：这与请求头统一小写是不同的
+cookies[__] = @.cookies["__/*键名*/"] = {
+	value = "值";
+	expires = time().addday(7);
+	maxAge = 3600;
+}
+status = 响应状态码,值可以为数值或文本,\n默认为"200 OK"
+contentType = @.contentType = "text/json";__/*指定响应数据的MIME类型,默认为"text/html"*/
+charset = 输出字符集\n可以为空,默认值为UTF-8\n不建议更改此值
+jsonPrettyPrint = @.jsonPrettyPrint = true;__/*指定respose.write函数将对象转换为JSON输出时否缩进格式化*/
+defalutDocument = 指定loadcode函数加载aardio代码时的默认文件名\n默认为"main.aardio",不建议修改
+keepAlive = 服务端是否保持连接\n此属性为标准库为HTTP服务器所保留\nHTTP服务器可以忽略该值\n或者由HTTP服务器自动维护该值\n用户不应修改此属性
+transferChunked = 是否使用分块传输协议\n此属性为标准库为HTTP服务器所保留\nHTTP服务器可以忽略该值\n或者由HTTP服务器自动维护该值\n用户不应修改此属性
+loadcode( = 加载并执行aardio模板文件
+loadcode(.("文件路径",->->->) = 加载并执行aardio模板文件,参数可省略,\n参数@1省略时默认赋值为 request.path\n其他参数作为模板参数传给被调用的文件,\n在被调用文件的函数外部可使用owner参数获取首个模板参数,\n也可以使用...获取多个模板参数
+customErrors[404] = @.customErrors[404] = function(response){
+	response.status = "404 Not Found";
+	response.write("404 Not Found"); __/*自定义错误页*/
+} 									
+end intellisense**/
+
+/**intellisense()
+session = Web服务端会话对象,\nsession对象必须由服务端框架自动维护，\n用户发起不同的请求时session对象都是不同的，\n并且由服务端框架自动设置为全局变量。\n\nsession的接口规范由标准库中fastcgi.client定义，\n目前aardio提供的所有HTTP服务端框架都兼容此接口。
+session.start(__) = 载入session,\n此函数会在sessionHandler名字空间下查找自定义的加载器,\n如果没有找到默认会使用sessionHandler.default加载session,\n可选在参数中指定过期时间,以秒为单位\n如果没有调用此函数,首次访问session的键值时会自动调用
+session.save() = 保存session，此函数在请求结束时会自动调用
+session.clear() = 清空session
+session["__"] = 获取或设置session\n值不允许包含函数、类等可执行代码
+session.?= 获取或设置session\n值不允许包含函数、类等可执行代码
+end intellisense**/
+
+/**intellisense()
+fastcgi = FastCGI协议实现模块
+fastcgi.client = FastCGI客户端
+fastcgi.client() = 创建FastCGI客户端\n!stdfastcgiclient.
+!stdfastcgiclient.run( httpProc ) = @.run( \n    function(response,request,session){ \n         response.loadcode( request.path __/*可省略,可增加多个模板参数,\n在被调用文件的函数外部可使用owner参数获取首个模板参数,\n也可以使用...获取多个模板参数*/ );\n    } 	\n);
+!stdfastcgiclient.getStream = function(){
+	if(!owner.stream){ 
+		__/*参考fastcgi.stream*/
+	}
+	return owner.stream;	
+}
+!stdfastcgiclient.customErrors = @.customErrors = {\n    [404] = function(response){\n		response.status = "404 Not Found";\n		response.write("404 Not Found"); __/*自定义错误页*/\n	} \n}
+end intellisense**/

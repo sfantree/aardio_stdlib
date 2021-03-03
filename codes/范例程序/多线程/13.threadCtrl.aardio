@@ -1,0 +1,51 @@
+//13、线程控件 
+import win.ui;
+/*DSG{{*/
+var mainForm = win.form(text="线程控件测试";right=846;bottom=497)
+mainForm.add(
+button={cls="button";text="加载线程控件";left=641;top=455;right=798;bottom=492;db=1;dr=1;z=1};
+edit={cls="edit";left=40;top=456;right=568;bottom=488;db=1;dl=1;dr=1;edge=1;z=2}
+)
+/*}}*/
+
+mainForm.button.oncommand = function(id,event){ 
+	mainForm.button.disabled = true;
+	
+	mainForm.add(  
+		threadCtrl = { 
+			cls="thread"; //拖一个自定义控件到窗体上,设置边框属性为false,将类名改为"thread"
+			z=1;dr=1;dl=1;dt=1;db=1;
+			bottom=437;right=840;left=8;top=12;
+			loadForm=/***
+			//loadForm参数也可以指定一个aardio文件地址
+			import win.ui;
+			var winform = ..win.form( right=599;scroll=1;bottom=399;parent=...;text="aardio form";border="none" )
+			import web.form;
+			var wb = web.form( winform,,,,true);
+			wb.DocumentComplete = function(pDisp,url) {
+				if( pDisp == wb.application ){
+					
+					//跨线程访问父窗口
+					winform.threadParent.edit.text = url;	
+				}
+			}
+			
+			//打开目标网站
+			wb.go("https://www.baidu.com/") ;
+			winform.show()
+			***/;
+		}
+	)
+	mainForm.resize();
+	
+	mainForm.button.disabled = false;
+} 
+
+mainForm.modifyStyle(,0x2000000/*_WS_CLIPCHILDREN*/)
+mainForm.onEraseBkgnd  = function(hwnd,message,wParam,lParam){
+	mainForm.button.redraw();
+	mainForm.edit.redraw();
+} 
+
+mainForm.show();
+win.loopMessage();

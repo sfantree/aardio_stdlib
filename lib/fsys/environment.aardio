@@ -1,0 +1,56 @@
+//environment 环境变量
+import fsys;
+namespace fsys.environment;
+
+PathExpandEnvironmentStrings = ::Kernel32.api( "ExpandEnvironmentStringsW", "INT(ustring lpSrc,ustring &lpDst,INT nSize)");
+PathUnExpandEnvStrings = ::Shlwapi.api( "PathUnExpandEnvStringsW", "bool(ustring pszPath,ustring &pszBuf,INT cchBuf)"); 
+__paths__ = {
+	{ "%Desktop%";..fsys.getSpecial(0 /*_CSIDL_DESKTOP*/) }; 
+	{ "%CommonProgramFiles%";..fsys.getSpecial(0x17 /*_CSIDL_COMMON_PROGRAMS*/) }; 
+	{ "%MyDocuments%";..fsys.getSpecial(0x5 /*_CSIDL_MYDOCUMENTS*/ ) };
+	{ "%AppData%";..fsys.getSpecial(0x1a /*_CSIDL_APPDATA*/) };
+	{ "%DefaultAppData%";..fsys.getSpecialDefault(0x1a /*_CSIDL_APPDATA*/) };
+	{ "%CommonAppData%";..fsys.getSpecial(0x23 /*_CSIDL_COMMON_APPDATA*/) };
+	{ "%LocalAppData%";..fsys.getSpecial(0x1c /*_CSIDL_LOCAL_APPDATA*/) };
+	{ "%DefaultLocalAppData%";..fsys.getSpecialDefault(0x1c /*_CSIDL_LOCAL_APPDATA*/) }; 
+} 
+..table.sort( __paths__, function(p){ return #p[2] < #owner[2]  } );
+	
+expand = function(path){
+	if(path){
+		if( ..io.localpath(path) ) return ..io.localpath(path);
+		
+		path = ..string.replace( path,"%\%\%",function(v){
+			for(i=1;#__paths__;1){
+				if( ..string.cmp( v,__paths__[i][1]) == 0 ) return __paths__[i][2];
+			}
+		} )
+		
+		var len,str = PathExpandEnvironmentStrings(path,0x208/*_MAX_PATH_U16*/,0x104/*_MAX_PATH*/); 
+		if(len) return str;
+	}
+}
+
+unExpand = function(path){
+	if(#path ? path[1] != '\\'# ? path[1] != '/'# ){
+		var relative = ..fsys.path.relative;
+		for(i=1;#__paths__;1){
+			var sub = relative(path,__paths__[i][2],true); 
+    		if( sub ) {
+    			path = __paths__[i][1];
+    			if sub != "\." path = path + sub;
+    			return path; 
+    		} 
+		}
+    	
+		var ok,str = PathUnExpandEnvStrings(path,0x208/*_MAX_PATH_U16*/,0x104/*_MAX_PATH*/); 
+		if(ok) return str;
+		return path;
+	}
+	return path;
+}
+
+/**intellisense(fsys.environment)
+expand(.(路径) = 展开路径中的环境变量\n如果是斜杠或~开关的路径直接调用 io.localpath 函数转换为绝对路径
+unExpand(.(路径) = 将路径中适合的部份替换为环境变量格式
+end intellisense**/

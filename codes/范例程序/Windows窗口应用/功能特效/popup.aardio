@@ -1,0 +1,25 @@
+//通知窗口 
+import win.ui;
+/*DSG{{*/
+var winform = win.form(parent=...; exmode="toolwindow";bgcolor=15780518;bottom=150;topmost=1;right=208;border="none" )
+winform.add( 
+button={ bottom=18;color=0;text="r";left=179;top=1;font=LOGFONT( name="Marlett";charset=2;out=3;family=2;weight=500;clip=2;quality=1 );z=1;right=201;cls="button" };
+static={ right=162;bottom=72;text="static";left=30;top=43;z=2;transparent=1;cls="static" }
+)
+/*}}*/
+
+import win.util.popup
+
+//使窗口在屏幕右下角弹出
+pop = win.util.popup(winform) 
+pop.countdown=function(remaintime){
+	winform.static.text = "剩余时间：" + remaintime  + "秒"
+}
+
+winform.button.oncommand = function(id,event){ 
+    winform.close();
+    
+}//endproc
+winform.show(true) 
+win.loopMessage();
+return winform;  

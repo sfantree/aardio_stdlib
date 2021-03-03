@@ -1,0 +1,220 @@
+//搜索跳转
+/*
+文本框中可输入行号，回车或点【搜索】按钮可跳到指定行。
+也可以在文本框中输入要查找的文本（支持模式匹配），回车或点【搜索】按钮查找文本。
+*/
+import winex;
+import win.ui;
+import win.ui.atom;
+import ide;
+var hwndStatusBar = winex.findEx(ide.getMainHwnd(),,"Afx\:RibbonStatusBar","");
+win.modifyStyle(hwndStatusBar,,0x2000000/*_WS_CLIPCHILDREN*/);
+/*DSG{{*/
+mainForm = win.form(text="aardio - 搜索跳转插件";right=420;bottom=21;bgcolor=16777215;border="none";exmode="none";max=false;min=false;mode="child";parent=hwndStatusBar)
+mainForm.add(
+btnSearch={cls="plus";text="搜索";left=386;top=3;right=422;bottom=22;clipBk=false;db=1;dr=1;dt=1;notify=1;paddingBottom=4;transparent=1;z=2};
+cmbFunctions={cls="combobox";left=0;top=1;right=235;bottom=21;edge=1;hscroll=1;items={};mode="dropdown";tabstop=1;vscroll=1;z=3};
+editWord={cls="richedit";left=235;top=0;right=423;bottom=23;autohscroll=false;autovscroll=false;clipch=1;edge=1;tabstop=1;z=1}
+)
+/*}}*/
+
+import process.mutex;
+var mutex = process.mutex("451B2016-08D3-4191-A1D3-EEF3851CDA5D")
+if( mutex.conflict ) return;
+ 
+mainForm.btnSearch.skin(
+    color = {
+         hover = 0xE0F00000; 
+         active = 0x60F00000;
+         default = 0x90000000 
+    } 
+)
+
+mainForm.btnSearch.oncommand = function(id,event){
+	var ed = ide.getActiveCodeEditor();
+    if(!ed) return;
+    
+    var str = mainForm.editWord.text
+    var line = tonumber(str)
+    if(line) { 
+        mainForm.editWord.text = ed.selLine;
+    	ide.gotoLine(line);
+    	ide.getActiveCodeEditor().selLine = line;
+    }
+    elseif(#str) {
+        //支持模式匹配查找 
+        var text = ed.text; 
+        var i1,j1 = ed.getsel();
+        if(i1)i1 = string.bytes(text,i1);
+        if(j1)j1 = string.bytes(text,j1);
+        var i,j = string.find(text,str,j1 ? j1+1 : (i1:0),true);
+        if( !i ) i,j = string.find(text,"<@@" + str + "@>",j1 ? j1+1 : (i1:0),true);
+        
+        if( i && j ) ed.setsel(i,j);
+        else {
+        	i,j = string.find(text,str,0,true);
+        	if( !i ) i,j = string.find(text,"<@@" + str + "@>",0,true);
+        	if( i && j ) ed.setsel(i,j);
+        }
+        
+        ide.showStatus("可以直接按回车键查找下一个")
+    }
+}
+
+mainForm.editWord.modifyEvent(,0x1/*_ENM_CHANGE*/)
+mainForm.editWord.oncommand = function(id,event){
+    if(( event!= 0x300/*_EN_CHANGE*/ ) && ( event!= 0x100/*_EN_SETFOCUS*/ )) return;
+    
+	var ed = ide.getActiveCodeEditor();
+    if(!ed) return;
+    
+    var str = mainForm.editWord.text
+    var line = tonumber(str)
+    if(line) { 
+        
+    }
+    elseif(#str) {
+        var text = ed.text;
+        
+        var i1,j1 = ed.getsel();
+        if(i1)i1 = string.bytes(text,i1);
+        var i,j = string.find(text,"<@@" + str + "@>",i1?i1-1:0,true);
+        
+        if( i && j ) ed.setsel(i,j);
+        else { 
+        	i,j = string.find(text,"<@@" + str + "@>",0,true);
+        	if( i && j ) ed.setsel(i,j);
+        }
+    }
+    else {
+    	var i1,j1 = ed.getsel();
+    	ed.setsel(i1);
+    }
+    
+}
+
+mainForm.editWord.onOk = function(){ 
+    mainForm.btnSearch.oncommand()  
+    return true; 	
+}  
+
+mainForm.editWord.enablePopMenu({
+	{ /*分隔线*/ };
+	{ "关闭此插件(&E)"; function(id){  
+		ide.setConfig("statusBarPlugin","false")
+		mainForm.close();
+	} };
+})
+
+
+mainForm.cmbFunctions.onDropDown = function(){ 
+	var ed = ide.getActiveCodeEditor();
+	if(!ed) return;
+
+	var m = {}
+	var items = {};
+	
+	for name,code in string.gmatch( ed.text,"!\wnamespace\s+([.\w]+)") {  
+		name = name+ "（名字空间）"
+		if( m[name] ) continue;
+		m[name] = true;
+		table.push(items, name);
+	}
+    	
+	for name,code in string.gmatch( ed.text,"!\wclass\s+([.\w]+)") {  
+		name = name+ "（类）"
+		if( m[name] ) continue;
+		m[name] = true;
+		table.push(items, name);
+	}
+	
+	for func,code in string.gmatch( ed.text,"([.\w]+)\s*\=\s*class\s*\{") {  
+		func = func+ "（类）"
+		if( m[func] ) continue;
+		m[func] = true; 
+		table.push(items, func);
+	}
+
+	for func,code in string.gmatch( ed.text,"([.\w]+)\s*\=\s*function\s*\(") {  
+		if( func!="_get" && func!="_set"){
+			func = func+ "（函数）"
+			if( m[func] ) continue;
+			m[func] = true;
+		
+			table.push(items, func);
+		}
+	}
+	
+	for func,code in string.gmatch( ed.text,"([.\w]+)\s*\=\s*\{\s*<_get>|<_set>\s*\=\s*function\s*\(") {  
+		func = func+ "（属性）"
+		if( m[func] ) continue;
+		m[func] = true;
+		
+		table.push(items, func);
+	}
+	
+	..table.sort(items) 
+	
+	mainForm.cmbFunctions.selIndex = -1;
+	mainForm.cmbFunctions.text = "";
+	mainForm.cmbFunctions.items = items;
+}
+
+var cxprev;        
+mainForm.setInterval( 
+    500,function(hwnd,msg,id,tick){
+        var x,y,cx,cy = win.getPos(hwndStatusBar) 
+        if(cx!=cxprev){
+            mainForm.setPos(cx-635,0)
+            cxprev = cx;
+            mainForm.redraw();
+        } 
+    } 
+)
+mainForm.enableDpiScaling(false)
+
+mainForm.cmbFunctions.onOk= function(){  
+	 
+	var ed = ide.getActiveCodeEditor();
+	if(!ed) return;
+
+	var text = mainForm.cmbFunctions.selText;
+	if(!#text) return;
+	
+	var code = ed.text;
+	var name = string.match(text,"([.\w]+)");
+	if(!#name) return;
+	
+	var name = "<@" + name + "@>";
+	if( string.find(text,"（名字空间）") ){
+		i,j = string.find( code,"!\wnamespace\s+"+name,,true);
+	}
+	elseif( string.find(text,"（类）") ){
+		i,j = string.find( code,"!\wclass\s+"+name,,true);	
+		if(!i){
+			i,j = string.find( code,name+"\s*\=\s*class\s*\{",,true);
+			if(i) j = i+..string.len(name)-4-1		
+		}
+	}
+	elseif( string.find(text,"（函数）") ){
+		i,j = string.find( code,name+"\s*\=\s*function\s*\(",,true);
+		if(i) j = i+..string.len(name)-4-1	
+	}
+	elseif( string.find(text,"（属性）") ){
+		i,j = string.find( code,name+"\s*\=\s*\{\s*<_get>|<_set>\s*\=\s*function\s*\(",,true);	
+		if(i) j = i+..string.len(name)-4-1
+	}
+	
+	if(!(i&&j))return;
+		
+    ed.setsel(i,j);
+    ed.scrollCaret();  
+}
+
+mainForm.cmbFunctions.editBox.setCueBannerText("函数列表")
+
+ide.setConfig("statusBarPlugin","true")
+mainForm.btnSearch.setParent(mainForm.editWord);
+
+mainForm.show() 
+win.loopMessage();

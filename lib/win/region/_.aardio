@@ -1,0 +1,33 @@
+import gdi;
+namespace win.region;
+
+/*intellisense(::)*/ 
+::SetWindowRgn := ::User32.api("SetWindowRgn", "bool(addr hWnd, pointer hRgn, bool bRedraw)");
+::CreateRoundRectRgn := ::Gdi32.api( "CreateRoundRectRgn", "pointer(int, int, int, int, int, int)" );
+::CreateRectRgn := ::Gdi32.api("CreateRectRgn", "pinter(int top,int top,int right,int bottom)");
+::GetWindowRgn := ::User32.api("GetWindowRgn", "int(addr hWnd, pointer hRgn)");
+::CombineRgn := ::Gdi32.api("CombineRgn", "int(pointer hrg,pointer hrgnSrc1,pointer hrgnSrc12,int mode)");
+/*end intellisense*/
+
+getWindowRgn = function(hwnd){
+	var hrgn = CreateRectRgn(0,0,0,0)
+	if( hrgn ){
+		var r = GetWindowRgn(hwnd,hrgn);
+		if( r = 0x3/*_COMPLEXREGION*/ || r = 0x2/*_SIMPLEREGION*/ ){
+			return hrgn;
+		}
+	}
+}
+
+copy = function(hRgnSrc){
+	var hRgnNew = ::CreateRectRgn(0,0,0,0);
+    ::CombineRgn(hRgnNew,hRgnSrc,null,5/*_RGN_COPY*/);	
+    return hRgnNew;
+}
+
+/**intellisense(win)
+region = 该支持库定义REGION相关API
+region.getWindowRgn(__/*HWND窗口句柄*/) = 复制窗体绘图区域
+region.copy(__/*HRGN绘图区域句柄*/) = 复制HRGN句柄
+end intellisense**/
+ 

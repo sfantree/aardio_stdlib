@@ -1,0 +1,87 @@
+assert(web.soapClient,"私有类禁止调用")
+import time.zone;
+namespace web.soapClient;
+
+class parameters{
+
+	ctor( ){
+		var _pl = {};
+		this.add = function(name, value) { 
+			_pl[name] = value; 
+			return this; 
+		}
+		this.mixin = function(p){
+			..table.assign(_pl,p);
+		};
+		this.toXml = function() {
+			var xml = "";
+			for(p,v in _pl){  
+				select ( type(v) ) {
+                	case "string","number","boolean","table"{
+                    	xml += "<" + p + ">" + _serialize(_pl[p]) + "</" + p + ">";
+                    }
+            	}
+			}
+			return xml;	
+		}
+	}; 
+}
+
+namespace parameters{ 
+	var timeBias = ..time.zone.getInfo().bias; 
+	var formatTimeZone = ..string.format("%s%02d:%02d", timeBias < 0?"+":"-",..math.abs(timeBias) / 60, ..math.abs(timeBias) % 60 );
+
+	_serialize = function(o) {
+    	var s = "";
+    	select(type(o)) {
+        	case "string"{
+        		s = ..string.replace(o,"@&", "&amp;");
+        		s = ..string.replace(s,"@<", "&lt;");
+        		s = ..string.replace(s,"@>", "&gt;"); 
+        		s = ..string.replace(s," ","&#x20;");
+        		s = ..string.replace(s,'\r',"&#xD;");
+        		s = ..string.replace(s,'\n',"&#xA;");
+        	}
+        	case "number","boolean"{
+            	s += tostring(o);
+            }
+        	case "table"{
+            	if( ..time.istime(o) ) {
+        	 		o.format="!%Y-%m-%dT%H:%M:%S"
+        	 		s = s + tostring(o) + string.format(".%03d",o.milliseconds ) + formatTimeZone;
+            	} 
+            	else if(#o) {
+                	for( p,v in o){
+                    	if(type(p)==type.number) { 
+                        	var t = type(v);
+                        	select(t) { 
+                            	case "string"{ }
+                            	case "number" { t="int" }
+                            	case "boolean" { t="bool" }
+                            	case "table"{
+                            		if( ..time.istime(v) )
+                                		t = "DateTime";
+                                	else {
+                                		error("SOAP 不支持该数据类型 name:" + p +" type:" + t,2)
+                                	}
+                                	
+                                }
+                                else {
+                                	error("SOAP 不支持该数据类型 name:" + p +" type:" + t,2)
+                                } 
+                        	}
+                        	s += "<" + t + ">" +  _serialize(o[p]) + "</" + t + ">"
+                    	}
+                    	else 
+                        	s += "<" + p + ">" + _serialize(v) + "</" + p + ">"
+                	}
+            	} 
+            	else{ 
+                	for( p,v in o)
+                    	s += "<" + p + ">" + _serialize(v) + "</" + p + ">";
+            	} 
+            }
+    	}
+    	return s;
+	}	
+}

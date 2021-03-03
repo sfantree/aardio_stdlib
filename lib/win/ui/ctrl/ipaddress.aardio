@@ -1,0 +1,105 @@
+//ipaddress IP地址控件
+namespace win.ui.ctrl; 
+import win.ui.ctrl.metaProperty;
+
+class ipaddress{
+    ctor(parent,tParam){ 
+    	if( tParam ){
+    		tParam.cls = "SysIPAddress32"; 
+			if(tParam.edge) tParam.exstyle |= 0x200/*_WS_EX_CLIENTEDGE*/;
+			
+			if(tParam.ownerDraw) 
+				tParam.style |= ( 0x20/*_LBS_OWNERDRAWVARIABLE*/|0x40/*_LBS_HASSTRINGS*/ )
+		}
+    }  
+	@_metaProperty;
+}
+
+namespace ipaddress{
+ 	_metaProperty = ..win.ui.ctrl.metaProperty( 
+		setRange = function(ip1,ip2){
+			if( type(ip1) == type.string ) ip1 = ..string.split(ip1,".");
+ 			if( type(ip2) == type.string ) ip2 = ..string.split(ip2,".");
+ 			if( ( ( type(ip1) != type.table ) || ( #ip1 != 4 ) ) || ( #ip2 != 4 ) ){
+ 				error("IP必须是四组数值",2)
+ 			}
+ 			
+ 			for(i=1;4 ){
+ 				::SendMessageInt(owner.hwnd,0x400/*_WM_USER*/ + 103,i-1,::MAKEWORD(tonumber(ip1[i],10),tonumber(ip2[i],10) ) );
+ 			}
+		} 
+		address = {
+			_get = function(){
+				var ret,_,ip = ::SendMessageByInt(owner.hwnd, 0x400/*_WM_USER*/ + 102, 0,0);
+				return ip;
+			}
+			_set = function( ip ){ 
+				if(ip===null) ::SendMessageInt(owner.hwnd,0x400/*_WM_USER*/ + 100,0,0)
+				else ::SendMessageInt(owner.hwnd,0x400/*_WM_USER*/ + 101,0,ip)
+			} 	
+		}; 
+		_prenotify = function(id,code,ptr,nmhdr){ 
+			if( code == 0xFFFFFCA4 && owner.onFieldChanged ){
+				var nm = ..raw.convert(ptr,{
+					struct hdr = ::NMHDR();
+					int field;
+					int value;
+				});
+				owner.onFieldChanged(nm.field+1,nm.value);
+			}
+		}
+	);
+}
+
+
+/***intellisense()
+win.ui.ctrl.ipaddress() = IP地址控件\n!SysIPAddress.
+!SysIPAddress.cls = 设计时类名
+!SysIPAddress.className = 运行时类名
+!SysIPAddress.clear() = 清除列表框所有内容 
+!SysIPAddress.hwnd = 控件句柄
+!SysIPAddress.id = 控件ID
+!SysIPAddress._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!SysIPAddress.getParent() = 返回父窗口\n!static.
+!SysIPAddress.setParent(__/*控件对象*/) = 改变父窗口 
+!SysIPAddress.addCtrl = @.addCtrl(\n\n	edit ={ cls="edit";left=0;top=0;right=50;bottom=50;autoResize=false ;hide=1;edge=1;  }\n)
+!SysIPAddress.disabled = 是否禁用
+!SysIPAddress.left = 左侧坐标
+!SysIPAddress.right = 右侧坐标
+!SysIPAddress.top = 顶部坐标
+!SysIPAddress.bottom = 底部坐标
+!SysIPAddress.width = 宽度
+!SysIPAddress.height = 高度
+!SysIPAddress.show(true__) = 显示控件
+!SysIPAddress.getRect() = 控件区块位置(::RECT结构体)
+!SysIPAddress.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!SysIPAddress.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!SysIPAddress.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!SysIPAddress.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+!SysIPAddress.getFont() = 控件字体(::LOGFONT结构体)\n!logfont.
+!SysIPAddress.setFont(__/*指定字体*/) = 指定LOGFONT字体对象,或逻辑字体句柄 
+!SysIPAddress.setFont(混入字体属性) = @.setFont(point=10;name="宋体");
+!SysIPAddress.clientRect =  获取控件客户区块位置(::RECT结构体)
+!SysIPAddress.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!SysIPAddress.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!SysIPAddress.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!SysIPAddress.close() = 关闭控件窗
+!SysIPAddress.capture = 是否捕获全局鼠标消息
+!SysIPAddress.invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+!SysIPAddress.invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+!SysIPAddress.update() = 重绘invalidate函数指定的区块 
+!SysIPAddress.setFocus() = 设置焦点 
+!SysIPAddress.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!SysIPAddress.getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd) 
+!SysIPAddress.orphanWindow() = 使控件脱离原来的窗口,可以显示在父窗口外面,\n但仍然显示在原来的位置,继续如影随形的跟随父窗口移动或改变大小,\n控件原来的固定边距等参数仍然有效
+!SysIPAddress.text = IP地址文本格式
+!SysIPAddress.address = IP地址数值格式
+!SysIPAddress.setRange(.(起始IP,结束IP) = 设置IP范围\n参数可以是文本,也可以分别是指定四组数值的数组
+!SysIPAddress.threadCallable() = 开启此控件的跨线程调用功能
+!SysIPAddress.onFieldChanged = @.onFieldChanged = function(field,value){
+	__/*IP变更事件,field是在IP段中的位置,value是发生IP的数值*/
+}
+!SysIPAddress.sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+!SysIPAddress.postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+end intellisense***/
+ 

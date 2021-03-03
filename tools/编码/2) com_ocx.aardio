@@ -1,0 +1,214 @@
+//COM控件代码生成器
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="COM控件代码与文档生成器";right=830;bottom=648)
+winform.add(
+btnGen={cls="button";text="生成代码";left=711;top=605;right=796;bottom=635;db=1;dr=1;z=9};
+chkLite={cls="checkbox";text="免注册调用";left=51;top=14;right=255;bottom=42;checked=1;dl=1;dt=1;z=6};
+cmbCoClass={cls="combobox";left=475;top=14;right=806;bottom=39;dr=1;dt=1;edge=1;items={};mode="dropdown";z=2};
+editCode={cls="richedit";left=27;top=51;right=804;bottom=560;db=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(h=-15);hscroll=1;multiline=1;vscroll=1;z=1};
+editDoc={cls="richedit";left=27;top=51;right=804;bottom=560;db=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(h=-15);hscroll=1;multiline=1;vscroll=1;z=10};
+editOcxPath={cls="edit";left=27;top=606;right=701;bottom=635;align="right";db=1;dl=1;dr=1;edge=1;z=8};
+navCode={cls="plus";text="调用代码";left=27;top=560;right=107;bottom=592;border={top=1;color=-16744448};db=1;dl=1;z=3};
+navDocument={cls="plus";text="控件文档";left=107;top=560;right=187;bottom=592;border={top=1;color=-16744448};db=1;dl=1;z=5};
+navRight={cls="plus";left=186;top=560;right=476;bottom=561;bgcolor=16777215;border={color=-16744448};db=1;dl=1;dr=1;forecolor=32768;linearGradient=180;z=7};
+static={cls="static";text="可创建的COM对象：";left=307;top=17;right=456;bottom=38;align="right";dl=1;dr=1;dt=1;transparent=1;z=4}
+)
+/*}}*/
+
+import win.ui.tabs;
+var tbs = win.ui.tabs(winform.navCode,winform.navDocument,winform.nav06,winform.nav091,winform.navZhengMa,winform.navTxt)
+tbs.margin = 0;
+tbs.skin({
+	foreground={
+		active=0xFFFFFFFF;
+		default=0x00FFFFFF;
+		hover=0xFFCCCCCC;
+	};
+	checked={
+		foreground={ 
+			default=0x00FFFFFF; 
+		};
+		border = { 
+			default = {left=1;right=1;bottom=1;color=0xFF008000} 
+		}; 
+	}
+});
+
+tbs.onSelchange = function(idx,strip,form){
+	winform.editCode.hide = idx==2;
+	winform.editDoc.hide  = idx==1;
+}
+tbs.selIndex = 1;
+
+winform.editDoc.enablePopMenu();
+winform.editCode.enablePopMenu();
+winform.editCode.text = /*
+本﻿工具支持VB/VC等语言编写的COM控件，
+请直接拖动COM控件到当前窗口上即可生成代码。
+
+也可支持VB6编写的OCX控件，在VB6中使用VB6的OCX需要注册,
+如果你使用的是Win7、Win10，或者使用的是VB精简版。
+你可能经常会遇到OCX注册后在VB中仍然无法使用。
+
+但是在aardio中这些OCX控件大多不用注册就可以愉快的直接调用。
+	
+如果OCX控件是用VB6编写的，请注意：
+1、自WinXP到Win10，操作系统都自带VB6运行库。
+而且微软还会悄悄给VB6打补丁，所以基本的运行是没有问题的。
+2、如果用VB6编写OCX，尽量只是调用运行库以及操作系统提供的API。
+尽可能不要调用其他VB6编写的控件，这很容易导致莫名其妙的问题并且难以排查。
+3、使用VB6开发OCX，建议不要使用VB6精简版，
+最好不要浪费时间在Win7、Win10上试图安装VB6,
+踏踏实实弄一个XP虚拟机安装完整版本的VB6(SP6).
+*/
+	
+var loadTypeAttrs = function(path,typekind){
+	var tlb;
+	try{
+		tlb = ..com.LoadTypeLibrary(path);
+	}
+	if(!tlb) return;
+	
+	var r = {}
+	for(i=1;tlb.GetTypeInfoCount()){
+		var info = tlb.GetTypeInfo(i)
+		var attr = info.GetTypeAttr();
+		if(attr){
+			if( typekind && typekind != attr.typekind) continue;
+				
+			attr.name = info.GetDocumentation()[["name"]];
+			..table.push(r,attr);
+			
+			for(i=1;attr.ImplTypes;1){
+				var flags = info.GetImplTypeFlags(i);
+				if(flags[["default"]] && !flags["source"]){
+					attr.defaultImpltypeInfo = (attr.defaultImpltypeInfo:"") 
+						+ info.GetImplType(i).DumpTypeInfo();
+				}
+			}
+			
+		}	
+	}
+	
+	return r;
+}	
+
+import com.tlbDoc;
+import com.lite;
+winform.onDropFiles = function(files){ 
+	var path = files[1]
+		
+	var attrs = loadTypeAttrs(files[1],"coclass");  
+	if(!#attrs){return;}
+	
+	winform.cmbCoClass.clear();
+	winform.cmbCoClass.typeLibAttrs = attrs;
+	for(i=1;#attrs;1){
+		winform.cmbCoClass.add(attrs[i].name + " " + attrs[i].GUID) 
+	}
+	
+	winform.editOcxPath.text = path;
+	winform.cmbCoClass.ocxFilePath = path;
+	winform.cmbCoClass.selIndex = 1;
+	winform.cmbCoClass.onListChange();
+	
+	winform.editDoc.text = com.tlbDoc(path);
+}
+
+var codeTemplate  = /*******
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add(
+static={cls="static";text="控件";left=11;top=10;right=745;bottom=455;db=1;dl=1;dr=1;dt=1;transparent=1;z=1}
+)
+/*}}*/
+
+import com.activeX;
+com.activeX.appData("aardio/com/${FILENAME}",$"${PATH}")
+var embed = winform.static.createEmbed("${GUID}"); 
+var object = embed._object;
+
+winform.show(); 
+win.loopMessage();
+
+/*************************************************${IMPLTYPEINFO}
+*************************************************/
+*******/
+
+var codeTemplateLite  = /*******
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add(
+static={cls="static";text="控件";left=11;top=10;right=745;bottom=455;db=1;dl=1;dr=1;dt=1;transparent=1;z=1}
+)
+/*}}*/
+
+import com.lite;
+var dll = com.lite.appData("aardio/com/${FILENAME}",$"${PATH}")
+var embed = dll.createEmbed(winform.static,"${GUID}"); 
+var object = embed._object;
+
+winform.show(); 
+win.loopMessage();
+
+/*************************************************${IMPLTYPEINFO}
+*************************************************/
+*******/
+
+import string.template;
+winform.cmbCoClass.onListChange = function(){ 
+	if(!winform.cmbCoClass.selIndex){
+		return;
+	}
+	
+	var typeAttr = winform.cmbCoClass.typeLibAttrs[[winform.cmbCoClass.selIndex]]
+	if(typeAttr){
+		var codeTemp = string.template(); 
+		if( typeAttr.flags.hidden ) return;
+		
+		if(winform.chkLite.checked){
+			codeTemp.template = codeTemplateLite; 
+		}
+		else { 
+			codeTemp.template = codeTemplate;
+		}
+				
+		winform.editCode.text  = codeTemp.format(
+			GUID=typeAttr.GUID;
+			PATH=winform.cmbCoClass.ocxFilePath;
+			FILENAME=io.splitpath(winform.cmbCoClass.ocxFilePath).file;
+			IMPLTYPEINFO=typeAttr.defaultImpltypeInfo;
+		)
+	}
+}
+
+winform.chkLite.oncommand = function(id,event){
+	winform.cmbCoClass.onListChange();
+}
+
+winform.btnGen.oncommand = function(id,event){
+	var path = ..io.exist(winform.editOcxPath.text)
+	if(!path) return winform.msgboxErr("请检查控件文件路径是否正确")
+	
+	var attrs = loadTypeAttrs(path,"coclass");  
+	if(!#attrs){return;}
+	
+	winform.cmbCoClass.clear();
+	winform.cmbCoClass.typeLibAttrs = attrs;
+	for(i=1;#attrs;1){
+		winform.cmbCoClass.add(attrs[i].name + " " + attrs[i].GUID) 
+	}
+	
+	winform.cmbCoClass.ocxFilePath = path;
+	winform.cmbCoClass.selIndex = 1;
+	winform.cmbCoClass.onListChange()
+	
+	winform.editDoc.text = com.tlbDoc(path);
+}
+
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();

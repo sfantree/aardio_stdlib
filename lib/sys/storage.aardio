@@ -1,0 +1,151 @@
+//storage 存储设备
+import fsys.file;
+namespace sys.storage;
+ 
+queryProperty = function(devicePath){
+    if(devicePath===null){
+        for(i=0;4;1){
+            var p = queryProperty(i);
+            if( p ) return p;
+        }
+        return;
+    }
+    elseif( type(devicePath) == type.number ){
+    	devicePath = ..string.format( "\\.\PhysicalDrive%d",devicePath);
+    }
+    elseif(! ..string.match(devicePath,"\\\\\p\\") ){
+        devicePath = "\\.\" + devicePath;
+    }
+    
+    file = ..fsys.file(devicePath,0);
+    if (!file) return; 
+    
+    var query = {
+        INT propertyId;//_StorageDeviceProperty
+        INT queryType;//_PropertyStandardQuery
+        BYTE additionalParameters[1];  
+    }
+     
+    var descriptor = {  
+        INT version; 
+        INT size; 
+        BYTE deviceType; 
+        BYTE deviceTypeModifier; 
+        BYTE removableMedia; 
+        BYTE commandQueueing; 
+        addr vendorIdOffset; 
+        addr productIdOffset;  
+        addr productRevisionOffset; 
+        addr serialNumberOffset; 
+        int busType; 
+        INT rawPropertiesLength;   
+      } 
+
+    if (file.deviceIoControl( 0x002d1400/*IOCTL_STORAGE_QUERY_PROPERTY*/,query,descriptor))  {
+     
+        var buffer = ..raw.buffer(descriptor.size); 
+        file.deviceIoControl( 0x002d1400/*IOCTL_STORAGE_QUERY_PROPERTY*/ ,query,buffer);
+        ..raw.convert(buffer,descriptor); 
+        
+        var trim = function(n){
+            if( n <= 0 ) return;
+            var s = ..raw.str(buffer,,n);
+            if( s ) return ..string.trim(s);
+        }
+
+    	with(descriptor){
+    		devicePath = devicePath;
+        	vendorId = trim(vendorIdOffset);
+        	productRevision = trim(productRevisionOffset);
+        	productId = trim(productIdOffset);
+        	serialNumber = trim(serialNumberOffset); 
+        	if(#serialNumber==8){
+        		var s = {};
+   				for(i=1;8;2) ..table.push(s,serialNumber[i+1],serialNumber[i]); 
+   				serialNumber = ..string.pack(s);
+        	}
+        }
+    }
+    
+    file.close();
+    return descriptor;             
+}
+
+getDeviceNumber = function(devicePath){
+    if( type(devicePath) != type.string ) error("请指定设备名或盘符",2);
+    
+    if( ..string.startWith(devicePath,"\Device\",true) ) devicePath = ..string.replace(devicePath,"^\\Device\\","\\\\.\\"); 
+    if(! ..string.match(devicePath,"\\\\\p\\") ){
+        devicePath = "\\.\" + devicePath;
+    }
+
+    var file = ..fsys.file(devicePath,0 ); 
+    if (!file) return; 
+ 
+    var deviceNumber = { 
+        int deviceType; 
+        INT deviceNumber;   
+        INT partitionNumber;
+    }
+    var ret = file.deviceIoControl(0x002d1080/*IOCTL_STORAGE_GET_DEVICE_NUMBER*/
+        ,null,deviceNumber)
+    file.close();
+    
+    if( ret ) return deviceNumber;
+}
+
+getDevices = function(dr){
+	var ld;
+	var dr = ::Kernel32.GetLogicalDrives();
+	var tab = {}; 
+	for(i=0;31){ 
+		if( dr & (1<<i) ){ 
+			ld = ..string.pack('A'# + i) + ":"; 
+			var inf = getDeviceNumber(ld);
+			if(!inf) continue;
+			if(! tab[inf.deviceNumber] ) tab[inf.deviceNumber] = {ld};
+			else ..table.push(tab[inf.deviceNumber] ,ld) ;
+		}
+	}
+	return tab;
+}
+
+/**intellisense()
+sys.storage = 存储设备属性\n不需要管理权限
+sys.storage.getDevices() = 返回硬盘分区列表\n键为硬盘序号,值为分区盘符数组
+sys.storage.queryProperty(.("设备路径) = 可指定设备名或分区盘符等\n如果不指定参数则自动获取硬盘设备路径
+sys.storage.queryProperty() = !sysStorageProperty.
+!sysStorageProperty.serialNumber = 序列号
+!sysStorageProperty.productRevision = 产品版本
+!sysStorageProperty.productId = 产品ID
+!sysStorageProperty.vendorId = 厂商ID
+!sysStorageProperty.deviceType = 设备类型  
+!sysStorageProperty.deviceTypeModifier = SCSI-2额外的设备类型  
+!sysStorageProperty.removableMedia = 是否可移动  
+!sysStorageProperty.commandQueueing = 是否支持命令队列  
+!sysStorageProperty.busType = 总线类型\n使用 _BusType 前缀常量\n例如U盘是 _BusTypeUsb,其值为7
+sys.storage.getDeviceNumber(.("设备名") = 参数指定分区设备名,或直接指定盘符\n返回分区序号信息
+sys.storage.getDeviceNumber() = !sysStorageDeviceNumber.
+!sysStorageDeviceNumber.deviceType = 类型\n使用 _FILE_DEVICE_ 前缀常量
+!sysStorageDeviceNumber.deviceNumber = 设备序号
+!sysStorageDeviceNumber.partitionNumber = 分区序号
+end intellisense**/
+
+ /**intellisense()
+_BusTypeUnknown=@0/*_BusTypeUnknown*/
+_BusTypeScsi=@1/*_BusTypeScsi*/
+_BusTypeAtapi=@2/*_BusTypeAtapi*/
+_BusTypeAta=@3/*_BusTypeAta*/
+_BusType1394=@4/*_BusType1394*/
+_BusTypeSsa=@5/*_BusTypeSsa*/
+_BusTypeFibre=@6/*_BusTypeFibre*/
+_BusTypeUsb=@7/*_BusTypeUsb*/
+_BusTypeRAID=@8/*_BusTypeRAID*/
+_BusTypeMaxReserved=@0x7F/*_BusTypeMaxReserved*/
+_PropertyStandardQuery=@0/*_PropertyStandardQuery*/
+_PropertyExistsQuery=@1/*_PropertyExistsQuery*/
+_PropertyMaskQuery=@2/*_PropertyMaskQuery*/
+_PropertyQueryMaxDefined=@3/*_PropertyQueryMaxDefined*/
+_StorageDeviceProperty=@0/*_StorageDeviceProperty*/
+_StorageAdapterProperty=@1/*_StorageAdapterProperty*/
+end intellisense**/

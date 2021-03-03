@@ -1,0 +1,12 @@
+﻿//ROT:遍历运行的COM对象
+import console; 
+import com;
+
+com.enumRunning( 
+	function(name,object){  
+		console.log(name,com.GetTypeInfo(object).GetDocumentation().name)
+		
+		// com.DumpTypeInfo(object)
+	}
+)
+console.pause(true);

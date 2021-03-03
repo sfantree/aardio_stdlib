@@ -1,0 +1,186 @@
+//partFile 分卷文件
+import fsys;
+namespace fsys.partFile;
+
+class joiner {
+
+	ctor( path,mode="w+b",bufsize= 0xA00000 ){
+	 
+		var buffer = ..raw.buffer( bufsize ); 
+		
+		var file; 
+		if( path ) file =  ..io.open(path,mode);
+		if( !file ) return null,"打开文件失败" + path;
+		
+		..table.gc(this,"close");
+	}; 
+	append = function( path, ... ){
+		if(!file) error("请先打开目标文件",2)
+		if( type( path ) == "table" ){
+			var name;
+			for(i=1;#path;1){
+				name = path[i];
+				var ok,err = this.append( path[name] or name );
+				if(!ok) return err;
+			}
+			return true;
+		}
+		
+		var file2,err = path ? ..io.open(path,"rb");
+		if( !file2 ) return null,err;
+	
+		var blocks = 0;	
+		var blockCount = ..math.ceil(file2.size(bufsize)) : 1;
+		while( 
+	    	var readSize;
+	    	readSize = file2.readBuffer(buffer); //读文件
+	    	readSize
+		) {
+			file.writeBuffer(buffer,readSize);
+			blocks++;
+			if( this.onCopyData ) this.onCopyData(path,readSize,blocks,blockCount);
+		}  
+		file2.close();
+		if(!...) return true;
+		return this.append(...);
+	}; 
+	close = function(){
+		if(file){
+			file.close();
+			file = null;
+		}
+	} 
+} 
+
+
+class splitter{
+
+	ctor( path,partSize,bufsize = 0xA00000 ){
+	
+		if( bufsize > partSize ) bufsize = partSize ; 
+		var buffer = ..raw.buffer( bufsize or 0xA00000 ); 
+		
+		var file; 
+		if( path ) file =  ..io.open(path,"r+b");
+		if( !file ) return null,"打开文件失败" + path;
+		
+		this.formatName = ..io.splitpath(path).file + ".%03d";
+		this.partSize = partSize;
+		
+		..table.gc(this,"close");
+	};
+	split = function(dir,first=1){  
+		var idx = first; 
+		if(!dir) dir = ..fsys.getParentDir(path);
+		
+		var blocks = 0;
+		var blockCount = ..math.ceil(file.size(bufsize)) : 1;
+		var path = ..fsys.joinpath(dir,..string.format(this.formatName , idx) ); 
+		var file2,err = ..io.open(path,"w+b");
+		if(!file2) return null,err;
+		var remain = this.partSize;
+		  
+		while( 
+	    	var readSize;
+	    	readSize = file.readBuffer(buffer,remain > bufsize ? bufsize : remain ); //读文件
+	    	readSize  
+		) {
+			remain -= readSize; 
+			file2.writeBuffer(buffer,readSize);
+			
+			blocks++;
+			if( this.onCopyData ) this.onCopyData(path,readSize,blocks,blockCount); 
+			
+			if( remain == 0 ) {
+				idx++; 
+				file2.close();
+				path = ..fsys.joinpath(dir,..string.format(this.formatName , idx) ); 
+				file2,err = ..io.open(path,"w+b");
+				if(!file2) return null,err;
+				remain = this.partSize;
+			}
+		}  
+		file2.close();
+		file.seek("set");
+		return true;
+	};
+	close = function(){
+		if(file){
+			file.close();
+			file = null;
+		}
+	} 
+}
+
+split = function(path,partSize,dir){
+	var spliter,err = splitter(path,partSize);
+	if(!spliter) return null,err; 
+	spliter.onCopyData = onCopyData;
+	var ret = spliter.split(); 
+	spliter.close();
+	return ret;
+}
+
+join = function( path,parts,... ){ 
+	if( !parts ) { 
+		parts,path = group(path);  
+		if( #parts < 2  ) return;
+	};
+	if( !parts ) return;	
+	
+	var jointer,err = joiner( path,"a+b");
+	if(!jointer) return null,err;
+	jointer.onCopyData = onCopyData;
+	var ret = jointer.append(parts,...); 
+	jointer.close();
+	return ret;
+} 
+
+group = function(path) {
+	if( !path ) error("路径参数不能为空",2)
+	path = ..fsys.path.removeBackslash(path);
+	var tPath = ..io.splitpath(path);
+	if(!#tPath.file) return;
+	
+	var b,d,e = ..string.match(tPath.file,"(.*)!\d(\d+)(\D*)$");
+	if(!(b&&d&&e) ) return;
+	
+	var p = "\d+";
+	if(#b) p = "<@@" + b + "@>" + p;
+	if(#e) p = p + "<@@" + e + "@>";
+	 
+	var parts = ..fsys.list(tPath.dir,p + "$" );
+	..table.sort( parts, function(filename){
+		var a = ..string.match(owner,"(\d+)(\D*)$");
+		var b = ..string.match(filename,"(\d+)(\D*)$");
+		return tonumber(a,10) < tonumber(b,10);  
+	} ); 
+
+	return parts,..fsys.joinpath(tPath.dir,b++e); 
+}
+
+/**intellisense()
+fsys.partFile = 分卷文件操作
+fsys.partFile.joiner(.("目标文件路径","w+b",读写块大小) = 创建合并文件对象\n除参数@1以外其他参数可选\n参数@2为打开文件模式,默认为"w+b"即重建目标文件\n块大小默认为10MB
+fsys.partFile.joiner() = !partFile_joiner.
+!partFile_joiner.append(.("合并文件路径") = 支持不定个参数指定的文件路径\n或者使用一个参数传入待合并文件路径数组\n将参数传入的文件读取并追加到合并目标文件\n成功返回true
+!partFile_joiner.close() = 关闭合并目标文件
+!partFile_joiner.onCopyData = @.onCopyData = function(path,writeSize,blocks,count){
+	io.print( path,fsys.formatSize(writeSize),blocks,count )
+}
+fsys.partFile.splitter(.("拆分源文件路径",分卷文件大小,读写块大小) = 拆分文件\n读写块大小默认为10MB
+fsys.partFile.splitter() = !partFile_splitter.
+!partFile_splitter.split(.("创建分卷文件目录",分卷初始序号) = 拆分文件,所有参数可选\n默认使用源文件所在目录存储分卷文件,\n初始分卷序号默认为1
+!partFile_splitter.close() = 关闭源文件
+!partFile_splitter.formatName = 生成分卷文件名的格式化串\n默认为 "源文件名" + ".%03d"
+!partFile_splitter.onCopyData = @.onCopyData = function(path,writeSize,blocks,count){
+	io.print( path,fsys.formatSize(writeSize),blocks,count )
+}
+fsys.partFile.group(.("分卷文件路径") = 自动查找关联分卷文件\n并返回排序好的文件名数组\n文件名数组序号最小的在数组开始\n数组包含文件名到完整路径的键值映射\n返回值2为去掉分卷号路径,可作为合并目标路径
+fsys.partFile.search(.("搜索目录",是否查找子目录) = 查找分卷文件,\n返回一个表,键为未分卷文件名,值为分卷文件路径数组,该数组已排序\n除参数一以外,其他参数可选,默认不查找子目录\n参数3,4请保持默认值,高级用法请查看该函数源码
+fsys.partFile.join(.("合并目标文件",待合并文件) = 合并文件,成功返回true\n待合并文件可以是一个数组或多个参数\n如果未指定参数@2,则参数@1必须是一个分卷文件路径\n仅指定一个分卷路径时自动设定所有参数\n该函数使用追加模式,不清空目标文件\n可选用 fsys.partFile.onCopyData 显示进度
+fsys.partFile.split(.("被拆分文件路径",分卷文件大小,存储目录) = 拆分文件,成功返回true\n不指定目录则取被拆分文件所在目录\n可选用 fsys.partFile.onCopyData 显示进度
+fsys.partFile.onCopyData = @.onCopyData = function(path,writeSize,blocks,count){
+	io.print( path,fsys.formatSize(writeSize),blocks,count )
+}
+end intellisense**/

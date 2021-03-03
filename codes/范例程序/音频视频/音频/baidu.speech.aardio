@@ -1,0 +1,52 @@
+﻿//百度文本转语音
+import win.ui;
+/*DSG{{*/
+winform = win.form(text="百度文本转语音接口(无限制免费调用)";right=553;bottom=334)
+winform.add(
+button={cls="button";text="语音合成";left=393;top=285;right=540;bottom=321;z=1};
+cbPer={cls="combobox";left=398;top=248;right=534;bottom=272;edge=1;items={};mode="dropdownlist";z=4};
+edit={cls="edit";text='真的"666"';left=17;top=24;right=377;bottom=311;autohscroll=false;edge=1;multiline=1;vscroll=1;z=3};
+groupbox={cls="groupbox";text="预转换的文字";left=7;top=1;right=387;bottom=322;edge=1;z=2}
+)
+/*}}*/
+
+var wmPlay = com.CreateObject("{6BF52A52-394A-11d3-B153-00C04F79FAA6}");
+winform.button.oncommand = function(id,event){
+    
+    import baidu.speech;
+    var http = baidu.speech(); 
+    
+    /*
+    支持下面三种写法：
+    http.setAuth( 这里直接写access_token )
+    http.setAuth( 这里写一个可以获取access_token的网址 )
+    http.setAuth( "hkMI2fBTaKHDLolNxkPw7ylQ","tbUgpyqX9MiCE0LKozGFaGRoLS7xZHqs" )
+    ) 
+    */
+    http.setAuth( "hkMI2fBTaKHDLolNxkPw7ylQ","tbUgpyqX9MiCE0LKozGFaGRoLS7xZHqs" )
+    
+    var mp3Url,err = http.text2audio( 
+        tex = winform.edit.text;
+        per = winform.cbPer.map[winform.cbPer.selText];
+    )
+            
+    wmPlay.Url =  mp3Url;
+    wmPlay.controls.play();
+}
+ 
+winform.cbPer.items = {
+    "普通女声";
+	"普通男声";
+	"度逍遥";
+	"度丫丫";
+}
+
+winform.cbPer.map = {
+    普通女声 = 0;
+	普通男声 = 1;
+	度逍遥 = 3;
+	度丫丫 = 4;	
+}
+
+winform.show();
+win.loopMessage();

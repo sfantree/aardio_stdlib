@@ -1,0 +1,277 @@
+//message 消息对象
+import protobuf.reader.inputString;
+import protobuf.type.scalar;
+import protobuf.type.enum;
+import protobuf.type.bytes;
+import protobuf.type.string;
+import protobuf.type.int32;
+import protobuf.type.int64;
+import protobuf.type.sint32;
+import protobuf.type.sint64;
+import protobuf.type.sfixed32;
+import protobuf.type.sfixed64;
+import protobuf.type.fixed32;
+import protobuf.type.fixed64;
+import protobuf.type.uint32;
+import protobuf.type.uint64;
+import protobuf.type.float;
+import protobuf.type.double;
+import protobuf.type.bool;
+import inet.http;
+import inet.url;
+
+namespace protobuf;
+ 
+class message {  
+	ctor( reader ) {
+		this.chunk = '';
+  		this.wiredType = wiredTypeLengthDelimited;
+  		this.reader = reader;
+  		
+        this.value = this;  
+        this.values = {}; //the values for the fields
+  		this.fields = {}; //here are the field types 
+    };  
+  	
+    getTypes = function(number) { 
+        var types = {}; 
+        
+        var binstring = ..string.format("%b",number )
+        var low = ..string.right(binstring,3);
+        var high = ..string.left(binstring,#binstring - 3)  +  '0000';
+         
+        types.wired = tonumber(low,2);
+        types.field = tonumber(binstring,2) >> 3;
+        return types;
+    }; 
+    
+    _addArrayValue = function (index) {
+    	var v = this.fields[index]();
+    	table.push( this.values[index], v );
+    	
+        return v;
+    };
+
+    _setArrayValue = function ( index, index_arr, value) {
+    
+       if (type(value) == type.table) {
+            this.values[index][index_arr]  = value;
+        }
+        else {
+            this.values[index][index_arr]  = this._createFieldObject(index,value); 
+        }
+        return  this.values[index][index_arr] ;//return object; 
+    };
+
+    _removeLastArrayValue = function(index) {
+    	..table.pop( this.values[index] );
+    };
+    
+    _getFieldClass = function( index ){  
+    	var cls = eval( this.fields[ index ] )
+    	if(!cls)
+    		error( '\nWrong protobuf message class:' + this.fields[ index ] ,2)
+    	return cls;
+    };
+    
+    _createFieldObject = function( index,value ){
+    	var msg = this._getFieldClass( index )( this.reader );
+    	
+    	if(value !== null)
+    		msg.value = value;
+    		 
+    	return msg;
+    };
+    
+    _setValue =  function (index, value) { 
+        if (type(value) == type.table) {
+            this.values[index] = value;
+        }
+        else {
+            this.values[index] = this._createFieldObject(index,value); 
+        }
+        return  this.values[index];//return object;
+    };
+
+    _getValue = function (index) {
+    	var value = this.values[index]; 
+    	
+    	if( value[["value"]] !== null || value[["_isScalar"]] )
+    		return value[["value"]]
+    		 
+        return value 
+    };
+
+	_setTimeValue = function(index, value,format){
+		value.format = format;
+		return owner._setValue( index,tostring(value) );
+	};
+	
+	_getTimeValue = function(index,format){
+		var str = owner._getValue(index)
+		return ..time(str,format);
+	};
+	
+    _getArray = function ( index ) {
+        return this.values[index] ;
+    };
+    
+    _getArrayValue = function (index, key) {
+        return this.values[index][key];
+    };
+
+    _getArraySize = function (index) {
+        return #(this.values[index]);
+    }; 
+    
+	encodeVarUint64 = function(n) { 
+		n = ..math.size64(n);
+		
+  		var s = {}
+  		var l,h = n.split32(); 
+  		while ( (l & ~0x7F) || h) {  
+    		s[#s+1] = (l & 0xFF) | 0x80;
+    		n = n.rshift(7); 
+    		l,h = n.split32();
+  		}
+  		
+  		s[#s+1] = l;
+  		return ..string.pack(s)
+	};
+	
+    serialize = function( rec = - 1) {
+        var str = '';
+        
+        if (rec > -1){
+            str ++= this.encodeVarUint64(rec << 3 | this.wiredType);
+        }
+		 
+        var stringinner = ''; 
+	    
+        for(index,field in this.fields ){
+        	 
+            var value = this.values[index] 
+             
+            if ( value[["is_array"]] ) {
+            	
+                for(i=1;#value;1){
+                	 var array_value  = this._setArrayValue(index,i,value[i] );  
+                 	 stringinner = stringinner  ++   array_value.serialize(index);  
+                }  
+                
+            }
+            else if( value !== null )  { 
+            	value = this._setValue(index,value);   
+            	
+                stringinner ++= value.serialize(index); 
+            }  
+            	
+        } 
+		
+        stringinner = stringinner ++ this.chunk;
+
+		if (this.wiredType == ..protobuf.message.wiredTypeLengthDelimited && rec > -1){ 
+            stringinner = this.encodeVarUint64(#stringinner) ++ stringinner;
+           
+        }  
+        return str ++ stringinner;
+    };  
+
+    deSerialize = function (){
+        this.chunk = ''; 
+        var length = this.reader.nextUInt32();  
+        this.deSerializeAux(length);
+    };
+
+    deSerializeAux = function ( length = 99999999 ) {
+    	var consume;
+    	var reader = this.reader
+        var _begin = reader.getPointer();
+        while (reader.getPointer() - _begin < length)  {
+            var oldpointer = reader.getPointer();
+            var next = reader.nextUInt32(); 
+              
+            if ( ! next )
+                break;
+                
+            var messtypes = this.getTypes(next);  
+            
+            if (! this.fields[ messtypes.field ] ) {
+            	 
+                if (messtypes['wired'] == wiredTypeLengthDelimited ) {
+                    consume =..protobuf.type.string(reader);
+                }
+                else if (messtypes['wired'] == wiredTypeVarint) {
+                    consume = ..protobuf.type.int32(reader);
+                }
+                else {
+                    error('I dont understand this wired code:' ++ messtypes['wired'],3);
+                }
+
+                consume.deSerialize();
+                this.chunk ++= reader.getMessageFrom(oldpointer);
+                continue;
+            }
+
+            var value = this.values[messtypes['field']];
+          	var msg =  this._createFieldObject(  messtypes['field'] ); 
+          	
+          	
+            if (messtypes['wired'] != msg.wiredType) {
+            	 error('\r\n' ++ 'Pb type:' 
+                    ++ messtypes['wired'] 
+                    ++ '\r\n' ++ 'but message type ' 
+                    ++ msg.wiredType ++ '\r\n' ++ "message class:" ++ this.fields[messtypes['field']] );
+            }
+            
+            if ( value[["is_array"]] ) {   
+            	
+                var t = ..table.push(
+                	this.values[messtypes['field']] ,
+                	msg
+                ); 
+           
+            }
+            else {
+                this.values[messtypes['field']] = msg; 
+            }
+               
+            msg.deSerialize() 
+        }
+    };
+    
+	serializeToString = function(){
+		return this.serialize();
+	};
+	 
+	
+    parseFromString = function (message) {
+    	if(!#message)
+    		error("参数不能为空字符串",2) 
+ 		
+ 		for(k,v in this.values){ 
+ 			if( v.is_array)
+ 				this.values[k] = { is_array = true; }
+ 		} 
+        this.reader = ..protobuf.reader.inputString(message);
+        this.deSerializeAux();
+    };  
+    
+    tostring = function(){
+    	return this.serialize();
+    };
+    
+    fromString  = function(){
+    	return this.parseFromString();
+    };
+} 
+
+
+namespace message { 
+    wiredTypeVarint = 0;
+    wiredType64Bit = 1; 
+    wiredTypeLengthDelimited = 2;
+    wiredTypeString = 2;
+    wiredType32Bit = 5;
+}
+  

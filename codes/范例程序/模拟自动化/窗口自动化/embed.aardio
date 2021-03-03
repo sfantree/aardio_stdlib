@@ -1,0 +1,24 @@
+//嵌入外部程序窗口
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=349;bottom=249;parent=...)
+winform.add()
+/*}}*/
+
+import winex; 
+import process;
+
+process.executeWaitInput("notepad.exe");
+hwnd = winex.findActivate( ,,"Notepad","Edit" )
+
+win.setParent(hwnd,winform.hwnd)
+win.setPos(hwnd,0,0)
+
+win.modifyStyle(winform.hwnd,,0x2000000/*_WS_CLIPCHILDREN*/)
+winform.show(0x3/*_SW_MAXIMIZE*/) 
+
+//嵌入外部程序，一定要附加输入队列,不然输入有关的功能就会乱套了
+var tid = win.getThreadProcessId(hwnd)
+::User32.AttachThreadInput( ..thread.getId(),tid,true); 
+
+win.loopMessage();

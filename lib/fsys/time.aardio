@@ -1,0 +1,103 @@
+//time FILETIME结构
+import util.metaProperty;
+namespace fsys;
+
+class time{
+	ctor(format="!%c"){
+		this = ::FILETIME()
+		this.format = format;
+	}; 
+	@_metaProperty;
+}
+
+namespace time{
+	_metaProperty = ..util.metaProperty( 
+		toGmtTime = function(){
+			var tm = ..time.gmt();
+			if( ( !owner.dwLowDateTime) && ( !owner.dwHighDateTime ) ) return  tm;
+			var ok,tm = FileTimeToSystemTime(owner,tm );
+			if(ok) return tm;
+		}
+		toSystemTime = function(){
+			var tm = ..time( ,owner.format)
+			if( ( !owner.dwLowDateTime) && ( !owner.dwHighDateTime ) ) return  tm;
+			var ok,tm = FileTimeToSystemTime(owner,tm );
+			if(ok)return tm;
+		}
+		fromSystemTime = function(tm){
+			if( tm === null) tm = ..time(,owner.format);
+			if( !..time.istime(tm) ) error("不是合法的time对象",2)
+			owner.format = tm.format;
+			if( SystemTimeToFileTime(tm,owner) ) return owner;
+		} 
+		toDosTime = function(){
+			if( ( !owner.dwLowDateTime) && ( !owner.dwHighDateTime ) ) return 0,0;
+			var ok,fatDate,fatTime = FileTimeToDosDateTime(owner,0,0);
+			if(ok)return (fatDate << 16)|fatTime,fatDate,fatTime;
+		}
+		fromDosTime = function(fatDate,fatTime){
+			if(!fatTime){
+				var dosDate = fatDate;
+				fatDate = ( dosDate >>> 16 ) & 0xFFFF
+				fatTime = dosDate & 0xFFFF
+			};
+
+			if( DosDateTimeToFileTime(fatDate,fatTime,owner) ) return owner;
+		} 
+		local = function(copy){
+			var tm = ..fsys.time("%c");
+			FileTimeToLocalFileTime(owner,tm);
+			if( copy ){
+				return tm;
+			}
+			else {
+				owner.dwLowDateTime = tm.dwLowDateTime
+				owner.dwHighDateTime = tm.dwHighDateTime
+				owner.format = "%c";
+				return owner;
+			} 
+		}; 
+		utc = function(copy){
+			var tm = ..fsys.time("!%c");
+			LocalFileTimeToFileTime(owner,tm);
+			if( copy ){
+				return tm;
+			}
+			else {
+				owner.dwLowDateTime = tm.dwLowDateTime
+				owner.dwHighDateTime = tm.dwHighDateTime
+				owner.format = "!%c";
+				return owner;
+			} 
+		}; 
+		_tostring = function(){
+			return tostring( owner.toSystemTime() );
+		} 
+		_tonumber = function(){
+			return ..raw.convert(owner,{LONG ftm}).ftm;
+		} 
+	) 
+	
+	FileTimeToSystemTime = ::Kernel32.api("FileTimeToSystemTime","bool(struct filetime,struct& time)")
+	SystemTimeToFileTime = ::Kernel32.api("SystemTimeToFileTime","bool(struct tm,struct& filetime)")  
+	DosDateTimeToFileTime = ::Kernel32.api("DosDateTimeToFileTime","bool(WORD wFatDate,WORD wFatTime,struct &fileTime)") 
+    FileTimeToDosDateTime = ::Kernel32.api("FileTimeToDosDateTime","bool(struct fileTime,WORD &wFatDate,WORD &wFatTime)")  
+	FileTimeToLocalFileTime = ::Kernel32.api("FileTimeToLocalFileTime","bool(struct ftm,struct &ftmLocal)")  
+	LocalFileTimeToFileTime = ::Kernel32.api("LocalFileTimeToFileTime","bool(struct ftmLocal,struct &ftm)")  
+}
+
+/**intellisense()
+fsys.time = FILETIME结构
+fsys.time() = 创建FILETIME结构\n!fsys_time.  
+!fsys_time.dwLowDateTime = 时间值低位
+!fsys_time.dwHighDateTime = 时间值高位
+!fsys_time.local() = UTC时间转换为本地时间,返回自身
+!fsys_time.local(true) = UTC时间转换为本地时间,\n不修改自身,返回本地时间副本
+!fsys_time.utc() = 本地时间转换为UTC时间,返回自身
+!fsys_time.utc(true) = 本地时间转换为UTC时间,\n不修改自身,返回本地时间副本
+!fsys_time.toGmtTime() = 返回time.gmt对象\n即RFC1123格式时间,HTTP协议使用该格式\n!time.
+!fsys_time.toSystemTime() = 返回time对象\n!time.
+!fsys_time.fromSystemTime(.(time对象) = 标准时间对象转换为FILETIME对象\n省略参数则调用time.now()获取当前时间\n!fsys_time.
+!fsys_time.toDosTime() = 成功返回 dosTime,高位,低位
+!fsys_time.fromDosTime(.(fatDate,fatTime) = DOS时间格式转换为FILETIME格式\n如果省略第二个参数,则取第一个参数的高位作为参数二
+end intellisense**/

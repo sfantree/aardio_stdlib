@@ -1,0 +1,17 @@
+import com.interface; 
+namespace com.interface;
+
+class IKsPropertySet{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer Get = "int (struct rguidPropSet, INT ulId, pointer pInstanceData, INT ulInstanceLength, pointer pPropertyData, INT ulDataLength, INT& pulBytesReturned)";
+	pointer Set = "int(struct rguidPropSet, INT ulId, pointer pInstanceData, INT ulInstanceLength, pointer pPropertyData, INT ulDataLength)";
+	pointer QuerySupport = "int(struct rguidPropSet, INT ulId, INT& pulTypeSupport)"; 
+}
+IKsPropertySet.IID = "{31efac30-515c-11d0-a9aa-00aa0061be93}";
+
+/**intellisense()
+com.interface.IKsPropertySet = IKsPropertySet;
+end intellisense**/
+

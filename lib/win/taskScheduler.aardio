@@ -1,0 +1,163 @@
+//taskScheduler 计划任务
+import win.ui;
+namespace win;
+
+class taskScheduler {
+
+	ctor( winform ){
+		if(!winform){
+			winform = ..win.form( {} );
+			winform.messageOnly();
+		}
+		
+		var timerId;
+		var taskJobs = {}; 
+		var namedTask = {}; 
+	};
+	start = function( interval = 1000 ){  
+		if(timerId) winform.clearInterval(timerId);
+		
+		timerId = winform.setInterval(interval,
+			function(hwnd,msg,id,tick){ 
+				this.trigger();
+			}
+		);
+	};
+	stop = function(){
+		if( timerId ){
+			winform.clearInterval(timerId)
+			timerId = null;
+		}
+	};
+	create = function( name,job,...){ 
+		if( !name ||  namedTask[name] )
+			return null,"任务名字冲突";
+		
+		var task = {};	
+		taskJobs[task] = job;  
+		task.lastRunTime = ..time();
+		task.pending = true;
+		task.arguments = {...} 
+		task.arguments.length = rget(2,..table.range(task.arguments)); 
+		if( task.enabled === null ) task.enabled = true;
+		
+		namedTask[name] = task;
+		return task;
+	};
+	delete = function(name){
+		var task = name && namedTask[name];
+		if( !task) return false;
+		taskJobs[name] = null;
+		taskJobs[task] = null;
+		namedTask[name] = null;
+		return true;
+	}; 
+	serialize = function(){
+		for(name,task in namedTask){ 
+			if( task.beginTime ) task.beginTime.format="%Y/%m/%d %H:%M:%S";
+			if( task.expirationTime ) task.expirationTime.format="%Y/%m/%d %H:%M:%S";
+		} 
+		return ..table.tostring(namedTask);
+	};
+	deserialize = function( s,defJob ){
+		if(!#s) return null,"数据不能为空";
+		 
+		var ok,tasks = call(eval,,s); 
+		if( ! ( ok && type(tasks) == type.table ) ){
+			return null,"数据已损坏";
+		}
+		for(name,task in tasks){ 
+			if(task.beginTime) task.beginTime = ..time( task.beginTime,"%Y/%m/%d %H:%M:%S" );
+			if(task.expirationTime) task.expirationTime = ..time( task.expirationTime ,"%Y/%m/%d %H:%M:%S"); 
+			task.lastRunTime = ..time(); 
+			taskJobs[task] = defJob;
+		} 
+	};
+	get = function(name){
+		return name && namedTask[name];
+	};
+	set = function(name,job){
+		var task = name && namedTask[name];
+		if( task) {
+			taskJobs[task] = job;
+			return true;
+		}
+	};
+	trigger = function() {
+	
+		var now = ..time();
+		  
+		var taskQueue = {};
+		for( task,job in taskJobs ){
+		
+			if( !task.enabled ){
+				continue;
+			}
+		
+			if( task.beginTime && now < task.beginTime ){ 
+				task.pending = true;
+				continue;
+			}
+			
+			if( task.expirationTime && now > task.expirationTime ){ 
+				task.pending = true;
+				continue;
+			}
+			 
+			for(k,v in task.time ){  
+				if( now[k] != v ){  task.pending = true; continue 2; } 
+			}  
+			 
+			for(k,v in task.interval  ){  
+				now.diff = now[ "diff" + k ];
+				if( now.diff( task.lastRunTime ) < v  ){
+					task.pending = true; continue 2;
+				} 
+			}  
+			 
+			if( !task.pending ) continue;
+			task.pending = false; 
+			 
+			task.lastResult = invoke(job,task,..table.unpack(task.arguments,1,task.arguments.length) );
+			task.lastRunTime  = ..time();
+			task.pending = true;
+		}  
+	}  
+}
+
+/**intellisense()
+win.taskScheduler = 计划任务
+win.taskScheduler(.(窗体对象) = 参数可省略\n注意仅在线程启动消息循环后起作用\n执行计划任务会阻塞定时器直到任务执行完成\n不希望阻塞定时器可使用 winform.setTimeout、或多线程异步执行代码
+win.taskScheduler() = !win_taskScheduler.
+!win_taskScheduler.serialize() = 序列化计划任务配置并返回字符串 
+!win_taskScheduler.deserialize( = 反序列化计划任务
+!win_taskScheduler.deserialize(.(字符串,默认回调函数) = 反序列化计划任务,并指定默认回调函数
+!win_taskScheduler.start(.(任务检测间隔) = 开始运行计划任务\n注意仅在线程启动消息循环后起作用\n检测间隔参数可选,默认为1000毫秒\n\n执行计划任务会阻塞定时器直到任务执行完成\n如果在计划任务中执行了win.delay等继续消息循环的代码，\n在计划任务退出前不会再触发同一计划任务（重入）。\n\n不希望阻塞定时器可使用 winform.setTimeout、或多线程异步执行代码
+!win_taskScheduler.stop() = 停止计划任务
+!win_taskScheduler.create("名字",执行函数) =  @.create("计划任务名字",function( arguments ){\n    \n} , __/*其他调用任务的参数*/ )
+!win_taskScheduler.delete(.("任务名字") = 删除指定任务
+!win_taskScheduler.get(.("任务名字") = 读取指定任务
+!win_taskScheduler.set(.("任务名字",执行函数) = 修改任务执行函数
+!win_taskScheduler.get() = !win_taskSchedulerTask.
+!win_taskScheduler.create() = !win_taskSchedulerTask.
+!win_taskSchedulerTask.enabled = 是否允许执行
+!win_taskSchedulerTask.time = @.time = { 
+	second =  秒 __/*请指定准时执行的时间字段值*/;
+	minute = 分钟 ; 
+	hour = 小时 ;
+	day = 日 ;
+	month = 月 ;
+}
+!win_taskSchedulerTask.interval = @.interval = { 
+	second = 间隔秒数 __/*请指定间隔执行的时间字段值*/;
+	minute = 间隔分钟数 ;
+	hour = 间隔小时数 ;
+	day = 间隔天数 ;
+	month = 间隔月数 ;
+} 
+!win_taskSchedulerTask.pending = 任务是否在等待状态\n如果正在执行任务，此属性返回false
+!win_taskSchedulerTask.lastRunTime = 任务最后运行的时间
+!win_taskSchedulerTask.lastResult = 最后一次执行的返回值
+!win_taskSchedulerTask.beginTime = 开始时间\n该值默认为空
+!win_taskSchedulerTask.expirationTime = 结束时间\n该值默认为空
+end intellisense**/

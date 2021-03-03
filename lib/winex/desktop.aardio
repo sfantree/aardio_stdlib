@@ -1,0 +1,22 @@
+//desktop 桌面 
+import winex;
+import winex.ctrl.listview;
+namespace winex.desktop
+
+var hDskManager,hShellView = ..winex.findExists("",,"<WorkerW>|<Progman>","SHELLDLL_DefView")   
+for(i=1;10;1){
+	hDskManager,hShellView = ..winex.findExists("",,"<WorkerW>|<Progman>","SHELLDLL_DefView")  
+	if ( hShellView ) break;
+	sleep(100);  
+} 
+
+var hListview = hShellView ? ..win.findEx(hShellView,0,"SysListView32") ; 
+if( !hListview )
+	error("未找到桌面图标列表视图控件",2)
+	
+listview = ..winex.ctrl.listview( hListview ); 
+ 
+/**intellisense()
+winex.desktop = 桌面控制
+winex.desktop.listview = 桌面图标列表视图\n!listview.
+end intellisense**/

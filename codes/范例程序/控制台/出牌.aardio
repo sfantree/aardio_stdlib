@@ -1,0 +1,25 @@
+import console;
+
+//组合
+import table.product;
+product = function(a,b){
+    var t = {};
+    for(c in table.product(a,b) )
+ 		table.push(t,c[1] ++ c[2] );
+
+    return t;
+}
+
+//洗牌
+var cards = table.shuffle( product(
+     {"红桃"; "方块"; "黑桃"; "梅花"},
+     {"A"; "2"; "3"; "4"; "5"; "6"; "7"; "8"; "9"; "10"; "J"; "Q"; "K" }
+) );
+
+
+for( i=1;5 ){ 
+    console.log( table.remove(cards) );//下一张牌 
+    sleep(300);
+} 
+
+console.pause();

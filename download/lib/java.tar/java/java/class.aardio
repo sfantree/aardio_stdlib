@@ -1,0 +1,356 @@
+﻿if(!java) import java;
+namespace java;
+
+self.class = class {
+	ctor( jvm,classPath,clssBuffer,classLoader ){
+		
+		this.jvm = jvm;
+		this.jniEnv = jvm.env;
+		this.invokeMethod = jvm.invokeMethod;
+		var jvm,jniEnv = this.jvm,this.jniEnv;
+		
+		this.jclass = classPath;
+		
+		if(type(classPath) == "string" ){
+			classPath = ..string.replace(classPath,"\.","/");
+			if(! jvm._javaClasses ) jvm._javaClasses  = { @{_weak="kv"}};
+			if(jvm._javaClasses[classPath]) return jvm._javaClasses[classPath];
+					 
+			this.jclass = (!clssBuffer) ? jniEnv.FindClass(classPath);
+    		if ( jvm.exceptionClear() || (!this.jclass) ) {
+    		
+    			do{
+    			
+    				if( type(clssBuffer) == type.string ){ 
+						if(#clssBuffer<0x410/*_MAX_PATH_U8*/){
+							clssBuffer = ..string.load(clssBuffer) or clssBuffer;
+						}
+						
+						if(#clssBuffer){
+							this.jclass = jvm.env.DefineClass(classPath,classLoader,clssBuffer,#clssBuffer);
+							if ( !jvm.exceptionClear() && this.jclass ) {  
+        						break;
+    						}  
+						}
+					}
+					
+					return null,"查找类失败。类:" + classPath;
+					
+    			}while(0)
+    		}
+    	}
+    	
+    	jvm._javaClasses[classPath] = this;
+    	..table.gc(this,"free")
+	};
+	getFieldEx = function(fname,asign,instance){
+		var jvm,jniEnv,jclass = this.jvm,this.jniEnv,this.jclass;
+		
+		if(! (asign && fname ) )error("必须指定参数:字段名,类型声明",2);
+		var jsign = getSignature(asign);  
+		var fid;
+		if(instance){
+			fid = jniEnv.GetFieldID(jclass,fname,jsign); 
+		}
+		else
+			fid = jniEnv.GetStaticFieldID(jclass,fname,jsign);
+		
+		if ( jvm.exceptionClear() || (!fid) ) { 
+        	error("查找字段名失败。方法名:" + fname,2); 
+    	}
+    	
+		var jTypeName = ..java.typeNameAardio2Java(asign); 
+		var jGetterName = ..string.format(instance?"Get%sField":"GetStatic%sField",jTypeName )
+		var jGetter = jniEnv[jGetterName]
+		if(!jGetter) error("查找字段调用方法" + jGetterName + "失败,Java字段名:" + fname,2); 
+		
+		var ret = jGetter( (instance : jclass) , fid);
+		if( asign == "string"){
+			return jvm.parseString(ret);
+		}
+		elseif( jTypeName = "Object"){
+			if( ..string.find(asign,"\[") ){
+				return jvm.fromJavaArray( ..string.match(asign,"\w+") ,ret );
+			}
+			return ..java.object(jvm,ret);
+		}
+		
+		return ret;
+	};
+	getMethod = function(methodName){
+		if( type(methodName) == type.string ){
+			var r,f = callex(,this@._get,this,methodName,true);
+			if(r) return f;
+		} 
+	};
+	getMethodEx = function(methodName,asign,instance){ 
+		var jvm,jniEnv,jclass = this.jvm,this.jniEnv,this.jclass;
+		
+		if(!asign)asign = "void()";	
+		if(!methodName)error("必须指定参数:字段名,类型声明",2);
+		var arg1 = ..string.match(asign,"\((.+?)\,");
+		if( arg1 ){
+			for a in ..string.gmatch( asign,"\,([^,)]+)") { 
+				if( a != arg1 ){error('请用多个参数时,类型必须相同',2)}
+			}
+			asign = ..string.replace(asign,"%()","(" + arg1 + "[])");
+		}
+		
+		var jsign = getSignature(asign);
+    	var static = ( (!instance) && (methodName != "<init>") )
+   
+    	var method;
+    	if(static)
+    		method = jniEnv.GetStaticMethodID(jclass, methodName ,jsign);
+    	else {
+    		method = jniEnv.GetMethodID( jclass, methodName,jsign);
+    	}
+    	
+    	if ( jvm.exceptionClear() || (!method) ) {
+        	error("查找方法失败。方法名:" + methodName,2);
+        	return false;
+    	}
+    	
+        var retype = ..string.match(asign, "\s*(.+)\s*\(");
+		var jRettype = ..java.typeNameAardio2Java(retype);
+		
+		var jCallerName;
+		if( static){
+			 jCallerName = ..string.format("CallStatic%sMethod",jRettype );
+		}
+		else {
+			if( methodName == "<init>" ){
+				jCallerName = "NewObject"
+			}
+			else {
+				jCallerName = ..string.format("Call%sMethod",jRettype )
+			}
+		}
+		
+		jCallerName = jCallerName + "A";
+		var jThis = instance?instance:jclass; 
+		var jCaller = jniEnv[jCallerName]
+		if(!jCaller){ error("找不到调用函数 jniEnv."+jCallerName+"()",2) }
+		
+		var argType = ..string.match(asign,"\(\W*([\w\/\.\[]+)\W*\)");
+		var argTypeNoArray = argType ? ..string.replace( argType,"[\[\]]","");
+		argname =  "j" + ..string.lower( ..java.typeNameAardio2Java(argTypeNoArray) );    
+		 
+		var safeRet = function(ret){
+		 	if ( jvm.exceptionClear() ) { return; } 
+		 	return ret;
+		} 
+		 
+		if(retype){
+		 	if( jRettype = "Object"){
+				if(..string.find(retype,"\[")  ){
+					var feildType = typeNameJava2Aardio(..string.match(t,"[^\[]+"));
+					safeRet = function(ret){
+		 				if ( jvm.exceptionClear() ) { return; } 
+		 				return jvm.fromJavaArray(feildType,ret);
+		 			}
+				}
+				elseif( ..string.cmp(retype,"string") == 0 ){
+		 			safeRet = function(ret){ 
+            			if ( jvm.exceptionClear() ) { return; }  
+		 				return jvm.parseString(ret);
+		 			}
+		 		}
+				else {
+					safeRet = function(ret){
+		 				if ( jvm.exceptionClear() ) { return;  } 
+		 				return ..java.object(jvm,ret);
+		 			}
+				}
+			} 
+		}
+		 
+		if( argType ? ..string.find(argType,"\[") ){  
+			if( argTypeNoArray ? ..string.cmp(argTypeNoArray,"string") == 0 ){ 
+				return function(...){ 
+					return safeRet( jCaller(jThis,method,{ pointer jobject = jvm.stringArray(...) } ) );
+				}
+			}
+			else{ 
+				return function(...){ 
+					return safeRet( jCaller(jThis,method,{ pointer jobject = jvm.array(argTypeNoArray,...) }) );
+				}
+			}
+		}
+		else{   
+			if(!argType){
+				return function(){
+					return safeRet( jCaller(jThis,method,{} ) );
+				}
+			}
+			elseif(  ..string.cmp(argType,"string") == 0 ){
+				return function(arg){
+					var jv = jvalue();
+					jv.v[argname] = jvm.string(arg);
+					return safeRet( jCaller(jThis,method,jv) );
+				}
+			}
+			else{ 
+				return function(arg){ 
+					jarg = jvalue();
+					jarg.v[argname] = arg;  
+					return safeRet( jCaller(jThis,method,jarg) );
+				}
+			}
+		}
+	};
+	createInstanceEx = function(asign,...){
+		var jvm,jniEnv,jclass = this.jvm,this.jniEnv,this.jclass;
+		var jctor = this.getMethodEx("<init>",asign); 
+		return ..java.object( jvm,jctor(...),this );
+	}
+	createInstance = function(...){ 
+		return this.jvm.createInstance(this,...)
+	}
+	registerNative = function(func,funcName,asign){
+		if(! ( asign && func && funcName) )
+		error("必须指定参数 (函数对象,函数名字,函数原型)",2)
+		
+		var desc = JNINativeMethod();
+		desc.name = funcName;
+		desc.signature = getSignature(asign); 
+		
+		asign = ..string.replace(asign,"\(","(pointer env,pointer jobject,") ;
+		asign = ..string.replace(asign,"![\w]string![\W]","pointer");
+		asign = ..string.replace(asign,"![\w]STRING![\W]","pointer");
+		
+		desc.fnPtr = ..raw.tostdcall(func,asign,this.jvm);
+		_nativedJavaClass[desc.fnPtr] = this.jclass;
+		return jniEnv.RegisterNatives(this.jclass,desc,1);
+	}
+	unregisterNatives = function(){
+		this.jniEnv.UnregisterNatives(this.jclass);
+		for(fnPtr,cls in _nativedJavaClass){
+			if(cls == this.jclass ){
+				_nativedJavaClass[fnPtr] = null; 
+			} 
+		}
+		
+	}
+	free = function(){
+		if( this.jclass ){
+			this.jniEnv.DeleteLocalRef(this.jclass); 
+			this.jclass = null;
+		}
+	}
+	@_meta;
+}
+
+
+namespace class{
+	
+	_meta = {
+	
+		_topointer = function(){
+			return owner.jclass;
+		}
+		_call = function(...){
+			return owner.createInstance(...);
+		}
+		_set = function(k,v){
+			if(type(k)!="string" || k=='_struct' || type(v) == "function") {
+				owner[[k]] = v;
+				return;
+			}
+			owner.jvm.setFieldValue(owner,k,v);
+		}
+		_get = function(k,ownerCall){
+			
+			if(type(k)!="string" || k=='_struct') return;
+			if( (!ownerCall) || owner.jvm.fieldExists(owner,k) ) return owner.jvm.getFieldValue(owner,k);
+			
+			var this = owner;
+			owner[[k]] = function(...){
+				return this.invokeMethod(this,k,...)
+			}
+			return owner[k];
+		}
+		
+	}
+	
+	_nativedJavaClass = {};
+	
+	class jvalue{
+		union v = {
+    		BYTE jboolean;
+    		byte jbyte;
+    		WORD jchar;
+    		word jshort;
+    		int jint;
+    		long jlong;
+    		float jfloat;
+    		double jdouble;
+    		pointer jobject;
+		}
+	}
+
+
+	getSignature = function(sign){
+		with( ..string ) {
+			if( find(sign,"\s") )
+				error("java签名中仅可指定类型名称,不能包含空格或参数名字",2)
+	
+			sign = replace(sign,"![\w]void![\W]","V");
+			sign = replace(sign,"![\w]BOOL![\W]","Z");
+			sign = replace(sign,"![\w]bool![\W]","Z"); 
+			sign = replace(sign,"![\w]BYTE![\W]","Z"); 
+			sign = replace(sign,"![\w]byte![\W]","B");
+			sign = replace(sign,"![\w]CHAR![\W]","C");
+			sign = replace(sign,"![\w]char![\W]","C");
+			sign = replace(sign,"![\w]WORD![\W]","C");
+			sign = replace(sign,"![\w]word![\W]","S");
+			sign = replace(sign,"![\w]SHORT![\W]","S");
+			sign = replace(sign,"![\w]short![\W]","S");
+			sign = replace(sign,"![\w]int![\W]","I");
+			sign = replace(sign,"![\w]INT![\W]","I"); 
+			sign = replace(sign,"![\w]long![\W]","J");
+			sign = replace(sign,"![\w]LONG![\W]","J"); 
+			sign = replace(sign,"![\w]float![\W]","F");
+			sign = replace(sign,"![\w]double![\W]","D");
+			sign = replace(sign,"![\w]long![\W]","J"); 
+			sign = replace(sign,"![\w]([\w\\/\.\$]+)\s*\[\s*\]","[\1"); //[数组 
+			sign = replace(sign,"![\w]string![\W]","java/lang/String"); 
+			sign = replace(sign,"![\w]STRING![\W]","java/lang/String"); 
+			sign = replace(sign,"![\w]pointer![\W]","java/lang/Object");
+			sign = replace(sign,"![\w]POINTER![\W]","java/lang/Object"); 
+			sign = replace(sign,"![\w]([\w\\/\.\$]{2,})![\W]","L\1;"); //L+类名+;
+			
+			sign = replace(sign,"\\","/");
+			sign = replace(sign,"\.","/");  
+			sign = replace(sign,"(.+)(%())","\2\1") ; 
+			sign = replace(sign,"\,","");
+		} 
+
+		return sign
+	}
+	
+	var typename_j2a  = {
+		Z = "BYTE";
+		B = "byte";
+		C = "WORD";
+		S = "word";
+		I = "int";
+		J = "long";
+		D = "double";
+		F = "float"; 
+	}
+	
+	typeNameJava2Aardio = function(t){
+		if( typename_a2j[t] ) return t;
+		t = typename_j2a[t];
+		if( t ) return t;
+		return "pointer";
+	}
+	
+	class JNINativeMethod {
+    	string name;
+    	string signature;
+    	pointer fnPtr;
+	};
+	
+}

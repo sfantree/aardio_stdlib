@@ -1,0 +1,51 @@
+﻿//mask 遮罩窗口
+import win.ui;
+
+namespace win.ui;
+class mask{
+	ctor(parent,disabled,t,r,b,l){
+		if(! ..win.ui.isForm(parent) ) error("参数@1必须指定win.form窗体对象",2);
+		
+		this = parent.add({ 
+		 {cls="custom";text="custom";left=212;top=78;right=596;bottom=202;bgcolor=0xF0CAA6/*BBGGRR*/;border="thin";mode="popup";hide=true;title=false;db=1;dl=1;dr=1;dt=1}
+		} )[1] 
+		
+		var rc = parent.getClientRect(); 
+		if(t) rc.top = rc.top + t;
+		if(r) rc.right = rc.right - r;
+		if(b) rc.bottom = rc.bottom - b;
+		if(l) rc.left = rc.left + l;
+		this.setRect(rc);
+		this.orphanWindow(); 
+		
+		this.modifyStyle(,0x8000000/*_WS_DISABLED*/);
+		if(!disabled)this.modifyStyleEx(,0x20/*_WS_EX_TRANSPARENT*/);
+		this.transparent(80);
+	};
+	show = function(flag){
+		if(flag=== null) {
+			flag = !!this.hide;
+		}
+		
+		if( flag === true ){
+			..win.show(this.hwnd,4/*_SW_SHOWNOACTIVATE*/);
+			..win.setPos(this.hwnd,,,,,0/*_HWND_TOP*/,0x10/*_SWP_NOACTIVATE*/);
+		}
+		else {
+			..win.show(owner[["hwnd"]],flag);
+		}
+	};
+	moveToWindow = function(hwnd,sw){
+		if(!hwnd || (hwnd == owner.hwnd) ) return false;
+		this.autoResize = false;
+		this.setRect(..win.getRect(hwnd,true));	
+		this.show(sw);
+		return true;
+	};
+}
+
+/**intellisense()
+win.ui.mask = 创建半透明、不抢焦点并浮动在屏幕最前面的遮罩窗口\n返回win.form对象,调用show函数如果不指定参数时会自动切换显示、隐藏状态
+win.ui.mask(.(所有窗口,禁用鼠标窗透,上,右,下,左) = 创建遮罩窗口,\n必须在参数中指定所有者窗口,所有者窗口退出遮罩窗口也将关闭,\n其他参数为可选参数,\n\n默认移动到父窗口前面并覆盖客户区,可选使用上,右,下,左等参数指定边距\n可调用moveToWindow函数移动到其他窗口
+win.ui.mask() = !winform.
+end intellisense**/

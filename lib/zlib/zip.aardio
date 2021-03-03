@@ -1,0 +1,185 @@
+﻿//zip 压缩
+//http://www.winimage.com/zLibDll/minizip.html 
+import zlib;
+import fsys; 
+import fsys.file;
+
+var dll = zlib._dll;
+namespace zlib;
+
+class zip{
+	ctor( path,localDir,append ){
+		if( localDir ? ( ! ..fsys.isDir(localDir) ) ){
+			error("参数@2指定的路径必须是一个目录",2);
+		}
+		var zipFile = zipOpen64(..string.fromto( ..io.fullpath(path) ) ,append?1:0);
+		if(!zipFile)error("压缩文件路径参数错误",2);
+		
+		path = ..io.exist(path);
+		if(!path) error("压缩源目录路径错误",2)
+		
+		var bufferPrev; 
+		..table.gc(this,"close");
+	}; 
+	beginWrite = function(fileName,password,level=9){
+		var crcForCrypting,zip64;
+		var info = zip_fileinfo();
+		var fileName = ..fsys.longpath(fileName)
+		var attr = ..fsys.attrib(fileName);
+		
+		if( attr == -1)
+			error("路径参数错误",2);
+
+		var isDir = ..fsys.isDir(fileName); 
+		if( isDir ){ 
+			fileName = ..fsys.path.addBackslash(fileName);
+		}
+		 
+		var file,err = ..fsys.file(fileName,"rbR")
+		if(!file)return null,err;
+		if( !isDir ){
+			var size,unit,unitName = file.size(0x40000000)
+ 			zip64 = size >=4; 
+ 			
+ 			if( password ){ 
+ 				var crc32 = ..string.crc32;
+ 				var bufsize = 0x100000;
+ 				var buffer = ..raw.buffer(bufsize);
+ 				var readSize = file.readBuffer(buffer); 
+				while ( readSize ){   
+					crcForCrypting = crc32(buffer,crcForCrypting,readSize)
+					readSize = file.readBuffer(buffer); 
+				};  
+ 			} 
+		} 
+		if( crcForCrypting === null ) crcForCrypting = 0;
+		
+		var ftm = file.getFileTime().write;
+		file.close();
+		
+		ftm.local();
+		 
+		info.dosDate = ftm.toDosTime();
+		info.external_fa = attr; 
+   
+		fileName = ..fsys.path.relative(fileName,localDir,false);
+		if(!#fileName)return;
+	      
+		if (zipOpenNewFileInZip4_64(zipFile, fileName,info,  , 0,  , 0,  , 8/*_Z_DEFLATED*/, level,
+			0,-15/*_Z_MAX_WBITS*/, 8/*_Z_DEF_MEM_LEVEL*/, 0/*_Z_DEFAULT_STRATEGY*/,password, crcForCrypting, 0/*_VERSIONMADEBYDOS*/, 0x800, zip64) != 0/*_ZIP_OK*/){
+            return;
+        }
+        return true;
+	};
+	writeBuffer = function(buffer,l){
+		var m = #buffer;
+		if( !l ) l = m;
+		elseif( l > m ) l = m;
+		elseif( l < 0 ) return 0;
+		return zipWriteInFileInZip(zipFile,buffer,l);
+	}; 
+	endWrite = function(){
+		zipCloseFileInZip(zipFile);
+	}; 
+	writeDir = function(path,password){
+		path = ..fsys.path.addBackslash(path);
+		if( this.beginWrite(path,password) ){
+			this.endWrite();
+			return true;
+		}
+	}; 
+	eachWriteFile = function(path,password,bufSize = 0xA00000,level){ 
+		if(!..io.exist(path) )error("路径参数错误",2);
+		if( ( bufSize <= 0 ) || (!  this.beginWrite(path,password,level) )  )return function(){};
+		var buffer;
+    	if( #bufferPrev = bufSize ){
+    		buffer = bufferPrev;
+    	}
+    	else{
+    		buffer = ..raw.buffer(bufSize);
+    	};
+    	var file = ..io.open(path,"rb")
+    	return function(){
+    		var len = file.readBuffer(buffer)
+    		if( len ){
+    			this.writeBuffer(buffer,len);
+    			return len;
+    		}
+    	},function(){
+    		this.endWrite();
+    		file.close();
+    	};
+	}
+	close = function(){
+		if(zipFile){
+			zipClose( zipFile );
+			zipFile = null;
+		}
+	};
+	compress = function(compressPath,proc,password,level=9,bufSize = 0xA00000){
+		var compressPath = ..io.exist(compressPath);
+		if(!compressPath)error("压缩源文件路径错误",2); 
+	  	if(!localDir)localDir = ..fsys.getParentDir(compressPath);
+	  	
+		if( !..fsys.isDir(compressPath) ){ 
+			for len in this.eachWriteFile(compressPath,password,bufSize,level){
+				if(proc)proc( len,compressPath );
+			}
+		}
+		else { 
+			..fsys.enum(compressPath, "*.*",
+				function(dir,file,fullpath,findData){ 
+					if(file){  
+			           	for len in this.eachWriteFile(fullpath,password,bufSize,level){
+							if(proc) proc( len,fullpath );
+						}
+					}
+					else{
+						this.writeDir(fullpath,password);
+					}
+				}  
+			);
+		}
+		return true; 
+	}
+}
+                                                  
+namespace zip{ 
+	zipOpen64 = dll.api("zipOpen64","pointer(string path,int append)"); 
+	zipClose = dll.api("zipClose","int(pointer file,string comment)");    
+	zipOpenNewFileInZip4_64 = dll.api("zipOpenNewFileInZip4_64","int(POINTER file, str filename, struct zipfi,pointer extrafield_local, INT size_extrafield_local,  pointer extrafield_global,INT size_extrafield_global,str comment
+		, int method,int level,int raw,int windowBits,int memLevel,int strategy,string password,INT crcForCrypting,INT versionMadeBy,INT flagBase,bool zip64)"); 
+	zipCloseFileInZip = dll.api("zipCloseFileInZip","int(pointer file)");  
+	zipWriteInFileInZip = dll.api("zipWriteInFileInZip","int(pointer file,POINTER buf,INT len)");  
+	 
+	class zip_fileinfo {
+		struct tmz_date = {
+    		INT second; 
+    		INT minute;
+    		INT hour;
+    		INT day; 
+    		INT month;
+    		INT year;
+		};
+		INT dosDate;  
+		INT internal_fa; 
+		INT external_fa; 
+	} 
+}
+
+/**intellisense()
+zlib.zip(.(zip路径,根目录,是否追加) = 创建压缩文件对象\n参数二,参数三都可以省略
+zlib.zip() = !zlib_zip.
+!zlib_zip.beginWrite(.(文件路径,压缩密码,压缩级别) = 开始添加压缩文件,\n密码为可选参数,压缩级别可省略,默认为0
+!zlib_zip.endWrite() = 添加压缩文件完成
+!zlib_zip.writeBuffer(.(缓冲区指针,长度) = 缓冲区必须�raw.bufferc()创建的内存指针\n长度可省略
+!zlib_zip.close() = 关闭对象
+!zlib_zip.writeDir(.(目录路径) =  添加目录
+!zlib_zip.compress(压缩源目录,回调函数,压缩密码,压缩级别,缓冲区大小) = @.compress( "__/*源目录*/",\n	function(len,path){\n		..io.print( len,path )\n	}\n)
+_ZIP_OK=@0/*_ZIP_OK*/
+_ZIP_EOF=@0/*_ZIP_EOF*/
+_ZIP_ERRNO=@-1/*_ZIP_ERRNO*/
+_ZIP_PARAMERROR=@-102/*_ZIP_PARAMERROR*/
+_ZIP_BADZIPFILE=@-103/*_ZIP_BADZIPFILE*/
+_ZIP_INTERNALERROR=@-104/*_ZIP_INTERNALERROR*/
+end intellisense**/

@@ -1,0 +1,31 @@
+//com.excel库范例
+import console;
+import com.excel; 
+
+console.log("正在启动excel")
+var excel;
+try { 
+	excel = com.excel() 
+}
+if( !excel ) error("该示例需要安装EXCEL",2)
+
+//excel.Visible = true; //使Excel窗口可见
+excel.alerts = false; //关闭所有操作提示
+
+ 
+var book = excel.WorkBooks.Add() //创建工作簿
+// book = excel.Open( "\test.xls" )
+  
+var sheet = excel.ActiveWorkbook.Sheets(1);
+var cell = sheet.Cells(1,1);
+cell.Value2 = "haha"   
+ 
+console.log( cell.Text )
+
+//遍列所有单元格
+for(i,values in excel.eachValue(1) ){ 
+	console.log("行号"+i,values[1],values[2])  
+}
+
+excel.Quit(); //退出
+console.pause();

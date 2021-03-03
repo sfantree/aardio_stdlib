@@ -1,0 +1,53 @@
+import web.json;
+import web.rest.client;
+namespace web.rest; 
+
+class jsonClient{
+	ctor( ... ){
+		this = ..web.rest.client( ... ); 
+		this.stringifyRequestParameters = stringifyRequestParameters;
+		this.parseResponseResult = function(s){
+			if( s="" ) return s;	
+			var t = this._http.responseContentType;
+			if( t &&  ..string.match( t,"[\w\/]*<@@json@>![\W]"  ) )
+				return ..web.json.parse(s,true);
+				
+			s = ..string.trim(s);
+			if( s[1] == '{'# || s[1] == '['# ){
+				return  ..web.json.parse(s,true);
+			}
+			
+			if( s[1]  == '<'# ) return s;
+			return  ..web.json.parse(s,true);
+		}
+		
+		this.contentType = "application/json";  
+		this.defaultContentType = "application/json";
+		this.acceptType = "application/json,text/json,*/*";
+	}; 
+	lastResponse = function(){
+		var s = this.lastResponseData;
+		if( s ){
+			s = ..string.trim(s);
+		 	if( s[1] == '{'# || s[1] == '['# && (!this._http.lastReadErrCode ) ){
+		 		s = ..web.json.stringify( ..web.json.parse(s,true),true);
+		 	}
+		 	if( ..console && _STUDIO_INVOKED ) ..console.log(s) else ..io.print(s);
+		 	return s;
+		}
+	};
+}
+
+namespace jsonClient {
+
+	var stringify = ..web.json.stringify;
+	stringifyRequestParameters = function(param/*,codepage*/){
+		param = stringify(param,false,true); //转换为UNICODE
+		return param;
+	} 
+}
+
+/**intellisense()
+web.rest.jsonClient = REST客户端\n请求数据,返回数据都使用JSON格式
+web.rest.jsonClient() = 创建REST客户端,\n!web_restClient.
+end intellisense**/

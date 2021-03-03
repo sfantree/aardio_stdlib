@@ -1,0 +1,216 @@
+//trackbar 滑尺控件
+import win.ui.ctrl.metaProperty;//导入控件属性元表支持
+namespace win.ui.ctrl; 
+
+class trackbar{
+    ctor(parent,tParam){ 
+    	if(tParam){
+    		tParam.cls = "msctls_trackbar32";
+			if(tParam.edge) tParam.exstyle |= 0x20000/*_WS_EX_STATICEDGE*/;	
+	 		
+	 		if(tParam.tip || ( tParam.tip === null) ) tParam.style |= 0x100/*_TBS_TOOLTIPS*/;
+	 		
+			if(tParam.vert) tParam.style |= 0x2/*_TBS_VERT*/;
+			if(tParam.msel) tParam.style |= 0x20/*_TBS_ENABLESELRANGE*/;
+		 	
+			var tick = TICKSTYLE[tParam.tick]; 
+			tParam.style |= tick===null?0x4/*_TBS_TOP*/:tick;
+			
+			if( !tParam.manual ){
+				tParam.style |= 0x1/*_TBS_AUTOTICKS*/;
+			};
+			
+			if( tParam.ntk ){
+				tParam.style |= 0x10/*_TBS_NOTICKS*/
+			};
+    	} 
+    }
+    onCreate = function(){   
+		this.setFrequency(5)
+    } 
+	@_metaProperty;
+}
+
+namespace trackbar{
+	TICKSTYLE = {
+		none = 0x10/*_TBS_NOTICKS*/;
+		top = 0x4/*_TBS_TOP*/;
+		bottom = 0x0/*_TBS_BOTTOM*/;
+		left = 0x4/*_TBS_LEFT*/;
+		right = 0x0/*_TBS_RIGHT*/;
+		both = 0x8/*_TBS_BOTH*/
+	}
+	_metaProperty = ..win.ui.ctrl.metaProperty(
+		
+		setTick = function(tk){
+			::SendMessageInt(owner.hwnd,0x404/*_TBM_SETTIC*/,0,tk)
+		}
+		
+		setFrequency  = function(interval=2){
+			::SendMessageInt(owner.hwnd,0x414/*_TBM_SETTICFREQ*/,interval,0)
+		}
+		
+ 		setRange = function(min,max){ 
+ 			owner.min2 = min;
+ 			owner.max2 = max;
+ 			 ::SendMessageInt(owner.hwnd,  0x406/*_TBM_SETRANGE*/   
+                  ,1 //  redraw  flag    
+                  ,::MAKELONG(min,max)
+                  )
+ 		}
+ 		setSel = function(min,max){
+ 			  ::SendMessageInt(owner.hwnd,  0x40A/*_TBM_SETSEL*/   
+                  ,0 //  redraw  flag    
+                  ,::MAKELONG(min,max)
+                  )
+ 		}
+ 		max = {
+			_get = function(){ 
+			 	return ::SendMessage(owner.hwnd, 0x402/*_TBM_GETRANGEMAX*/);
+			}
+			_set = function( v ){
+				 ::SendMessageInt(owner.hwnd,  0x408/*_TBM_SETRANGEMAX*/ 
+				  ,1 //  redraw  flag    
+                  ,v
+                  )
+			} 	
+		}; 
+		min = {
+			_get = function(){ 
+			 	return ::SendMessage(owner.hwnd,0x401/*_TBM_GETRANGEMIN*/);
+			}
+			_set = function( v ){
+				 ::SendMessageInt(owner.hwnd, 0x407/*_TBM_SETRANGEMIN*/ 
+				  ,1 //  redraw  flag    
+                  ,v
+                  )
+			} 	
+		};
+		pos = {
+			_get = function(){  
+				return ::SendMessage(owner.hwnd, 0x400/*_TBM_GETPOS*/ )
+			}
+			_set = function( v ){ 
+		     	::SendMessageInt(owner.hwnd, 0x405/*_TBM_SETPOS*/, 1,v:0)
+			} 	
+		} 
+	)
+}
+ 
+/***intellisense() 
+win.ui.ctrl.trackbar() = 跟踪条控件\n!trackbar.
+?win.ui.ctrl.trackbar = !trackbar.
+!trackbar.cls = 设计时类名
+!trackbar.className = 运行时类名
+!trackbar.pos = 滑块当前刻度,注意不能大于0xFFFF,不要使用负数
+!trackbar.hwnd = 控件句柄
+!trackbar.id = 控件ID
+!trackbar._parentForm = 控件所在的父窗口(指win.form对象)\n!winform.
+!trackbar.getParent() = 返回父窗口\n!static.
+!trackbar.setParent(__/*控件对象*/) = 改变父窗口 
+!trackbar.hide = 控件是否隐藏
+!trackbar.disabled = 是否禁用
+!trackbar.left = 左侧坐标
+!trackbar.right = 右侧坐标
+!trackbar.top = 顶部坐标
+!trackbar.bottom = 底部坐标
+!trackbar.width = 宽度
+!trackbar.height = 高度
+!trackbar.redraw() = 刷新
+!trackbar.show(true__) = 显示控件
+!trackbar.getRect() = 控件区块位置(::RECT结构体)
+!trackbar.getRect(true) = 控件屏幕区块位置(::RECT结构体)  
+!trackbar.setRect(rc) = 设置控件区块位置(::RECT结构体)  
+!trackbar.setRect(rc,true) = 设置控件屏幕区块位置(::RECT结构体)
+!trackbar.getClientRect() =  控件客户区块位置(::RECT结构体)\n!rect.
+!trackbar.getFont() = 控件字体(::LOGFONT结构体)\n!logfont.
+!trackbar.setFont(__/*指定字体*/) = 指定LOGFONT字体对象,或逻辑字体句柄 
+!trackbar.setFont(混入字体属性) = @.setFont(point=10;name="宋体");
+!trackbar.theme = 外观主题,例如\nwinform.button.theme = "Explorer"\nwinform.button.theme = false
+!trackbar.max = 最大值,注意不能大于0xFFFF,不要使用负数
+!trackbar.min = 最小值,注意不能大于0xFFFF,不要使用负数
+!trackbar.setTick(__/*刻度*/) = 显示设置刻度标记位置 
+!trackbar.setFrequency(2) = 刻度标记间隔\n必须在样式中指定自动刻度标记
+!trackbar.setRange(.(最小刻度,最大刻度) = 设置最大最小刻度,注意不能大于0xFFFF,不要使用负数
+!trackbar.setSel(.(起始刻度,结束刻度) = 设置选区
+!trackbar.modifyStyle(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos 
+!trackbar.modifyStyleEx(.(remove,add) = 如果指定第三个参数,则使用此参数调用::SetWidnowPos
+!trackbar.capture = 是否捕获全局鼠标消息
+!trackbar.close() = 关闭控件窗
+!trackbar.invalidate(__/*可选使用::RECT()对象指定客户区*/) = 使窗口绘图区无效
+!trackbar.invalidate(__/*可选使用::RECT()对象指定客户区*/,0) = 使窗口绘图区无效\n不刷新背景
+!trackbar.update() = 重绘invalidate函数指定的区块
+!trackbar.setFocus() = 设置焦点 
+!trackbar.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!trackbar.getPos() = 返回相对坐标,宽,高\nx,y,cx,cy=win.getPos(hwnd)
+!trackbar.threadCallable() = 开启此控件的跨线程调用功能
+!trackbar.sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+!trackbar.postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+end intellisense***/
+
+ /**intellisense()
+_TBS_AUTOTICKS=@0x1/*_TBS_AUTOTICKS*/
+_TBS_VERT=@0x2/*_TBS_VERT*/
+_TBS_HORZ=@0x0/*_TBS_HORZ*/
+_TBS_TOP=@0x4/*_TBS_TOP*/
+_TBS_BOTTOM=@0x0/*_TBS_BOTTOM*/
+_TBS_LEFT=@0x4/*_TBS_LEFT*/
+_TBS_RIGHT=@0x0/*_TBS_RIGHT*/
+_TBS_BOTH=@0x8/*_TBS_BOTH*/
+_TBS_NOTICKS=@0x10/*_TBS_NOTICKS*/
+_TBS_ENABLESELRANGE=@0x20/*_TBS_ENABLESELRANGE*/
+_TBS_FIXEDLENGTH=@0x40/*_TBS_FIXEDLENGTH*/
+_TBS_NOTHUMB=@0x80/*_TBS_NOTHUMB*/
+_TBS_TOOLTIPS=@0x100/*_TBS_TOOLTIPS*/
+_TBS_REVERSED=@0x200/*_TBS_REVERSED*/
+_TBS_DOWNISLEFT=@0x400/*_TBS_DOWNISLEFT*/
+_TBS_NOTIFYBEFOREMOVE=@0x800/*_TBS_NOTIFYBEFOREMOVE*/
+_TBS_TRANSPARENTBKGND=@0x1000/*_TBS_TRANSPARENTBKGND*/
+_TBM_GETPOS=@0x400/*_TBM_GETPOS*/
+_TBM_GETRANGEMIN=@0x401/*_TBM_GETRANGEMIN*/
+_TBM_GETRANGEMAX=@0x402/*_TBM_GETRANGEMAX*/
+_TBM_GETTIC=@0x403/*_TBM_GETTIC*/
+_TBM_SETTIC=@0x404/*_TBM_SETTIC*/
+_TBM_SETPOS=@0x405/*_TBM_SETPOS*/
+_TBM_SETRANGE=@0x406/*_TBM_SETRANGE*/
+_TBM_SETRANGEMIN=@0x407/*_TBM_SETRANGEMIN*/
+_TBM_SETRANGEMAX=@0x408/*_TBM_SETRANGEMAX*/
+_TBM_CLEARTICS=@0x409/*_TBM_CLEARTICS*/
+_TBM_SETSEL=@0x40A/*_TBM_SETSEL*/
+_TBM_SETSELSTART=@0x40B/*_TBM_SETSELSTART*/
+_TBM_SETSELEND=@0x40C/*_TBM_SETSELEND*/
+_TBM_GETPTICS=@0x40E/*_TBM_GETPTICS*/
+_TBM_GETTICPOS=@0x40F/*_TBM_GETTICPOS*/
+_TBM_GETNUMTICS=@0x410/*_TBM_GETNUMTICS*/
+_TBM_GETSELSTART=@0x411/*_TBM_GETSELSTART*/
+_TBM_GETSELEND=@0x412/*_TBM_GETSELEND*/
+_TBM_CLEARSEL=@0x413/*_TBM_CLEARSEL*/
+_TBM_SETTICFREQ=@0x414/*_TBM_SETTICFREQ*/
+_TBM_SETPAGESIZE=@0x415/*_TBM_SETPAGESIZE*/
+_TBM_GETPAGESIZE=@0x416/*_TBM_GETPAGESIZE*/
+_TBM_SETLINESIZE=@0x417/*_TBM_SETLINESIZE*/
+_TBM_GETLINESIZE=@0x418/*_TBM_GETLINESIZE*/
+_TBM_GETTHUMBRECT=@0x419/*_TBM_GETTHUMBRECT*/
+_TBM_GETCHANNELRECT=@0x41A/*_TBM_GETCHANNELRECT*/
+_TBM_SETTHUMBLENGTH=@0x41B/*_TBM_SETTHUMBLENGTH*/
+_TBM_GETTHUMBLENGTH=@0x41C/*_TBM_GETTHUMBLENGTH*/
+_TBM_SETTOOLTIPS=@0x41D/*_TBM_SETTOOLTIPS*/
+_TBM_GETTOOLTIPS=@0x41E/*_TBM_GETTOOLTIPS*/
+_TBM_SETTIPSIDE=@0x41F/*_TBM_SETTIPSIDE*/
+_TBM_SETBUDDY=@0x420/*_TBM_SETBUDDY*/
+_TBM_GETBUDDY=@0x421/*_TBM_GETBUDDY*/
+_TBM_SETPOSNOTIFY=@0x422/*_TBM_SETPOSNOTIFY*/
+_CCM_SETUNICODEFORMAT=@0x2005/*_CCM_SETUNICODEFORMAT*/
+_CCM_GETUNICODEFORMAT=@0x2006/*_CCM_GETUNICODEFORMAT*/
+_TBM_SETUNICODEFORMAT=@0x2005/*_TBM_SETUNICODEFORMAT*/
+_TBM_GETUNICODEFORMAT=@0x2006/*_TBM_GETUNICODEFORMAT*/
+_TB_LINEUP=@0x0/*_TB_LINEUP*/
+_TB_LINEDOWN=@0x1/*_TB_LINEDOWN*/
+_TB_PAGEUP=@0x2/*_TB_PAGEUP*/
+_TB_PAGEDOWN=@0x3/*_TB_PAGEDOWN*/
+_TB_THUMBPOSITION=@0x4/*_TB_THUMBPOSITION*/
+_TB_THUMBTRACK=@0x5/*_TB_THUMBTRACK*/
+_TB_TOP=@0x6/*_TB_TOP*/
+_TB_BOTTOM=@0x7/*_TB_BOTTOM*/
+_TB_ENDTRACK=@0x8/*_TB_ENDTRACK*/
+end intellisense**/

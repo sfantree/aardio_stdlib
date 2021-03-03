@@ -1,0 +1,191 @@
+//WINAPI常量转换工具
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="WINAPI 常量查询转换工具";right=632;bottom=440;parent=...)
+winform.add(
+btnConvert={cls="button";text="查询常量值并转换为aardio格式";left=291;top=371;right=584;bottom=432;db=1;dr=1;note="该工具需要TCC,VC编译器支持";z=2};
+editCode={cls="richedit";text="请在下面输入C语言中表示数值的宏或常量
+
+#define EN_SETFOCUS 0x0100
+#define EN_KILLFOCUS 0x0200
+#define EN_CHANGE 0x0300
+#define EN_UPDATE 0x0400
+#define EN_ERRSPACE 0x0500
+";left=13;top=8;right=623;bottom=331;db=1;dl=1;dr=1;dt=1;edge=1;multiline=1;vscroll=1;wrap=1;z=1};
+radioComment={cls="radiobutton";text="注释格式";left=50;top=343;right=132;bottom=365;checked=1;db=1;dr=1;z=3};
+radioConst={cls="radiobutton";text="常量声明格式";left=254;top=343;right=357;bottom=365;db=1;dr=1;z=5};
+radioIntell={cls="radiobutton";text="智能提示格式";left=140;top=343;right=243;bottom=365;db=1;dr=1;z=4}
+)
+/*}}*/
+
+//创建TCC编译器
+import vc6; 
+var convert = function( codeText,proc ){ 
+	import tcc;  
+	import thread.command;
+	var template = /**** 
+		#include <stdio.h>
+		#include <stdlib.h> 
+		#include <windows.h>
+		#include <winuser.h> 
+		#include <basetsd.h> 
+		#include <basetyps.h> 
+		#include <winbase.h> 
+		#include <wincon.h> 
+		#include <windef.h> 
+		#include <windows.h> 
+		#include <winerror.h> 
+		#include <wingdi.h> 
+		#include <winnetwk.h> 
+		#include <winnls.h> 
+		#include <winnt.h> 
+		#include <winreg.h> 
+		#include <winsvc.h> 
+		#include <winuser.h> 
+		#include <winver.h> 
+		#include <wininet.h> 
+		#include <winhttp.h> 
+		int getDef (){    
+   			return ${DEF};
+		}  
+	****/ 
+	var tResult = { define = true;} 
+	for DEF,VALUE in string.gmatch( codeText,"#define\s+(\S+)\s+(\S+)") { 
+		tResult[DEF] = true;
+		var line = proc(VALUE,DEF );
+		thread.command.send("#DEFINE",line); 
+		..table.push(tResult,line);
+	}
+	for DEF in string.gmatch( codeText,"![\w][_a-zA-Z][\w_]+") { 
+		var vm = tcc( );
+		DEF = string.trimleft(DEF,"_")
+		if(tResult[DEF])
+			continue 
+		tResult[DEF]=true;
+ 
+		var code = string.replace(template,"@${DEF}",DEF )
+		try{ 
+			vm.compile(code);  
+			var getDef_c = vm.getCdecl("getDef","int()")  
+			var line = proc(getDef_c(),DEF );
+			thread.command.send("#DEFINE",line); 
+			..table.push(tResult,line);
+		}
+		catch(e){ 
+			var value; 
+			import fsys;
+			if( ..string.upper(DEF) != DEF ) return;
+			
+			..fsys.enum( "~\lib\vc6\.vc\Microsoft SDK\Include", "*.h",
+				function(dir,filename,fullpath,findData){ 
+					if(filename){ 
+			           	var s = ..string.load(fullpath); 
+			            value = s ? ..string.match(s,"#define\s+<@"+DEF+"@>" + "\s+(\N+)");
+			           	if(value){
+			           		var line = proc(value,DEF );
+			           		thread.command.send("#DEFINE",line); 
+			           		..table.push(tResult,line);
+			           		return false; 
+			           	}
+					} 
+				}  
+			);
+			if( !value ){
+				..fsys.enum( "\lib\vc6\.vc\Include", "*.h",
+					function(dir,filename,fullpath,findData){ 
+						if(filename){ 
+			           		var s = ..string.load(fullpath);
+			            	value = s ? ..string.match(s,"#define\s+<@"+DEF+"@>" + "\s+(\N+)");
+			           		if(value){
+			           			var line = proc(value,DEF );
+			           			thread.command.send("#DEFINE",line); 
+			           			..table.push(tResult,line);
+			           			return false; 
+			           		}
+						} 
+					}  
+				);
+			}
+		}
+		vm.close()
+	}  
+	
+	return ..string.join(tResult,'\n');
+}
+ 
+import thread.command;
+thread.command.instance()["#DEFINE"] = function(s){
+	winform.editCode.print(s);
+}
+
+winform.editCode.modifyEvent(,0x1/*_ENM_CHANGE*/)
+winform.editCode.oncommand = function(id,event){
+	if( event == 0x300/*_EN_CHANGE*/ ){
+		winform.editCode.srcCodeText = null; 
+	}
+}
+
+import win.ui.menu;//必须导入菜单支持库
+winform.editCode.wndproc = function(hwnd,message,wParam,lParam){
+	if( message == 0x205/*_WM_RBUTTONUP*/  ){ 
+	   winform.editCode.popMenu();
+	}
+}
+
+winform.btnConvert.oncommand = function(id,event){
+	winform.btnConvert.disabled = true;
+	winform.radioConst.disabled = true;
+	winform.radioIntell.disabled = true;
+	winform.radioComment.disabled = true;
+	
+	var str;
+	var codeText = winform.editCode.text;
+	var srcCodeText;
+	if( winform.editCode.srcCodeText ){
+		codeText = winform.editCode.srcCodeText;
+	}
+	var srcCodeText = codeText; 
+	
+	winform.editCode.text = null;
+	if( winform.radioConst.checked ){
+		str = win.invoke( convert,
+			codeText ,function(value,name){
+				if( value <= 0 )return string.format("_%s = %d",name,value )
+				return string.format("_%s = 0x%X",name,value )
+			}
+		)
+			
+	}
+	elseif( winform.radioComment.checked ){
+		str = win.invoke( convert,
+			codeText ,function(value,name){
+				if( value <= 0 )return string.format("%d/*_%s*/",value,name )
+				return string.format("0x%X/*_%s*/",value,name )
+			}
+		) 	
+	}
+	elseif( winform.radioIntell.checked ){
+		str = win.invoke( convert,
+			codeText ,function(value,name){
+				if( value <= 0 )return string.format("_%s=@%d/*_%s*/",name,value,name )
+				return string.format("_%s=@0x%X/*_%s*/",name,value,name )
+			}
+		) 
+		str ='/**intellisense()\r\n' + str + '\r\nend intellisense**/'	
+	}
+	winform.editCode.text = str;
+	winform.editCode.srcCodeText = srcCodeText;
+	
+	winform.btnConvert.disabled = false;
+	winform.radioConst.disabled = false;
+	winform.radioIntell.disabled = false;
+	winform.radioComment.disabled = false;
+}
+ 
+winform.radioComment.oncommand = winform.btnConvert.oncommand  
+winform.radioConst.oncommand = winform.btnConvert.oncommand  
+winform.radioIntell.oncommand = winform.btnConvert.oncommand 
+
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();

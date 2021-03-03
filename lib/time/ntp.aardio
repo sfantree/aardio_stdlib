@@ -1,0 +1,158 @@
+//ntp 网络时间同步
+import time.performance;
+import wsock.udp.client;
+import util.metaProperty;
+
+namespace time.ntp;
+
+class NtpTime {
+    ctor(){
+		this = {
+			INT seconds;
+			INT fraction;  
+			@_metaProperty
+		}
+		
+		this.time = ..time(,"!%c");
+    } 
+}
+
+NtpTime._metaProperty = ..util.metaProperty( 
+	time = {
+		_get = function(){  
+			if( owner.seconds === null ) return;
+			var tm = ..time( ..wsock.htonl(owner.seconds) - 2208988800/*1900~1970*/,"!%c" ); 
+			if(!tm) return;
+			tm.milliseconds = ..wsock.htonl(owner.fraction) / 4294967.296/* (2**32/1000) */; 
+			return tm;
+		}
+		_set = function( value ){
+			if(!..time.istime(value)) error("属性值不是time对象",2);
+			owner.fraction = ..wsock.ntohl( value.milliseconds * 4294967.296/* (2**32/1000) */ ); 
+			owner.seconds = ..wsock.ntohl( tonumber(value) + 2208988800/*1900~1970*/ ); 
+		} 	
+	}; 
+	size64 = function(){
+		return ..math.size64(owner.fraction,owner.seconds);
+	};
+	_tostring = function(){
+		return tostring(owner.time)
+	};
+)
+
+var NtpTime = NtpTime;
+class NTPData {
+    BYTE header = 2#00011011;
+    BYTE stratum = 1; 
+    BYTE poll = 1;  
+    BYTE precision = 1; 
+    INT rootDelay;
+    INT rootDispersion;
+    INT referenceIdentifier; 
+    struct referenceTimestamp = NtpTime();
+    struct originateTimestamp = NtpTime();
+    struct receiveTimestamp = NtpTime();
+    struct transmitTimestamp = NtpTime(); 
+}
+
+getData = function(server,port,timeout,sendData){
+	var udpClient = ..wsock.udp.client(); 
+	if(!server){
+		server = {"time1.aliyun.com";"time1.cloud.tencent.com";"time.apple.com"}
+	}
+	
+	var data = NTPData(); 
+	if(type(server)===type.table){
+		udpClient.setTimeouts( timeout : 2000,timeout : 2000);
+		
+		var connected;
+		for(i=1;#server;1){ 
+			if( udpClient.connect(server[i],port : 123) ){
+				data.server = server[i];
+				connected = true; 
+				break ;
+			}
+		}
+		
+		if(!connected){
+			return;
+		}
+	}
+	else {
+		data.server = server;
+		udpClient.setTimeouts( timeout : 3000,timeout : 3000);
+		if( !udpClient.connect(server,port : 123) ){ 
+			return null,..wsock.err.lasterr();
+		}
+	}
+	
+	if(sendData) ..table.assign( data,sendData);
+	
+	var tick = ..time.performance.tick(); 
+	if( !udpClient.sendto( ..string.concat(..raw.tostring(data),data[["authenticator"]]) ) ){
+		return null,wsock.err.lasterr();
+	} 
+	
+	var recvbuf = udpClient.recvfrom()
+	if( !recvbuf ){
+		return null,..wsock.err.lasterr();
+	}
+	udpClient.close();
+	
+	..raw.convert(recvbuf,data);
+	var r = data.receiveTimestamp.time;
+	var t = data.transmitTimestamp.time;
+	if(!(r&&t)) return null;
+	
+	var c = (tonumber(t) - tonumber(r))*1000 + ( t.milliseconds - r.milliseconds); 
+	data.delayMilliseconds = ( ..time.performance.tick() - tick - c ) / 2;
+	
+	var s,ms = ..math.modf( ( (data.delayMilliseconds + t.milliseconds) / 1000)  ); 
+	t.milliseconds = 0;
+	data.time = t.addsecond( s );
+	data.time.milliseconds = ms * 1000;
+	
+	if(data.time.year < 2019){
+		var sec = tonumber( ..time.iso8601("2036-02-07 06:28:15") )
+		data.time.addsecond(sec);
+	}
+	return data;
+}
+
+setprivilege('SeSystemtimePrivilege',true)
+updateSystemTime = function(tm){
+    if(tm){ return ::Kernel32.SetSystemTime(tm.utc()) }
+
+	var data = getData();
+	if(data && data.time ){
+		::Kernel32.SetSystemTime(data.time);
+		return data.time;
+	}
+}
+
+/**intellisense(!wsockntpdata)
+time = 报文返回后计算出的当前时间\n!time.
+header = 报文头
+stratum = 时钟的层数，定义了时钟的准确度。层数为1的时钟准确度最高，从1到16依次递减
+poll = 轮询时间，即发送报文的最小间隔时间 
+precision = 时钟的精度 
+rootDelay = 到主参考时钟的总往返延迟时间
+rootDispersion = 本地时钟相对于主参考时钟的最大误差
+referenceIdentifier = 参考时钟源的标识
+referenceTimestamp = 最后一次更新的时间
+originateTimestamp = 客户端报文发送时间
+receiveTimestamp = NTP服务器接收报文时间
+transmitTimestamp = NTP服务器报文发送时间
+delayMilliseconds = 服务端到客户端延时值\n毫秒
+referenceIdentifier.time = !time.
+referenceTimestamp.time = !time.
+originateTimestamp.time = !time.
+receiveTimestamp.time = !time.
+transmitTimestamp.time = !time.
+end intellisense**/
+ 
+/**intellisense(time.ntp)
+getData(.("ntp服务器",端口,超时) = 除参数@1之外所有参数可选\n参数@1也可以用一个数组指定多个服务器,\n因为网络的不稳定性,该函数可能失败返回null
+getData() = !wsockntpdata.
+updateSystemTime() = 使用NTP服务器获取的时间校正系统时间,\n可选在参数中使用time对象指定要设置的时间\n需要以管理员权限启动当前进程,\n!time.
+end intellisense**/

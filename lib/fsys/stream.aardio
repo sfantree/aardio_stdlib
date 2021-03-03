@@ -1,0 +1,275 @@
+//stream 文件流
+import util.metaProperty;
+import com.interface.IStream;
+namespace fsys;
+
+class stream{
+	ctor( str,len,grfMode){   
+		if( type(str) == "pointer" ){
+			this.stream = ..com.interface(str,..com.interface.IStream );
+			if(len) ..com.Release(str);
+		}
+		elseif( type(len) == type.string ){
+			var mode = len;
+			var grfMode = 0;
+			var f=mode[1];
+			var seekend;
+			
+			if(grfMode===null) grfMode = 0x00000020/*STGM_SHARE_DENY_WRITE*/
+			if( f='r'# ) { 
+				grfMode |= 0/* _STGM_READ*/
+			}
+			else {  
+				if( f='w'#  ) {
+					grfMode |= 0x00001000/*STGM_CREATE*/ | 1/*STGM_WRITE*/;
+					if( ..io.exist(str) ) ..io.remove(str)
+				}
+				else{ 
+					grfMode |=  1/*STGM_WRITE*/
+					if(! ..io.exist(str) ) grfMode |= 0x00001000/*STGM_CREATE*/;
+					seekend = true;
+				}
+			}
+			
+			if(..string.indexAny(mode,"+") ){ 
+				grfMode = grfMode | 2/*STGM_READWRITE*/; 
+			} 
+			
+			var ppstm = {ptr pIStream}
+			var hr = ::Shlwapi.SHCreateStreamOnFileW(..io.fullpath(str), grfMode,ppstm);
+			if(  (hr)<0/*_FAILED*/ ) return;
+			this.stream = ..com.interface(ppstm.pIStream,..com.interface.IStream) 
+			..com.Release(ppstm.pIStream);
+			
+			if(seekend)this.stream.Seek(0,0x2/*_FILE_END*/,0);
+		} 
+		else{
+			var hMemory;
+			if( str || len ){
+				if(!len) len = #str;
+				len = ..math.max(len,#str) 
+				hMemory= ::GlobalAlloc( 0x2 /*_GMEM_MOVEABLE*/, len);
+				if( str ){
+					var pMemory=::GlobalLock(hMemory);
+					::CopyMemory(pMemory,str,len);
+					::GlobalUnlock(hMemory); 
+				}
+			}
+			
+			var hr,pIStream = ::CreateStreamOnHGlobal(hMemory, true/*GlobalFree*/); 
+			if(  (hr)<0/*_FAILED*/ ) return;
+		    this.stream = ..com.interface(pIStream,..com.interface.IStream) 
+			..com.Release(pIStream);
+		}
+		this.__isIStream = true;
+	};
+
+	@_metaProperty;
+}
+namespace stream{
+
+	_metaProperty = ..util.metaProperty(
+		close = function(){
+			if(owner.stream){
+				..com.Release(owner.stream);
+				owner.stream = null;
+			} 
+		};
+		readAll = function(){
+			owner.reset();
+			return owner.read(-1);
+		};
+		read = function(len){
+			if( len === null ){
+				var d = {};
+				while( 
+			    	var hr,s,size;
+			    	hr,s,size = owner.stream.Read(1,1,0); 
+			    	( (hr)>=0/*_SUCCEEDED*/ && size )
+				) {
+					if( s == '\n' ) return ..string.join(d);
+					if(s!='\r')..table.push(d,s);
+				}
+				return; 
+			}
+			if( len[["_struct"]] ){
+					var t = len;
+					var len =  ..raw.sizeof(t)
+					var hr,s,size = owner.stream.Read(len,len,0);
+					if(  (hr)>=0/*_SUCCEEDED*/ ) { 
+						if(size == len) return ..raw.convert(s,t);
+					}
+					return;
+				}
+					
+			if( len < 0 ) len = ( owner.size() - owner.seek() ) + len + 1; 
+			var hr,s,size = owner.stream.Read(len,len,0);
+			if(  (hr)>=0/*_SUCCEEDED*/ ) { 
+				if(size != len)return ..string.left(s,size);
+				return s;
+			}
+		};
+		readTo = function(ends){  
+			if( type(ends)!="string" || (!#ends) ) error("参数错误",2);
+			var lends = #ends; 
+			var bytes = {}  
+			var push = ..table.push;
+			while( 
+				var hr,byte,size;
+				hr,byte,size = owner.stream.Read(1,1,0);
+				(  (hr)>=0/*_SUCCEEDED*/ ) && size 
+			) {    
+				push(bytes,byte); 
+				if( byte == ends[[lends]]){ 
+					var l = #bytes;
+					for(i=lends-1;1;-1){ 
+						if( ends[[i]] != bytes[l-lends + i ] ){ 
+							continue 2;
+						} 
+					}
+					..table.pop(bytes,lends);
+					return ..string.join(bytes); 
+				}  
+			}
+		}; 
+		readBuffer = function(buf,len){
+			if(len===null) len=#buf;
+			var hr,s,size = owner.stream.Read(buf,len,0);
+			if(  (hr)>=0/*_SUCCEEDED*/ ) {  
+				return size;
+			}
+		}; 
+		write = function(str,len){
+			if( str[["_struct"]]) str = ..raw.buffer(str); 
+			
+			if(!len) len = #str;
+			var hr,len = owner.stream.Write(str,len,0);
+			if(  (hr)>=0/*_SUCCEEDED*/ ){ 
+				var cur = owner.seek(); 
+				if( cur > owner.size() ) owner.setSize(cur);
+				return len;
+			}
+		};
+		writeBuffer = function(buf,len){
+			if(len===null) len=#buf;
+			var hr,len = owner.stream.Write(buf,len,0);
+			if(  (hr)>=0/*_SUCCEEDED*/ ){ 
+				var cur = owner.seek(); 
+				if( cur > owner.size() ) owner.setSize(cur);
+				return len;
+			}
+		}; 
+		seek = function(org="cur",move=0){
+			var hr,pos = owner.stream.Seek(move,_seekMode[org],0);
+			if(  (hr)>=0/*_SUCCEEDED*/ ) return pos;
+		};
+		setSize = function(size){
+			var hr,pos = owner.stream.SetSize(size);
+			if(  (hr)>=0/*_SUCCEEDED*/ ) return size;	
+		};
+		stat = function(flag  = 0/*_STATFLAG_DEFAULT*/ ){
+			var hr,s = owner.stream.Stat( STATSTG(),flag);
+			if(  (hr)>=0/*_SUCCEEDED*/ ) return s;
+		};
+		size = function(){
+			var c = owner.seek();
+			var len = owner.seek("end",0);
+			owner.seek("set",c);
+			return len; 
+		}; 
+		reset = function(){
+			owner.seek("set",0);
+			return owner;
+		};
+		commit = function(flag){
+			owner.stream.Commit(flag:0);
+		};
+		revert = function(flag){
+			return owner.stream.Revert(flag:0);
+		}
+		flush = function(){
+			owner.stream.Commit(flag:0);
+		};
+		lockPointer = function(){
+			var hr,handle = ::GetHGlobalFromStream(owner.stream);    
+			if( (hr)<0/*_FAILED*/ ) return;
+			if( !handle ) return;
+			var size = ::GlobalSize(handle);
+			var ptr = ::GlobalLock(handle); 
+			return ptr,size;
+		};
+		unlockPointer = function(){
+			var hr,handle = ::GetHGlobalFromStream(owner.stream);    
+			if( (hr)<0/*_FAILED*/ ) return;
+			if( !handle ) return;
+
+			return !::GlobalUnlock(handle); 
+		};
+		_topointer = function(){
+			return owner.stream;
+		};
+		_serialize = function(kernelCall){
+			 return "null"
+		}
+		_type="fsys.stream";
+	)
+	::Shlwapi  := ..raw.loadDll("Shlwapi.dll");
+	
+	_seekMode = {
+	 	["cur"] = 0x1/*_FILE_CURRENT*/;
+	 	["end"] = 0x2/*_FILE_END*/;
+	 	["set"] = 0x0/*_FILE_BEGIN*/;
+	} 	
+	
+	class STATSTG {
+  		pointer pwcsName;
+  		INT type;
+  		LONG cbSize;
+  		struct mtime = ::FILETIME();
+  		struct ctime = ::FILETIME();
+  		struct atime = ::FILETIME();
+  		INT grfMode;
+  		INT grfLocksSupported;
+  		struct clsid = ..win.guid();
+  		INT grfStateBits;
+  		INT reserved;
+	}
+}
+
+/**intellisense()
+fsys.stream = 创建文件流对象\n兼容IStream,ISequentialStream接口
+fsys.stream(.(IStream接口指针) = 直接使用指针创建对象
+fsys.stream(.(IStream接口指针,true) = 直接使用指针创建对象,该指针的COM引用计数减一\n注意对象自身会增加COM引用计数并在释放时移除
+fsys.stream(.(初始化数据,缓冲区长度) = 创建内存流文件,所有参数可选\n可选使用参数@3指定选项,此参数请参考库源码
+fsys.stream(.("文件路径","r+") = 读写模式打开文件流,文件必须存在\n注意流对象总是以二进制模式读写，不需要添加b标记
+fsys.stream(.("文件路径","w") = 只写模式打开文件流,创建新文件清空原文件\n注意流对象总是以二进制模式读写，不需要添加b标记
+fsys.stream(.("文件路径","w+") = 读写模式打开文件流,创建新文件清空原文件\n注意流对象总是以二进制模式读写，不需要添加b标记
+fsys.stream(.("文件路径","a") = 只写追加模式打开文件流,创建新文件保留原文件
+fsys.stream(.("文件路径","a+") = 读写追加模式打开文件流,创建新文件保留原文件\n注意流对象总是以二进制模式读写，不需要添加b标记
+fsys.stream() = !fsys_stream.
+!fsys_stream.read( = 读数据
+!fsys_stream.read(.(-1) = 参数指定读取长度,-1为读到尾部\n参数也可以指定一个结构体用于填充读取的数据,\n无参数读取一行
+!fsys_stream.readAll() = 移到指针到文件头\n读取到文件尾返回所有数据
+!fsys_stream.readTo( = 读取直到以指定的字符串结束
+!fsys_stream.readTo(.('结束串') = 读取直到以指定的字符串结束,返回值不包含结束串,\n该函数每次仅读取一个字节,效率较低
+!fsys_stream.size() = 得到数据长度
+!fsys_stream.write( = 写数据
+!fsys_stream.write(.(数据,长度) = 写入数据\n参数@1可使用字符串、缓冲区、指针、结构体等\n如果指定指针就必须明确指定写入长度
+!fsys_stream.readBuffer(.(缓冲区,读取长度) = 读取数据到缓冲区,\n参数@1应是raw.buffer对象,参数@2省略则默认为缓冲区长度
+!fsys_stream.writeBuffer(.(缓冲区,读取长度) = 缓冲区数据写入流,\n参数@1应是raw.buffer对象,参数@2省略则默认为缓冲区长度
+!fsys_stream.seek("end") = 移动指针至结束处
+!fsys_stream.seek("end",__) = 移动至相对结束处的指定偏移量
+!fsys_stream.seek() = 得到当前位置
+!fsys_stream.seek("cur",__) = 移动至相对当前位置的指定偏移量
+!fsys_stream.seek("set") = 移动指针到开始
+!fsys_stream.seek("set",__) = 移动至相对开始处的指定偏移量
+!fsys_stream.reset() = 文件指针移动到开始\n类似seek(0,"set"),不同的是此函数返回对象自身\n!fsys_stream.
+!fsys_stream.close() = 关闭对象
+!fsys_stream.stat() = 返回流状态\n返回值为STATSTG结构体\n!fsysstramSTATSTG.
+!fsys_stream.flush() = 提交更改\n兼容aardio标准流接口
+!fsys_stream.commit(.(flags) = 提交更改 
+!fsys_stream.revert() = 撤消更改
+!fsys_stream.lockPointer() = 如果这是一个内存流,\n锁定内存并返回内存指针，内存长度,\n需要使用对象的unlockPointer()成员函数解锁内存\n写入内存流可能导致重新分配内存,所以返回的指针可能会变动
+!fsys_stream.unlockPointer() = 解锁内存\n用lockPointer函数获取内存指针使用以后，必须调用此函数
+!fsysstramSTATSTG.cbSize = 文件长度
+end intellisense**/ 

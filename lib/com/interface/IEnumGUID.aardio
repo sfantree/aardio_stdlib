@@ -1,0 +1,26 @@
+﻿import com.interface;
+namespace com.interface;
+
+class IEnumGUID{
+	ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer Next = "int(INT celt,struct &rgelt,INT &celtFetched)"; 
+	pointer Skip = "int(INT ulCount)";
+	pointer Reset = "int()";
+	pointer Clone = "int(ptr ppEnum)";
+	each = function(){
+		// owner才是当前com对象,this指向的是接口定义
+		var this = owner;
+		
+		return function(){
+    		var guid = ..win.guid() 
+    		var hr,guid,celtFetched = this.Next(1,guid,0); 
+    		if( (hr>=0/*_SUCCEEDED*/) && celtFetched){  
+    			return guid;  
+    		}
+    	} ; 
+	}
+	
+}
+IEnumGUID.IID = "{0002E000-0000-0000-C000-000000000046}"; 

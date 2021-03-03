@@ -1,0 +1,43 @@
+//path 路径环境变量
+import win;
+import fsys;
+
+namespace win.path;
+
+get = function(){
+	return ..string.split(..win.getenv("path"),";")
+}
+	
+search = function(filename){
+	var path = ..fsys.searchFile(filename);
+	if(path) return path;
+	
+	var paths = get();
+	for(k,v in paths ){
+		path = ..fsys.joinpath(v,filename);
+		if( ..io.exist(path) ) return path
+	} 
+	return 
+}
+
+searchDll = function(path,...){
+    path = ..io.localpath(path) : path;
+	var h = ::Kernel32.LoadLibraryEx(path, ,2/*_LOAD_LIBRARY_AS_DATAFILE*/);
+	if (h){ 
+		if(...){
+			::Kernel32.FreeLibrary(h);
+			return searchDll(...); 
+		}
+		
+		var buf = {WORD path[0x104]}
+		::Kernel32.GetModuleFileNameW(h, buf, 0x104/*_MAX_PATH*/);
+		::Kernel32.FreeLibrary(h);
+		if(#buf.path) return buf.path;
+	}	
+}
+
+/**intellisense(win.path)
+search("__") = 以当前目录、应用程序目录、EXE目录、系统目录,path环境变量指定的目录下查的文件
+get() = 返回PATH环境变量中的目录路径数组
+searchDll(__) = 按系统加载DLL的查找规则查找DLL文件,\n如果指定多个参数,只要一个参数指定的DLL没找到即返回null\n如果所有指定的DLL都找到了,返回最后一个参数指定的DLL完整路径
+end intellisense**/

@@ -1,0 +1,21 @@
+//自动完成2
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="自动完成( 固定列表数据,请输入字母f )";right=600;bottom=400)
+winform.add(
+combobox={cls="combobox";left=82;top=48;right=231;bottom=72;edge=1;items={};mode="dropdown";z=1}
+)
+/*}}*/
+
+var itemData = {"fun1";"fun12";"fun123";"fun1234"}
+winform.combobox.items = itemData;
+ 
+winform.combobox.onEditChange = function(){ 
+ 
+    var text = winform.combobox.text;
+    var items = table.filter( itemData, lambda(v) string.startWith(v,text) ); 
+    winform.combobox.autoComplete(items);  
+}
+
+winform.show() 
+win.loopMessage();

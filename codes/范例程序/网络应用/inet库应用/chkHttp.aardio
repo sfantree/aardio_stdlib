@@ -1,0 +1,150 @@
+//HTTP状态码、错误代码检测 
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="HTTP状态码、错误代码检测 - aardio";right=485;bottom=347;parent=...)
+winform.add(
+btnCheck={cls="button";text="检测";left=393;top=30;right=455;bottom=56;z=2};
+editResult={cls="richedit";left=10;top=62;right=473;bottom=341;edge=1;font=LOGFONT(name='Microsoft Sans Serif');hscroll=1;link=1;multiline=1;vscroll=1;wrap=1;z=3};
+editUrl={cls="edit";text="http://eu.httpbin.org/status/402";left=43;top=32;right=387;bottom=54;edge=1;multiline=1;z=1};
+static={cls="static";text="请输入网址、或直接输入HTTP状态码、错误代码:";left=12;top=9;right=299;bottom=25;transparent=1;z=4}
+)
+/*}}*/
+
+//开启自动完成
+::Shlwapi := ..raw.loadDll("Shlwapi.dll") 
+::Shlwapi.SHAutoComplete( winform.editUrl.hwnd,0/*_SHACF_DEFAULT*/);
+
+import inet.url;
+winform.btnCheck.oncommand = function(id,event){
+	
+	var url = winform.editUrl.text;
+	if(! ..inet.url.is(url) ){
+		if( tonumber(url) ){
+			import inet.httpStatusCode;
+			winform.editResult.text = inet.httpStatusCode[tonumber(url) ] || winInetErrorMessage[tonumber(url)]  || "未知错误代码"
+			return;
+		}
+		winform.msgboxErr("请输入正确的网址");
+		winform.editUrl.setFocus(0,-1);
+		return;
+	}
+	
+	//禁用按钮,避免重复点击
+	winform.btnCheck.disabled = true;
+	winform.editResult.text = "请稍候,正在连接......." 
+	
+	winform.editResult.text = win.invoke(
+		function(url,winInetErrorMessage){
+			import inet.http; 
+			import inet.httpStatusCode; 
+			 
+			//创建http对象
+			var http = inet.http(); 
+			if( !http.beginRequest( url,"HEAD",,,0x200000/*_INTERNET_FLAG_NO_AUTO_REDIRECT*/ ) ) {
+				http.close();
+				return "无效的请求"; 
+			} 
+			
+			//发送请求
+			var ret,errMsg,errCode = http.send(); 
+			if(http.statusCode){  
+				var msg = string.concat( "返回状态码：", http.statusCode + '\r\n' 
+					, inet.httpStatusCode[http.statusCode] ,'\r\n',http.readHeader() ,);
+					
+				http.close();
+				return msg;
+			}
+			else {
+				http.close();
+				
+				if( type(errCode) == type.number ){
+					var msg = "请求失败,错误代码：" + errCode + '\r\n'
+						+ ( winInetErrorMessage[errCode] : "")
+					
+					if( errCode == 12003 ) msg = ..string.concat(errCode,'\r\n',inet.lastResponse() );
+					
+					return msg;
+				}
+				return"请求失败";	
+				
+			}
+		},url,winInetErrorMessage 
+	)
+	 
+	winform.btnCheck.disabled = false; 
+}
+
+winInetErrorMessage = {
+	[12001]="No more handles could be generated at this time.";
+	[12002]="The request has timed out.";
+	[12003]="An extended error was returned from the server. This istypically a string or buffer containing a verbose errormessage. Call InternetGetLastResponseInfo to retrieve theerror text.";
+	[12004]="An internal error has occurred.";
+	[12005]="The  is invalid.";
+	[12006]="The  scheme could not be recognized or is not supported.";
+	[12007]="The server name could not be resolved.";
+	[12008]="The requested protocol could not be located.";
+	[12009]="A request to InternetQueryOption or InternetSetOptionspecified an invalid option value.";
+	[12010]="The length of an option supplied to InternetQueryOption orInternetSetOption is incorrect for the type of optionspecified.";
+	[12011]="The request option cannot be set, only queried.";
+	[12012]="The Win";
+	[12013]="The request to connect and log on to an  server couldnot be completed because the supplied user name isincorrect.";
+	[12014]="The request to connect and log on to an  server couldnot be completed because the supplied password isincorrect.";
+	[12015]="The request to connect to and log on to an  serverfailed.";
+	[12016]="The requested operation is invalid.";
+	[12017]="The operation was canceled, usually because the handle onwhich the request was operating was closed before theoperation completed.";
+	[12018]="The type of handle supplied is incorrect for thisoperation.";
+	[12019]="The requested operation cannot be carried out because thehandle supplied is not in the correct state.";
+	[12020]="The request cannot be made via a proxy.";
+	[12021]="A required registry value could not be located.";
+	[12022]="A required registry value was located but is an incorrecttype or hasan invalid value.";
+	[12023]="Direct network access cannot be made at this time.";
+	[12024]="An asynchronous request could not be made because a zerocontext value was supplied.";
+	[12025]="An asynchronous request could not be made because acallback functionhas not been set.";
+	[12026]="The required operation could not be completed because oneor more requests are pending.";
+	[12027]="The format of the request is invalid.";
+	[12028]="The requested item could not be located.";
+	[12029]="The attempt to connect to the server failed.";
+	[12030]="The connection with the server has been terminated.";
+	[12031]="The connection with the server has been reset.";
+	[12032]="Calls for the Win32 Internet function to redo the request";
+	[12033]="The request to the proxy was invalid.";
+	[12036]="The request failed because the handle already exists.";
+	[12037]="certificate date that was received from the server isbad. The certificate is expired.";
+	[12038]="certificate common name (host name field) is incorrect.For example, if you entered www.server.com and the commonname on the certificate says www.different.com.";
+	[12039]="The application is moving from a non- to an connection because of a redirect.";
+	[12040]="The application is moving from an  to an non-connection because of aredirect.";
+	[12041]="Indicates that the content is not entirely secure. Some ofthe content being viewed may have come from unsecuredservers.";
+	[12042]="The application is posting and attempting to changemultiple lines oftext on a server that is not secure.";
+	[12043]="The application is posting data to a server that is notsecure.";
+	[12110]="The requested operation cannot be made on the  sessionhandle becausean operation is already in progress.";
+	[12111]="The  operation was not completed because the session wasaborted.";
+	[12130]="An error was detected while parsing data returned from thegopher server.";
+	[12131]="The request must be made for a file locator.";
+	[12132]="An error was detected while receiving data from the gopherserver.";
+	[12133]="The end of the data has been reached.";
+	[12134]="The supplied locator is not valid.";
+	[12135]="The type of the locator is not correct for this operation.";
+	[12136]="The requested operation can only be made against a Gopher+server or with a locator that specifies a Gopher+operation.";
+	[12137]="The requested attribute could not be located.";
+	[12138]="The locator type is unknown.";
+	[12150]="The requested header could not be located.";
+	[12151]="The server did not return any headers.";
+	[12152]="The server response could not be parsed.";
+	[12153]="The supplied header is invalid.";
+	[12154]="The request made to HttpQueryInfo is invalid.";
+	[12155]="The header could not be added because it already exists.";
+	[12156]="The redirection failed because either the scheme changed(for example, to ) or all attempts made to redirectfailed (default is five attempts).";
+	[12157]="Security Channel Error";
+	[12158]="Unable to Cache File";
+	[12159]="TCP/IP not installed";
+	[12160]="Not Redirected";
+	[12161]="Cookie Needs Confirmation";
+	[12162]="Cookie Declined";
+	[12168]="Redirect Needs Confirmation"; 
+}
+
+import ide;
+win.setOwner(winform.hwnd,ide.getMainHwnd());
+
+winform.show() 
+win.loopMessage();

@@ -1,0 +1,322 @@
+//toolbar 工具条
+import win.imageList;
+import win.ui.tooltip;
+
+namespace win.ui {
+	import util.metaProperty;   
+	class toolbar {
+		ctor (winform) {
+			if( ! winform[["hwnd"]] ){
+				if(type(winform)==type.number){
+					winform = {hwnd=winform;_mapCommandProc={}}
+				}
+				else {
+					error("第一个构造参数必须指定有效窗口",3)
+				} 
+			} 
+			this.parent = winform;
+			this.hParent = winform.hwnd;
+			winform.toolbar = this;
+			
+			this.flat = true;
+			this.label = true;
+			this.buttons = {};
+		};
+		create = function (tParam) {  
+			var style = 0x40000000/*_WS_CHILD*/ | 0x10000000/*_WS_VISIBLE*/ ;
+			if( tParam[["style"]] ) style = style | tParam[["style"]];
+			if( tParam[["style"]] ) style = style | tParam[["style"]];
+			if( this.flat ) style = style | 0x800/*_TBSTYLE_FLAT*/ | 0x100/*_TBSTYLE_TOOLTIPS*/;
+			
+			this.hwnd = ::CreateWindowEx(tParam[["exstyle"]] or 0, 
+										 "ToolbarWindow32", ,style,
+										 0, 0, 0, 0, 
+										 this.hParent, 0 );
+			::SendMessageInt(this.hwnd, 0x41e/*_TB_BUTTONSTRUCTSIZE*/, 20, 0);
+			
+			this.tooltip = ..win.ui.tooltip(winform); 
+			::SendMessageInt(this.hwnd, 0x424/*_TB_SETTOOLTIPS*/, this.tooltip.hwnd, 0);
+	 
+			this.showLabel = this.label;
+			return this.hwnd;
+		}; 
+		adjust = function(){
+			::SendMessageInt(this.hwnd, 0x421/*_TB_AUTOSIZE*/, 0, 0);
+		};  
+		getButtonById = function(id){
+			 var idx = 1 + ::User32.SendMessage( this.hwnd,0x419/*_TB_COMMANDTOINDEX*/,id,0); 
+			 if( idx ) return this.buttons[idx]; 
+		};
+		getButton = function(idx){
+			return this.buttons[idx];
+		};
+		add = function (text, proc, iBitmap = 0,id) { 
+    		if(!id)
+    			id = this.parent.registCommand(proc);
+    		else {
+    			if(proc)this.parent.registCommand(proc,id);
+    		} 
+    		
+			var tbb = TBBUTTON(this);
+			tbb.iBitmap = iBitmap - 1;
+			tbb.idCommand = id;
+			tbb.fsState = 0x4/*_TBSTATE_ENABLED*/;
+			tbb.fsStyle = text == null ? 1/*_TBSTYLE_SEP*/ : 0x10/*_TBSTYLE_BUTTON |_TBSTYLE_AUTOSIZE*/;
+			tbb.iString = text or "";
+			..table.push(this.buttons,tbb );
+
+			::SendMessageByStruct(this.hwnd, 0x444/*_TB_ADDBUTTONSW*/, 1, tbb);  
+			::SendMessageInt(this.hwnd, 0x421/*_TB_AUTOSIZE*/, 0, 0);  
+			return tbb;
+		} 
+		@_metaProperty;
+	}
+	
+	namespace toolbar{
+		_metaProperty = ..util.metaProperty(
+			showLabel = {
+				_get = function () {
+					return owner.label;
+				}
+				_set = function (v) {
+					if (owner.hwnd)
+						::SendMessageInt(owner.hwnd, 0x400/*_WM_USER*/+60/*_TB_SETMAXTEXTROWS*/, v ? 1 : 0, 0);
+					owner.label = v ? true : false;
+				}
+			};
+			style = {
+				_get = function () {
+					return ::SendMessageInt(owner.hwnd, 0x439/*_TB_GETSTYLE*/, 0, 0);
+				}
+				_set = function (v) {
+					return ::SendMessageInt(owner.hwnd, 0x438/*_TB_SETSTYLE*/, 0, ::MAKELONG(v, 0));
+				}
+			}; 
+			modifyStyle = function( remove=0,add=0 ){
+				var style = ( owner.style & ~remove ) | add ; 
+				owner.style = style;
+				return style;
+			};
+			imageList = {
+				_get = function () {
+					return ::SendMessageInt(owner.hwnd, 0x400/*_WM_USER*/+49/*_TB_GETIMAGELIST*/, 0, 0);
+				}
+				_set = function (v) { 
+					return ::SendMessage(owner.hwnd, 0x400/*_WM_USER*/+48/*_TB_SETIMAGELIST*/, , v);
+				}
+			}
+		) 
+		
+		class TBBUTTON{
+			ctor (parent) {
+				this.parent = parent; 
+			}
+			int iBitmap;
+			int idCommand;
+			BYTE fsState;
+			BYTE fsStyle;
+			INT dwData;
+			ustring iString; 
+			@_metaProperty;
+		}
+		
+		namespace TBBUTTON{ 
+			class INFO {
+    			INT cbSize = 32;
+    			INT mask = 0;
+    			int idCommand;
+    			int iImage;
+    			BYTE fsState;
+    			BYTE fsStyle;
+    			WORD cx;
+    			INT lParam;
+    			pointer text;
+    			int cchText;
+			};
+			INFO_AUTOSET_MASK = function(info){ 
+				if( info.text !== null ){
+					info.text = ..string.toUnicode(info.text);
+					info.cchText = #info.text/2; 
+				}
+				if( info.cchText ){
+					info.mask |= 2/*_TBIF_TEXT*/  
+				}
+				if( info.fsState ){
+					info.mask |= 4/*_TBIF_STATE*/ 
+				}
+				if( info.idCommand ){
+					info.mask |= 0x20/*_TBIF_COMMAND*/ 
+				}
+				if( info.iImage !== null ){
+					info.mask |= 1/*_TBIF_IMAGE*/
+				}
+				if( info.cx ){
+					info.mask |= 0x40/*_TBIF_SIZE*/
+				}
+				if( info.fsStyle ){
+					info.mask |= 8/*_TBIF_STYLE*/
+				}
+			};
+			
+			_metaProperty = ..util.metaProperty(
+				getInfo = function(mask){
+					var info = INFO();
+					info.mask = mask; 
+					var idx = ::SendMessageByStruct(owner.parent.hwnd,0x43F/*_TB_GETBUTTONINFOW*/,owner.idCommand,info) ;
+					if( idx >= 0 ){
+						if( info.mask & 2/*_TBIF_TEXT*/ ) info.text = ..string.fromUnicode(info.text,,true);
+						return info;
+					}
+				}
+				setInfo = function(info){ 
+					if(!info._struct)info = ..table.assign(INFO(),info);
+					INFO_AUTOSET_MASK(info);
+					return !! ::SendMessageByStruct(owner.parent.hwnd,0x440/*_TB_SETBUTTONINFOW*/,owner.idCommand,info);
+				} 
+				id = {
+					_get = function () {
+						return owner.idCommand;
+					}
+					_set = function (v) {
+						if(  owner.setInfo( idCommand = v ) ){ 
+							owner.idCommand = v;
+						}
+					}
+				}; 
+				index = function(){  
+					return ( 1 +  ::User32.SendMessage( owner.parent.hwnd,0x419/*_TB_COMMANDTOINDEX*/,owner.idCommand,0) );
+				};
+				delete = function(){
+					var idx = owner.index(); 
+					if(idx) {
+						..table.remove(owner.parent.buttons,idx); 
+						return ::SendMessageInt( owner.parent.hwnd,0x416/*_TB_DELETEBUTTON*/,idx - 1,0);
+					}
+				};
+				text = {
+					_get = function () {
+						return owner.iString;
+					}
+					_set = function (v) {
+						if( owner.setInfo( text = v ) ){
+							owner.iString = v;
+						}
+					}
+				};
+				getRect = function(){
+					var rc = ::RECT()
+					if( ::SendMessageByStruct(owner.parent.hwnd,0x433/*_TB_GETRECT*/,owner.idCommand,rc) )
+						return rc;
+				};
+				state = {
+					_get = function () {
+						return ::SendMessageInt(owner.parent.hwnd, 0x412/*_TB_GETSTATE*/, owner.idCommand, 0);
+					}
+					_set = function (v) {
+						return ::SendMessageInt(owner.parent.hwnd, 0x411/*_TB_SETSTATE*/, owner.idCommand, ::MAKELONG(v, 0));
+					}
+				}; 
+				disabled = {
+					_get = function () {
+						return !( owner.state & 4/*_TBSTATE_ENABLED*/);
+					}
+					_set = function (v) {
+						if (v)
+							owner.state -= 4/*_TBSTATE_ENABLED*/;
+						else
+							owner.state |= 4/*_TBSTATE_ENABLED*/;
+					}
+				};
+				enabled = {
+					_get = function () {
+						return !owner.disabled;
+					}
+					_set = function (v) {
+						owner.disabled = !v;
+					}
+				};
+				checked = {
+					_get = function () {
+						return owner.state & 0x1;
+					}
+					_set = function (v) {
+						if (v)
+							owner.state |= 0x1;
+						else
+							if (owner.checked)
+								owner.state -= 0x1;
+					}
+				}
+			);
+		}
+	};
+}
+
+//感谢lujjjh贡献最初的源代码 2010.9
+  
+/**intellisense()
+win.ui.toolbar(__/*父窗口*/) = 创建一个 Toolbar 控件 
+!toolbar.create() = 创建工具条\n可使用一个参数表指定exstyle,style等样式参数
+!toolbar.add(标题,回调函数,图像索引,可选指定命令ID) = @.add(\n	"文字", \n	function (id) {\n\n	},1\n)
+!toolbar.style = 工具栏样式,\n 使用 _TBSTYLE_ 前缀常量表示样式
+!toolbar.modifyStyle(.(移除样式,添加样式) = 所有参数可选,默认为0\n使用 _TBSTYLE_ 前缀常量表示样式
+!toolbar.adjust() = 重新设置工具栏大小
+!toolbar.showLabel = 是否在按钮上显示文字
+!toolbar.imageList = 指定 Toolbar 的 imageList 
+!toolbar.getButton(.(索引) = 返回按钮对象
+!toolbar.getButtonById(.(idCommand) = 返回按钮对象
+!toolbar.buttons[1__/*索引*/] = 返回指定的按钮对象 
+!toolbar.buttons = !toolbar_button.
+!toolbar.add() = 添加一个分隔条\n!toolbar_button.
+!toolbar.getButton() = !toolbar_button.
+!toolbar.getButtonById() = !toolbar_button.
+win.ui.toolbar() = !toolbar.
+!toolbar_button.getInfo( _TBIF__ ) = 获取TBBUTTONINFO结构体
+!toolbar_button.setInfo( __ ) = 设置TBBUTTONINFO结构体,可指定部份字段
+!toolbar_button.index() = 返回按钮索引
+!toolbar_button.delete() = 删除按钮
+!toolbar_button.id = 命令ID
+!toolbar_button.state = 读写按钮状态
+!toolbar_button.disabled = 是否禁用
+!toolbar_button.checked = 是否选中 
+!toolbar_button.text = 按钮文本
+!toolbar_button.getRect() = 返回按钮区块\n!rect.
+end intellisense**/
+ 
+ /**intellisense()
+_TB_SETSTYLE=@0x438/*_TB_SETSTYLE*/
+_TB_GETSTYLE=@0x439/*_TB_GETSTYLE*/
+_TB_GETBUTTONSIZE=@0x43A/*_TB_GETBUTTONSIZE*/
+_TB_SETBUTTONWIDTH=@0x43B/*_TB_SETBUTTONWIDTH*/
+_TB_SETDISABLEDIMAGELIST=@0x436/*_TB_SETDISABLEDIMAGELIST*/
+_TB_GETDISABLEDIMAGELIST=@0x437/*_TB_GETDISABLEDIMAGELIST*/
+_TB_GETRECT=@0x433/*_TB_GETRECT*/
+_TB_GETTOOLTIPS=@0x423/*_TB_GETTOOLTIPS*/
+_TB_SETTOOLTIPS=@0x424/*_TB_SETTOOLTIPS*/
+_TB_CHANGEBITMAP=@0x42B/*_TB_CHANGEBITMAP*/
+_TB_GETBITMAP=@0x42C/*_TB_GETBITMAP*/
+_TBIF_IMAGE=@1/*_TBIF_IMAGE*/
+_TBIF_TEXT=@2/*_TBIF_TEXT*/
+_TBIF_STATE=@4/*_TBIF_STATE*/
+_TBIF_STYLE=@8/*_TBIF_STYLE*/
+_TBIF_LPARAM=@0x10/*_TBIF_LPARAM*/
+_TBIF_COMMAND=@0x20/*_TBIF_COMMAND*/
+_TBIF_SIZE=@0x40/*_TBIF_SIZE*/
+_TB_GETBUTTONTEXT=@0x42D/*_TB_GETBUTTONTEXT*/
+_TBSTYLE_BUTTON=@0/*_TBSTYLE_BUTTON*/
+_TBSTYLE_SEP=@1/*_TBSTYLE_SEP*/
+_TBSTYLE_CHECK=@2/*_TBSTYLE_CHECK*/
+_TBSTYLE_GROUP=@4/*_TBSTYLE_GROUP*/
+_TBSTYLE_CHECKGROUP=@6/*_TBSTYLE_CHECKGROUP*/
+_TBSTYLE_DROPDOWN=@8/*_TBSTYLE_DROPDOWN*/
+_TBSTYLE_AUTOSIZE=@0x10/*_TBSTYLE_AUTOSIZE*/
+_TBSTYLE_NOPREFIX=@0x20/*_TBSTYLE_NOPREFIX*/
+_TBSTYLE_TOOLTIPS=@0x100/*_TBSTYLE_TOOLTIPS*/
+_TBSTYLE_WRAPABLE=@0x200/*_TBSTYLE_WRAPABLE*/
+_TBSTYLE_ALTDRAG=@0x400/*_TBSTYLE_ALTDRAG*/
+_TBSTYLE_FLAT=@0x800/*_TBSTYLE_FLAT*/
+_TBSTYLE_LIST=@0x1000/*_TBSTYLE_LIST*/
+_TBSTYLE_CUSTOMERASE=@0x2000/*_TBSTYLE_CUSTOMERASE*/
+_TBSTYLE_REGISTERDROP=@0x4000/*_TBSTYLE_REGISTERDROP*/
+_TBSTYLE_TRANSPARENT=@0x8000/*_TBSTYLE_TRANSPARENT*/ 
+end intellisense**/

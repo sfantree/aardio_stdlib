@@ -1,0 +1,101 @@
+﻿import web.json;
+
+namespace web;
+
+class nativeMessaging{
+    
+    ctor(){
+        if( stdout.type() != 0x3/*_FILE_TYPE_PIPE*/ ) return;
+        this = ..win.form();
+        this.messageOnly();
+    }
+    
+	run = function(){
+		
+    	if( !this.onMessage ) error("必须先定义onMessage事件才能调用run函数",2); 
+    	
+    	if( this.onOpen ) {
+    		var extension;
+    		for i,v in ..table.eachIndex(_ARGV){
+    			extension = ..string.match(v,"chrome-extension\://([^/]+)");
+    			if(extension) break;
+    		}
+    		
+    		this.onOpen( extension,tonumber(_ARGV["parent-window"]));
+    	};
+    	
+    	..thread.invoke( 
+    		function(this){
+    			
+    			import web.json;
+    			
+    			stdin = io.stdin;
+    			stdin.mode(0x8000/*_O_BINARY*/);
+				var header = {INT size}
+				
+				try{
+					while(stdin.read(header)){
+						var s = stdin.read(header.size);
+						if(!s) continue;
+						
+						var msg,err = ..web.json.tryParse(s);
+						if(!msg){
+							if(err){
+								if( this.onError ) this.onError(err);
+								continue;
+							}
+						}
+						
+						this.onMessage(msg)
+					}
+				}
+				catch(e){
+					f(e) if( this.onError ) this.onError(e);
+				}
+				
+				if( this.onClose ) this.onClose();    			
+    		},this
+    	)
+	};
+	error = function(err){
+		stderr.write(err);
+	};
+	send = function(data){
+		var s = ..web.json.stringify(data,false,false);
+		stdout.write({INT size = #s});
+		stdout.write(s);
+		stdout.flush();
+	};
+}
+
+namespace nativeMessaging{
+    
+    stdout = ..io.stdout;
+    stderr = ..io.stderr; 
+	stdout.mode(0x8000/*_O_BINARY*/);
+	stderr.mode(0x8000/*_O_BINARY*/);
+}
+
+
+/**intellisense()
+web.nativeMessaging = 用于创建本地应用消息主机,\n用于实现Chrome本地应用的扩展插件，\n\n创建基于窗口的Chrome扩展非常方便,\n可以类似WebSocket那样实现单线程异步读写的消息主机
+web.nativeMessaging() = 创建本地应用消息主机\n用于编写Chrome本地应用的扩展插件，\n如果当前进程不是在Native Messaging管道中启动,返回null值\n否则返回服务端对象,\n!web_nativeMessaging.
+run() = 启动本地应用消息主机
+_CREATE_BREAKAWAY_FROM_JOB=@0x1000000/*_CREATE_BREAKAWAY_FROM_JOB*/
+end intellisense**/
+
+/**intellisense(!web_nativeMessaging)
+onMessage = @.onMessage = function(data){
+	__/*网页发送消息过来时触发\ndata是网页上JS发过来的对象\n*/
+}
+onError = @.onError = function(err){
+	__/*遇到错误时触发,err是错误信息\n建议自己写日志文件*/
+}
+onClose = @.onClose = function(){
+	__/*客户端断开连接程序进程即将退出时触发\n*/
+}
+onOpen = function(extension,parentWindow){
+	__/*进程已启动客户端已连接时触发\nextension为扩展ID,parentWindow为父窗口句柄\n*/
+}
+end intellisense**/
+

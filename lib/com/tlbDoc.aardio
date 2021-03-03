@@ -1,0 +1,107 @@
+﻿//tlbDoc 控件文档
+import com;
+namespace com;
+    
+class tlbDoc{
+    ctor( ... ){
+		var tlb = ..com.LoadTypeLibrary( ... );
+		if(!tlb) return;
+		
+		var output = {}
+		for(i=1;tlb.GetTypeInfoCount();1){
+			var typeinfo = tlb.GetTypeInfo(i);
+			var typeattr = typeinfo.GetTypeAttr();
+			
+			var member ={};
+			for(i=1;typeattr.Funcs;1){
+				var func = typeinfo.GetFuncDesc(i)
+				if(!func) continue ;
+				if(!member[func.name]) member[func.name]= {};
+		 		member[func.name][func.invkind] = func; 
+			} 
+			
+			var push = ..table.push;
+			for(i=1;typeattr.Funcs;1){
+				var func = typeinfo.GetFuncDesc(i)
+				if(!func) continue ;
+				
+				if( func.invkind == "_get" ){
+					if(#func.parameters) {
+						push( output,"读属性函数：" + getFunction(func),'\n' ); 
+						if(#func.description)push( output,"描述：",func.description,'\n' );
+						push( output,getParameters(func),'\n' )
+					}
+					else {
+						push( output,"读属性名：" + func.name  + " 返回类型:" +func.type,'\n'  );
+						if(#func.description)push( output,"描述：",func.description,'\n' );
+					}
+				}
+				elseif( func.invkind == "_set" ){
+					
+					if(#func.parameters) {
+						push( output,"写属性函数：" + getFunction(func),'\n' ); 
+						if(#func.description)push( output,"描述：",func.description,'\n' );
+						push( output,getParameters(func),'\n' )
+					}
+					else {
+						push( output,"写属性名：" + func.name  + " 写入类型:" +func.type,'\n'  );
+						if(#func.description)push( output,"描述：",func.description,'\n' );
+					}
+					
+					
+				}
+				elseif( func.invkind == "function" ){
+					push( output,"函数：" + getFunction(func),'\n' ); 
+					if(#func.description)push( output,"描述：",func.description,'\n' );
+					push( output,getParameters(func),'\n' );
+					
+				}
+				
+				push( output,'\n' );
+			} 
+		
+		}
+		
+		return ..string.join(output,'')
+    }; 
+}
+
+namespace tlbDoc {
+    
+	getFunction = function(func){
+		var output = func.name;
+		if( func.invkind == "_set" ){
+			output = "set" + func.name;
+		}
+		elseif( func.invkind == "_get" ){
+			output = "get" + func.name;
+		}
+		
+		output = output +"(";
+		for(i=1;#func.parameters;1){
+			if( i > 1) output =  output +",";
+			output =  output ++ func.parameters[i].name;
+		}
+		output = output +")";
+		
+		return output;
+	}
+	
+	getParameters = function(func){
+		var output =  '	返回值类型：' + func.type;
+		
+		for(i=1;#func.parameters;1){
+			var p = func.parameters[i];
+			output =  output ++  '\r\n	参数名:' + p.name + " 参数类型:" + (p.type:"unknow")
+			if( p.in ) output =  output ++ " 输入参数";
+			if( p.out ) output =  output ++ " 输出参数";
+			if( p.opt ) output =  output ++ " 可选参数";
+		}  
+		return output;
+	}
+}
+
+/**intellisense()
+com.tlbDoc = 生成类型库文档
+com.tlbDoc(.("->tlb") = 加载类型库,\n并返回一个包含类型库文档的字符串值,\n失败返回null。\n参数可以是CLSID、类型库路径、或包含类型库资源的组件路径
+end intellisense**/

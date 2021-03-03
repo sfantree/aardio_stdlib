@@ -1,0 +1,29 @@
+//ftp简单示例
+import console;
+import inet.ftp
+
+console.log("正在创建ftp连接")
+var ftp = inet.ftp("ftp.sjtu.edu.cn");
+
+if(!ftp){
+	console.log( inet.lastResponse() );
+	console.pause();
+	return;
+} 
+
+//列出目录下的文件
+for(dir,file,findData in ftp.eachDir("\")){
+	 console.log(  dir,file : "目录" ); 
+}
+
+for(dir,file,findData in ftp.eachDir("\arkhy")){
+	 console.log(  dir,file : "目录" ); 
+}
+
+//下载文件
+if( ftp.download("\本地文件.txt","\arkhy\updata.txt") ){
+	 console.log(  dir,file : "目录" ); 
+}
+
+ftp.close();
+console.pause();

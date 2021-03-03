@@ -1,0 +1,74 @@
+﻿//addrInfo 地址解析
+
+import wsock;
+namespace wsock;
+
+class addrInfo{
+	ctor(){
+		this = addr_info();
+		this.socktype = 0x1/*_SOCK_STREAM*/;
+		this.protocol = 0x6/*_IPPROTO_TCP*/;
+	};
+	query = function(hostname){
+		..wsock.open();
+	
+		var ai = { ptr next }
+		var ret = ::Ws2_32.getaddrinfo(hostname, 0, this, ai);
+		if ( ret != 0 ) {
+			..wsock.close();
+    		return null,..wsock.err.lasterr(); 
+		}
+		
+		var result = {};
+		var first = ai.next;
+		while(ai.next){ 
+			ai = ..raw.convert( ai.next, addr_info() )
+			 
+    		select(ai.family) {
+    			case 0x2/*_AF_INET*/ {
+    				ai.addr = ..raw.convert( ai.addr,..wsock.sockaddr_in()); 
+    			}
+    			case 23/*_AF_INET6*/{
+    				ai.addr = ..raw.convert( ai.addr,..wsock.sockaddr_in6()); 
+    			}
+    			else {
+    				continue;
+    			}
+    		}
+			
+			..table.push(result,ai);
+		}
+		
+		::Ws2_32.freeaddrinfo(first);
+		
+		..wsock.close();
+		return result;
+	};
+	queryIp = function(hostname){
+		if(!hostname) return { ..wsock.getIp() };
+		
+		var ips = this.query(hostname);
+		return ..table.map(ips,lambda(v) tostring(v.addr.sin_addr || v.addr.sin6_addr) );
+	};
+}
+
+namespace addrInfo{
+    
+	class  addr_info {  
+		int	flags=2; 
+		int	family;  
+		int	socktype; 
+		int	protocol;  
+		INT	addrlen; 
+		string canonname;  
+		ptr	addr;  
+		ptr	next;
+	} 
+}
+
+/**intellisense()
+wsock.addrInfo = IP地址解析
+wsock.addrInfo() = 创建IP地址解析器\n!wsockaddrinfo.
+!wsockaddrinfo.query(__/*主机名*/) = 解析域名并返回addrInfo结构体数组\n参数不能为空
+!wsockaddrinfo.queryIp(__/*主机名*/) = 解析域名并返回IP地址数组\n参数为空获取本机网卡IP列表
+end intellisense**/

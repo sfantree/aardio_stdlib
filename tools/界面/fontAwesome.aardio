@@ -1,0 +1,495 @@
+//字体图标
+import win.ui;
+import win.ui.atom;
+import fonts.fontAwesome;
+/*DSG{{*/
+var winform = win.form(text="aardio 图标字体浏览器";right=994;bottom=611;bgcolor=16777215)
+winform.add(
+btnAdd={cls="button";text="添加图标字体";left=605;top=0;right=707;bottom=25;dr=1;dt=1;z=12};
+cbFonts={cls="combobox";left=77;top=2;right=206;bottom=28;dl=1;dt=1;edge=1;items={};mode="dropdownlist";z=9};
+chkTopmost={cls="checkbox";text="此窗口保持置顶";left=839;top=588;right=967;bottom=609;bgcolor=16777215;dr=1;dt=1;z=8};
+cmbCssClass={cls="combobox";left=839;top=50;right=980;bottom=73;edge=1;items={};mode="dropdown";z=14};
+custom={cls="custom";text="custom";left=1;top=30;right=765;bottom=612;bgcolor=15793151;db=1;dl=1;dr=1;dt=1;z=1};
+editFontPath={cls="edit";left=213;top=2;right=604;bottom=26;align="right";dl=1;dr=1;dt=1;edge=1;z=11};
+editText={cls="edit";left=839;top=21;right=980;bottom=44;dr=1;dt=1;edge=1;z=3};
+lbCssClass={cls="static";text="CSS类名:";left=770;top=50;right=831;bottom=73;align="right";dr=1;dt=1;transparent=1;z=2};
+lbEscape={cls="static";text="转义字符:";left=770;top=24;right=831;bottom=47;align="right";dr=1;dt=1;transparent=1;z=4};
+lbPlusSet={cls="static";text="点上方按钮 / 修改选定控件图标";left=781;top=219;right=977;bottom=238;color=3427271;dr=1;dt=1;transparent=1;z=7};
+lbTip={cls="static";left=781;top=247;right=986;bottom=543;dr=1;dt=1;transparent=1;z=6};
+plusMore={cls="plus";text="获取更多图标...";left=781;top=552;right=958;bottom=586;align="left";color=961280;dr=1;dt=1;font=LOGFONT(h=-16;name='FontAwesome';charset=0);notify=1;z=13};
+plusSet={cls="plus";text='\uF0AD';left=816;top=105;right=924;bottom=208;bgcolor=16777215;color=255;dr=1;dt=1;font=LOGFONT(h=-96;name='FontAwesome');notify=1;z=5};
+static={cls="static";text="选择字体:";left=12;top=5;right=71;bottom=24;align="right";dl=1;dt=1;transparent=1;z=10}
+)
+/*}}*/
+
+winform.plusMore.skin({
+	color={
+		active=0xFFAB0E00;
+		default=0xFF00AB0E;
+		hover=0xFF9CAB00
+	}
+})
+
+var atom,hwnd = winform.atom("0CCD6A28-2296-4C26-9AC7-80AC4B585E27.FONTAWESOME");
+if(!atom){
+    win.setForeground(hwnd);
+	win.quitMessage();	
+	return;
+}
+
+import ide;
+import fonts;
+import fsys;
+var fontResFiles = {}
+
+//加载标准库图标字体
+var fontResPath = io.fullpath("~\lib\fonts\.res")
+fsys.enum( fontResPath, "*.*",
+	function(dir,filename,fullpath){ 
+		if(filename) {
+			var family = fonts.addFamily(fullpath);
+			if(family){
+				var fontName = family.getName();
+				if(fontName){
+					fontResFiles[fontName] =  "~\lib\fonts\.res" + fsys.path.relative(fullpath,fontResPath,true)
+				}
+			}
+		}
+	}
+);
+
+//查找在标准库中已注册的字体
+var fontFamilyNames = fonts.getFamilyNames();
+import fsys;
+var stdFontLibs = {}
+for i,fileName in table.eachIndex( fsys.list("~/lib/fonts","\a\w+\.aardio") ){
+	var libName = ..string.replace(fileName,"\.aardio$","");
+	if(libName=="http") continue;
+	
+	for(i,fontName in fontFamilyNames){
+		var fontName2 = string.replace(fontName,"\s+","");
+		if(string.cmp(fontName2,libName)==0){
+			stdFontLibs[fontName] = libName;
+			continue;
+		}
+	} 
+}
+
+//加载工程用户库下的图标字体
+var projectDir = ide.getProjectDir();
+if(#projectDir){
+    var fontResPath = io.joinpath(projectDir,"\lib\fonts\.res");
+    if(io.exist(fontResPath) ){
+    	fsys.enum( fontResPath, "*.*",
+			function(dir,filename,fullpath){ 
+				var family = fonts.addFamily(fullpath);
+				if(family){
+					var fontName = family.getName();
+					if(fontName){
+						fontResFiles[fontName] =  "\lib\fonts\.res" + fsys.path.relative(fullpath,fontResPath,true)
+					}
+				}
+			}
+		);	
+    }
+    	
+   //查找在用户库中已注册的字体
+   var fontLibPath = io.joinpath(projectDir,"\lib\fonts");
+   if(..io.exist(fontLibPath)){
+        fontFamilyNames = fonts.getFamilyNames();
+ 		for i,fileName in table.eachIndex( fsys.list(fontLibPath,"\a\w+\.aardio") ){
+			var libName = ..string.replace(fileName,"\.aardio$","");
+			for(i,fontName in fontFamilyNames){
+				var fontName2 = string.replace(fontName,"\s+","");
+				if(string.cmp(fontName2,libName)==0){
+					stdFontLibs[fontName] = libName;
+					continue;
+				}
+			} 
+		}  	
+   }
+}
+ 
+var cssFontAwesome = string.search({}
+	,$"~\lib\web\layout\.res\fontAwesome.css"
+	,"\.fa-glass.+",`\.(fa\-[\w\-]+)\s*\{\s*content\:\s*"(.+?)"`)
+
+cssFontAwesome = table.map(cssFontAwesome,function(v,k,result){
+	v[2] = string.replace( string.escape( v[2],true,true ),"\\u5","\\uF");
+	result[v[2]] = v[1]
+})
+
+import fonts;
+import inet.http;
+var userFontLibs = {};
+var addUserFont = function(path){
+    var family;
+    if(..string.startWith(path,"//")){
+    	path = "http:" + path;
+    }
+    
+    if(..string.startWith(path,"http") || ..string.startWith(path,"//")){
+    	var http = inet.http();
+    	var data = http.get(path);
+    	if(#data){
+    		var fontCollection = gdip.privateFontCollection();
+    		fontCollection.add(data);
+    		var families = fontCollection.getFamilies(,false)
+    		var fontName;
+    		if(families[[1]])fontName = families[[1]].getName();
+    		fontCollection.delete();
+    		
+    		if(#fontName){
+    			string.save("/.res/http-ttf/"+fontName + ".ttf",data);
+    			family = fonts.addFamily("/.res/http-ttf/"+fontName + ".ttf"); 
+    		}
+    	}
+    }
+	elseif( !..io.exist(path) ){
+		winform.msgboxErr("请输入有效的图标文件路径！");
+		winform.editFontPath.setFocus(0,-1);
+		return;
+	}
+	else {
+		family = fonts.addFamily(path)
+	}
+	 
+	if(family){
+		var fontName = family.getName()
+		if( ! winform.cbFonts.findEx(fontName) ) winform.cbFonts.add(fontName); 
+		
+		showFonts(fontName);
+		if(!..string.startWith(path,"http",true) ){
+			ide.loadPrivateFont(path);	
+		} 
+		
+		userFontLibs[fontName] = path;
+	}
+}
+
+winform.onDropFiles = function(files){
+	winform.editFontPath.text = files[1]
+}
+
+import fsys.dlg;
+winform.btnAdd.oncommand = function(id,event){
+    var path = winform.editFontPath.text;
+    if(#path){
+    	path = string.trim(path);
+    	path = string.trim(path,`'"`);
+    }
+    
+    if(!#path){
+    	path = fsys.dlg.open("*.ttf|*.ttf||","请选择图标字体文件");
+    	if(!#path) return;
+    	
+    	winform.editFontPath.text = path;
+    }
+    
+	addUserFont(path)
+}
+
+import web.form;
+var wb = web.form(winform.custom);
+
+wb.external={
+	click = function(chr){
+		winform.plusSet.text = ustring.fromCharCode(chr);
+		winform.editText.text = string.escape(winform.plusSet.text,true,true);
+		
+		if(winform.currentIconFontName=="FontAwesome"){
+			var css = cssFontAwesome[winform.editText.text];
+			winform.cmbCssClass.text = css : ""; 
+		}
+	}
+	mouseover = function(chr){
+		var str = ustring.fromCharCode(chr);
+		winform.text ="aardio 图标字体浏览器 -  " + string.escape(str,true,true)
+	} 
+	explorer = function(path){
+		import process;
+		process.explore(path)
+	}
+}
+
+winform.cbFonts.items = fontFamilyNames;
+winform.cbFonts.oncommand = function(id,event){
+	if(event==1/*_CBN_SELCHANGE*/){
+		showFonts(winform.cbFonts.selText);
+	}
+}
+
+var htmlTemplate = /**
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <style type="text/css">
+    html,body{ height:100%; margin:0;font:bold 12pt/20pt "<?=owner.fontName?>"} 
+    a {
+        line-height:50pt;
+        height:50pt;
+        width:50pt;
+        text-align:center;
+        vertical-align:middle;
+        font-size:18pt;
+        color:#008080;
+        display:inline-block;
+        text-decoration:none;
+    }        
+    a:hover {
+            background:#ccc;
+            color:#F08000;
+    }
+    a:active {
+            background:#999;
+            color:#FF8C09;
+    }
+    </style>
+</head>
+<body>
+      <?
+      for(i=1;#owner.fontUnicodeChars/2;1){ 
+      ?>
+      		<a name="fontAwesome" href="javascript:void(0);" 
+      		onclick="javascript:external.click(<?
+      		=owner.fontUnicodeChars[i]
+      		?>)" 
+      		onmouseover="javascript:external.mouseover(<?
+      		=owner.fontUnicodeChars[i]
+      		?>)" >&#<?=owner.fontUnicodeChars[i]?>;</a>
+      <? 	
+      }
+      ?>  
+</body>
+</html>
+**/
+
+import string.fontRanges;
+showFonts = function(fontName){
+    winform.cbFonts.selText = fontName;
+	winform.currentIconFontName = fontName;
+
+    if(stdFontLibs[fontName]){
+		var fontUnicodeChars;
+		
+		fontUnicodeChars = string.fontRanges.getUnicodeString(fontName,0xE000,0xF8FF );
+		wb.loadcode(htmlTemplate,{fontUnicodeChars=fontUnicodeChars;fontName=fontName});	
+    }
+    else {
+    	var fontUnicodeChars = string.fontRanges.getUnicodeString(fontName);
+    	wb.loadcode(htmlTemplate,{fontUnicodeChars=fontUnicodeChars;fontName=fontName});
+    }
+    
+	if(fontName=="FontAwesome"){
+		winform.lbCssClass.hide = false;
+		winform.cmbCssClass.hide = false;
+	}
+	else {
+		winform.lbCssClass.hide = true;
+		winform.cmbCssClass.hide = true;	
+	}
+	
+	winform.plusSet.setFont(h=-96;name=fontName);
+	
+}
+showFonts("FontAwesome");
+
+winform.plusSet.skin(
+	color = { 
+		hover = 0xFF80E000; 
+		active = 0xFF50A000; 
+	}
+)
+
+if(winform.parent){
+	winform.lbPlusSet.text = "点击下方按钮修改选定输入框的图标"
+}
+
+import ide;
+winform.plusSet.oncommand = function(id,event){
+    if(winform.parent && winform.onSetIcon){
+      	var strImport;
+		if(stdFontLibs[winform.currentIconFontName ]){
+			strImport = 'import fonts.'+stdFontLibs[winform.currentIconFontName ] + ';\r\n';
+		}
+		elseif(userFontLibs[winform.currentIconFontName]){
+			if(string.startWith(userFontLibs[winform.currentIconFontName],"http",true)){
+				strImport = 'import fonts.httpFamily\r\nfonts.httpFamily("'+userFontLibs[winform.currentIconFontName] + '");\r\n'
+			}
+			else {
+				strImport = 'import fonts\r\nfonts.addFamily("'+userFontLibs[winform.currentIconFontName] + '");\r\n'
+			}
+		} 
+	
+        winform.onSetIcon( winform.plusSet.text,winform.plusSet.getFont(),strImport );
+    	return;
+    }
+    
+    if(!#owner.text){
+		winform.msgboxErr("请选择图标字体");
+		return;
+	}
+	
+	var formName = ide.getActiveForm();
+	if(!formName){
+		winform.msgboxErr("请在aardio中打开并切换到窗体设计器");
+		return;
+	}
+	
+	var ctrlName = ide.getSelectedControl();
+	if(!ctrlName){
+		winform.msgboxErr("当前窗体设计器中未选定plus控件");
+		return;	
+	}
+	
+	var ctrlParam = ide.getControlParam(ctrlName);
+	if(!ctrlParam){
+		winform.msgboxErr("获取选定控件设置失败");
+		return;		
+	}
+	
+	if(ctrlParam.iconStyle){
+		ctrlParam.iconText = winform.plusSet.text;
+		if(ctrlParam.iconStyle.font){
+			if(ctrlParam.iconStyle.font["name"] != winform.currentIconFontName ){
+				ctrlParam.iconStyle.font["name"] = winform.currentIconFontName; 
+			}	
+		} 
+	}
+	else{
+		if(!#ctrlParam.text){
+			ctrlParam.text = winform.plusSet.text;
+			if(ctrlParam.font["name"] != winform.currentIconFontName ){
+				ctrlParam.font["name"] = winform.currentIconFontName;
+				ctrlParam.font["h"] = -18;
+			}
+		}
+		else {
+			ctrlParam.font["name"] = winform.currentIconFontName;
+			
+			var text = string.toUnicode(ctrlParam.text)
+			if( text[1] >= 0xE000 && text[1]  <= 0xF8FF ){
+				ctrlParam.text = winform.plusSet.text ++ string.right(ctrlParam.text,-2,true)
+			}
+			elseif( text[#text/2] >= 0xE000 && text[#text/2]  <= 0xF8FF ){
+				ctrlParam.text =  string.left(ctrlParam.text,-2,true) ++ winform.plusSet.text;
+			}
+			else {
+				if( #winform.plusSet.text <= 2 ) {
+					ctrlParam.text = winform.plusSet.text;
+				}
+				else {
+					ctrlParam.text = winform.plusSet.text + " " + ctrlParam.text ;
+				} 
+			}	
+		} 
+	} 
+	
+	if(!ide.setControlParam(ctrlName,ctrlParam)){
+		winform.msgboxErr("更新窗体设计器中选定控件参数失败");
+		return;
+	} 
+	
+	var frmCode = ide.getActiveCode();
+	if(frmCode){
+		if(stdFontLibs[winform.currentIconFontName ]){
+			if(!string.find(frmCode,"@fonts."+stdFontLibs[winform.currentIconFontName ] )){
+				frmCode = 'import fonts.'+stdFontLibs[winform.currentIconFontName ] + ';\r\n'+ frmCode ;
+				ide.setActiveCode(frmCode);
+				ide.setSelectedControl(ctrlName);
+			}  	
+		}
+		elseif(userFontLibs[winform.currentIconFontName]){
+			if(!string.find(frmCode,"@"+userFontLibs[winform.currentIconFontName])){
+				if(string.startWith(userFontLibs[winform.currentIconFontName],"http",true)){
+					frmCode = 'fonts.httpFamily("'+userFontLibs[winform.currentIconFontName] + '");\r\n'+ frmCode;
+					if(!string.find(frmCode,"import\s*fonts.httpFamily")) frmCode = 'import fonts.httpFamily;\r\n'+ frmCode ; 
+				}
+				else {
+					frmCode = 'fonts.addFamily($"'+userFontLibs[winform.currentIconFontName] + '");\r\n'+ frmCode;
+					if(!string.find(frmCode,"import\s*fonts")) frmCode = 'import fonts;\r\n'+ frmCode 
+				}
+				;
+				ide.setActiveCode(frmCode);
+				ide.setSelectedControl(ctrlName);
+			}  	
+		} 
+	}
+}
+
+winform.chkTopmost.oncommand = function(id,event){
+	win.setTopmost(winform.hwnd,owner.checked)
+}
+
+winform.plusMore.oncommand = function(id,event){
+	import process;
+	process.openUrl("http://iconfont.cn/collections/index?type=4")
+}
+
+winform.editFontPath.setCueBannerText("请直接将ttf图标字体文件拖放到这里/也支持粘贴网址");
+
+winform.lbTip.text =/*
+添加图标字体步骤：
+1、复制*.ttf格式图标字体文件。
+2、在aardio标准库管理器"fonts/"目录上右键菜单中点“粘贴文件...”。
+3、关闭、并重新打开“aardio工具->图标字体”就可以正常使用了。
+
+iconfont.cn下载字体步骤：
+1、查找单色字体，添加到购物车。
+2、在购物车点“添加至项目”，项目页面点“更多操作->编辑项目”，重命名Font Family后保存。
+3、点“下载至本地”，解压缩后找到并复制ttf文件，右键粘贴到标准库(或用户库)fonts目录。
+
+发布后的aardio程序已经自带嵌入的图标字体（通过网址加载除外），最终用户不再需要安装该字体。
+*/
+
+import win.image;
+var hico = win.image.loadIconFromFile("/.img/iconfont.ico");
+winform.setIcon( hico )
+
+winform.show() 
+winform.plusSet.orphanWindow(false)
+
+winform.plusSet.shawdow = win.ui.shadow(winform.plusSet)
+winform.plusSet.shawdow.show(false);
+
+winform.plusSet.onMouseEnter = function(wParam,lParam){
+	winform.transparent(0)
+	winform.plusSet.shawdow.show(true);
+}
+
+winform.plusSet.onMouseLeave = function(wParam,lParam){
+	winform.transparent(false)
+	winform.plusSet.shawdow.show(false);
+}
+
+import win.debounce;
+winform.cmbCssClass.onEditChange = win.debounce( 
+    function(){
+    	var suggestion = {}; 
+    	var text = winform.cmbCssClass.text; 
+    	for(k,v in cssFontAwesome){
+    		if(string.indexOf(v,text)){
+    			table.push(suggestion,v); 
+    		}
+    	} 
+ 	
+ 		table.sort(suggestion) 
+ 		winform.cmbCssClass.autoComplete(suggestion,1); 
+	},300
+)
+
+winform.cmbCssClass.onListChange = win.debounce( 
+    function(){
+    	var text = winform.cmbCssClass.selText;
+    	for(k,v in cssFontAwesome){
+    		if(v===text){
+    			winform.editText.text = k;
+    			winform.plusSet.text = string.unescape(k)
+    		}
+    	} 
+	},300
+) 
+
+win.loopMessage();

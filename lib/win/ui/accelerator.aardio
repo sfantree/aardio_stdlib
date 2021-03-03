@@ -1,0 +1,87 @@
+//accelerator 快捷键
+namespace win.ui;
+
+accelerator = class {
+	ctor (tab,winform) {
+		if( winform[["hwnd"]] ){
+			if( winform._acceleratorTable ) error("窗体不能多次绑定快捷键表",2);
+			if( !winform.isForm ) error("参数@2必须是win.form对象",2);
+		}
+		
+		if(!#tab) error("快捷键列表不能为空",2);
+		var t = {};
+		for (i = 1; #tab) {
+			var acc = ACCEL();
+			if (tab[i].ctrl) acc.fVirt |= 0x8/*_FCONTROL*/;
+			if (tab[i].alt) acc.fVirt |= 0x10/*_FALT*/;
+			if (tab[i].shift) acc.fVirt |= 0x4/*_FSHIFT*/; 
+			if(tab[i].vkey){
+				acc.key = tab[i].vkey;
+				acc.fVirt |= 0x1/*_FVIRTKEY*/;
+			} 
+			if( winform[["hwnd"]] && (type(tab[i].oncommand) == "function") ){
+				acc.cmd  = winform.registCommand(tab[i].oncommand ) 
+			}
+			else{
+				acc.cmd = tab[i].cmd;
+			}
+			
+			..table.push(t, acc);
+		}
+		 
+		this.handle = topointer( ::User32.CreateAcceleratorTable({struct acc[]=t}, #t) );
+		
+		if( winform[["hwnd"]]){
+			this.hwnd = winform[["hwnd"]];
+			var hwnd = this.hwnd;
+			
+			winform.preTranslateAccelerator = function(msg){
+				if( TranslateAccelerator(hwnd,this.handle,msg) ){
+					return true;
+				}
+			}
+			winform._acceleratorTable = this;
+		}
+	};
+	
+	destroy = function () {
+		if(this.handle){
+			::User32.DestroyAcceleratorTable(this.handle);
+			if( this.hookMessage ){
+				..win.hookMessage(this.hookMessage,false)
+				this.hookMessage = null;
+			}
+			this.handle = null;
+			this.create = null;
+		}
+	};
+	 
+	translate = function (msg,hwnd ) {
+		return TranslateAccelerator(hwnd:this.hwnd,this.handle,msg);
+	}; 
+	
+	@ {
+		_topointer = function () {
+			return owner[["handle"]];
+		}
+	}
+}
+
+namespace accelerator {
+
+	ACCEL = class {
+		BYTE fVirt = 0;
+		WORD key;
+		WORD cmd;
+	}
+	
+	TranslateAccelerator = ::User32.api("TranslateAccelerator", "bool(int hWnd, pointer hAccTable, struct& lpMsg)");
+}
+
+/**intellisense()
+win.ui.accelerator = 快捷键\n在绑定的窗体范围内有效
+win.ui.accelerator(accTable,winform) = @//每个窗体仅能绑定快捷键表一次，\n//绑定后将会重定义窗体的preTranslateAccelerator事件用于响应快捷键\nwin.ui.accelerator({\n	{ ctrl = true; vkey = 'N'#; oncommand = function(id,event){ } } \n	{ ctrl = true; vkey = 'O'#; cmd = __/*可以用cmd指定消息ID，或使用oncommand指定一个消息处理函数*/ } \n},winform);
+win.ui.accelerator() = !win_ui_accelerator.
+!win_ui_accelerator.translate(.(msg.hwnd) = 可用于重定义窗体的preTranslateAccelerator事件时响应快捷键使之生效\nmsg为preTranslateAccelerator事件的消息参数,hwnd一般应该省略\n也可以在子窗体中响应父窗体的快捷键
+!win_ui_accelerator.destroy() = 删除此快捷键对象\n此函数在窗体关闭时将被自动调用
+end intellisense**/

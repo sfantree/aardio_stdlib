@@ -1,0 +1,21 @@
+//获取网卡列表
+import inet.mac;
+import inet.adapter; 
+
+import console;
+console.log("当前联网MAC",inet.mac.getAddress("www.aardio.com") )
+console.more(1)
+
+for adptInfo in ..inet.adapter.each() {  
+ 
+ 	console.log(adptInfo.mac)
+	console.log(adptInfo.adapterName);
+	console.log(adptInfo.description);
+	
+	for( addr in adptInfo.ipAddressList.eachAddress() ){
+		console.log(addr.ipAddress );
+	}  
+	console.more(1)
+}
+
+console.pause();

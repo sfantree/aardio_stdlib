@@ -1,0 +1,25 @@
+//14、跨线程传递成员函数
+import console; 
+
+//这个t对象准备传输给其他线程
+var obj = {
+    a = 123;
+    f = function(b,c){
+        /*
+        成员函数必须是纯函数，才能传入另外一个线程，
+        纯函数应当只接收参数、并返回返回值，另外可以使用owner参数，
+        但不可直接引用另外一个线程的外部变量，例如这里的console在其他线程并不一定存在
+        */
+        console.log("线程中执行成员函数",owner.a,b,c)
+    } 
+}
+
+thread.invoke( 
+    function(obj){
+        import console; //必须在当前线程中导入console，t.f才能正常执行
+        obj.f(234,456);
+    },obj
+)
+
+sleep(500)
+console.pause(true);

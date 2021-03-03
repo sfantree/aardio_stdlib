@@ -1,0 +1,31 @@
+//自动检测U盘
+import win.ui;
+/*DSG{{*/
+var winform = ..win.form(text="自动检测插入U盘";right=481;bottom=275)
+winform.add(
+edit={cls="edit";text="请插入U盘";left=15;top=15;right=470;bottom=263;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+import win.util.deviceNotification;
+var deviceNotification = win.util.deviceNotification(winform)
+
+deviceNotification.onDeviceArrival = function(devicetype,deviceBroadcastData,ptrData){
+	if( devicetype == 2/*_DBT_DEVTYP_VOLUME*/ ){
+		if( deviceBroadcastData.driveType == 0x2/*_DRIVE_REMOVABLE*/ ){
+			winform.edit.print("插入移动磁盘",deviceBroadcastData.drive,deviceBroadcastData.driveType,deviceBroadcastData.deviceName,deviceBroadcastData.flags )
+		}
+		elseif( deviceBroadcastData.driveType == 0x5/*_DRIVE_CDROM*/ ){
+			winform.edit.print("插入光盘",deviceBroadcastData.drive,deviceBroadcastData.driveType,deviceBroadcastData.deviceName,deviceBroadcastData.flags )
+		}
+	}
+}
+
+deviceNotification.onDeviceRemoveComplete = function(devicetype,deviceBroadcastData,ptrData){
+	if( devicetype == 2/*_DBT_DEVTYP_VOLUME*/ ){
+		 winform.edit.print("移除设盘" + " " + deviceBroadcastData.drive )
+	}
+} 
+
+winform.show() 
+win.loopMessage();

@@ -1,0 +1,10 @@
+﻿//获取外网IP
+
+import console; 
+import web.rest.client;
+
+var http = web.rest.client();
+var myIp = http.api("http://myip.ipip.net",,"(\d+\.\d+\.\d+\.\d+)");
+console.log( myIp.get() );
+
+console.pause(true);

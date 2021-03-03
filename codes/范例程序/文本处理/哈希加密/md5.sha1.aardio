@@ -1,0 +1,13 @@
+import crypt;
+import console; 
+
+//等待md5加密的字串
+var str1 = "12345678901234567890123456789012345678901234567890123456789012345678901234567890";
+  
+console.log(  '\r\n使用标准库crypt.md5()函数计算的md5值(32位,16位)：' , '\r\n' 
+	, crypt.md5(str1),crypt.md5(str1,,true)  ) 
+	
+console.log( '\r\n使用标准库crypt.sha1()函数计算的sha1值：','\r\n'
+	,crypt.sha1(str1)  ) 
+	
+console.pause();

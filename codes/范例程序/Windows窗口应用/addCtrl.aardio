@@ -1,0 +1,149 @@
+//动态创建控件
+
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="动态创建控件演示";right=759;bottom=469)
+winform.add(
+button={cls="button";text="button";left=381;top=347;right=740;bottom=454;z=1}
+)
+/*}}*/
+
+/*
+在设计器生成的代码中使用winform.add() 函数添加控件。
+winform.add()的参数是一个表,键为控件名，值为创建控件的参数，
+典型的例子：
+
+winform.add({
+	button={cls="button";text="button";left=129;top=155;right=229;bottom=262;z=1}
+	button2={cls="button";text="button";left=229;top=155;right=329;bottom=262;z=1}
+	button3={cls="button";text="button";left=329;top=155;right=488;bottom=262;z=1}
+})
+
+上面的代码创建 
+winform.button, 
+winform.button2, 
+winform.button3,
+这三个控件。
+
+如果之前存在同名的控件，则会被替换掉，原来的控件会被关闭。
+
+但是winform.add()也可以不指定控件名，而直接使用普通数组添加控件，例如：
+winform.add({
+	{cls="button";text="button";left=129;top=155;right=229;bottom=262;z=1}
+	{cls="button";text="button";left=229;top=155;right=329;bottom=262;z=1}
+	{cls="button";text="button";left=329;top=155;right=488;bottom=262;z=1}
+})
+
+当然，也可以写成数值索引的格式:
+winform.add({
+	[1]= {cls="button";text="button";left=129;top=155;right=229;bottom=262;z=1}
+	[2]= {cls="button";text="button";left=229;top=155;right=329;bottom=262;z=1}
+	[3]= {cls="button";text="button";left=329;top=155;right=488;bottom=262;z=1}
+})
+
+不指定控件名字是创建匿名的控件（ 在窗口设计器中不能这样写 ）。
+winform对象里并不会创建 winform[1] winform[2] winform[3] 这样的引用。
+但是winform仍然会记录这些匿名控件的句柄，并对其进行管理。
+
+winform.add()的返回值也是一个表，这个表包含创建成功的控件，
+以控件名字为键，控件对象为值，如果是匿名控件，则键为创建控件时指定的数值索引键，值仍然是控件对象。
+
+例如我们创建一个匿名控件，并获取返回的对象是这样写:
+var ctrls = winform.add({
+	{cls="button";text="button";left=129;top=155;right=229;bottom=262;z=1} 
+})
+var btn = ctrls[1];
+
+注意下面这样写是错误的
+var ctrls = winform.add( 
+	{cls="button";text="button";left=129;top=155;right=229;bottom=262;z=1} 
+)
+
+即使只创建一个控件,参数也应当是一个数组
+*/
+
+/*
+所有窗口对象都有 addCtrl()函数( 包含窗体和控件 )。
+这个函数实际上是调用 winfrom.add()，他们的作用和用法是完全相同的。
+但是，当你使用一个控件的 addCtrl() 函数添加控件时，这时候控件会被设置为实际的父窗口，
+例如指定固定边距,margin前缀的边距参数都是以实际的父窗口为参考坐标。
+
+创建控件的大多数参数都是用于设计器，并且是被精简过的非常短,一般我们不需要去了解这种字段。
+这里大致的说一下关键的几个控件创建参数:
+
+cls 控件的设计时类名,必须是完全小写,每个cls都对应win.ui.ctrl名字空间下的控件库名字
+className  这是控件的运行时类名,className是Windows窗口类名,通常跟cls中指定的名字是不一样的.
+
+left 左坐标 设计时坐标,窗体会记录到 _defClientRect,控件会记录到 _defRect
+top 上坐标 设计时坐标,窗体会记录到 _defClientRect,控件会记录到 _defRect 
+right 右坐标 设计时坐标,窗体会记录到 _defClientRect,控件会记录到 _defRect
+bottom 下坐标 设计时坐标,窗体会记录到 _defClientRect,控件会记录到 _defRect
+aardio会记录设计时坐标，作为运行时自动缩放控件的依据。
+
+dl 左侧是否固定与父窗口的左边距,如果是一个小数,计算父窗口宽度的百分比得出当前边距
+dt 上侧是否固定与父窗口的上边距,如果是一个小数,计算父窗口高度的百分比得出当前边距
+dr 右侧是否固定与父窗口的右边距,如果是一个小数,计算父窗口宽度的百分比得出当前边距
+db 底侧是否固定与父窗口的底边距,如果是一个小数,计算父窗口高度的百分比得出当前边距
+
+--------------------------------------------------------------------------
+以上属性由aardio窗体设计器生成的代码中使用，以下属性在窗体设计器之外使用。
+--------------------------------------------------------------------------
+
+width 控件的宽度,会被转换为_defClientRect或_defRect然后清除
+height 控件的高度,会被转换为_defClientRect或_defRect然后清除
+
+marginLeft 控件的左边距,小数表示计算父窗口宽度的百分比得出当前边距
+marginRight 控件的右边距,小数表示计算计算父窗口宽度的百分比得出当前边距
+marginTop 控件的顶边距,小数表示计算父窗口高度的百分比得出当前边距
+marginBottom 控件的底边距,小数表示计算父窗口高度的百分比得出当前边距
+
+所有关于控件位置的参数都是可选的，
+但应当指定合适的参数让aardio可以推算出其他的参数，
+例如指定了marginRight，那么至少应该指定width才能自动推算出正确的left参数,
+
+如果缺少参数,aardio会自动将相应参数设为0，或使用尽可能正确的参数代替。
+如果不能推算出left,top，aardio将marginLeft,marginTop默认设置为0,
+如果不能推算出right,bottom,aardio默认将marginRight,marginRight设为0。
+
+如果创建控件的代码不是由窗口设计器生成，
+建议大家使用marginLeft，marginRight，marginTop，marginBottom控制边距，
+并使用width,height等控制窗体大小。这几个属性更灵活，代码可读性也更好，而且也更加的简洁。
+
+如果在aardio的窗体设计器中使用marginLeft，marginRight，marginTop，marginBottom。
+aardio会自动将这些属性转换为dl,dt,dr,db等属性。
+*/
+
+var ctrls  = winform.button.addCtrl({ 
+	{cls="button";text="r";font=LOGFONT(name='Marlett';charset=2/*_SYMBOL_CHARSET*/);width=25;height=25;marginTop=0.5/*垂直居中*/;marginRight=25 } 
+})
+
+/*
+普通控件WM_COMMAND消息是发给父窗口，
+而只有win.form才能处理此消息并自动触发控件自身的oncommand函数,
+如果父窗口不是winform，就需要用下面的函数转发WM_COMMAND消息给父窗体处理，这样控件的 oncommand事件才能触发。
+
+对于plus控件这样不依赖WM_COMMAND，
+而是使用 win.ui.tracker完全自己处理事件的控件，不需要调用这句代码。
+*/
+winform.button.translateCommand();
+
+//匿名控件也可以响应事件
+ctrls[1].oncommand = function(id,event){
+	owner.parent.close();	
+}
+
+/*
+import win.ui.tracker;
+var event = win.ui.tracker(ctrls[1]);
+event.onMouseClick = function(wParam,lParam){
+	owner.parent.close();
+} 
+*/
+
+winform.add( 
+edit={cls="edit";text="edit";height=199;marginLeft=0;marginRight=0.5;top=0;edge=1;multiline=1;z=2};
+edit2={cls="edit";text="edit2";height=199;marginLeft=0.5;marginRight=0;marginTop=0;edge=1;multiline=1;z=3}
+)
+
+winform.show() 
+win.loopMessage(); 

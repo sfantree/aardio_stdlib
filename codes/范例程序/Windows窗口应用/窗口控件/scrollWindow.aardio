@@ -1,0 +1,50 @@
+//窗口滚动条
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add(
+button={cls="button";text="button";left=118;top=73;right=260;bottom=120;ah=1;aw=1;z=1};
+button2={cls="button";text="button2";left=107;top=397;right=356;bottom=530;ah=1;aw=1;z=2}
+)
+/*}}*/
+
+import win.ui.scrollbar;
+var scrollbar = win.ui.scrollbar(winform.hwnd,true);
+
+winform.wndproc = {
+    [0x115/*_WM_VSCROLL*/] = function(hwnd,message,wParam,lParam){ 
+       
+        var event,pos = ::LOWORD (wParam),::HIWORD(wParam);
+        var min,max,page = scrollbar.getRange();
+
+        select(event) {
+            case 8/*_SB_ENDSCROLL*/ {
+                return;
+            } 
+            case 0/*_SB_LINEUP*/  {
+                pos = scrollbar.pos - 1
+            }
+            case 1/*_SB_LINEDOWN*/{
+                pos = scrollbar.pos + 1
+            }
+            case 0x2/*_SB_PAGEUP*/{
+                pos = scrollbar.pos - page;
+            }
+            case 0x3/*_SB_PAGEDOWN*/{
+                pos = scrollbar.pos + page;
+            } 
+        }
+ 
+        ::User32.ScrollWindow(winform.hwnd,0, scrollbar.pos - pos,null,null); 
+        scrollbar.pos = pos;
+    }  
+}
+
+winform.adjust = function( cx,cy,wParam ) {	 
+	var _,yScale = winform.getScale();
+	scrollbar.setRange(1,100 *yScale ,16); 
+	::User32.ScrollWindow(winform.hwnd,0, -scrollbar.pos ,null,null); 
+};
+
+winform.show() 
+win.loopMessage();

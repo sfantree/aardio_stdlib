@@ -1,0 +1,86 @@
+//timer 定时管理器
+import win.ui;
+namespace win;
+
+class timer{
+	ctor( winform,interval = 100 ){
+		if( ! (winform[["hwnd"]] && winform.setInterval) ){
+			winform = ..win.form( {} );
+			winform.messageOnly();
+		}
+		
+		this.interval = interval;
+		this._form = winform;
+		this.proc = function(...){
+			if(this.count){
+				this.repeat = this.repeat + 1;
+				if(this.repeat > this.count ){
+					this.disable();
+					return 0;
+				}
+			}
+			
+			if(this.onTimer){
+				var ret = this.onTimer(...);
+				if( ret !== null) {
+					if(!ret)this.disable();
+					return ret;
+				}
+			}
+			
+			return this.interval
+		}  
+	};
+	
+	enable = function(interval,count){
+		if( this["(id)"] ) return;
+		if(interval!==null){
+			this.interval = interval;			
+		}
+		this["(id)"] = this._form.setInterval( this.interval, this.proc); 
+		this.count = count;
+		this.repeat = 0;
+		if(count){ this.proc(this._form.hwnd,0x113,this["(id)"],0); };
+	};
+	
+	disable = function(){
+		if( this["(id)"] ){
+			this._form.clearInterval(this["(id)"])
+			if( this.onEnd ) this.onEnd();
+			this["(id)"] = null;
+		}
+	}; 
+	
+	getInterval = function(){
+		return this.interval;
+	}; 
+	
+	setInterval= function(v){
+		if( type(v) != type.number){
+			error("参数必须指定毫妙数的数值.",2)
+		};
+		
+		var needReset = this["(id)"] && v <  this.interval 
+		this.interval = v;
+		if(needReset){
+			this.disable();
+			this.enable();
+		}
+	}; 
+}
+
+/**intellisense()
+win.timer = 定时管理器
+win.timer(.(winform,interval) = 创建定时器\n如果不指定窗体对象,则创建消息窗体\ninterval为可选参数，用于指定间隔时间,以毫秒为单位,默认为100毫秒
+win.timer() = !win_timer.
+!win_timer.onTimer = @.onTimer = function(){
+	__/*设置定时器触发函数,此函数不应返回任何值*/
+}
+!win_timer.onEnd = @.onEnd = function(){
+	__/*定时器停止时触发此事件*/
+}
+!win_timer.enable(.(interval,count) = 启用定时器,\n可选使用interval参数中指定间隔时间,以毫秒为单位,\n可选使用count参数限定定时器执行次数,\n如果指定了有效执行次数,则定时器会立即执行一次onTimer函数,\n否则会先延时再执行onTimer函数
+!win_timer.disable() = 禁用定时器
+!win_timer.setInterval(1__) = 修改定时器间隔时间,\n以毫秒为单位
+!win_timer.getInterval() = 读取定时器间隔时间
+end intellisense**/

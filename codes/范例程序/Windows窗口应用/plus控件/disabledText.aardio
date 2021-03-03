@@ -1,0 +1,39 @@
+//动画文字图标
+import fonts.fontAwesome
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add(
+button={cls="button";text="停止动画";left=224;top=377;right=419;bottom=454;z=2};
+plus={cls="plus";text='\uF04B  启动';left=170;top=133;right=344;bottom=180;bgcolor=-5197169;color=3145728;font=LOGFONT(h=-24;name='FontAwesome';charset=0);notify=1;z=1}
+)
+/*}}*/
+
+winform.plus.skin({
+	background={
+		active=0xFF6F6987;
+		default=0xFF8FB2B0;
+		disabled=0xFFD4D4D4;
+		hover=0xFF928BB3
+	};
+	color={
+		active=0xFFE69417;
+		default=0xFF000030;
+		disabled=0xFF1E9628;
+		hover=0xFFFF9A00
+	}
+})
+
+winform.button.disabledText = "请先点击启动"
+winform.plus.oncommand = function(id,event){
+	winform.plus.disabledText =  {'\uF254';'\uF251';'\uF252';'\uF253';'\uF250'};
+	winform.button.disabledText = null;
+}
+
+winform.button.oncommand = function(id,event){
+	winform.plus.disabledText = null;
+	winform.button.disabledText = "请先点击启动"
+}
+
+winform.show() 
+win.loopMessage();

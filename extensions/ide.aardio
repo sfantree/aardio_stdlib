@@ -1,0 +1,337 @@
+//ide扩展库
+import inet.http;
+import sevenZip.lzma.httpFile;
+import process.mutex;
+import web.json;
+import win;
+import win.ui.ctrl.edit;
+import winex;
+
+namespace ide{
+    
+	getExtLibs = function(){
+		var strLibVers = ..string.load( "~\extensions\extlibver.table") or "{}";
+		return eval(strLibVers);
+	};
+	
+	requestLibInfo = function(libName){
+		if( !libName ) error("请指定库名称参数",2);
+		return ..win.invoke(
+			function(libName){
+				import web.rest.jsonLiteClient;
+				var http = web.rest.jsonLiteClient(null,"");
+				var libApi = http.api("http://api.aardio.com/v10/exlibs/?{libName}")
+				var listLib = libApi[libName].get();
+				http.close();
+				return listLib;
+			},libName
+		) 
+	};
+	
+	installLib = function(libName,libUrl,askTitle){
+		return importFile(libName,libUrl,askTitle:"",true);
+	};
+	
+	var hasBeenEntered = {}; 
+	importFile = function(libName,libUrl,askTitle,installOnly){ 
+		if(hasBeenEntered[libName]){
+			error('导入库失败,未找到库文件\n库路径:' + libName,3 );
+		}
+		hasBeenEntered[libName] = true; 
+		
+		var downloadUrl,downloadLibName,downloadVersion;
+		if(libUrl){
+			downloadLibName = libName;
+			downloadUrl = libUrl;
+		}
+		elseif(_IMPORTURL[libName]){
+			downloadLibName = libName;
+			downloadUrl = _IMPORTURL[libName];
+		}
+		else{
+			var updateInfo = requestLibInfo( libName );  
+			if( ! ( updateInfo ? updateInfo.url ) ){
+				if(!installOnly){
+					error('导入库失败,未找到库文件\n库路径:' + libName,3 );
+				}
+				hasBeenEntered[libName] = false;
+				return false;
+			}
+			
+			if( installOnly ){
+				var libVers = getExtLibs();
+				if( libVers[libName][["version"]] == updateInfo.version ){
+					hasBeenEntered[libName] = false;
+					return true;	
+				} 
+			}
+			
+			downloadUrl = updateInfo.url;
+			downloadLibName = updateInfo.libName;
+			downloadVersion =  updateInfo.version;
+		}
+		
+		if( !askTitle )
+			askTitle =  libName+"扩展库尚未安装,您需要下载安装"+libName+"扩展库吗?";
+		
+		if(  ( !#askTitle ) || ..win.msgboxTest( askTitle ,"aardio") ){ 
+		
+			var mutex = ..process.mutex("{5C6E466D-0DF1-4ABC-BFAD-9B890AA358FC}.lock.import." + libName,false,false);
+			mutex.wait(); {
+			
+				if( ..string.endWith( downloadUrl,".tar.lzma",true) ){
+					..sevenZip.lzma.httpFile.download(downloadUrl,"aardio- 下载"+libName+"扩展库","~/download/lib/" , ,downloadLibName + ".tar.lzma");
+				} 
+			
+			} mutex.release();
+			
+			if(..io.libpath(libName) ){	
+				
+				if(!installOnly){
+					global.import(libName);
+				}
+				elseif(downloadVersion) {
+					var libVers = getExtLibs();
+					libVers[downloadLibName] = { version = downloadVersion };
+					..string.save("~\extensions\extlibver.table", ..table.tostring(libVers) )
+				}
+				
+				hasBeenEntered[libName] = false;
+				return true;
+			}
+		}
+		
+		hasBeenEntered[libName] = false;
+		if(!installOnly){
+			error('导入库失败,未找到库文件\n库路径:' + libName,3 ); 
+		}
+		return false; 
+	}
+	
+	mdiActivate = function(hwnd,cls="Afx"){
+		var mainHwnd = getMainHwnd();
+		if(!mainHwnd) return;
+		var mc = ..win.findEx( getMainHwnd(),0,"MDIClient"); 
+		if(!mc) return;
+		
+		if( type(hwnd) != type.number ){
+			hwnd = ..winex.findEx(mc,,cls,hwnd);
+		}  
+		if(!hwnd) return;
+		
+		while( 
+		    var cur,p = hwnd;
+		    p = ..win.getParent(cur); 
+		    p 
+		) { 
+			if( p == mc ){
+				::PostMessage(mc,0x222/*_WM_MDIACTIVATE*/,cur,0)
+				return true;
+			}
+			cur = p;
+		} 
+	};
+	compile = function(){
+		::PostMessage( getMainHwnd(),0x111/*_WM_COMMAND*/, 0x8315/*_IDE_ID_BUILD_COMPILE*/,0);
+	};
+	run = function(){
+		::PostMessage( getMainHwnd(),0x111/*_WM_COMMAND*/, 0x831D/*_IDE_ID_BUILD_RUN*/,0);
+	};
+	publish = function(){
+		::PostMessage( getMainHwnd(),0x111/*_WM_COMMAND*/, 0x8317/*_IDE_ID_BUILD_PUBLISH*/,0);
+	};
+	switchDesignView = function(){
+		::PostMessage( getMainHwnd(),0x111/*_WM_COMMAND*/, 0x831A/*_IDE_ID_DESIGN_SWITCHTO*/,0);
+	};
+	startpage = function(){
+		::PostMessage( getMainHwnd(),0x111/*_WM_COMMAND*/, 32896/*_IDE_ID_BUILD_COMPILE*/,0);
+	};
+	newProject = function(){
+		::PostMessage( getMainHwnd(),0x111/*_WM_COMMAND*/, 33180,0);
+	}; 
+	getVersion = function(){
+		var ver = getConfig("version");  
+		major,minor,build = ..string.match(ver,"\s*(\d+)\.(\d+)\.?(\d*)");
+		return major,minor,build;
+	};
+	
+	getActiveCodeEditorHwnd = function(){
+		var hView = getActiveViewHwnd(); 
+		if( hView ) return ..winex.findEx(hView ,,"AardioCodeEditor.+")
+	}; 
+	
+	openCode = function(code){
+		newDocument();
+		..winex.setText( getActiveCodeEditorHwnd(),code );
+	};
+	
+	getActiveCodeEditor = function(){ 
+		var hView = getActiveViewHwnd(); 
+		if( hView ){
+			var hEdit = ..winex.findEx(hView ,,"AardioCodeEditor.+")
+			if(hEdit){ 
+				var ctrl = ..win.ui.ctrl.edit();
+				ctrl.hwnd = hEdit;
+				return ctrl;
+			}
+		}
+	}; 
+
+	if( _STUDIO_INVOKED != "process" ){
+		processGroup = function(name){
+			return ..string.concat( "{5D345FB2-C8CC-4EA6-B762-FCB2A40CE799}.aardio.ide[" + ::Kernel32.GetCurrentProcessId() + "]",name);
+		}
+		
+		getPublisDir = function(){
+			var dir = getProjectProperty("publishDir")
+			if( dir[1] == '\\'# || dir[1] == '/'# ){
+				dir = ..fsys.joinpath( getProjectDir(),dir )
+			}
+			return dir;
+		}; 
+		getPublishObjPath = function(){
+			return ..fsys.joinpath( getPublisDir(), getProjectProperty("name") + ".obj" ) ;
+		};
+		getPublishPath = function(){
+			return ..fsys.joinpath( getPublisDir(), getProjectProperty("output")) ;
+		}; 
+		getPublishName = function(){
+			return getProjectProperty("output");
+		}; 
+		setPublishName = function(name){
+			return setProjectProperty("output",name);
+		};
+		getActiveDocPath = function(){
+			var hView,path = getActiveViewHwnd();
+			if(hView) return path;
+		};
+	}
+	else {
+		processGroup = function(name){
+			var tid,pid =  ..win.getThreadProcessId( getMainHwnd() );
+			return ..string.concat( "{5D345FB2-C8CC-4EA6-B762-FCB2A40CE799}.aardio.ide[" + pid + "]",name);
+		}
+		import ide.command;
+		ide.command.join( processGroup() );
+		
+		for(k,name in {"gotoLine";
+	"getPublisDir"; 
+	"getPublishObjPath";
+	"getPublishPath"; 
+	"getPublishName"; 
+	"setPublishName";
+	"updateVersion";
+	"getProjectDir";
+	"getProjectPath";
+	"setConfig";
+	"pluginViewShow";
+	"saveAll";
+	"save";
+	"insertCode";
+	"newDocument";
+	"newForm";
+	"getActiveForm";
+	"getActiveCode";
+	"setActiveCode";
+	"switchActiveForm";
+	"setSelectedControl";
+	"getSelectedControl";
+	"projectIsOpened";
+	"setProjectProperty";
+	"getProjectProperty";
+	"getProjectMainFile";
+	"getActiveDocPath";
+	"getActiveViewHwnd";
+	"getControlParam";
+	"setControlParam";
+	"loadPrivateFont";
+	"getConfig";
+	"setConfig";
+	"redrawActiveCodeEditor";
+	"showStatus"} ){
+				self[name] =  function(...){ 
+					return ..ide.command.dispatchIdeCommand(name,...) 
+				};
+			}
+			
+	for(k,name in { 
+	"pluginViewCreate";
+	"createProcess";
+	"createThread";
+	"openDocument"} ){ 
+				self[name] =  function(path,...){ 
+					return ..ide.command.dispatchIdeCommand(name,path ? ..io.fullpath(path),...) 
+				};
+			} 
+	} 
+}
+
+/**intellisense(ide)
+getProjectMainFile() = 工程启动代码文件路径
+getActiveCodeEditor() = 返回当前代码编辑器控件\n!edit.
+getActiveCodeEditorHwnd() = 返回当前代码编辑器控件句柄
+gotoLine(__) = 跳转到参数指定的代码行
+mdiActivate( = 激活文档窗口
+mdiActivate(.(句柄) = 激活窗口
+mdiActivate(.("标题","类名") = 激活窗口
+switchDesignView() = 切换当前窗体设计视图;
+run() = 运行当前视图源码;
+createThread("__") = 运行指定aardio文件,\n参数指定aardio文件路径
+createProcess(.(代码文件路径,代码,动词) = 在IDE中创建进程启动参数@1或参数@2指定的代码\n动词可以是open,runas等
+compile() = 编译当前视图源码;
+publish() = 编译当前工程生成exe文件
+newProject() = 打开新建工程向导
+startpage() = 切换到开始页
+getProjectDir() = 获取当前工程所在目录,\n如果未打开工程,返回空字符串
+getProjectPath() = 获取当前工程路径,\n如果未打开工程,返回空字符串
+getProjectProperty("publishDir__") = 返回工程属性,\n失败返回空字符串 
+setProjectProperty("publishDir","") = 设置工程属性,\n返回布尔值表示是否成功 
+projectIsOpened() = 返回当前是否已经打开工程
+refreshUserLib() = 刷新当前工程用户库节点,\n并更新用户库智能提示数据
+refreshStdLib() = 刷新标准库视图,\n并更新标准库智能提示数据
+processList() = IDE启动的调试进程列表
+openCode(__/*aardio代码*/) = 新建文档窗口并写入aardio代码\n参数指定aardio代码
+openDocument("/__/*输入文件路径*/") = 打开*.aardio文件或*.aproj工程文件。
+newDocument() = 在编辑器中新建aardio源码,可选在参数中指定源代码
+insertCode(__) = 在当前代码编辑器光标位置插入代码,\n支持智能提示模板语法,自动插入新行,自动缩进,\n并将双下划线转换为光标位置,其后的段注释显示为汽泡提示。\n成功返回true
+save() = 保存当前文档
+saveAll() = 保存所有文档,并保存工程文件
+getActiveViewHwnd() = 获取活动视图句柄\n其父窗口为MDI子窗口,子窗口为编辑器窗口\n在IDE进程内运行时第二个返回值为当前文档路径
+getActiveDocPath() = 获取活动文档路径,\n如果文档未保存为文件,则返回值为空
+getMainHwnd() = 获取IDE顶层主窗口句柄
+getConfig("__/*属性名*/") = 返回IDE配置文件 ("/Config/USE.CFG") 指定字段值,\n返回值为字符串,失败返回空串
+setConfig("__/*属性名*/","") = 修改IDE配置文件 ("/Config/USE.CFG") 指定字段值,\n参数必须都是字符串
+pluginViewCreate("__/*aardio文件*/") = 创建视图插件,\n参数指定aardio文件路径
+pluginViewShow(.(winform) = 显示视图插件,\n请用此函数替换winform.show(),\n窗体样式必须设为"child"样式
+getVersion() = @major,minor,build = ide.getVersion();
+getPublisDir() = 返回发布目录
+getPublishName() = 返回生成文件名
+setPublishName(.("输出文件名") = 插件可以使用此函数修改输出文件名\n因此所有插件请尽可能使用getPublishPath函数获取当前输出路径
+getPublishPath() = 返回生成文件路径
+installLib( = 安装远程扩展库
+installLib(.(libName,libUrl,askTitle) = 参数@libName指定扩展库名称,\n参数@libUrl可选,用于指定库安装包网址，安装包使用扩展库发布工具生成,\n参数@askTitle可选,用于指定安装询问对话框标题,省略则直接安装\n\n如果不使用@libUrl参数指定网址，自官方扩展库查找高于已安装版本的安装包。\n而指定@libUrl参数时总是重新安装扩展库
+getExtLibs() = 返回已安装的扩展库列表
+requestLibInfo(.("all") = 查询服务端扩展库信息
+updateVersion(__) = 更新版本
+processGroup(__) = 返回当前开发进程群组名,可在参数中指定后缀名\n该名字包含IDE主进程的进程ID，可用于process.command,thread.event等
+newForm() = 在编辑器中新建新建窗体设计器,可选在参数中指定窗口源代码
+getActiveForm() = 返回当前的文档窗口是否窗体设计器
+getActiveCode() = 如果当前打开的是源码或窗体设计器,返回正在编辑的源代码,\n失败返回null
+setActiveCode(__) = 如果当前打开的是源码或窗体设计器,重新设置正在编辑的源代码,\n此函数会覆盖正在编辑的源码，且无法撤消，请谨慎使用,\n成功返回true,失败或当前编辑的不是源码文档或窗体设计器返回false
+redrawActiveCodeEditor() = 重新读入配色与字体设置,\n重绘当前代码编辑器窗口,\n成功返回true
+switchActiveForm（true) = 用于切换窗体设计器的视图,\n参数为true时切换到设计器视图,参数为false切换到源码视图,\n成功返回true
+setSelectedControl(__) = 在窗体设计器中选中指定名称的控件,\n并取消选中其他控件,\n成功返回true
+getSelectedControl() = 返回当前窗体设计器选中的控件名称,失败返回null
+setControlParam(.(控件名,参数表) = 更新控件参数,成功返回true，失败返回false
+getControlParam(.(控件名) = 获取控件参数,\n参数中的font属性作为::LOGFONT的参数才能转换为字体对象
+loadPrivateFont(.("字体路径") = 在开发环境中加载字体文件,\n使窗体设计器中的控件可以显示该字体
+showStatus(.(消息,进度) = 在IDE状态栏显示削息和进度\n参数@1使用字符串指定消息,\n参数@2使用数值指定进度\n所有参数可选\n不指定进度时重置进度为初始状态
+end intellisense**/
+
+/**intellisense()
+ide = aardio开发环境扩展支持库,仅适用于编写开发环境插件,\n需要使用import ide;语句导入才能使用,\n\nimport ide作为程序第一个import语句时，插件在IDE进程内以线程模式运行,\n否则插件在IDE进程外以独立进程模式运行，请优先使用独立进程模式
+_IDE_ID_BUILD_COMPILE=@0x8315/*_IDE_ID_BUILD_COMPILE*/
+_IDE_ID_BUILD_PUBLISH=@0x8317/*_IDE_ID_BUILD_PUBLISH*/
+_IDE_ID_DESIGN_SWITCHTO=@0x831A/*_IDE_ID_DESIGN_SWITCHTO*/
+_IDE_ID_BUILD_RUN=@0x831D/*_IDE_ID_BUILD_RUN*/
+end intellisense**/

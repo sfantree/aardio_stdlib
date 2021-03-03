@@ -1,0 +1,27 @@
+﻿//检测IE版本
+
+/*检测IE版本{{*/  
+import win.version;
+import web.form.util; 
+import inet.downBox;
+import process;
+
+if( ! ( win.version.isVistaLater || web.form.util.getMajorVersion() >= 8 )  ) begin
+    import win;
+    if( win.msgboxTest('您的IE版本太低!\n在XP上继续运行本程序需要升级到IE8\n是否继续!?',"运行环境检测") ){
+        var downBox = inet.downBox(mainForm,"正在下载IE8浏览器...",1000) 
+     
+        downBox.download( "http://download.microsoft.com/download/1/6/1/16174D37-73C1-4F76-A305-902E9D32BAC9/IE8-WindowsXP-x86-CHS.exe"
+            , "/download/IE8-WindowsXP-x86-CHS.exe" ) 
+            
+        if( downBox.complete ){
+            //启动参数：/passive是无人参与模式,/norestart安装后不重新启动
+            process.execute_wait("/download/IE8-WindowsXP-x86-CHS.exe","/passive /norestart")
+        } 
+    } 
+    
+    if( ! web.form.util.getMajorVersion() >= 8){
+        return; //直接退出程序拒绝执行
+    }
+end
+/*}}*/

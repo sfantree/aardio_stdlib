@@ -1,0 +1,266 @@
+﻿//printer 打印机
+namespace sys;
+
+class printer{
+	ctor( printerName,printerDefaults ){
+		if(!printerName) printerName = default();
+		if(!printerName) return;
+		
+		this.hPrinter = {ptr value};
+		if(!api.OpenPrinter(printerName,this.hPrinter,printerDefaults) ) return;
+		this.hPrinter = this.hPrinter.value;
+		this.deviceName = printerName;
+		
+		..table.gc(this,"close");
+	};
+	documentProperties = function(param){
+   		var needed = api.DocumentProperties(param[["hwnd"]],this.hPrinter,this.deviceName,,,0);
+		var pDevMode = ..raw.buffer(needed);
+   		if( 1 != api.DocumentProperties(param[["hwnd"]],this.hPrinter,this.deviceName,pDevMode,null,2/*_DM_OUT_BUFFER*/) ){
+   			return;
+   		}
+   	
+   		if(param){
+   			var devMode = ..raw.convert(pDevMode,DEVMODE());
+   			..table.assign(devMode,param);
+			if( 1 != api.DocumentProperties(param[["hwnd"]],this.hPrinter,this.deviceName,pDevMode,devMode,8 | 2/*_DM_IN_BUFFER | _DM_OUT_BUFFER*/) ){
+   				return;
+   			}
+   		}
+		
+   		return pDevMode;
+	};
+	createDevice = function(param){
+		var pDevMode;
+		if(param) pDevMode = this.documentProperties(param);
+		var hdc = topointer( ::Gdi32.CreateDC(null, this.deviceName, null, pDevMode) );
+		var pdc = device(hdc,true);
+		pdc.deviceName = this.deviceName;
+		return pdc;
+	};
+	startDoc = function(docName,dataType,outputFile){
+		return !!api.StartDocPrinter(this.hPrinter,1,{
+				ustring docName = docName : "My Document";
+				ustring outputFile = outputFile;
+				ustring dataType = dataType : "RAW";
+		});
+	};
+	startPage = function(){
+		return !!api.StartPagePrinter(this.hPrinter);
+	};
+	endPage = function(){
+		return !!api.EndPagePrinter(this.hPrinter);
+	};
+	endDoc = function(){
+		return !!api.EndDocPrinter(this.hPrinter);
+	};
+	start = function(printProc,docName,dataType,outputFile){
+		if( this.startDoc(docName,dataType,outputFile) ){
+			if( this.startPage() ){
+				printProc();
+				this.endPage();
+			}
+			this.endDoc();
+		}
+	};
+	write = function(data){
+		var written = {INT len};
+		if( api.WritePrinter(this.hPrinter,data, #data,written) ){
+			return written.len;
+		}
+	};
+	writePack = function(...){
+		var data = ..string.pack(...);
+		var written = {INT len};
+		if( api.WritePrinter(this.hPrinter,data, #data,written) ){
+			return written.len;
+		}
+	};
+	read = function(len=255){
+		var buf = ..raw.buffer(len);
+		var noBytesRead = {INT value};
+		if( api.ReadPrinter(this.hPrinter,buf,len,noBytesRead) )
+			return ..string.left(buf,noBytesRead.value);
+	};
+	close = function(){
+		if(this.hPrinter) {
+			api.ClosePrinter(this.hPrinter);
+			this.hPrinter = null;
+		};
+	}
+}
+
+namespace printer{
+	api = ..raw.loadDll("Winspool.drv");
+	
+	each  = function(flags){
+		var needed = {INT value}
+		var returned = {INT value};
+		if(flags===null) flags = 2/*_PRINTER_ENUM_LOCAL*/;
+		api.EnumPrinters(flags, null, 4, null, 0, needed, returned) ;
+		if(!needed.value) return function(){};
+		
+		var buffer = ..raw.buffer(needed.value)
+		api.EnumPrinters(flags, null, 4, buffer, #buffer, needed, returned) ;
+		
+		var info4 = ..raw.convert(buffer,{
+			struct printers[] = {
+				{
+					ustring printerName;
+					ustring serverName;
+					INT attributes;
+				};
+				length = returned.value;
+			}
+		})
+		
+		var index = 0;
+		return function(){
+			index = index + 1;
+			var printer = info4.printers[index];
+			if(printer) return printer.printerName,printer.serverName,printer.attributes;
+		}
+	}
+	
+	default = function(){
+		var buffer = ..raw.buffer(1024)
+		var length = { INT value = 1024};
+		if(api.GetDefaultPrinter(buffer,length) ) return ..string.fromUnicode(buffer);
+	}
+	
+	setDefault = function(printerName){
+		return !!api.SetDefaultPrinter(printerName);
+	}
+	
+	::Gdi32 := ..raw.loadDll("Gdi32.dll");
+	class device{
+		ctor(hdc,gc){
+			this.hdc = hdc;
+			if(!this.hdc){
+				var printerName = ..sys.printer.default();
+				if(printerName) {
+					return ..sys.printer(printerName).createDevice();
+				}
+			}
+			if(gc)this.gchdc = this.hdc;
+			if(!this.hdc) return;
+		};
+		size = function(){
+			return ::Gdi32.GetDeviceCaps(this.hdc,0x8/*_HORZRES*/),::Gdi32.GetDeviceCaps(this.hdc,0xA/*_VERTRES*/);	
+		};
+		dpi = function(){
+			return ::Gdi32.GetDeviceCaps(this.hdc,0x58/*_LOGPIXELSX*/),::Gdi32.GetDeviceCaps(this.hdc,0x5A/*_LOGPIXELSY*/);
+		};
+		reset = function(devMode){
+			::Gdi32.ResetDC(this.hdc,devMode);
+		};
+		startDoc = function(docName,dataType,output,fwType){
+			return 0 < ::Gdi32.StartDoc(this.hdc,{
+					int cbSize = 20;
+					ustring docName = docName : "My Document";
+					ustring output = output;
+					ustring dataType = dataType;
+					INT fwType = fwType;
+			});
+		};
+		startPage = function(){
+			return 0 < ::Gdi32.StartPage(this.hdc);
+		};
+		endPage = function(){
+			return 0 < ::Gdi32.EndPage(this.hdc);
+		};
+		endDoc = function(){
+			return 0 < ::Gdi32.EndDoc(this.hdc); 
+		};
+		start = function(printProc,docName,dataType,output,fwType){
+			if( this.startDoc(docName,dataType,output,fwType) ){
+				if( this.startPage() ){
+					printProc(this.hdc);
+					this.endPage();
+				}
+				this.endDoc();
+			}
+		};
+		close = function(){
+			if(this.gchdc){
+				::Gdi32.DeleteDC(this.gchdc);
+				this.gchdc = null;
+				this.hdc = null;
+			}
+		}
+		@{ _topointer = function(){return this.hdc}}
+	}	
+	
+	class DEVMODE{
+		WORD dmDeviceName[32];
+		WORD dmSpecVersion;
+		WORD dmDriverVersion;
+		WORD dmSize;
+		WORD dmDriverExtra;
+		INT dmFields; 
+		word dmOrientation;
+		word dmPaperSize;
+		word dmPaperLength;
+		word dmPaperWidth;
+		word dmScale;
+		word dmCopies;
+		word dmDefaultSource;
+		word dmPrintQuality; 
+		word dmColor;
+		word dmDuplex;
+		word dmYResolution;
+		word dmTTOption;
+		word dmCollate;
+		WORD dmFormName[32];
+		WORD dmLogPixels;
+		INT dmBitsPerPel;
+		INT dmPelsWidth;
+		INT dmPelsHeight;
+		INT dmDisplayFlags;
+		INT dmDisplayFrequency;
+		INT dmICMMethod;
+		INT dmICMIntent;
+		INT dmMediaType;
+		INT dmDitherType;
+		INT dmReserved1;
+		INT dmReserved2; 
+		INT dmPanningWidth;
+		INT dmPanningHeight; 
+	}
+	
+}
+
+/**intellisense()
+sys.printer(.(printerName,printerDefaults) = 打开打印机设备\nprinterName指定打印机名称,省略打开默认打印机\nprinterDefaults可省略
+sys.printer.device(.(hdc) = 创建绘图设备对象\n如果不指定hdc,则自动获取默认打印机绘图设备句柄\n如果参数@2为true,则负责释放参数@1指定的hdc
+sys.printer() = !stdsysprinter.
+sys.printer.device() = !stdsysprinterdc.
+sys.printer.each(flags) = @for printerName,serverName,attributes in sys.printer.each(){
+	__/*遍历系统打印机:\nprinterName为打机机名称,\nserverName为服务名,\nattributes为_PRINTER_ATTRIBUTE_前缀常量*/
+}
+sys.printer.setDefault(__/*名称*/) = 设置默认打印机
+sys.printer.default() = 返回默认打印机名称
+end intellisense**/
+
+/**intellisense(!stdsysprinter)
+documentProperties() = 获取或修改DEVMODE缓冲区指针\n可选在参数中使用任意个键值对重新指定DEVMODE部分字段的值
+createDevice() = 创建绘图设备对象,\n可选在参数中使用任意个键值对重新指定DEVMODE部分字段的值\n!stdsysprinterdc.
+startDoc(docName,dataType,outputFile) = 开始打印文档,所有参数可选\n参数参考API函数StartPagePrinter的说明
+startPage() = 开始打印一个页面
+endPage() = 结束打印一个页面
+endDoc() = 结束打印一个文档
+writePack(__) = 写入一个或多个字节码
+write(__) = 写入字符串
+start(回调函数,文档名,文档类型,输出文件) = 	@.start(\n	function(){\n		__	\n	}\n);
+end intellisense**/
+
+/**intellisense(!stdsysprinterdc)
+reset(__) = 修改打印机设置\n参数应为sys.printer.documentProperties函数返回的DEVMODE指针
+size() = 返回绘图区块大小
+dpi() = 返回DPI
+startDoc(docName,dataType,output,fwType) = 开始打印文档,所有参数可选\n参数参考API函数StartPage的说明
+startPage() = 开始打印一个页面
+endPage() = 结束打印一个页面
+endDoc() = 结束打印一个文档
+start(回调函数,文档名,文档类型,输出文件,类型) = @.start(\n	function(hdcPrinter){\n		::Gdi32.TextOut(hdcPrinter,20,20,"测试打印",4);	__\n	}\n);
+end intellisense**/

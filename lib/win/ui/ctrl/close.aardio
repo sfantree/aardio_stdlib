@@ -1,0 +1,59 @@
+﻿//close 关闭按钮
+import win.ui.ctrl.plus;
+import gdip.pen;
+
+namespace win.ui.ctrl;
+
+class close {
+	ctor (parent,tParam) {
+		tParam.clipBk=false;
+		tParam.notify=1;
+		tParam.text=null;
+		tParam.clipBk=false;
+		tParam.hide=1;
+		tParam.style = tParam.style & ~0x10000000/*_WS_VISIBLE*/;
+		this = ..win.ui.ctrl.plus(parent,tParam);
+	};	
+	onPlusCreated = function(){
+		var back = this.backgroundColor;
+		if( back !== null ) back = (back &0xFFFFFF) | 0x66000000;
+		else back = 0x66FFCC66;
+		
+		this.skin(
+     		background = { 
+         		hover = 0xFFe35c51; 
+         		active = 0xFF8f241b;
+         		default = back; 
+     		}
+    		color = {
+         		hover = 0xFFFFFFFF; 
+         		active = 0xFFeeeeee;
+    		} 
+		);
+		this.notify =true;
+		this.orphanWindow(true)
+	};
+	onDrawBackground = function(graphics,rc,backgroundColor,color){  
+    	if( backgroundColor!==null ){
+    		
+			var brush = ..gdip.solidBrush(backgroundColor); 
+        	graphics.fillEllipse(brush,rc.left,rc.top, rc.width(), rc.height() );  
+        	brush.delete(); 
+        	
+        	rc.inflate(-(rc.width()/3.5),-(rc.height()/3.5)); 
+        	var l,t,r,b = rc.left,rc.top,rc.right,rc.bottom; 
+        	var pen = ..gdip.pen( color , 2, 2/*_GdipUnitPixel*/ ); 
+        	
+        	graphics.drawLine( pen,l,t,r,b);  
+        	graphics.drawLine( pen,l,b,r,t);
+        	pen.delete();
+        	
+        	return true;
+		}
+	}	
+};
+
+/**intellisense()
+win.ui.ctrl.close = 显示关闭图标的圆形小按钮,继承自plus控件,\n此控件创建orphanWindow窗口,创建窗口后默认为隐藏状态,不显示文本
+win.ui.ctrl.close() = !ui_ctrl_plus.
+end intellisense**/

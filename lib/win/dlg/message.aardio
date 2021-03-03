@@ -1,0 +1,304 @@
+﻿//message 简单信息框
+import win.ui;
+import fonts.fontAwesome;
+import win.ui.ctrl.plus;
+import win.ui.simpleWindow2;
+import win.ui.fade;
+
+namespace win.dlg;
+
+class message{
+	ctor(parent){ 
+		this.parent = parent; 
+		this.icon = '\uF05A';
+		this.iconColor = 0xD4883B;
+		this.textColor = 0xFFFFFF;
+		this.bgcolor = 0x564A45;
+		this.progressBgColor = 6447459;
+		this.progressForeColor = 9959653;
+		this.fadeInterval = 12;
+		this.fadeDuration = 400;
+		this.cancelLabel = '\uF00D  取消';
+		this.okLabel = '\uF00C 确定';
+		
+		this.buttonStyle = { 
+			color = {  
+				hover = 0xF0FFFFFF;
+				active = 0x30FFFFFF; 
+				default = 0x90FFFFFF;
+			} 
+			border = {
+				default = {width=0;}
+				hover = { bottom = 1;color= 0xF0FFFFFF; }
+				focus = { bottom = 1;color= 0xF0FFFFFF; }
+				active = { bottom = 1;color= 0x30FFFFFF; }
+			} 
+		}
+		
+		this.titlebarStyle = { 
+			color = { 
+				hover = 0xffffffff;
+				active = 0x33ffffff; 
+				default = 0x66ffffff; 
+			}
+		} 
+	};
+	create = function(msg,showButtons,showProgress){ 
+		if(!#msg) error("文本不能为空",2);
+		var parentForm = this.parent;
+		if(parentForm){
+			if( !..win.isWindow(this.parent[["hwnd"]] || this.parent) ){
+				parentForm = ..win.getActive() || ..mainForm[["hnwd"]];
+			}	
+		}
+
+		var winform = ..win.form(text="info";right=831;bottom=679;bgcolor=this.bgcolor;border="none";exmode="toolwindow";min=false;parent=parentForm)
+		if(!winform){
+			return;
+		}
+
+		winform.add(
+		icon={cls="plus";text=this.icon;left=10;top=10;right=80;bottom=62;color=this.iconColor;dl=1;dt=1;font=LOGFONT(name='FontAwesome';h=-37);z=1};
+		message={cls="plus";text=msg;left=80;top=24;right=777;bottom=654;align="left";color=this.textColor;dl=1;dr=1;dl=1;dt=1;db=1;font=LOGFONT(h=-16);valign="top";z=2}; 
+		)  
+		
+		if( showButtons ){ 
+			var cancelIcon,cancelLabel = ..string.match(this.cancelLabel,"^\s*(:)\s(.+)"); 
+			var okIcon,okLabel = ..string.match(this.okLabel,"^\s*(:)\s(.+)"); 
+			if(!cancelIcon) cancelIcon = '\uF00D';
+			if(!okIcon) okIcon = '\uF00C';
+			
+			winform.add( 
+			btnCancel={cls="plus";text=cancelLabel;iconText=cancelIcon;left=734;top=637;right=796;bottom=672;color=16777215;db=1;dr=1;font=LOGFONT(h=-16);iconStyle={align="left";font=LOGFONT(h=-16;name='FontAwesome')};textPadding={left=16};notify=1;z=4};
+			btnOk={cls="plus";text=okLabel;iconText=okIcon;left=665;top=637;right=727;bottom=672;color=16777215;db=1;dr=1;font=LOGFONT(h=-16);iconStyle={align="left";font=LOGFONT(h=-16;name='FontAwesome')};textPadding={left=16};notify=1;z=3};
+			);
+			
+			winform.btnOk.oncommand = function(id,event){
+				winform.endModal(true)
+			} 
+			winform.btnCancel.oncommand = function(id,event){
+				winform.endModal()
+			} 
+			
+			winform.btnCancel.skin( this.buttonStyle );winform.btnOk.background = 0xff
+			winform.btnOk.skin( this.buttonStyle );
+		}
+		elseif(showProgress) {
+			winform.add( 
+			progress={cls="plus";left=27;top=663;right=813;bottom=668;bgcolor=this.progressBgColor;db=1;dl=1;dr=1;forecolor=this.progressForeColor;z=3}
+			)
+			
+			winform.progress.setProgressRange(1,100);
+		}
+		
+		winform.onOk = function(){
+			winform.endModal(true);
+		}
+		
+		winform.onCancel = function(){
+			winform.endModal();
+		}
+		
+		//根据文字长度,自动调整窗口宽度
+		var rect = winform.message.measureString();
+		var width = winform.message.left + rect.width + 54;
+		if( width < 290 ) width = 290;
+		winform.width = width;
+
+		var height = winform.message.top + rect.height;
+		if( showButtons ) height = height + winform.btnOk.height + 20;
+		elseif( showProgress ) height = height + winform.progress.height + 26;
+		else {
+			height = height + 25;
+		}
+		
+		winform.height = height;
+			
+		winform.message.width = rect.width +20;
+		winform.message.height = rect.height +5;
+		
+		if( ..string.indexOf(msg,'\n') ){
+			winform.message.valign="top";
+			winform.icon.valign="top";
+			winform.icon.top = winform.message.top;
+		}
+		
+		winform.enableDpiScaling(true);
+		winform.center(parentForm);
+		
+		var sw = ..win.ui.simpleWindow2(winform);
+		sw.skin(this.titlebarStyle);
+		winform.resize();
+		
+		if(this.fadeInterval)..win.ui.fade(winform,this.fadeDuration,this.fadeInterval);
+		return winform;	
+	}
+	show = function(msg,sw){
+		if(!#msg) error("文本不能为空",2);
+		var dlg = this.create(msg);
+		if(dlg) return dlg.show(sw);
+	}
+	doModal = function(msg,showButtons,timeOut){
+		if(!#msg) error("文本不能为空",2);
+		var dlg = this.create(msg,showButtons);
+		if(!dlg) return;
+
+		if(timeOut){ 
+			if(this.fadeInterval)timeOut=timeOut+this.fadeDuration;
+			dlg.setTimeout(	lambda() dlg.endModal(),timeOut)
+		}
+		return dlg.doModal();
+	}
+	info = function(msg,timeOut){
+		this.icon = '\uF05A';
+		this.iconColor = 0xD4883B;
+		return this.doModal(msg,,timeOut);
+	}
+	warn = function(msg,timeOut){
+		this.icon = '\uF071'/*_FA_EXCLAMATION*/
+		return this.doModal(msg,,timeOut);
+	}
+	ok = function(msg,timeOut){
+		this.icon = '\uF046'/*_FA_EXCLAMATION*/
+		this.iconColor = 0x54CC2E;
+		return this.doModal(msg,,timeOut);
+	}
+	err = function(msg,timeOut){
+		this.icon = '\uF05C'/*_FA_EXCLAMATION*/
+		this.iconColor = 0x5654E0;
+		return this.doModal(msg,,timeOut);
+	}
+	great = function(msg,timeOut){ 
+		this.icon = '\uF164'/*_FA_EXCLAMATION*/
+		this.iconColor = 0x54CC2E;
+		return this.doModal(msg,,timeOut);
+	}
+	sorry = function(msg,timeOut){ 
+		this.icon = '\uF165'/*_FA_EXCLAMATION*/
+		this.iconColor = 0xD4883B;
+		return this.doModal(msg,,timeOut);
+	}
+	smile = function(msg,timeOut){ 
+		this.icon = '\uF118'/*_FA_EXCLAMATION*/
+		this.iconColor = 0x54CC2E;
+		return this.doModal(msg,,timeOut);
+	}
+	frown = function(msg,timeOut){ 
+		this.icon = '\uF119'/*_FA_EXCLAMATION*/
+		this.iconColor = 0xD4883B;
+		return this.doModal(msg,,timeOut);
+	}
+	ask = function(msg){ 
+		this.icon = '\uF059'/*_FA_EXCLAMATION*/
+		this.iconColor = 0xD4883B;
+		return this.doModal(msg,true);
+	}
+}
+
+message.install = function(){
+	..win.ui.ctrl.metaProperty.mixin({
+		msgInfo = function(str,timeOut){
+			message(owner).info( str,timeOut ); 
+		};
+		msgErr = function(str,timeOut){
+			message(owner).err( str,timeOut ); 
+		};
+		msgWarn = function(str,timeOut){
+			message(owner).warn( str,timeOut ); 
+		};
+		msgGreat = function(str,timeOut){
+			message(owner).great( str,timeOut ); 
+		};
+		msgSmile = function(str,timeOut){
+			message(owner).smile( str,timeOut ); 
+		};
+		msgFrown = function(str,timeOut){
+			message(owner).frown( str,timeOut ); 
+		};
+		msgOk = function(str,timeOut){
+			message(owner).ok( str,timeOut ); 
+		};
+		msgSorry = function(str,timeOut){
+			message(owner).sorry( str,timeOut ); 
+		};
+		msgAsk = function(str){
+			return message(owner).ask( str ); 
+		}; 
+	})
+}
+message.install();
+
+/**intellisense()
+win.dlg.message = 简单信息提示框\n导入时为当前线程所有窗口安装msgInfo,msgAsk,msgErr等msg前缀的消息框函数\n此支持库主要用于演示,大家可以在此源码基础上改动为适合自己的用户库
+win.dlg.message(__/*可选指定父窗口*/) = 创建简单信息提示框\n可选在参数中指定父窗口对象\n也可以在创建对象后使用parent属性指定
+win.dlg.message() = !winDlgMessage.
+end intellisense**/
+
+/**intellisense(!winDlgMessage)
+parent = 父窗口\n信息框显示在父窗口中间,\n并在信息框关闭前禁用父窗口
+cancelLabel = 取消按钮文本，支持fontAwesome图标
+okLabel = 确定按钮文本，支持fontAwesome图标
+icon = Font Awesome字体图标,请使用_FA_前缀常量指定;
+iconColor = 图标颜色,GDI数值格式;
+textColor = 文本颜色,GDI数值格式
+bgcolor =  窗口背景颜色,GDI数值格式
+fadeInterval = 淡出淡出动画时间间隔,设为0不显示动画
+fadeDuration =  淡出淡出动画时长
+create() = !winDlgMessageForm.
+create(.(显示信息,是否显示按钮,是否显示进度条) =  创建信息框,返回窗体对象,\n如果选择显示按钮则不会同时显示进度条\n所有参数都是可选参数
+doModal(.(显示信息,是否显示按钮) = 创建信息框,并显示为模态窗口
+show(.(显示信息) = = 创建信息框,并显示为非模态窗口
+info(__) = 显示提示框,\n可选使用参数@2指定延时自动关闭提示框的毫秒数
+warn(__) = 显示警告提示框,\n可选使用参数@2指定延时自动关闭提示框的毫秒数
+ok(__) = 显示正确提示框,\n可选使用参数@2指定延时自动关闭提示框的毫秒数
+err(__) = 显示错误提示框,\n可选使用参数@2指定延时自动关闭提示框的毫秒数
+great(__) = 显示竖大拇指图标提示框,\n可选使用参数@2指定延时自动关闭提示框的毫秒数
+sorry(__) = 显示倒竖大拇指图标提示框,\n可选使用参数@2指定延时自动关闭提示框的毫秒数 
+smile(__) = 显示微笑图标提示框,\n可选使用参数@2指定延时自动关闭提示框的毫秒数 
+frown(__) = 显示皱眉图标提示框,\n可选使用参数@2指定延时自动关闭提示框的毫秒数 
+ask(__) = 显示询问提示框\n用户按确定或回车返回true，其他返回false或null
+buttonStyle = @.buttonStyle = { 
+	color = {  
+		hover = 0xF0FFFFFF;
+		active = 0x30FFFFFF; 
+		default = 0x90FFFFFF;
+	} 
+	border = {
+		default = {width=0;}
+		hover = { bottom = 1;color= 0xF0FFFFFF; }
+		focus = { bottom = 1;color= 0xF0FFFFFF; }
+		active = { bottom = 1;color= 0x30FFFFFF; }
+	} 
+}
+titlebarStyle = @.titlebarStyle = { 
+	color = { 
+		hover = 0xffffffff;
+		active = 0x33ffffff; 
+		default = 0x66ffffff; 
+	}
+} 
+end intellisense**/
+
+/**intellisense(!winDlgMessageForm)
+icon = 显示文字图标的plus控件\n!ui_ctrl_plus.
+message = 显示文本消息的plus控件\n!ui_ctrl_plus.
+btnOk = 确定按钮\n!ui_ctrl_plus.
+btnCancel = 取消按钮\n!ui_ctrl_plus.
+progress = 进度条,plus控件\n!ui_ctrl_plus.
+icon = 图标控件\n!ui_ctrl_plus.
+onMouseClick = @.onMouseClick = function(wParam,lParam){\n	var x,y = win.getMessagePos(lParam);__/*在窗口上单击并弹起鼠标左键触发此事件*/\n}
+valid = 窗口是否有效\n如果用户关闭窗体则返回false
+text = 窗口标题
+hwnd = 窗口句柄\n\n句柄是一个数值，用于标识一种系统资源，如窗口、位图等等，\n如果你要操作一种系统资源，必须先获得句柄。 \n\n句柄在aardio中通常转换为指针(pointer)类型，\n而窗口句柄是个特例，onDestroy = @.onDestroy = function(){\n    __/*指定在窗体销毁以前执行的代码*/\n    \n}
+beforeDestroy = @.beforeDestroy = function(){\n    __/*指定在窗体销毁以前执行的代码\n早于onDestroy触发*/\n    \n}
+setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+show(.(true) = 显示窗口
+show(.(false) = 隐藏窗口  
+setRect(rc) = 设置窗口区块位置(::RECT结构体)  
+center(.(目标窗口句柄) = 居中窗口,并调整以保证显示在可见范围内\n目标窗口句柄如果为空则取父窗口或所有者窗口,为0表示桌面
+bgcolor = 背景颜色
+close() = 关闭窗口 
+doModal(__/*请指定所有者窗口\n可省略此参数*/) = 此函数弹出模态对话框
+endModal(__/*请指定模态对话框返回值*/) = 关闭模态对话框，\n调用endModal()函数的参数会被设置为 doModal()函数的返回值。
+setInterval(延时,定时回调函数) = @.setInterval( \n	1000,function(){\n		__/*参数@1指定以毫秒为单位的执行间隔，\n参数@2指定执行函数,可选指定回调参数hwnd,msg,id,tick,\n如果在定时器中执行了win.delay等继续消息循环的代码，\n在定时器退出前不会再触发同一定时器（重入）。\n\n定时器回调函数返回数值可修改时间间隔,\n返回false取消该定时器*/\n	} \n)
+end intellisense**/

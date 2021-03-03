@@ -1,0 +1,31 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=759;bottom=469)
+winform.add()
+/*}}*/
+
+import web.form;
+var wbBaidu = web.form( winform);
+wbBaidu.noScriptErr = true;
+wbBaidu.go("http://fanyi.baidu.com/#en/zh/");
+
+winform.getValue = function(){
+	var bdInput = wbBaidu.getEle("baidu_translate_input");	
+	if(bdInput){
+		return bdInput.value;
+	}
+}
+
+import winex.key;
+winform.setValue = function(value){
+	var bdInput = wbBaidu.getEle("baidu_translate_input");	
+	if(bdInput){  
+		wbBaidu.click(bdInput);
+		winex.key.send(wbBaidu.hwndControl,value);
+		bdInput.fireEvent("oninput");
+	}
+}
+
+winform.show();
+win.loopMessage();
+return winform;

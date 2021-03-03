@@ -1,0 +1,192 @@
+﻿/***intellisense() 
+!winform._embedObject = 嵌入OLE控件对象\n!embedObjectForm.
+!winform.createEmbed(.("类名",容器对象) = 嵌入COM控件,\n参数@1也可以指定一个已存在的COM对象,\n容器对象为可选参数,返回容器对象\n\n创建失败会抛出异常
+!winform.tryCreateEmbed(.("类名",容器对象) = 嵌入COM控件,\n参数@1也可以指定一个已存在的COM对象,\n容器对象为可选参数,\n\n成功返回容器对象,失败返回false,错误信息
+!winform.createEmbed() = !embedObjectForm.
+!winform.tryCreateEmbed() = !embedObjectForm.
+!embedObjectForm._form = COM控件容器窗口\n!winform.
+!embedObjectForm._object = COM控件对象
+!embedObjectForm._host = COM控件容器
+!embedObjectForm._host.close() = 关闭 
+!embedObjectForm._host.adjust() = 自动调整控件窗口大小
+!embedObjectForm._host.tranacc(.(MSG消息对象) = 解析快捷键,\n如果是快捷键返回真值
+!embedObjectForm._host.doObjectVerb( _OLEIVERB__ ) = 执行指定的动词命令
+!winform.tooltipCtrl = 提示控件\n该控件需要导入win.ui.tooltip以此窗口为参数手动创建\n!win_ui_tooltip.
+!winform.hasBackground = 窗体是否自定义了背景色或背景图像
+!winform._defWindowProc(hwnd,message,wParam,lParam) = 调用默认消息回调函数\n该返回必须是当前消息回调函数的返回值\n无返回值会导致再次调用该函数
+!winform.disableDragFullWindow = 边框调整窗口大小时是否禁止显示窗口内容\n如果窗口设置了背景、无_WS_CLIPCHILDREN样式则默认为true\n如果系统禁用了该选项则忽略此属性
+!winform._hasBeenDestroyed = 窗体是否已销毁\n请勿修改该值
+!winform.pretranslate = @.pretranslate = function( msg ) {\n	__/*消息分发前回调此函数,返回true停止分发*/\n};
+!winform.adjust = @.adjust = function( cx,cy,wParam ) {	 \n	__ \n};
+!winform.resize( = 发送WM_SIZE消息给窗口以触发子窗口自动调整大小的功能
+!winform.resize(.(宽度,高度) = 如果指定了参数则调整窗口大小,\n无论是否实际调整窗口大小,发送WM_SIZE消息给窗口以触发子窗口自动调整大小的功能
+!winform.onCopyData = @.onCopyData = function(data){\n	__/*收到 _WM_COPYDATA 消息 */\n}
+!winform.onActivate = @.onActivate = function(state,hwndOther,minimized){\n	if(state){\n		__/*激活窗口时触发此事件\nstate表示窗口是否激活，可能的值为WA_ACTIVE，WA_CLICKACTIVE，WA_INACTIVE\nhwndOther在激活时表示另外一个取消激活的窗口句柄,取消激活时表示激活的窗口句柄\nminimized指明当前窗口是否最小化状态*/	\n	}\n}
+!winform.onMouseActivate = @.onMouseActivate = function(hwndTop,hitTest,message){\n	return _MA___/*鼠标点击并且将要激活窗口时触发此事件\nhwndTop表示被激活的顶层窗口,\nhitTest参数请参考WM_NCHITTEST消息\nmessage为鼠标消息ID\n返回值的作用请参数MSDN*/\n}
+!winform.onMouseDown = @.onMouseDown  = function(wParam,lParam){\n	var x,y = win.getMessagePos(lParam);__/*在窗口按下鼠标左键触发此事件*/	\n}
+!winform.onMouseClick = @.onMouseClick = function(wParam,lParam){\n	var x,y = win.getMessagePos(lParam);__/*在窗口上单击并弹起鼠标左键触发此事件*/\n}
+!winform.onMouseDoubuleClick = @.onMouseDoubuleClick = function(wParam,lParam){\n	var x,y = win.getMessagePos(lParam);__/*在窗口上双击鼠标左键触发此事件*/\n}
+!winform.onActivateApp = @.onActivateApp = function(activated,threadId){\n	if(activated){\n		__/*不同的应用程序窗口被激活时触发此事件\nactivated窗口是否激活,threadId是另一个交接激活状态的线程ID*/	\n	}\n}
+!winform.beforeSystemEndSesssion = @.beforeSystemEndSesssion = function(){\n	__/*即将关机执行此回调，不可执行耗时操作*/\n}
+!winform.toolbar = 工具条\n!toolbar.
+!winform.menu = !menu.
+!winform.valid = 窗口是否有效\n如果用户关闭窗体则返回false
+!winform.text = 窗口标题
+!winform.group() = 将此窗体上所有groupbox范围内的所有其他控件设为groupbox控件的子窗口
+!winform.getScale() = 返回X轴、Y轴方向缩放比例，DPI缩放比例共4个返回值,\nscaleX,scaleY,dpiScaleX,dpiScale
+!winform.dpiScaleX = DPI横坐标缩放系数\n不可修改该值
+!winform.dpiScaleY = DPI纵坐标缩放系数\n不可修改该值
+!winform.enableDpiScaling() = 按DPI缩放设置自动缩放顶层窗体以及控件字体\n请合理设置该窗体上控件的固定边距、自适应大小等属性\n调用此函数时应交由aardio自动指定参数
+!winform.enableDpiScaling(false) = 禁用DPI自动缩放
+!winform.statusbar = 状态类\n!statusbar.  
+!winform.fullscreen( = 切换全屏,必须在窗口显示以后才能调用此函数\n注意窗口最小化状态无法全屏
+!winform.fullscreen(.(true) = 参数true切换到全屏,参数false取消全屏,\n不指定参数则切换全屏,\n返回值为当前是否全屏
+!winform.onCancel = @.onCancel = function(){\n    __/*按下ESC键触发此事件,\n如果全屏窗口定义了此事件,应在此自行退出全屏*/\n}
+!winform.onOk = @.onOk = function(){\n    __/*按下回车键触发此事件*/\n}
+!winform.onMinimized = @.onMinimized = function(){\n	__/*窗口最小化时回调此函数*/	\n}
+!winform.restoreFullScreen = 当前是否全屏状态
+!winform.getCtrlById(__/*输入控件ID*/) = 根据ID返回窗体控件
+!winform.getCtrl(__/*输入控件句柄*/) = 根据句柄返回窗体控件对象,\n参数可以是控件句柄，或控件的子窗口句柄
+!winform.getCtrlById() =  !static.
+!winform.getCtrl() =  !static.
+!winform.reghotkey(回调函数,控制键,虚拟键码) =  @.reghotkey( function(id,mod,vk){\n	__/*按下系统热键时触发此回调函数\nmod为控制键,使用_MOD_前缀的常量表示,0为不按下控制键,\nvk为虚拟键码,使用_VK_前缀的常量表示*/\n},0x2/*_MOD_CONTROL*/,'D'#)
+!winform.unreghotkey(__/*请输入ID*/) = 注销热键\n如果参数为空，则忽略不做任何操作
+!winform.setInterval(延时,定时回调函数) = @.setInterval( \n	1000,function(){\n		__/*参数@1指定以毫秒为单位的执行间隔，\n参数@2指定执行函数,可选指定回调参数hwnd,msg,id,tick,\n如果在定时器中执行了win.delay等继续消息循环的代码，\n在定时器退出前不会再触发同一定时器（重入）。\n\n定时器回调函数返回数值可修改时间间隔,\n返回false取消该定时器*/\n	} \n)
+!winform.clearTimeout(.(定时器ID) =  删除定时器\n参数如果为null则忽略不执行\n否则定时器ID必须是setInterval函数或setTimeout函数的返回值
+!winform.clearInterval(.(定时器ID) =  删除定时器\n参数如果为null则忽略不执行\n否则定时器ID必须是setInterval函数或setTimeout函数的返回值
+!winform.changeInterval(.(定时器ID,延时毫秒数) = 重新设定定时器的延时时间\n定时器ID必须是setInterval函数或setTimeout函数的返回值
+!winform.changeInterval(.(定时器ID,延时毫秒数,定时回调函数) = 重新设定定时器的延时时间,并更换定时器回调函数\n定时器ID必须是setInterval函数或setTimeout函数的返回值
+!winform.setTimeout(.(函数或代码,延时,其他附加参数) = 推迟执行指定的函数或代码\n此函数异步执行参数中指定的函数，不会阻塞当前代码继续执行，\n延时参数是可选参数，以毫秒为单位，默认为0毫秒\n可选用附加参数指定调用延时函数的实参\n返回值为定时器ID
+!winform.hwnd = 窗口句柄\n\n句柄是一个数值，用于标识一种系统资源，如窗口、位图等等，\n如果你要操作一种系统资源，必须先获得句柄。 \n\n句柄在aardio中通常转换为指针(pointer)类型，\n而窗口句柄是个特例，一般使用数值类型(在API函数中应指定为addr类型)
+!winform.onDpiChanged = @.onDpiChanged = function(dpiX,dpiY,rect){\n    ??.enableDpiScaling(dpiX/96,dpiY/96)__//用户在控制面板中修改了屏幕缩放参数\n    \n}
+!winform.onDestroy = @.onDestroy = function(){\n    __/*指定在窗体销毁以前执行的代码*/\n    \n}
+!winform.saveConfigBeforeDestroy = @.saveConfigBeforeDestroy = function(){\n    __/*用于在窗体销毁前保存配置文件,bindConfig使用此事件保存配置*/\n    \n}
+!winform.beforeDestroy = @.beforeDestroy = function(){\n    __/*指定在窗体销毁以前执行的代码\n早于onDestroy触发*/\n    \n}
+!winform.id = 控件ID
+!winform.capture = 是否捕获全局鼠标消息
+!winform.parent = 父窗口\n父窗口应当是一个winform对象\n!!winform.
+!winform.disabled = 是否禁用
+!winform.isDialogMessage = @.isDialogMessage = function(hwnd,msg){\n	if( msg.message == 0x100/*_WM_KEYDOWN*/){\n		\n		if(  msg.wParam == 0xD/*_VK_RETURN*/ ){ \n			return true;\n		}\n		\n		if( msg.wParam == 0x1B/*_VK_ESC*/ ){\n			return true;\n		}\n		\n		__/*检测键盘信息并确定如何响应对话框的默认快捷键\n调用win.isDialogMessage函数以触发对话框的默认规则\n该函数把WM_GETDLGETDLGCODE发送给窗口，决定如果响应按键\n默认回车触发Z序为1的控件命令,按ESC触发Z序为2的控件命令,\n按tab切换焦点,按down选择下一控制组.\n\n此函数返回true以告知消息处理函数这是一个快捷键，\n返回true将阻止继续分发处理此消息 \n*/\n	}\n	return win.isDialogMessage(hwnd,msg);\n}
+!winform.onClose = @.onClose = function(hwnd,message,wParam,lParam){\n    __/*窗体关闭前触发该函数\n这里的代码要写稳妥一点,在这里抛出异常，\n会导致无法点关闭按钮关闭窗口*/\n}
+!winform.onEnterSizeMove = @.onEnterSizeMove = function(){\n    __/*开始拖动触发此函数*/\n}
+!winform.onExitSizeMove = @.onExitSizeMove = function(){\n    __/*结束拖动触发此函数*/\n}
+!winform.onEraseBkgnd = @.onEraseBkgnd  = function(hwnd,message,wParam,lParam){\n    return 0;__/*禁止擦除背景*/\n}
+!winform.onGetMinMaxInfo = @.onGetMinMaxInfo = function(hwnd,message,wParam,lParam){\n    __/*设置窗口缩放大小范围,\n用法参考标准库中win.ui.minmax*/\n}
+!winform.getMinMaxInfo() = 如果定义了onGetMinMaxInfo,\n必须同时定义此函数返回与win.ui.minmax兼容的结构体
+!winform.left = 左侧坐标
+!winform.right = 右侧坐标
+!winform.top = 顶部坐标
+!winform.bottom = 底部坐标
+!winform.height = 高度
+!winform.width = 宽度
+!winform._defClientRect = 获取窗口设计时大小\n!rect.
+!winform.isForm = 是否窗体对象,\n窗体：使用 win.form 类创建的对象 \n窗口：泛指所有窗体或控件创建的窗口
+!winform.orphanWindow() = 如果当前是子窗口,\n移除窗口的WS_CHILD样式，使窗口孤立出来,\n参数为true则转换为分层透明窗口,\n孤立窗口仍然显示在原来的位置
+!winform.setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+!winform.getPos() = 返回相对父窗口客户区的坐标,宽,高,\n参数为true返回屏幕坐标,宽,高,\nx,y,cx,cy=win.getPos(hwnd)
+!winform.msgbox("__") = 弹出对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n\n可选在参数@2中指定标题,\n可选在参数@3中用_MB_前缀的常量自定义样式,设为0去掉图标以及提示音,\n\n此函数调用win.msgbox,但设定父窗口为当前窗体
+!winform.msgboxErr("__") = 弹出错误对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n可选在参数@2中指定标题,\n\n此函数调用win.msgbox,但设定父窗口为当前窗体
+!winform.msgboxTest("__") = 弹出询问对话框\n参数@1指定显示的数据,如果是表对象先序列化为文本,\n其他对象调用tostring转换为文本\n可选在参数@2中指定标题,\n\n此函数调用win.msgbox,但设定父窗口为当前窗体
+!winform.msgInfo(__) = 显示提示框,\n可选用参数@2指定延时关闭的毫秒数,\n请先导入win.dlg.message以安装此函数
+!winform.msgWarn(__) = 显示警告提示框,\n可选用参数@2指定延时关闭的毫秒数,\n请先导入win.dlg.message以安装此函数
+!winform.msgOk(__) = 显示正确提示框,\n可选用参数@2指定延时关闭的毫秒数,\n请先导入win.dlg.message以安装此函数
+!winform.msgErr(__) = 显示错误提示框,\n可选用参数@2指定延时关闭的毫秒数,\n请先导入win.dlg.message以安装此函数
+!winform.msgGreat(__) = 显示竖大拇指图标提示框,\n可选用参数@2指定延时关闭的毫秒数,\n请先导入win.dlg.message以安装此函数
+!winform.msgSorry(__) = 显示倒竖大拇指图标提示框,\n可选用参数@2指定延时关闭的毫秒数,\n请先导入win.dlg.message以安装此函数
+!winform.msgSmile(__) = 显示微笑图标提示框,\n可选用参数@2指定延时关闭的毫秒数,\n请先导入win.dlg.message以安装此函数
+!winform.msgFrown(__) = 显示皱眉图标提示框,\n可选用参数@2指定延时关闭的毫秒数,\n请先导入win.dlg.message以安装此函数
+!winform.msgAsk(__) = 显示询问提示框\n用户按确定或回车返回true，其他返回false或null\n请先导入win.dlg.message以安装此函数
+!winform.tailWndproc = @.tailWndproc = function(hwnd,message,wParam,lParam){\n	__/*添加消息回调函数，并设为最低优先级*/\n}
+!winform.wndproc = @.wndproc = function(hwnd,message,wParam,lParam){ \n	__/*添加消息回调函数*/\n}
+!winform.wndprocMap = @.wndproc = {\n	[0x202/*_WM_LBUTTONUP*/] = function(hwnd,message,wParam,lParam){ \n		var x,y = win.getMessagePos(lParam);\n		io.print("左键按下",x,y)\n	}\n}
+!winform.onDropFiles = @.onDropFiles = function(files){\n	__/*接受系统拖放,files是拖放的所有文件路径名数组*/\n}
+!winform.redraw() = 刷新
+!winform.setRedraw(false) = 禁止重绘
+!winform.setRedraw(true) = 恢复重绘
+!winform.cmdTranslate = @.cmdTranslate(hwnd,message,wParam,lParam);\n//在父控件wndproc消息回调中调用，用于启用子控件的oncommand事件
+!winform.invalidate(.(rect,erase) = 使绘图区域无效并允许刷新,\n参数@1使用::RECT结构体指定无效区块,参数@1也可以指定子窗口对象\n参数@2指定是否擦除背景,\n所有参数可选,默认使全部区块无效并擦除背景
+!winform.update() = 重绘invalidate函数指定的区块 
+!winform.showChildren(.(SW_->->->) = 显示或隐藏所有子级窗口\n参数用法同show函数
+!winform.show( = 显示窗口，并指定显示参数\n默认在显示窗口时会自动缩放窗口以适应系统DPI设置。\n调整控件字体或文本样式的代码建议在窗体显示后再执行。
+!winform.show(.() = 显示窗口
+!winform.show(.(true) = 显示窗口
+!winform.show(.(false) = 隐藏窗口
+!winform.show(.(SW_->->->) =  可使用_SW_前缀的常量参数,\n应用程序第一个窗体将忽略窗体的最大化，最小化属性，\n使用 winform.show( 0x3/*_SW_MAXIMIZE*/ ) 最大化显示,\n使用winform.show( 0x6/*_SW_MINIMIZE*/ ) 最小化显示。
+!winform.getRect() = 窗口区块位置(::RECT结构体)\n!rect.
+!winform.getRect(true) = 窗口屏幕区块位置(::RECT结构体)  
+!winform.setRect(rc) = 设置窗口区块位置(::RECT结构体)  
+!winform.setRect(rc,true) = 设置窗口屏幕区块位置(::RECT结构体) 
+!winform.getClientRect() =  窗口客户区块位置(::RECT结构体)\n!rect.
+!winform.center(.(目标窗口句柄) = 居中窗口,并调整以保证显示在可见范围内\n目标窗口句柄如果为空则取父窗口或所有者窗口,为0表示桌面
+!winform.font = 控件字体(::LOGFONT结构体)
+!winform.clientRect =  获取控件客户区块位置(::RECT结构体)
+!winform.theme = 外观主题,例如\nwinform.theme = "Explorer"\nwinform.theme = false
+!winform.image = 窗口背景图像\n赋值可以为图片文件数据或路径\n也可以是位图句柄,位图句柄由窗体负责销毁\n取值时返回位图句柄 
+!winform.bgcolor = 背景颜色
+!winform.setBitmap(__/*图片句柄*/) = 设置图片\n成功返回true,自动销毁原来的位图 
+!winform.setBitmap(__/*图片句柄*/,false) = 设置图片\n成功返回控件原来的位图句柄,\n必须调用::DeleteObject()函数销毁该句柄 
+!winform.getBitmap() = 返回窗体正在使用的背景位图句柄\n该句柄不得删除
+!winform.transparent(false) = 取消窗口透明
+!winform.transparent(true) = 启用分层窗口,不设置透明度
+!winform.transparent(128,225) = 启用分层窗口,设置窗口透明度，\n参数(透明度,透明颜色)\n如果指定了透明颜色，透明度参数将被忽略
+!winform.close() = 关闭窗口 
+!winform.loadForm("__/*请输入aardio文件路径*/") = 加载外部窗体文件\n可选增加其他参数传入加载的aardio文件
+!winform.doModal(__/*请指定所有者窗口\n可省略此参数*/) = 此函数弹出模态对话框,\n可使用 endModal() 函数关闭模态对话框，\n调用endModal()函数的参数会被设置为 doModal() 函数的返回值。\n\n模态对话框显示在所有者窗口前面，\n并暂时禁用所有者窗口 - 直到此模态对话框被关闭。\n\n模态对话框会自己创建自己的消息循环，\n并阻止调用模态对话框的代码继续向后运行 - 直到此模态对话框被关闭。\n\n注意：\n最后一个win.form创建的非模态窗体被关闭时会主动调用 win.quitMessage()\n如果是使用 winform.doModal()函数弹出的模态对话框关闭时不会调用 win.quitMessage()\n也就是说模态对话框关闭时永远不会导致 win.loopMessage() 退出运行()创建的消息循环
+!winform.dialogResult = 模态对话框返回值
+!winform.continueModal = 模态对话框是否未关闭
+!winform.endModal(__/*请指定模态对话框返回值*/) = 关闭模态对话框，\n调用endModal()函数的参数会被设置为 doModal()函数的返回值。
+!winform.modifyStyle(.(remove,add) = 如果指定第三个参数，则使用此参数调用::SetWidnowPos 
+!winform.modifyStyleEx(.(remove,add) = 如果指定第三个参数，则使用此参数调用::SetWidnowPos 
+!winform.atom(字符串值) = @import win.ui.atom \nvar atom,hwndConflict = winform.atom("__/*输入唯一标识字符串\n建议使用GUID生成Globally Unique Identifier(全球唯一标识符) */");\nif(!atom){\n	/*为窗口设置原子值可以避免一个程序重复运行多个实例*/\n	win.quitMessage();//程序退出\n	return;\n};
+!winform.hitCaption() = 模拟拖动顶层父窗口标题栏\n此函数会调用setTimeout异步延时0毫秒后实际执行\n阻塞执行在electron中会导致卡死
+!winform.hitMin() = 模拟点击顶层父窗口最小化按钮
+!winform.hitMax() = 模拟点击顶层父窗口最大化、还原按钮\n返回值为是否最大化指令
+!winform.hitClose() = 模拟点击顶层父窗口关闭按钮
+!winform.hitTopleft() = 模拟拖动窗口边框左上角
+!winform.hitTop() = 模拟拖动窗口边框顶边
+!winform.hitTopright() = 模拟拖动窗口边框右上角
+!winform.hitLeft() = 模拟拖动窗口边框左边
+!winform.hitRight() = 模拟拖动窗口边框右边
+!winform.hitBottomleft() = 模拟拖动窗口边框左下角
+!winform.hitBottom() = 模拟拖动窗口边框下边
+!winform.hitBottomright() = 模拟拖动窗口边框右下角
+!winform.expand = 是否使用九宫格拉伸方式显示背景图
+!winform.bkLeft = 贴图或切图坐标:左
+!winform.bkTop = 贴图或切图坐标:上
+!winform.bkRight = 贴图或切图坐标:右
+!winform.bkBottom = 贴图或切图坐标:下
+!winform.bindConfig(配置文件,属性映射表) = @.bindConfig( config.winform,{\n	edit = "text";\n	radiobutton = "checked";\n	checkbox = "checked";\n	combobox = "selIndex";\n	plus ={\n		["^chk"] = "checked";\n		["^edit"] = "text";\n	};\n	__/*参数@1指定fsys.config生成的配置文件对象,\n参数@2指定配置文件绑定控件的规则,\n每条规则指定一个键值对,键名指定控件名或类名,值指定要绑定的属性名,\n值如果是一个表,表中的键指定控件名模式匹配表达式,值为要绑定的属性名*/\n} );
+!winform.messageOnly() = 将窗口转换为message-only window\n该窗口不可见,仅用于消息分发\n此函数返回值为窗体对象自身\n!winform.
+!winform._messageOnly = 是否 message-only window
+!winform.eachControl() = !static.
+!winform.eachControlEx() = !static.
+!winform.eachControlEx("类名") = @for(hwnd,ctrl in ??.eachControlEx(__/*可选指定类名\n遍历窗口上所有控件,包含匿名控件,不关心父子级顺序或Z序*/) ){\n	\n}
+!winform.eachControl("类名","控件名模式") = @for(name,ctrl in ??.eachControl(__/*可选指定类名,\n可选指定控件名模式匹配串,\n遍历窗口上所有控件,不包含匿名控件,不关心父子级顺序或Z序*/) ){\n	\n}
+!winform.enumControl(回调函数,类名) = @.enumControl( function(ctrl){\n	__/*枚举窗体上的所有控件,包含匿名控件\n此函数保证枚举窗口的顺序是先父级控件窗口后子级窗口最后再遍历独立窗口，例如 orphanWindow\n在枚举过程不能调用win.setParent函数改变被枚举控件的父窗口*/\n})
+!winform.remove(.("控件名字") = 移除控件
+!winform.add = @.add( \n	button = { \n		cls="button";bottom=164;right=147;left=8;top=123;z=1;text="自定义ID控件";id=123;autoResize=false;\n	};__/*参数中的每个键值对描述一个创建控件的参数\n其中键为字符串时指定控件名字,如果窗体存在同名成员控件或先关闭该控件,\n如果键为数值索引则创建匿名控件,不会覆盖冲突其他控件,\n\n返回值为创建成功的控件对象列表,其中键为创建控件指定的键,值为控件对象*/ \n)
+!winform.registCommand(回调函数,重写ID) = @.registCommand(\n	function(id,event){\n		win.msgbox( id ); \n	}__/*可选指定ID，不指定则生成并返回新ID*/\n)
+!winform.onInitDialog = @.onInitDialog = function(hwnd,message,wParam,lParam){\n	??.center()__/*模态对话框初始化完成触发该函数*/\n}
+!winform.translateAccelerator = @.translateAccelerator = function(msg){ \n	__/*返回是否快捷键,适用窗体或普通控件对象\n仅当前窗口上的按键触发此事件*/\n} 
+!winform.preTranslateAccelerator = @.preTranslateAccelerator = function(msg){ \n	__/*返回是否快捷键\n在translateAccelerator之前执行,仅适用于窗体不适用于控件\n当前窗口以及子窗口上的按键都会触发此事件\nwin.ui.accelerator绑定窗体时将自动添加该事件*/\n} 
+!winform.beforeShowWindow =  @.beforeShowWindow = function(shown,status){ \n	__/*窗体显示或隐藏前触发此事件\nshown参数指示窗体是否显示,status参数请参考_WM_SHOWWINDOW消息的lParam参数*/\n} 
+!winform.applyDisableDragFullWindow(callback) = @.applyDisableDragFullWindow(\n	function(disabled){\n		__/*检测窗口的disableDragFullWindow属性并回调此函数,\ndisabled为true表示临时禁用了拖动显示窗口内容*/\n	} \n);
+!winform.wait(.(等待函数,超时,延时间隔) = 循环执行等待函数,并等待返回值\n直到等待函数返回非空值,或存在第二个返回值,或当前窗口关闭\n等待函数返回的值就是wait函数的返回值,\n如果指定超时,超过指定毫秒时返回null,\n除等待函数以外,所有参数可选
+!winform.sendMessage(.(msg,wParam,lParam) = 发送窗口消息\n此函数用法请参考 ::User32.SendMessage
+!winform.postMessage(.(msg,wParam,lParam) = 投递窗口消息到消息队列中\n此函数用法请参考 ::User32.PostMessage
+!winform.publish("__/*发布消息名*/",) = 在窗口所在界面线程发布消息,\n运行界面线程所有所有调用subscribe函数订阅此消息的函数,\n可添加任意个触发参数
+!winform.setIcon(.(小图标,大图标) = 修改窗口图标,\n参数可选指定图标句柄、或者图标路径、内存数据等,\n窗口和任务栏显示小图标,ALT+TAB显示大图标,\n指定其中一个图标,另一个会设为相同图标,\n返回窗口之前的小图标和大图标,如果之前无对应图标则返回null
+!winform.background = win.ui.background对象,负责绘制窗口背景,\n此对象仅用于标准库内部调用,用户不应访问此对象
+!winform.background.update() = 更新背景缓存,此函数一般不应主动调用,应避免频繁调用
+!winform.onMinimize = @.onMinimize = function(lParam){\n	return true;__/*用户点击最小化按钮触发此事件,\n这里返回true可阻止默认消息传递,取消最小化过程*/\n}
+!winform.onDrawBackground  = @.onDrawBackground = function(hdc,rc){\n    gdi.fillRect(hdc,0x00008C,rc.copy(,150));\n    gdi.fillRect(hdc,0x468C00,rc.copy(200));\n    \n    var bmp = com.picture.loadBitmap("~\extensions\wizard\project2\forms\images\winform.jpg");\n    gdi.drawBitmap(hdc,bmp,rc.move(200,150),140,140,100,225);\n   \n    var font = ::LOGFONT(weight=800;color=0xFF);\n    gdi.drawTextCenter(hdc,font,"改变窗口大小试试,任意位置贴图都可以支持九宫格",rc.move(120,150));\n    __/*窗口背景绘图时触发此事件,hdc为背景绘图设备,rc为绘图区块*/\n}
+!winform.onDrawBackgroundEnd = @.onDrawBackgroundEnd = function(hdc,rc){\n    __/*窗口背景重绘完成触发此事件*/\n}
+!winform.redrawBackground() = 刷新窗口背景缓存,\n此函数不宜过多调用,普通刷新且不需要刷新背景缓存时应改用redraw函数\n仅bk,bkplus等无窗口控件需要使用此函数刷新
+!winform.onDirectDrawBackground = @.onDirectDrawBackground = function(hdc,graphics){\n    __/*作为子窗口使用时,可在此回调函数内直接在父窗口背景上绘图,\nhdc为父窗口绘图设备句柄,如果父窗口使用GDI+绘图则graphics为父窗口画布*/\n}
+!winform.reduce(array,callback,debounce) = @.reduce(\n	{__/*在这里指定要遍历处理每个元素的数组或表,\n并在回调函数中返回每次需要间隔的延时,以毫秒为单位,返回0或空值中断处理,\n回调参数为下一个元素的值和索引,处理完后回调参数为null,\n如果此时未返回null或0退出处理函数,将返回第一个元素继续遍历*/},\n	function(value,index){\n		if(value){\n			return 50\n		}\n	} \n)
+!winform.trackerGroup("__/*分组名*/") = 获取plus控件、或任何其他应用win.ui.tracker的控件创建的单选分组当前选定控件\n如果未创建任何分组,此函数不可使用
+!nmdr.hwndFrom = 来源句柄
+!nmdr.idFrom = 来源ID
+!nmdr.code = 通知码
+?win.ui.NMHDR = !nmdr.
+end intellisense***/

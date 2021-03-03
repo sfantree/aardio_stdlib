@@ -1,0 +1,74 @@
+﻿//usage 内存CPU占用率
+import sys.info;
+import process;
+
+namespace process;
+
+class usage{
+	ctor(pid,parameters,...){
+		if( type(pid) == type.number  && type(parameters)!=type.number )
+			parameters = 0x400/*_PROCESS_QUERY_INFORMATION*/;
+			
+		this = ..process(pid,parameters,...);
+		if(!this) return;
+	};
+	cpu = function(){
+		var tick = ..time.tick()
+		var kernelTime = size64();
+		var userTime = size64();
+		if(!GetProcessTimes(this.handle,0,0,kernelTime,userTime))return;
+
+		var cpuTime = (kernelTime/10000 + userTime/10000)/numberOfProcessors;
+		if(this.lastCpuTick){
+			this.cpuUsage = tonumber(cpuTime - this.lastCpuTime) / tonumber( tick - this.lastCpuTick) * 100;
+		}
+		
+		this.lastCpuTick = tick;
+		this.lastCpuTime = cpuTime;
+		
+		return this.cpuUsage : 0;
+	};
+	mem = function(){
+		var memCounter = {
+    		INT cb = 40;
+    		INT PageFaultCount;
+    		INT PeakWorkingSetSize;
+    		INT WorkingSetSize;
+    		INT QuotaPeakPagedPoolUsage;
+    		INT QuotaPagedPoolUsage;
+    		INT QuotaPeakNonPagedPoolUsage;
+    		INT QuotaNonPagedPoolUsage;
+    		INT PagefileUsage; 
+    		INT PeakPagefileUsage; 
+    		INT PrivateUsage;
+		}
+		if ::Psapi.GetProcessMemoryInfoB(this.handle,memCounter,44){
+			return memCounter;		
+		}
+	};
+	memString = function(){
+		var counter = this.mem();
+		if(counter)return size64(counter.WorkingSetSize).format(),size64(counter.PrivateUsage:counter.PagefileUsage).format()
+	};
+	cpuString = function(){
+		return ..string.format("%d%%",this.cpu()))
+	}; 
+}
+
+namespace usage{
+    GetProcessTimes = ::Kernel32.api("GetProcessTimes","bool(pointer hProcess, LONG& creation, LONG& exit, LONG& kernel, LONG& user)" )
+    numberOfProcessors = ..sys.info().dwNumberOfProcessors;
+    size64 = ..math.size64;
+}
+
+/**intellisense()
+process.usage = 进程CPU、内存占用率\n[MSDN文档]( https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/aa965225%28v%3Dvs.85%29)\n[推荐﻿工具:Process Explorer](https://docs.microsoft.com/en-us/sysinternals/downloads/process-explorer)
+process.usage(.(进程ID) = 创建进程CPU、内存占用率获取工具对象,\n参数用法与process完全一样,\n失败返回null
+process.usage() = !processUsage.
+!processUsage.cpu() = 返回表示cpu占用率百分比的数值,\n首次调用返回0
+!processUsage.cpuString() = 返回表示cpu占用率百分比的字符串,\n首次调用返回值无效
+!processUsage.mem() = 返回表示内存占用率的memCounter对象
+!processUsage.memString() = 返回2个表示内存占用的字符串，\n斜杠前为内存﻿工作集大小（Working Set Size），\n后者为提交内存大小（Commit Size）
+!processUsage.stillActive() = 进程是否在运行
+!processUsage.free() = 释放对象
+end intellisense**/

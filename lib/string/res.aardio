@@ -1,0 +1,20 @@
+﻿//res 资源字符串
+namespace string;
+
+class res{
+	ctor(module){
+		if(type(module)==type.string) module = ::Kernel32.LoadLibraryExP(..io.localpath(module) : module,,2/*_LOAD_LIBRARY_AS_DATAFILE*/)
+		if(!module){ return; }  
+		this.module = module;
+	};
+	load = function(id){
+ 		var len,str = ::User32.LoadString( this.module,id ,{ptr p},0 ) 
+ 		if(len)return ..string.fromUnicode(str.p,,len)
+	} 
+}
+//fsys.lnk
+/**intellisense()
+string.res(.(module) = 参数@1可以指定dll路径或句柄
+string.res() = !stdStringRes.
+!stdStringRes.load(.(id) = 加载字符串,\n参数指定资源ID
+end intellisense**/

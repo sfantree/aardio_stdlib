@@ -1,0 +1,21 @@
+﻿import inet.http;
+import fonts;
+
+namespace fonts;
+
+class httpFamily{
+	ctor(url,fontName){
+		
+		if(..string.startWith(url,"//")) {
+			url = "http:" + url;
+		}
+		
+		var data = ..inet.http().get(url);
+		if( data ) this.family = ..fonts.addFamily(data,fontName);
+	}; 
+}
+
+/**intellisense()
+fonts.httpFamily = 用于支持自网址导入TTF字体\n用于支持GDI/GDI+，控件/plus控件等
+fonts.httpFamily(.(url,fontName) = 参数@1指定ttf文件的http网址,\n可选用参数@2指定字体名,gdip等库函数
+end intellisense**/

@@ -1,0 +1,20 @@
+import vc6; 
+import console;
+import fsys;
+
+var vc = vc6("/");
+console.open();
+
+fsys.enum( "/typelib", "*.odl",
+	function(dir,filename,fullpath,findData){ 
+		if(filename){ 
+			 
+           	vc.exec('MIDL.EXE',"typelib/" + filename,"/tlb"
+           		,"typelib/" + io.splitpath(filename).name + ".tlb")
+		} 
+	},false
+); 
+
+execute("pause")
+
+ 

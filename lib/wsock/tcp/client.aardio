@@ -1,0 +1,660 @@
+//client 客户端
+import wsock; 
+import wsock.err;
+namespace wsock.tcp
+
+class client {
+
+	ctor(bufferSize,hSocket){
+		 
+		if(! ..wsock.open() ){ 
+			error( ( ..wsock.err.lasterr() ),2 ) 
+		}
+		
+		if( type(bufferSize) == type.pointer){
+			hSocket = bufferSize;
+			bufferSize = null;
+		}
+		 
+		if(!hSocket) hSocket= ..wsock.socket(0x2/*_AF_INET*/,0x1/*_SOCK_STREAM 建立流式套接口*/,0x6/*_IPPROTO_TCP*/ )
+		if( hSocket = _INVALID_SOCKET ){ 
+			wsock.close() //关闭wsock
+			return null,wsock.err.lasterr();
+		} 
+		this._handle = hSocket; 
+		this.hSocket = hSocket; 
+		
+		this.bufferSize = bufferSize : 0x100000;
+		this.readDelayInterval = 100;
+		this.readyState = 0;
+		
+		this.sendbuffer10035 = {};
+		..table.gc(this,"close"); 
+	};
+
+	@_meta;
+}
+
+namespace client{
+    
+	_meta = {
+		_topointer = function(){
+			return owner.hSocket;
+		} 
+	}
+	
+	_meta._get = {
+		getSocketError = function(){
+			var r,e = ..wsock.getsockoptByInt(owner.hSocket, 0xFFFF/*_SOL_SOCKET*/, 0x1007/*_SO_ERROR*/,0,4);
+			if( r != -1/*_SOCKET_ERROR*/ ) 	return e; 		
+		};
+		asyncSelect = function(event,userMsgId,hwnd){
+			if(!owner.hSocket) return;
+			
+			var lastSelectEvent = owner.lastSelectEvent : 0;
+			var err = ..wsock.WSAAsyncSelect(owner.hSocket, hwnd : owner.lastSelectHwnd
+				,userMsgId === null ? owner.lastSelectMessageId : userMsgId, event);
+			 	
+			if( err == -1/*_SOCKET_ERROR*/ ) return false,err;
+		 	
+			if(userMsgId)owner.lastSelectMessageId = userMsgId;
+			if(hwnd)owner.lastSelectHwnd = hwnd;
+			owner.lastSelectEvent = event;
+			
+			return true,lastSelectEvent;
+		}; 
+		bind = function(ip,port){
+			var service = ..wsock.sockaddr_in( ip,port : 0 ); 
+			service.sin_family = 0x2/*_AF_INET*/ 
+			if ..wsock.bind( owner.hSocket,service,..raw.sizeof(service)) =-1/*_SOCKET_ERROR*/	{ 
+				return null, ..wsock.err.lasterr() ;
+			} 
+			return true;
+		}; 
+		connect = function(ip,port){
+			if( (port===null) && (ip===null) ) error("请指定IP或端口地址",2);
+			var service = ..wsock.sockaddr_in( ip,port );
+			if(!service) return;
+			service.sin_family = 0x2/*_AF_INET*/
+			
+			if ..wsock.connect( owner.hSocket,service,..raw.sizeof(service)) =-1/*_SOCKET_ERROR*/	{
+				return null,"连接服务端失败"
+			} 
+			owner.readyState = 1;
+			return true;
+		};
+		connectTimeout = function(ip,port,timeout){
+			if( (port===null) && (ip===null) ) error("请指定IP或端口地址",2); 
+			
+			var service = ..wsock.sockaddr_in( ip,port );
+			if(!service) return;
+			service.sin_family = 0x2/*_AF_INET*/
+			
+			..wsock.ioctlsocket(owner.hSocket,0x8004667E/*_FIONBIO*/,1); 
+			var states = ..wsock.connect(owner.hSocket,service,..raw.sizeof(service)); 
+			if( states == -1/*_SOCKET_ERROR*/){
+				var connected;
+				var writefds = ..wsock.fd_set().set(owner.hSocket);  
+				if( 0 < ..wsock.select(0,,writefds,,timeout : 0.5 )  ){
+					connected = ( 0 == owner.getSocketError() ); 
+				}
+				..wsock.ioctlsocket(owner.hSocket,0x8004667E/*_FIONBIO*/,0);
+				if(connected) owner.readyState = 1;
+				return connected;
+			}
+			owner.readyState = 1;
+			return true; 
+		}; 
+		eachRead = function(remainSize){
+			var recvbuf,reads;
+			var bufSize = owner.bufferSize;
+			var hSocket = owner.hSocket;
+			return function(){
+				
+				if( remainSize !==  null ){
+					if( remainSize < bufSize ){bufSize = remainSize;}
+					if(!bufSize) return;
+				}
+				
+        		var reads,recvbuf = ..wsock.recv( hSocket,bufSize,bufSize,0);
+        		if( reads>0 ) { 
+        			if( remainSize !==  null ){remainSize -= reads;}  
+					if(reads<bufSize) recvbuf = ..string.left(recvbuf,reads); 
+					return recvbuf,reads,remainSize
+				}  
+			} 
+		}; 
+		eachReadBuffer = function(buffer,remainSize){
+			var recvbuf,reads;
+			var hSocket = owner.hSocket;
+			var recv = ::Ws2_32.recv;
+			var readSize = #buffer;
+			
+			return function(){
+				
+				if( remainSize !==  null ){
+					if( remainSize < readSize ){readSize = remainSize;}
+					if(!readSize) return;
+				}
+				
+        		var reads = recv( hSocket,buffer,readSize,0);
+        		if( reads>0 ) { 
+        			if( remainSize !==  null ){remainSize -= reads;}   
+					return reads,remainSize
+				}  
+			} 
+		};
+		unRead = function(v){
+			var size;
+			if(v[["_struct"]])size= ..raw.sizeof(v);
+			else size = #v; 
+			
+			var ptr = ..raw.realloc(size,,v);	 
+			return owner.unReadAlloc(ptr);
+		};
+		unReadAlloc = function(ptr){
+			if( type(ptr) != type.pointer ){
+				error("参数必须是动态指针",2) 
+			}
+			var pd = owner.unReadAllocData;
+			if( pd ) {
+				ptr = ..raw.concat(ptr,pd,..raw.sizeof(pd));
+				pd = ..raw.realloc(0,pd);
+			}
+			owner.unReadAllocData = ptr; 
+		};
+		readAlloc = function(len){
+			var recv = ::Ws2_32.recv;
+			var realloc = ..raw.realloc;
+			var concat = ..raw.concat;
+			var pResultData;
+			var pBlock;
+			var cacheDataPtr;
+			var waitData;
+			
+			if(type(len)==type.pointer){
+				cacheDataPtr = len;
+				len = null;	
+			}
+			elseif( len && len< 0 ) {
+				if(..win[["delay"]] ) waitData = true;//仅适用于异步套接字
+				len = ..math.abs(len);
+			}
+			
+			//取回unReadAlloc退回的内存数据
+			if( owner.unReadAllocData ){
+				pResultData = owner.unReadAllocData;
+				owner.unReadAllocData = null;
+				if( len !==  null ){
+					var size = ..raw.sizeof(pResultData);
+					if(len<size){
+						var p = realloc( size - len ); 
+						p = ..raw.concat(p,topointer(pResultData,len),size - len);
+						owner.unReadAllocData = p;
+						
+						..raw.convert( {INT len = len},topointer(pResultData,-4))
+						return pResultData,len;
+					}
+					elseif(len==size){ 
+						return pResultData;
+					}  
+					else { 
+						pResultData = realloc(len, pResultData );
+						len-=size;
+					}
+					
+				}
+				elseif(cacheDataPtr) {
+					cacheDataPtr = ..raw.concat(cacheDataPtr,pResultData,..raw.sizeof(pResultData));
+					pResultData = realloc( 0, pResultData );
+					pResultData = cacheDataPtr;
+				}
+				
+			} 
+			else {
+				if(cacheDataPtr) pResultData= cacheDataPtr;
+				else pResultData = realloc( len:owner.bufferSize );
+			}
+	
+			var bufSize = owner.bufferSize;
+			pBlock = realloc(bufSize,pBlock);
+			do{
+				if( len !==  null ){
+					if( len < bufSize ){bufSize = len;}
+					if(bufSize<=0) break;
+				}
+
+        		var reads = recv( owner.hSocket,pBlock,bufSize,0); 
+        		if( reads>0 ) { 
+        			if( len !==  null ){len -= reads;}  
+        			pResultData = concat(pResultData,pBlock,reads);  
+				} 
+				else {
+					if( waitData && ( reads == 0 )){
+						..win.delay(owner.readDelayInterval);
+					}
+					else{
+						break;
+					};
+				}
+			 	
+			}while(len); 
+			
+			pBlock = realloc(0,pBlock);
+			
+			var size = ..raw.sizeof(pResultData);
+			if(!size){
+				pResultData = realloc(0,pResultData);	
+				return;
+			}
+			
+			return pResultData,size;
+		};
+		read = function(len){ 
+			if( len === null ){
+				return  owner.readTo('\r\n'); 
+			}
+			
+			if( len[["_struct"]] ){
+				var s = len;
+				var l =  ..raw.sizeof(s);
+				var p,size = owner.readAlloc(l);
+				
+				
+				if(p){
+					var result;
+			 		if( size == l ) {
+			 			result =  ..raw.convert(p,s);
+			 		}
+			 		p = ..raw.realloc(0,p);
+			 		return result;
+				}
+				return;
+			}
+		 	
+			var p,size = owner.readAlloc(len);
+			if(p){
+				var s = ..raw.tostring(p,1,size);
+				p = ..raw.realloc(0,p);
+				return s;	
+			} 
+		};
+		readTo = function(ends,asynWait){  
+			if( type(ends)!="string" || (!#ends) ) error("参数错误",2);
+			
+			var lends = #ends;
+			var recvbyte = ..wsock.recvbyte;
+			var push = ..table.push;
+			var hSocket= owner.hSocket;
+			asynWait = ..win[["delay"]] ? asynWait;
+			
+			var bytes;
+			//在unReadAlloc退回的内存数据中查找
+			if( owner.unReadAllocData ){ 
+				
+				var size = ..raw.sizeof(owner.unReadAllocData); 
+				var str = ..raw.tostring(owner.unReadAllocData,1,size);
+				var e = ..raw.indexOf(owner.unReadAllocData,size,ends);
+				
+				if(e){
+					var s = ..raw.tostring(owner.unReadAllocData,1,e-1);
+					if( e >= size ){ 
+						owner.unReadAllocData = ..raw.realloc(0,owner.unReadAllocData);
+						
+					}
+					else{
+						var p = ..raw.realloc( size - e ); 
+						p = ..raw.concat(p,topointer(owner.unReadAllocData,e + lends),size - e-lends +1);
+						owner.unReadAllocData = ..raw.realloc(0,owner.unReadAllocData);
+						owner.unReadAllocData = p;
+					}
+					return s; 
+				}
+				else {
+					var s = ..raw.tostring(owner.unReadAllocData,1,size);
+					owner.unReadAllocData = ..raw.realloc(0,owner.unReadAllocData);
+					
+					bytes = {} 
+					for(i=1;#str;1){
+						bytes[i]= s[i];
+					} 
+				} 
+			}
+			else {
+				bytes = {} 
+			}
+			
+			while( 
+				var reads,byte ;
+				reads,byte = recvbyte( hSocket,1,1,0);
+				reads >= 0
+			) {   
+				if( reads === 0 ){
+					if(asynWait) {
+						..win.delay(this.readDelayInterval);
+						continue ;
+					};
+					else {
+						break ;
+					} 
+				}
+				 
+				push(bytes,byte); 
+				if( byte == ends[lends]){ 
+					var l = #bytes;
+					for(i=lends-1;1;-1){ 
+						if( ends[i] != bytes[l-lends + i ] ){ 
+							continue 2;
+						} 
+					}
+					..table.pop(bytes,lends);
+					return ..string.pack(bytes);
+				}  
+			}
+			
+			if(#bytes) return ..string.pack(bytes),true; 
+		}; 
+		readAll = function(){
+			if(!owner.hSocket) return null,"tcp客户端已断开";
+			
+			var p,size = owner.readAlloc();
+			if(p){
+				var s = ..raw.tostring(p,1,size);
+				p = ..raw.realloc(0,p);
+				return s;	
+			}
+		};
+		readBuffer = function(buffer,l){
+			if(!owner.hSocket) return null,"tcp客户端已断开";
+			
+			if(buffer){
+				var m = #buffer;
+				if( !l ) l = m;
+				elseif( l > m ) l = m;
+				elseif( l < 0 ) return;
+			}
+			
+			var p,size = owner.readAlloc(l);
+			if(p){
+				if(!buffer) {
+					buffer = ..raw.buffer(size,p);
+					p = ..raw.realloc(0,p);
+					return buffer;	
+				}
+				else {
+					..raw.copy(buffer,p,size);
+					p = ..raw.realloc(0,p);
+					return size;
+				} 
+			} 
+		}
+		peek = function(l){
+			if(!owner.hSocket) return null,"tcp客户端已断开";
+			
+			if(!l) l = (owner.bufferSize); 
+			if( l < 0 ) return;
+			
+			var p = ..raw.realloc(l);
+			var readSize = ::Ws2_32.recv( owner.hSocket,p,l,0x2/*_MSG_PEEK*/); 
+			
+			var result;
+			if(readSize>0) {
+				result = ..raw.tostring(p,1,readSize);
+			}
+			p = ..raw.realloc(0,p);
+			return result;
+		};
+		readOobByte = function(){
+			var oob = {BYTE v}
+			var readSize = ::Ws2_32.recv( owner.hSocket,oob,l,0x1/*_MSG_OOB*/); 	
+			if(readSize==1) return oob.v;
+		};
+		writeBuffer = function(str,len,offset,fdWriteTask){
+			if(!owner.hSocket) return null,"tcp客户端已断开";
+			
+			var max = #str; 
+			if( len===null )
+				len = max;
+			else 
+				len = ..math.min(max,len); 
+			
+			if(!len) return true;
+			if(!offset) offset = 0;
+			
+			if( !fdWriteTask ){
+				if(#owner.sendbuffer10035) {
+					..table.push(owner.sendbuffer10035,{
+						offset=offset;
+						len=len;
+						buffer=..raw.buffer(str) 
+						});
+					return true,10035;	
+				}
+			}	
+			
+			var sndbuf  = owner.getopt(0x1001/*_SO_SNDBUF*/,{int size})
+			var sndbuf =  sndbuf.size;
+			
+			var step = ..math.min(sndbuf,len-offset);
+			var safePtr = ..raw.toPointer(str);
+
+			var sendBlock;
+			var pos = offset;
+			while(pos < len){
+				var block = pos + step <= len ? step : len - pos; 
+				if(!block) return true;
+				
+				sendBlock = ..wsock.send( owner.hSocket,topointer(safePtr,pos),block ,0 ); 
+				if( sendBlock == -1 ){
+					var err = ::Ws2_32.WSAGetLastError();
+					if( 10035 == err ){
+						if(!fdWriteTask){
+							..table.push(owner.sendbuffer10035,{
+								offset=pos;
+								len=len;
+								buffer=..raw.buffer(str)
+								});
+						}
+						else {
+							fdWriteTask.offset = pos;
+						}
+						
+						return true,10035;
+					}
+					
+					return null,..wsock.err.lasterr();
+				}
+				
+				pos = pos + sendBlock;
+			}; 
+			return true;
+		};
+		write = function(s,...){
+			if(!owner.hSocket) return null,"tcp客户端已断开";
+			
+			if(s){
+				var st = type(s);
+				if( ( st != "string"  ) && ( st != "buffer" )  ){
+					if( st == "number") s = tostring(s);
+					elseif( s[["_struct"]]) s = ..raw.buffer(s); 
+					else error("参数类型错误",2);
+				}
+				var r,e = owner.writeBuffer( s );
+				if( !... || !r ) return r,e;
+			}
+			elseif( !... ) return r,e;
+			
+			return owner.write(...);
+		};
+		recv = function(size){
+			if(!size)size = owner.bufferSize;
+			if(!owner.hSocket) return null,"tcp客户端已断开";
+			
+			var reads,recvbuf = ..wsock.recv( owner.hSocket,size,size,0);
+        	if( reads>0 ) {   
+				if(reads<size) recvbuf = ..string.left(recvbuf,reads);
+				return recvbuf; 
+			}
+			return null,reads;   
+		};
+		recvBuffer = function(buf,len){ 
+			if(!owner.hSocket) return null,"tcp客户端已断开";
+			if( len === null ) len = #buf;
+			
+			var reads = ::Ws2_32.recv( owner.hSocket,buf,len,0);
+        	if( reads>0 )  return reads;  
+			return null,..wsock.err.lasterr();   
+		};
+		send = function(s,len,flag){
+			if(!owner.hSocket) return null,"tcp客户端已断开";
+			
+			var bytes = ..wsock.send(owner.hSocket,s,len : #s,flag : 0 );
+			if( bytes == -1/*_SOCKET_ERROR*/ ) return null,::Ws2_32.WSAGetLastError();
+			return bytes;
+		};
+		setTimeouts = function(send=30000,receive=30000){
+			return ( ..wsock.setsockoptByInt(owner.hSocket,0xFFFF/*_SOL_SOCKET*/,0x1005/*_SO_SNDTIMEO*/,send,4) == 0 )
+				&& ( ..wsock.setsockoptByInt(owner.hSocket,0xFFFF/*_SOL_SOCKET*/,0x1006/*_SO_RCVTIMEO*/,receive,4)  == 0 ) 
+		}; 
+		setopt = function(opt,v,level){
+        	if( level === null) level = 0xFFFF/*_SOL_SOCKET*/;
+			if(v[["_struct"]]===null) return owner.setopt(opt,{int v=v});
+			return  ..wsock.setsockopt(owner.hSocket,level,opt,v,..raw.sizeof(v) ) == 0
+		};
+		getopt = function(opt,v,level){
+			if( level === null) level = 0xFFFF/*_SOL_SOCKET*/;
+			if(v===null) return owner.getopt(opt,{int v=v}).v;
+			if  ..wsock.getsockopt(owner.hSocket,level,opt,v,..raw.sizeof(v) ) == 0
+				return v;
+		};
+		reuseAddress = function(r){
+			return owner.setopt(0x4/*_SO_REUSEADDR*/,r?1:0)
+		};
+		getLocalIp = function(){ 
+	    	var addr = ..wsock.sockaddr_in();  
+    		var addrLen = ..raw.sizeof(addr);  
+    		if ( 0 == ..wsock.getsockname(owner.hSocket, addr,addrLen))   {  
+        		return tostring(addr.sin_addr),..wsock.ntohs( addr.sin_port );  
+    		}  
+    	};
+    	getRemoteIp = function(){ 
+	    	var addr = ..wsock.sockaddr_in();  
+    		var addrLen = ..raw.sizeof(addr);  
+    		if ( 0 == ..wsock.getpeername(owner.hSocket, addr,addrLen))   {  
+        		return tostring(addr.sin_addr),..wsock.ntohs( addr.sin_port );  
+    		}  
+    	};
+    	flush = function(){};
+    	shutdown = function(how=2/*SD_BOTH*/){
+    		if( owner.hSocket ){ 
+    			owner.readyState = 2;
+    			if( #owner.sendbuffer10035 ){
+    				owner.shuttingDown10035 = how;
+    				return;
+    			}
+    			..wsock.shutdown(owner.hSocket,how);
+    		}
+    	};
+		close = function(){
+			if( owner.hSocket ){
+				if(owner.readyState == 3) return true;
+				owner.readyState = 3;
+				
+				if( owner.onClosed ){
+					owner.onClosed();
+				};
+				
+				if( owner._onClosed ){
+					owner._onClosed();
+				};
+				
+				..wsock.closesocket(owner.hSocket)
+				..wsock.close();
+				owner.hSocket = null;
+				
+				if( owner._form ) owner._form.close();
+				if(owner.unReadAllocData) owner.unReadAllocData = ..raw.realloc(0,owner.unReadAllocData);
+				owner.sendbuffer10035 = {};
+				return true;
+			}  
+		}
+		isClosed = function(){
+			if( owner.readyState == 3 ) return true;
+		 	if( !owner.hSocket ) return true;
+		}
+		isConnected = function(){
+			return ( owner.readyState == 1 ) && ( owner.hSocket );
+		}
+	}
+	
+	getLocalIp = function(ip,port){ 
+		var c = ..wsock.tcp.client();
+		var ip =( c && ip && c.connectTimeout(ip,port:80,0.2) ) ? c.getLocalIp() : ..wsock.getLocalIp();
+		if(c) c.close(); 
+		return ip; 
+	}
+	
+}
+
+
+/**intellisense()
+wsock.tcp.client = TCP客户端支持库
+wsock.tcp.client(.(缓冲区大小,套接字句柄) = 创建TCP客户端,\n套接字为空则创建套接字,否则绑定套接字句柄,\n缓冲区大小为可选参数,默认为1KB
+wsock.tcp.client(.(套接字句柄) = 绑定套接字句柄并返回TCP客户端对象
+wsock.tcp.client() = !stdtcpclient.
+wsock.tcp.client.getLocalIp(.(ip,port) = 获取本机IP，\n如果指定目标IP与端口参数，则优先返回访问目标IP的网卡IP，\n端口默认为80
+end intellisense**/
+
+/**intellisense(!stdtcpclient)
+readyState = 套接字连接状态,\n0为等待连接,1为已连接,2为正在关闭,3为已关闭
+isClosed() = 套接字是否已关闭
+isConnected() = 套接字是否已连接
+hSocket = 套接字句柄\n关闭对象后为空值\n此值应由对象自动维护，调用者不应修改此属性
+bufferSize = 读写缓冲区大小，默认为1MB\n缓冲区如果设置的太小，会导致过于频繁的调用读写函数
+readDelayInterval = 数据尚未到达时的等待时间\n此属性仅适用于界面线程异步套接字\n仅在读取长度为负值是有效
+getSocketError() = 获取并同时清除套接字错误代码
+connectTimeout(.(IP或域名,端口号,超时秒数) = 创建连接,\n成功返回true,\n也可以在参数@1中用一个字符串同时指定IP和端口号,IP与端口号使用冒号分隔,\n\n注意：超时是以秒为单位，不是毫秒！！\n省略超时参数则默认值为 0.5秒
+bind(.(IP,端口) = 绑定IP端口
+connect(.(IP或域名,端口号) = 创建连接,成功返回true,\n也可以在参数@1中用一个字符串同时指定IP和端口号,IP与端口号使用冒号分隔,\n失败返回null,错误信息\n异步套接字始终返回null，在onOpen,onErro回调事件中判断是否连接成功
+eachRead = @for(str,readSize,remainSize in ??.eachRead() ){ \n	__/*可选指在eachRead参数中指定最大长度,	\nstr是本次读取的字符串,readSize是读取的长度,	\nremainSize是剩余还没有读取的字节,	\n如果限定了最大长度,remainSize为0时才表示读完所有数据,	\n此函数不支持unRead送回的数据,也不适合于异步套接字*/\n} 
+eachReadBuffer = @for(readSize,remainSize in ??.eachReadBuffer() ){ \n	__/*可选指在eachReadBuffer参数中指定最大长度,\nreadSize是读取的长度,buffer的实际长度可能大于readSize,	\nremainSize是剩余还没有读取的字节,	\n如果限定了最大长度,remainSize为0时才表示读完所有数据	\n此函数不支持unRead送回的数据,也不适合于异步套接字*/\n} 
+readTo( = 读取直到以指定的字符串结束\n如果只是读取部分数据并没有获取到结束标记，第二个返回值为true\n否则只会返回一个值,成功返回读取字符串,\n失败返回null
+readTo(.('结束串') = 读取直到以指定的字符串结束,返回值不包含结束串,\n该函数每次仅读取一个字节,效率较低
+readTo(.('结束串',true)  = 读取直到以指定的字符串结束,返回值不包含结束串,\n如果没有读取到数据，则循环等待，等待时继续处理界面消息\n此用法仅适用于界面线程异步套接字\n该函数每次仅读取一个字节,效率较低
+read(.(读取长度) = 读取数据\n参数可以指定长度,也可以使用接收数据的结构体作为参数\n参数为-1表示读到尾部,无参数表示读取一行,\n使用CRLF回车换行符分行
+readAll() =  接收全部数据\n该函数读取直至连接关闭,应慎用该函数防止服务器保持连接无法返回
+writeBuffer(.(缓冲区,长度) = 发送数据,\n参数@1应使用raw.buffer创建的缓冲区,\n可选使用参数2指定长度\n成功返回true
+readBuffer(.(缓冲区,读取长度) = 读取数据,返回buffer类型缓冲区,\n省略所有参数则读取所有数据，\n参数@1可选指定一个使用raw.buffer分配的缓冲区，\n省略读取长度时取缓冲区长度，\n\n如果参数@1指定了缓冲区,成功返回读取长度,\n否则成功返回缓冲区，\n失败返回null
+peek(.(长度) = 读取但并不移除缓冲区的数据,返回字符串\n不指定参数则使用bufferSize指定的大小分配buffer并尝试读取
+readOobByte() = 读取一个字节的紧急数据,返回字节码
+readAlloc( = 循环读取数据到动态指针内,\n动态指针的使用风险较大,如果不是非常熟悉其规则,\n建议不要使用此函数\n\n对象所有read前缀的成员函数底层基本都是调用这个函数\n此函数读取的数据支持调用unRead或unReadAlloc,\n撤消并退回到读缓冲区
+readAlloc(.() = 循环读取数据，直到读取结束,
+readAlloc(.(读取长度) = 循环读取数据，直到达到参数中限定的最大长度\n读取长度不可指定负数,负数仅用于界面线程异步套接字\n无数据返回null，\n\n如果读取到数据则返回2个值：动态指针,内存长度\n调用者必须负责调用 raw.realloc(0,动态指针)\n释放返回值1返回的指针\n\n此函数直接操作内存，效率更好\n但一定要记住释放返回的内存指针
+readAlloc(.(动态指针) =  循环读取数据并存入参数指定的动态指针,\n返回新的指针地址和内存长度,\n此函数可能更新指针地址或分配的内存大小，\n必须使用返回的新指针覆盖原来保存该动态指针的变量值
+unReadAlloc(__) = 把readAlloc读取的动态指针退回缓存,\n\n注意退回数据的顺序是“后出先进”，\n最后读出的应当最先退回
+unRead(__) = 把read,readTo,readBuffer等函数读出的数据退回缓存，\n注意退回数据的顺序是“后出先进”，\n最后读出的应当最先退回
+write(.(->->->) = 发送数据,\n支持一个或多个参数，参数支持字符串、缓冲区(buffer)、数值、结构体\n成功返回true
+close() = 关闭TCP客户端\n如果关闭了套接字此函数返回true\n如果套接字已经关闭,此函数返回null\n如果未显式调用此函数\n在对象析构时,将会自动调用
+shutdown(__) = 断开连接,\n参数中指定0为仅停止收数据,指定1为停止发数据\n默认值为2表示停止收发数据\n此函数并不销毁套接字句柄
+setTimeouts(.(发送超时,接收超时) = 设置超时,以亳秒为单位(1秒为1000毫秒)
+getLocalIp() = 返回连接的本地IP,端口号
+getRemoteIp() = 返回连接的远程IP,端口号
+asyncSelect(.(event,userMsgId,hwnd) = 检测到由event参数指明的网络事件后,\n参数@1使用_FD_前缀的常量指定,可使用位或操作符指定多个选项\n事件到达向hwnd指定句柄的窗口发送userMsgId消息,\n第二次调用此函数可省略句柄以及消息ID\n\n失败返回null,以及错误信息,\n成功返回true,以及上次调用此函数指定的event参数
+lastSelectMessageId = 最后一次调用asyncSelect应用的消息ID\n不可手动修改此属性，应由对象自动维护
+lastSelectHwnd = 最后一次调用asyncSelect应用的窗口句柄\n不可手动修改此属性，应由对象自动维护
+lastSelectEvent = 最后一次调用asyncSelect应用的事件\n不可手动修改此属性，应由对象自动维护
+recv(.(最大接收长度) = 单次接收数据包\n如果参数不指定长度，则使用bufferSize指定的长度\n成功返回字符串,\n失败返回null,错误代码
+recvBuffer(.(缓冲区,读取长度) = 单次接收数据包\n参数@1指定buffer类型缓冲区,\n参数@2可省略,默认为缓冲区长度,\n成功返回接收的长度,\n失败返回null,错误代码
+send(.(数据,长度) = 单次发送数据包\n成功返回发送的数据长度,\n失败返回null,错误代码
+flush() = 兼容aardio标准流接口
+setopt(_SO__) = 设置选项\n参数@1使用_SO_前缀的常量指定选项,参数@2使用结构体、数值、布尔值都可以\n可选用参数@3指定设置层次，默认为SOL_SOCKET\n成功返回true
+getopt(_SO__) = 获取选项\n参数@1使用_SO_前缀的常量指定选项,参数@2使用结构体指定值\n如果不指定参数@2,则获取一个32位整型数值,\n可选用参数@3指定设置层次，默认为SOL_SOCKET\n成功返回读取的结构体
+reuseAddress(true) = 是否允许端口重用
+_onClosed = @._onClosed = function(){
+	__/*套接字关闭以前触发\n此回调函数是标准库保留接口\n用户不应使用此回调*/
+}
+onClosed = @.onClosed = function(){
+	__/*套接字关闭以前触发*/
+}
+sendbuffer10035 = 异步套接字发送缓冲区,用户不应修改此对象
+end intellisense**/

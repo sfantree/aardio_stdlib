@@ -1,0 +1,14 @@
+﻿import com.interface; 
+namespace com.interface;
+
+class IEnumCodePage{
+	ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	ptr Clone = "int(ptr &ppEnum)";
+    ptr Next = "int(INT celt,struct& rgelt,INT &pceltFetched)";
+    ptr Reset = "int()";
+    ptr Skip = "int(INT celt)";
+}
+
+IEnumCodePage.IID = "{275c23e3-3747-11d0-9fea-00aa003f8646}";

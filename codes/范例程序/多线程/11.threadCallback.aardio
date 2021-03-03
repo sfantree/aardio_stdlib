@@ -1,0 +1,39 @@
+//11、跨语言线程回调
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=599;bottom=399)
+winform.add()
+/*}}*/
+
+import web.json;
+winform.onTest = function(param){ 
+	winform.text = "线程回调,线程ID:" + param.id;
+}
+
+thread.invoke( 
+	function(hwnd){
+		/*
+		_WM_THREAD_CALLBACK 使所有回调安全的转发到UI线程。
+		_WM_THREAD_CALLBACK 可以跨线程跨编程语言使用。
+    	*/
+		::User32.SendMessage( 
+			hwnd,0xACCE/*_WM_THREAD_CALLBACK*/, 
+			//窗体函数名( 结构体原型声明 ); 结构体原型声明应使用aardio语法 
+			"onTest( { int x;int y;int id } )", 
+			{ int x = 1;int y = 2;id = thread.getId() }
+		)
+		
+		import web.json;
+		::User32.SendMessage( 
+			hwnd,0xACCE/*_WM_THREAD_CALLBACK*/,  
+			//如果结构体原型声明为 "{JSON}" 则下一个参数传入JSON文本
+			"onTest( {JSON} )", 
+			//界面线程如果调用了 import web.json，则会自动解析下面的JSON文本，解析结果将作为被调用函数的调用参数
+			//json必须使用一个数组包含多个参数
+			web.json.stringify({ { int x = 1;int y = 2;id = thread.getId() } })
+		)
+	},winform.hwnd
+)
+
+winform.show() 
+win.loopMessage();

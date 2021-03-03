@@ -1,0 +1,234 @@
+import fonts.fontAwesome;
+import win.ui;
+import win.ui.menu;
+/*DSG{{*/
+var winform = win.form(text="进程管理器";right=962;bottom=430;parent=...)
+winform.add(
+btnKillChecked={cls="plus";text='\uF2D3 结束所有勾选的进程';left=125;top=6;right=321;bottom=38;bgcolor=-5197169;dl=1;dt=1;font=LOGFONT(h=-15;name='FontAwesome';charset=0);z=4};
+btnKillSelected={cls="plus";text='\uF2D4 结束当前选中进程';left=625;top=383;right=821;bottom=413;bgcolor=-5197169;db=1;dr=1;font=LOGFONT(h=-15;name='FontAwesome';charset=0);notify=1;z=3};
+btnSearch={cls="plus";text='\uF002 查找进程';left=742;top=7;right=903;bottom=37;bgcolor=-5197169;dr=1;dt=1;font=LOGFONT(h=-15;name='FontAwesome';charset=0);notify=1;z=6};
+chkAll={cls="checkbox";text="全选";left=42;top=12;right=110;bottom=35;dl=1;dt=1;z=5};
+editExe={cls="edit";left=405;top=11;right=727;bottom=32;align="right";dl=1;dr=1;dt=1;edge=1;z=7};
+listview={cls="listview";left=29;top=42;right=935;bottom=376;acceptfiles=1;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(name='SimSun');fullRow=1;gridLines=1;msel=false;z=1};
+static={cls="static";text="可用鼠标左键单击选定进程、双击切换到编辑框，或使用右键菜单操作进程";left=34;top=389;right=610;bottom=407;db=1;dl=1;dr=1;transparent=1;z=2}
+)
+/*}}*/
+
+winform.btnKillChecked.skin({
+	background={
+		default=0xAA8FB2B0;
+		hover=0xAA928BB3
+	}
+})
+
+winform.btnKillSelected.skin({
+	background={
+		default=0xAA8FB2B0;
+		hover=0xAA928BB3
+	}
+})
+
+winform.btnSearch.skin({
+	background={
+		default=0xAA8FB2B0;
+		hover=0xAA928BB3
+	}
+})
+
+winform.popmenu = win.ui.popmenu(winform);//创建弹出菜单
+
+import process;
+winform.popmenu.add('强制结束',function(id){
+    var pid = tonumber( winform.listview.getItemText(winform.listview.selIndex,1) )
+    if(pid){
+        var prcs = process(pid)
+        if(prcs) prcs.terminate()
+        winform.listview.delItem(winform.listview.selIndex)
+    }		
+});
+winform.popmenu.add('打开文件位置...',function(id){
+    var pid = tonumber( winform.listview.getItemText(winform.listview.selIndex,1) )
+    if(pid){
+        var path = process(pid).getPath()
+        if(path){
+        	import process;
+        	process.exploreSelect(path)
+        }
+    }		
+});
+winform.popmenu.add('前置',function(id){
+    var hwnd = tonumber( winform.listview.getItemText(winform.listview.selIndex,3),16 )
+    if(hwnd){
+        var root = win.getRoot(hwnd)
+        win.showForeground(root)
+    }		
+});
+
+import mouse;
+import win.util.tray;
+winform.listview.onnotify = function(id,code,ptr){ 
+    
+    select(code) {
+    	case  0xFFFFFF9B/*_LVN_ITEMCHANGED*/ {
+    		var nm = winform.listview.getNotifyMessage(code,ptr)
+    		if(winform.listview.selIndex){
+        		winform.static.text = "进程：" + winform.listview.getItemText(nm.iItem,1) +" "+ winform.listview.getItemText(nm.iItem,2)
+            	win.util.tray.pop( winform.static.text )
+        	}
+    	}
+    	case 0xFFFFFFFB/*_NM_RCLICK*/  {
+    		var x,y = mouse.getPos()
+    		winform.popmenu.popup(x,y,true);//弹出菜单
+    	}
+    }
+    
+}
+
+//接受拖放文件并修改指定列
+winform.listview.wndproc = function(hwnd,message,wParam,lParam){
+    select(message) { 
+        case 0x233/*_WM_DROPFILES*/{ 
+            var path = win.getDropFile(wParam )[1];  
+            var row,col = winform.listview.hitTest();
+            winform.listview.setItemText(path,row,col);
+        } 
+    }
+}
+
+//自适应列宽度 
+winform.listview.adjust = function(cx,cy){
+    winform.listview.fillParent(2);
+}
+
+winform.chkAll.oncommand = function(id,event){
+    var checked = winform.chkAll.checked
+	for hItem in winform.listview.each(){
+		winform.listview.setChecked(hItem,checked)
+	}
+}
+
+winform.listview.insertColumn("进程ID",100,,0x0/*_LVCFMT_LEFT*/) 
+winform.listview.insertColumn("启动参数",100,,0x0/*_LVCFMT_LEFT*/)
+winform.listview.insertColumn("窗口句柄",80,,0x0/*_LVCFMT_LEFT*/)
+winform.listview.insertColumn("窗口标题",200,,0x0/*_LVCFMT_LEFT*/)
+winform.listview.insertColumn("架构",50,,0x0/*_LVCFMT_LEFT*/)
+winform.listview.insertColumn("内存﻿工作集",80,,0x0/*_LVCFMT_LEFT*/) 
+winform.listview.insertColumn("提交大小",80,,0x0/*_LVCFMT_LEFT*/) 
+
+winform.listview.setExtended(0x4/*_LVS_EX_CHECKBOXES*/|0x20/*_LVS_EX_FULLROWSELECT*/);
+
+import win.ui.grid;
+win.ui.grid(winform.listview);//创建数据视图
+
+winform.editExe.setCueBannerText("输入EXE文件名或窗口标题,支持模式匹配")
+winform.btnSearch.oncommand = function(id,event){
+	winform.listview.clear();
+	winform.btnSearch.disabledText = {'\uF254';'\uF251';'\uF252';'\uF253';'\uF250'}
+	
+	thread.invoke( 
+		function(winform){
+			import com;
+			import process;
+			import process.usage;
+			import process.wmi;
+			import winex;
+			import win;
+			
+			var currentProcessId = process.getId(); 
+			var addProcess = function(pid,hwnd){
+				if(pid === currentProcessId ) return;
+				
+				try{
+						var wmiProcess = ..process.wmi(pid)
+					  	
+						//添加到列表视图
+						var usage = process.usage(pid)
+						if(usage ){
+							winform.listview.addItem( { 
+								tostring(pid);
+								wmiProcess.CommandLine;
+								hwnd?string.format("%08X",hwnd):"";
+								hwnd?win.getText(hwnd):"";
+								usage.isWow64()?"32位":"64位";
+								usage.memString() 
+							} )  
+							
+							usage.free();
+						}
+   				}	
+			}
+			
+			var listProcessIds = {}
+			var topWindows = {};
+			for hwnd,title,threadId,processId in winex.each() {
+				if( ! ..win.isVisible(hwnd) ) continue;
+				
+				if(#title) {
+					topWindows[processId] = hwnd; 
+					if( ..string.find(title,winform.editExe.text) ) {
+						listProcessIds[processId] = true;
+						addProcess(processId,hwnd);
+					}
+				}
+			}
+			
+			
+			for prcsEntry in process.each( winform.editExe.text ) {
+    			if(!listProcessIds[prcsEntry.th32ProcessID])addProcess(prcsEntry.th32ProcessID,topWindows[prcsEntry.th32ProcessID]);
+			}
+			
+			winform.btnSearch.disabledText = null
+			winform.chkAll.checked = true;
+			winform.chkAll.oncommand();	
+		},winform
+	) 
+}
+
+winform.editExe.translateAccelerator = function( msg ){ 
+   if(  msg.wParam == 0xD/*_VK_ENTER*/ && msg.message ==0x100/*_WM_KEYDOWN*/){
+       winform.btnSearch.oncommand();
+       return true;
+   }
+}
+
+winform.onOk = function(){
+    winform.btnSearch.oncommand();
+}
+
+import win.reg;
+var reg = win.reg("HKEY_CURRENT_USER\Software\ECranesoft\aardio\user_setting")
+var exeName = reg.queryValue("tools.process.list.command")
+if(exeName){
+	winform.editExe.text = exeName;
+}
+
+winform.beforeDestroy = function(){
+    reg.setSzValue("tools.process.list.command",winform.editExe.text)
+    reg.close() 
+    
+}
+
+winform.btnKillSelected.oncommand = function(id,event){
+    var pid = tonumber( winform.listview.getItemText(winform.listview.selIndex,1) )
+    if(pid){
+        var prcs = process(pid)
+        if(prcs) prcs.terminate()
+        winform.listview.delItem(winform.listview.selIndex)
+    }		
+}
+
+winform.btnKillChecked.oncommand = function(id,event){
+    var checked = winform.chkAll.checked
+	for hItem in winform.listview.each(){
+		var pid = tonumber( winform.listview.getItemText(hItem,1) )
+    	if(pid){
+        	var prcs = process(pid)
+        	if(prcs) prcs.terminate()
+    	}
+	}
+	winform.listview.clear();
+}
+
+
+winform.show() 
+win.loopMessage();

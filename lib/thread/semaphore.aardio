@@ -1,0 +1,83 @@
+//semaphore 计数信号量
+namespace thread;
+
+class semaphore { 
+	ctor( semaphoreName,max,initCount ){ 
+		var targ1 = type(semaphoreName);
+		if( targ1 == "pointer" )   {
+			this.handle	= semaphoreName;
+			if(max===true)..table.gc( this,"close" );
+		}
+		else{
+			if( !max || max <=0 ) error("参数二:信号的使用计数的最大值必须大于0");
+			if( initCount===null ) initCount = max;
+		    
+		    if( targ1== "string") 	
+				this.handle  =  OpenSemaphore( 0x1F0003/*_EVENT_ALL_ACCESS*/,false ,semaphoreName);
+				
+			if(! this.handle ) {  
+				this.handle  =  CreateSemaphore(null,initCount,max,semaphoreName); 
+				if(! this.handle ) {
+					if( targ1== "string") {	
+						this.handle  =  OpenSemaphore( 0x1F0003/*_EVENT_ALL_ACCESS*/,false ,semaphoreName);
+						if( this.handle ) this.conflict = "信号量已存在";
+					}
+				}
+			} 
+			else {
+				this.conflict = "信号量已存在" 
+			} 
+			
+			if(!this.handle)
+				return null,..lasterr()
+			
+			..table.gc( this,"close" );
+		}
+	};
+	close = function(){  
+		//The system closes the handle automatically when the process terminates. 
+		//The semaphore object is destroyed when its last handle has been closed.  
+		..raw.closehandle(this.handle)
+	}
+	@_metaProperty 
+}
+  
+namespace semaphore{
+	import util.metaProperty;
+	_metaProperty = util.metaProperty(
+ 
+		_topointer = function(){
+			return owner.handle;
+		} 
+		_serialize = function(kernelCall){
+			if(kernelCall) return ..raw.serializeDupHandle("thread.semaphore",owner.handle);
+		}
+		release = function(count=1){
+			return ReleaseSemaphore( owner.handle,count,0 )
+		} 
+		wait = function(timeout){
+			return ..thread.wait(owner.handle,timeout)
+		}   
+		waitOne = function(timeout){
+			return ..thread.waitOne(owner.handle,timeout)
+		}  
+	) 
+
+	//声明API
+	CreateSemaphore= ::Kernel32.api("CreateSemaphore","pointer(pointer lpSemaphoreAttributes,int lInitialCount,int lMaximumCount,string lpName)");
+	OpenSemaphore= Kernel32.api("OpenSemaphore","pointer(INT desiredAccess,bool bInheritHandle,string lpName)");
+	ReleaseSemaphore= Kernel32.api("ReleaseSemaphore","bool(pointer hSemaphore,int lReleaseCount,int &lpPreviousCount)");  
+}
+ 
+/**intellisense() 
+thread.semaphore((.(信号量句柄) = 使用句柄直接打开信号量
+thread.semaphore((.(信号量句柄,true) = 使用句柄直接打开信号量\n添加析构函数负责释放句柄
+thread.semaphore("信号量对象名称__",10) = 创建信号量同步对象,可以跨进程使用,\n省略名称创建匿名对象,\n参数@2指定最大资源计数,\n可选参数@3指定初始空闲计数，默认等于最大资源计数,\n参数2,参数3仅在首次创建该事件对象是起作用
+!thread_semaphore.close() = 关闭信号量对象\n该函数并不关闭信号量内核对象\n当所有引用内核对象的对象关闭,内核对象自动释放
+!thread_semaphore.conflict = 如果信号量对象已存在,此属性为真值\n否则为空值
+!thread_semaphore.release() =  线程在处理完共享资源后,\n应在离开时调用此函数将可用资源计数加1\n可在参数中指定要释放的资源计数(默认为1)\n第一个返回值表示函数执行是否成功,\n第二个返回值为原来的资源计数
+!thread_semaphore.wait() = 等待可用资源计数大于0,\n可选增加一个参数指定超时,以毫秒为单位\n注意此函数应与release()函数配对使用\n在UI线程中应使用非阻塞的waitOne()函数替代
+!thread_semaphore.waitOne() = 等待可用资源计数大于0,\n可选增加一个参数指定超时,以毫秒为单位\n注意此函数应与release()函数配对使用
+?thread.semaphore = !thread_semaphore.
+thread.semaphore = 信号量同步对象支持库\n可跨进程、跨线程使用
+end intellisense**/

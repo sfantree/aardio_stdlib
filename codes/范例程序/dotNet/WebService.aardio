@@ -1,0 +1,20 @@
+﻿//动态创建WebService
+import console;
+import dotNet; 
+var clr = dotNet.clr();  
+
+//创建应用程序域
+var appDomain = clr.createAppDomain();
+
+//动态创建Web服务
+var webService = appDomain.createWebService("http://fy.webxml.com.cn/webservices/EnglishChinese.asmx")  
+ 
+//调用WebService接口创建类
+var englishChinese = webService.createInstance("EnglishChinese")  
+
+//调用WebService提供的函数
+var ret = englishChinese.TranslatorString("hello" ); 
+
+console.dump(ret);
+
+console.pause()

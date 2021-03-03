@@ -1,0 +1,49 @@
+//shareHandle 共享句柄
+namespace thread.shareHandle;
+import thread.table;
+
+var context_table = thread.table("{93B5BAF4-EE2F-4A70-8295-F0F1D896C775}")
+var context_table_ref = thread.table("{6D47D215-F4AD-478E-8EC0-029CA5C39612}")
+
+create = function(shareName,init,...){
+	..thread.lock("{EF819EA3-9D57-4C32-A68C-6D39CA55BECE}")
+	var handle = context_table.get(shareName)
+	if( handle === null ){
+		handle = init(...);
+		context_table.set(shareName,handle);
+		context_table_ref.set(shareName,1)
+	}
+	else {
+		var ref = context_table_ref.get(shareName)
+		context_table_ref.set(shareName,ref+1)
+	}
+	..thread.unlock("{EF819EA3-9D57-4C32-A68C-6D39CA55BECE}")
+	return handle;
+}
+
+delete = function(shareName,free){
+	..thread.lock("{EF819EA3-9D57-4C32-A68C-6D39CA55BECE}")
+	var ret;
+	var handle = context_table.get(shareName)
+	if(handle === null )return;
+	
+	var ref = context_table_ref.get(shareName) - 1;
+	if( ref <= 0 ){
+		context_table_ref.set(shareName,null);
+		context_table.set(shareName,null);
+		ret = free(handle) 
+	}
+	else{
+		context_table_ref.set(shareName,ref)   
+	}
+	..thread.unlock("{EF819EA3-9D57-4C32-A68C-6D39CA55BECE}")
+	return ret;
+}
+
+/**intellisense(thread)
+shareHandle = 线程共享句柄
+shareHandle.create(.(全局唯一名字,构造函数,其他创建参数) = 创建一个多线程共享句柄,返回指针\n如果已存在句柄,则增加引用计数并直接返回该句柄\n构造函数必须返回非空值
+shareHandle.delete(.(全局唯一名字,析构函数) = 多线程共享句柄引用计数减一,\n如果引用计数为0,将共享句柄作为参数调用析构函数关闭对象
+end intellisense**/
+
+

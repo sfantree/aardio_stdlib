@@ -1,0 +1,121 @@
+//cdeclParameter 结构化参数
+namespace raw;
+
+class cdeclParameter{
+	ctor(tableParameter){
+		this.tableParameter = tableParameter : {};  
+		this._cdcel_functions_cache = {}; 
+	};
+	pointer _getType = $( _getType,"string(string name)",this );
+	pointer _getFunction = $( _getFunction,"pointer(string funcName,string proto)",this );
+	pointer _setFunction = $( _setFunction,"pointer(string funcName,string proto,pointer addr)",this );	
+	pointer _getBinary = $( _getBinary,"pointer(string name,int &size)",this );	
+	pointer _setBinary = $( _setBinary,"void(string name,pointer value,int size)",this);
+	pointer _getString = $( _get,"string(string name)",this );	
+	pointer _setString = $( _set,"void(string name,string value)",this);
+ 	pointer _getNumber = $( _getNumber,"int(string name,double &value)" ,this);	
+	pointer _setNumber = $( _set,"void(string name,double value)",this);
+	pointer _getSize64 = $( _get,"LONG(string name)" ,this);	
+	pointer _setSize64 = $( _setSize64,"void(string name,INT a,INT b)",this); 
+	pointer _getPointer = $( _get,"pointer(string name)",this );	
+	pointer _setPointer = $( _set,"void(string name,pointer value)",this);
+	pointer _callString = $( _call,"int(string name,string arg)",this);
+	pointer _callNumber = $( _call,"int(string name,double arg)",this);
+	pointer _call = $( _call,"int(string name)",this);  
+	pointer _len = $( _len,"INT(string name)",this);
+	set = function(tableParameter){
+		this.tableParameter = tableParameter : {}; 
+	};
+	get = function(){
+		return this.tableParameter;
+	};
+}
+
+namespace cdeclParameter{
+	$ = ..raw.tocdecl;
+	
+	_getType = function(name){
+		var t = ..table.getByNamespace(name,owner.tableParameter);
+		if(  null !== t ){
+			return type(t);
+		}
+	};
+	_len = function(name,...){
+		return # ..table.getByNamespace(name,owner.tableParameter); 
+	};
+	_call = function(name,...){
+		var func,tab = ..table.getByNamespace(name,owner.tableParameter);
+		if(func){
+			return invoke( func,tab,...);
+		};
+	};
+	 
+	_getFunction  = function(funcName,proto){
+		var obj,parent = ..table.getByNamespace(funcName,owner.tableParameter)
+		if(type(obj)==type.function){  
+			if(!owner._cdcel_functions_cache[funcName])
+				owner._cdcel_functions_cache[funcName] = {};
+			if( ! owner._cdcel_functions_cache[funcName][proto] )
+				owner._cdcel_functions_cache[funcName][proto] = $( obj,proto,parent);  
+				 
+			return owner._cdcel_functions_cache[funcName][proto];
+		}
+	};
+	_setFunction  = function(funcName,proto,addr){ 
+		..table.setByNamespace(funcName,..raw.main.api(addr,proto,"cdecl" ),owner.tableParameter) 
+	};
+	_setSize64 = function(name,a,b){ 
+		..table.setByNamespace(name,..math.size64(a,b),owner.tableParameter) 
+	};
+	_getNumber = function(name){
+		return 0,..table.getByNamespace(name,owner.tableParameter);
+	};
+	_getBinary = function(name,size){ 
+		var s = ..table.getByNamespace(name,owner.tableParameter);
+		if( type(s) == type.string ){
+			return s,#s;
+		}
+	};	
+	_setBinary = function(name,value,size){ 
+		..table.setByNamespace(name,..raw.tostring(value,1,size),owner.tableParameter); 
+	}
+	_get = function(name){
+		return ..table.getByNamespace(name,owner.tableParameter);
+	};
+	_set = function(name,value){
+		..table.setByNamespace(name,value,owner.tableParameter); 
+	};
+}
+
+/**intellisense()
+raw.cdeclParameter = 结构化参数,仅适用于创建C/C++函数参数
+raw.cdeclParameter(绑定参数表) = 用于将aardio中的普通表对象转换为\n调用C/C++函数时可以用到的结构化参数.\n在API参数类型中相应参数应声明为struct类型
+raw.cdeclParameter() = !raw_cdeclParameter. 
+!raw_cdeclParameter.get() = 获取绑定的参数表.\nC函数所有读写字段的操作将作用到绑定参数表
+!raw_cdeclParameter.set() = 设置绑定的参数表.\n参数如果为空则创建空表作为参数表\nC函数所有读写字段的操作将作用到绑定参数表
+end intellisense**/
+
+/* 
+
+//在C语言中定义 raw.cdeclParameter 
+typedef struct{ 
+	const char *(__cdecl *getType) (const char * name);
+	void * (__cdecl *getFunction) (const char * name,const char *proto);
+	void (__cdecl *setFunction) (const char * name,const char *proto,void * addr); 
+	const char *(__cdecl *getBinary) (const char * name,unsigned int *size);
+	void (__cdecl *setBinary) (const char * name,char * value,unsigned int size);
+	const char *(__cdecl *getString) (const char * name);
+	void (__cdecl *setString) (const char * name,const char * value);
+	void (__cdecl *getNumber) (const char * name,double * value);
+	void (__cdecl *setNumber) (const char * name,double value);
+	unsigned long long (__cdecl *getSize64) (const char * name);
+	void (__cdecl *setSize64) (const char * name,unsigned long long value);
+	void * (__cdecl *getPointer) (const char * name);
+	void (__cdecl *setPointer) (const char * name,void * value);
+	int (__cdecl *callString) (const char * name,const char * arg);
+	int (__cdecl *callNumber) (const char * name,double arg);
+	int (__cdecl *call) (const char * name);
+	unsigned int(__cdecl *len)(const char * name);
+} aau_cdeclParameter;
+
+*/

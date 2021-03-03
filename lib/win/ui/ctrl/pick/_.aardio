@@ -1,0 +1,996 @@
+import win.ui;
+import win.ui.ctrl.plus;
+import win.ui.ctrl.trackbar;
+import win.ui.ctrl.static;
+import win.ui.ctrl.edit;
+import win.ui.minmax;
+import color;
+import color.table;
+import color.viewForm;
+import win.image;
+import win.clip;
+import fsys.config;
+
+namespace win.ui.ctrl;
+class pick{
+	ctor(parent,tParam){
+	/*DSG{{*/
+	this = ..win.form(text="调色器";right=505;bottom=384;bgcolor=16777215;exmode="none";max=false;min=false;mode="popup";parent=parent;tParam=tParam)
+	this.add(
+	btnColorPick={cls="plus";left=382;top=12;right=477;bottom=107;background="\.res\color.png";dr=1;dt=1;foreRepeat="stretch";paddingBottom=1;paddingLeft=1;paddingRight=1;paddingTop=1;repeat="center";x=0.5;y=0.5;z=3};
+	customClipboard={cls="custom";left=60;top=430;right=409;bottom=657;z=54};
+	editGdiColor={cls="edit";left=69;top=301;right=194;bottom=326;dl=1;dr=1;dt=1;edge=1;hidesel=1;tabstop=1;z=19};
+	editGdipColor={cls="edit";left=247;top=301;right=338;bottom=326;dr=1;dt=1;edge=1;hidesel=1;tabstop=1;z=1};
+	editHtmlColor={cls="edit";left=381;top=301;right=478;bottom=326;dr=1;dt=1;edge=1;hidesel=1;tabstop=1;z=21};
+	lbArgbColr={cls="static";left=41;top=336;right=488;bottom=352;bgcolor=16777215;dl=1;dr=1;dt=1;notify=1;z=24};
+	lbCtrlTip={cls="static";text="按住 Ctrl / Shift 锁定";left=373;top=111;right=488;bottom=126;bgcolor=16777215;color=6316128;dr=1;dt=1;hide=1;z=25};
+	lbGdiColor={cls="static";text="RGB:";left=28;top=305;right=66;bottom=331;align="right";dl=1;dt=1;transparent=1;z=20};
+	lbGdipColor={cls="static";text="ARGB:";left=199;top=305;right=241;bottom=331;align="right";dr=1;dt=1;transparent=1;z=18};
+	lbHtmlColor={cls="static";text="#";left=341;top=305;right=377;bottom=331;align="right";dr=1;dt=1;transparent=1;z=22};
+	lbPoint={cls="static";left=370;top=358;right=488;bottom=374;align="right";bgcolor=16777215;color=6316128;dr=1;dt=1;notify=1;z=26};
+	palette1={cls="plus";left=383;top=220;right=398;bottom=232;dr=1;dt=1;edge=1;z=34};
+	palette10={cls="plus";left=454;top=234;right=469;bottom=246;dr=1;dt=1;edge=1;z=43};
+	palette11={cls="plus";left=383;top=249;right=398;bottom=261;dr=1;dt=1;edge=1;z=44};
+	palette12={cls="plus";left=401;top=249;right=416;bottom=261;dr=1;dt=1;edge=1;z=45};
+	palette13={cls="plus";left=419;top=249;right=434;bottom=261;dr=1;dt=1;edge=1;z=46};
+	palette14={cls="plus";left=436;top=249;right=451;bottom=261;dr=1;dt=1;edge=1;z=47};
+	palette15={cls="plus";left=454;top=249;right=469;bottom=261;dr=1;dt=1;edge=1;z=48};
+	palette16={cls="plus";left=383;top=263;right=398;bottom=275;dr=1;dt=1;edge=1;z=49};
+	palette17={cls="plus";left=401;top=263;right=416;bottom=275;dr=1;dt=1;edge=1;z=50};
+	palette18={cls="plus";left=419;top=263;right=434;bottom=275;dr=1;dt=1;edge=1;z=51};
+	palette19={cls="plus";left=436;top=263;right=451;bottom=275;dr=1;dt=1;edge=1;z=52};
+	palette2={cls="plus";left=401;top=220;right=416;bottom=232;dr=1;dt=1;edge=1;z=35};
+	palette20={cls="plus";left=454;top=263;right=469;bottom=275;dr=1;dt=1;edge=1;z=53};
+	palette3={cls="plus";left=419;top=220;right=434;bottom=232;dr=1;dt=1;edge=1;z=36};
+	palette4={cls="plus";left=436;top=220;right=451;bottom=232;dr=1;dt=1;edge=1;z=37};
+	palette5={cls="plus";left=454;top=220;right=469;bottom=232;dr=1;dt=1;edge=1;z=38};
+	palette6={cls="plus";left=383;top=234;right=398;bottom=246;dr=1;dt=1;edge=1;z=39};
+	palette7={cls="plus";left=401;top=234;right=416;bottom=246;dr=1;dt=1;edge=1;z=40};
+	palette8={cls="plus";left=419;top=234;right=434;bottom=246;dr=1;dt=1;edge=1;z=41};
+	palette9={cls="plus";left=436;top=234;right=451;bottom=246;dr=1;dt=1;edge=1;z=42};
+	plusColor={cls="plus";text=" ";left=21;top=126;right=116;bottom=202;dl=1;dt=1;notify=1;z=2};
+	plusColorTable={cls="plus";left=41;top=357;right=326;bottom=376;border={radius=10};dl=1;dt=1;notify=1;z=27};
+	plusLockClipBoard={cls="plus";text="锁定剪贴板";left=9;top=290;right=30;bottom=381;border={color=-4144960;radius=4;width=1};color=6316128;db=1;dl=1;dt=1;notify=1;z=55};
+	plusMagnifying={cls="plus";left=521;top=428;right=747;bottom=654;bgcolor=32768;db=1;dr=1;foreRepeat="expand";hide=1;paddingBottom=1;paddingLeft=1;paddingRight=1;paddingTop=1;repeat="center";valign="bottom";z=23};
+	previewHsbB={cls="plus";left=186;top=185;right=478;bottom=199;color=12632256;dl=1;dr=1;dt=1;foreRight=6;notify=1;paddingBottom=4;paddingTop=9;z=17};
+	previewHsbH={cls="plus";left=185;top=131;right=477;bottom=145;color=12632256;dl=1;dr=1;dt=1;foreRight=6;notify=1;paddingBottom=4;paddingTop=9;z=15};
+	previewHsbS={cls="plus";left=185;top=158;right=477;bottom=172;color=12632256;dl=1;dr=1;dt=1;foreRight=6;notify=1;paddingBottom=4;paddingTop=9;z=16};
+	previewLabA={cls="plus";left=70;top=243;right=362;bottom=257;color=12632256;dl=1;dr=1;dt=1;foreRight=6;notify=1;paddingBottom=4;paddingTop=9;z=32};
+	previewLabB={cls="plus";left=70;top=270;right=362;bottom=284;color=12632256;dl=1;dr=1;dt=1;foreRight=6;notify=1;paddingBottom=4;paddingTop=9;z=33};
+	previewLabL={cls="plus";left=70;top=216;right=362;bottom=230;color=12632256;dl=1;dr=1;dt=1;foreRight=6;notify=1;paddingBottom=4;paddingTop=9;z=31};
+	previewRgbaA={cls="plus";left=70;top=93;right=362;bottom=107;color=12632256;dl=1;dr=1;dt=1;foreRight=6;notify=1;paddingBottom=4;paddingTop=9;textPadding={top=-2};z=14};
+	previewRgbaB={cls="plus";left=70;top=66;right=362;bottom=80;color=12632256;dl=1;dr=1;dt=1;foreRight=6;notify=1;paddingBottom=4;paddingTop=9;z=12};
+	previewRgbaG={cls="plus";left=70;top=40;right=362;bottom=54;color=12632256;dl=1;dr=1;dt=1;foreRight=6;notify=1;paddingBottom=4;paddingTop=9;z=13};
+	previewRgbaR={cls="plus";left=70;top=13;right=362;bottom=27;color=12632256;dl=1;dr=1;dt=1;foreRight=6;notify=1;paddingBottom=4;paddingTop=9;z=11};
+	staticHsbH={cls="plus";text="色相(H):";left=132;top=128;right=183;bottom=148;align="right";dl=1;dt=1;z=8};
+	staticHsbS={cls="plus";text="饱和度(S):";left=119;top=155;right=185;bottom=175;align="right";dl=1;dt=1;z=9};
+	staticHsbV={cls="plus";text="明度(B):";left=134;top=182;right=185;bottom=202;align="right";dl=1;dt=1;z=10};
+	staticLabA={cls="plus";text="绿到红(a):";left=0;top=240;right=66;bottom=260;align="right";dl=1;dt=1;z=29};
+	staticLabB={cls="plus";text="蓝到黄(b):";left=0;top=267;right=66;bottom=287;align="right";dl=1;dt=1;z=30};
+	staticLabL={cls="plus";text="亮度(L):";left=0;top=213;right=66;bottom=233;align="right";dl=1;dt=1;z=28};
+	staticRgbA={cls="plus";text="透明(A):";left=15;top=90;right=66;bottom=110;align="right";dl=1;dt=1;z=7};
+	staticRgbB={cls="plus";text="蓝色(B):";left=15;top=63;right=66;bottom=83;align="right";dl=1;dt=1;z=6};
+	staticRgbG={cls="plus";text="绿色(G):";left=15;top=37;right=66;bottom=57;align="right";dl=1;dt=1;z=5};
+	staticRgbR={cls="plus";text="红色(R):";left=15;top=10;right=66;bottom=30;align="right";dl=1;dt=1;z=4}
+	)
+	/*}}*/
+	
+	var trackbarStyle = {
+		color={
+			default=0xFF8A8A8A;
+			hover=0xFFFF2A00
+		}
+	}
+	this.previewHsbB.setTrackbarRange(0,100);
+	this.previewHsbB.skin(trackbarStyle)
+	
+	this.previewHsbS.setTrackbarRange(0,100);
+	this.previewHsbS.skin(trackbarStyle)
+	
+	this.previewHsbH.setTrackbarRange(0,359);
+	this.previewHsbH.skin(trackbarStyle)
+	
+	this.previewRgbaA.setTrackbarRange(0,255);
+	this.previewRgbaA.skin(trackbarStyle)
+	
+	this.previewRgbaB.setTrackbarRange(0,255);
+	this.previewRgbaB.skin(trackbarStyle)
+	
+	this.previewRgbaG.setTrackbarRange(0,255);
+	this.previewRgbaG.skin(trackbarStyle)
+	
+	this.previewRgbaR.setTrackbarRange(0,255);
+	this.previewRgbaR.skin(trackbarStyle)
+	
+	this.previewLabL.setTrackbarRange(0,100);
+	this.previewLabL.skin(trackbarStyle)
+	
+	this.previewLabA.setTrackbarRange(-128,127);
+	this.previewLabA.skin(trackbarStyle)
+	
+	this.previewLabB.setTrackbarRange(-128,127);
+	this.previewLabB.skin(trackbarStyle)
+
+	var drawPreviewBackgroundBar = function(graphics,rc,backgroundColor,color){
+		graphics.smoothingMode = 3/*_SmoothingModeNone*/;
+		var items = owner.items;
+		if(!#items) return;
+		
+		rc.inflate(0,-4);
+		var h = rc.height();
+		var w = ( rc.width()/#items );
+		var x = rc.left;
+		var y = rc.top;
+		
+		var brush = ..gdip.lineBrush(::RECTF(0,0,w,h),0,0);
+		reduce(items,function(prev,next,i){
+			brush.setLineColors(prev,next);
+			graphics.fillRectangle(brush,x+((i-2)*w),y,w*2,h);
+			return next;
+		})
+	
+		brush.delete();	
+		graphics.smoothingMode = 2/*_SmoothingModeHighQuality*/;
+	}
+	
+	for(name,ctrl in this.eachControl("plus") ){
+		if(..string.startWith(name,"preview") ){
+			ctrl.onDrawBackground = drawPreviewBackgroundBar; 
+		}
+	}
+	
+	var argb = ..color.argb;
+	var rBar,gBar,bBar,aBar = {},{},{},{};
+	this.previewRgbaR.items = rBar;
+	this.previewRgbaG.items = gBar;
+	this.previewRgbaB.items = bBar;
+	this.previewRgbaA.items = aBar;
+	this.updateRgbPreviewBar = function(r,g,b,a){ 
+		for(i=0;255;1) {
+			rBar[i+1] = argb(i,g,b,a);
+			gBar[i+1] = argb(r,i,b,a);
+			bBar[i+1] = argb(r,g,i,a);
+			aBar[i+1] = argb(r,g,b,i);
+		}
+		
+		this.previewRgbaR.predraw();
+		this.previewRgbaG.predraw();
+		this.previewRgbaB.predraw();
+		this.previewRgbaA.predraw();
+	}
+	
+	var hsb2rgb = ..color.hsb2rgb;
+	var hBar,sBar,vBar = {},{},{};
+	this.previewHsbH.items = hBar;
+	this.previewHsbS.items = sBar;
+	this.previewHsbB.items = vBar;  
+	this.updateHsbPreviewBar = function(h,s,v){ 
+		var r,g,b;
+		for(i=0;359;1) {
+			r,g,b = hsb2rgb(i,s,v) 
+			hBar[i+1] = argb(r,g,b,0xFF);
+		}
+	 
+		for(i=0;100;1) {
+			var r,g,b = hsb2rgb(h,i/100,v) 
+			sBar[i+1] = argb(r,g,b,0xFF);
+			
+			var r,g,b = hsb2rgb(h,s,i/100) 
+			vBar[i+1] = argb(r,g,b,0xFF);
+		}
+ 
+		this.previewHsbH.predraw();
+		this.previewHsbS.predraw();
+		this.previewHsbB.predraw();
+	}
+	
+	var lab2rgb = ..color.lab2rgb;
+	var llBar,laBar,lbBar = {},{},{};
+	this.previewLabL.items = llBar;
+	this.previewLabA.items = laBar;
+	this.previewLabB.items = lbBar;
+	this.updateLabPreviewBar = function(ll,la,lb){ 
+		for(i=0;100;1) {
+			var r,g,b = lab2rgb(i,la,lb) 
+			llBar[i+1] = argb(r,g,b,0xFF); 
+		}
+ 
+     	for(i=-127;128;1) {
+			var r,g,b = lab2rgb(ll,i,lb) 
+			laBar[i+128] = argb(r,g,b,0xFF);
+			
+			var r,g,b = lab2rgb(ll,la,i) 
+			lbBar[i+128] = argb(r,g,b,0xFF)
+		}
+		
+		this.previewLabL.predraw();
+		this.previewLabA.predraw();
+		this.previewLabB.predraw(); 
+	}
+		
+	var bmpMagnifying = ..gdip.bitmap(16,16);
+	var penMagnifying = ..gdip.pen(0xFF808000,1);
+	var drawMagnifyingCross= function(graphics,rc){ 
+		var w,h = rc.right-rc.left,rc.bottom-rc.top;
+		graphics.drawLine(penMagnifying,0,h/2,w,h/2);
+		graphics.drawLine(penMagnifying,w/2,0,w/2,h);
+	}
+	
+	this.plusMagnifying.orphanWindow(false);
+	this.plusMagnifying.smoothingMode = 3/*_SmoothingModeNone*/
+	this.plusMagnifying.interpolationMode = 5/*_InterpolationModeNearestNeighbor*/;
+	
+	this.btnColorPick.onMouseDown = function(wParam,lParam){
+		 
+	    ..win.ui.waitCursor(true,hCurColorPick); 
+	    this.plusMagnifying.onDrawForegroundEnd = drawMagnifyingCross; 
+	    this.plusMagnifying.show(4/*_SW_SHOWNOACTIVATE*/);
+	    ..win.setTopmost(this.plusMagnifying.hwnd);
+	
+	    this.picking = true;
+	    this.btnColorPick.hueCount = 6;
+	    this.btnColorPick.redraw();
+	    this.lbCtrlTip.hide = false;
+	    this.transRoot = null;
+	    this.btnColorPick.setFocus();
+	};
+	
+	this.btnColorPick.onMouseUp = function(wParam,lParam){
+		..win.ui.waitCursor(false);
+		if(this.transRoot)this.transRoot.transparent(false);
+	    this.btnColorPick.hueCount = 3;
+	    this.plusMagnifying.onDrawForegroundEnd = null;
+	    this.btnColorPick.onDrawForegroundEnd = null;
+	    this.plusMagnifying.show(false);
+	    this.picking = false;
+	    this.lbCtrlTip.hide = true;
+	};
+	
+	this.btnColorPick.onMouseEnter = function(wParam,lParam){ 
+		this.lbArgbColr.text = "拖曳吸管抓色，按Alt隐藏调色窗口，按Ctrl/Shift锁定放大镜";
+	}
+	
+	this.btnColorPick.onMouseLeave = function(wParam,lParam){
+		this.lbArgbColr.redrawColorDetail()
+	}
+	
+	this.btnColorPick.onMouseDrag = function(wParam,lParam){ 
+		var x,y = ..win.getMessagePos();
+		var hdc = ::GetDC(0);
+		if(!hdc) return; 
+		var clr = ::GetPixel(hdc,x,y);
+		
+		var r,g,b = ..color.getRgb(clr);
+		var clr = ..color.argb(r,g,b,0xFF); 
+		this.updateRgbColor(clr);
+		this.updateHsbColor(clr);
+		this.updateLabColor(clr);
+		this.plusColor.background = clr;
+		this.plusColor.redrawTransparent();
+		this.lbPoint.text = ..string.format("X:%d Y:%d",x,y)
+		var x = x - 8;
+		var y = y - 8; 
+		
+		var g = bmpMagnifying.getGraphics();
+		var hMemDc = g.getDc();
+		::BitBlt(hMemDc,0,0,16,16, hdc, x, y,0xCC0020/*_SRCCOPY*/ | 0x40000000/*_CAPTUREBLT*/)
+		g.releaseDc(hMemDc);
+		::ReleaseDC(0, hdc);  
+	
+		if( !( ::GetKeyState(0x11/*_VK_CTRL*/) & 0x8000 ) ){
+			if( !( ::GetKeyState(0x10/*_VK_SHIFT*/) & 0x8000 ) ){
+				var mx,my,mcx,mcy = this.plusMagnifying.getPos();
+				var scx,scy = ..win.getScreen();
+				
+				x = (x+mcx+16>scx) ? x - mcx - 8 : x + 16; 
+				y = (y+mcy+16>scy) ? y - mcy - 8 : y + 16;
+				this.plusMagnifying.setPos(x,y);
+			}
+			this.plusMagnifying.foreground = bmpMagnifying;
+			this.plusMagnifying.redraw();	
+		}
+		else {
+			if(this.transRoot){
+				this.transRoot.transparent(false);
+			}
+			this.lbCtrlTip.hide = true;
+		}
+	}
+	
+	this.btnColorPick.onSysKeyDown = function(keyCode,lParam,repeat){ 
+		if(keyCode==0x12/*_VK_ALT*/){
+			if(!this.btnColorPick.state.dragging){
+				return;
+			}
+			this.transRoot = ..win.getRoot(this.hwnd);
+			this.transRoot = this.transRoot ? ..win._form.getForm(this.transRoot);
+			if(this.transRoot){
+				this.transRoot.transparent(0); 
+			}
+			else {
+				this.transRoot.transparent(false);
+				this.transRoot = null;
+			}		
+		}
+	}
+
+	
+	this.getRgba = function(){
+		return this.previewRgbaR.progressPos,
+			this.previewRgbaG.progressPos,this.previewRgbaB.progressPos,this.previewRgbaA.progressPos;
+	}
+
+	this.getHsb = function(){
+		return this.previewHsbH.progressPos,
+			this.previewHsbS.progressPos/100,this.previewHsbB.progressPos/100;
+	}
+	
+	this.getLab = function(){
+		return this.previewLabL.progressPos,
+			this.previewLabA.progressPos,this.previewLabB.progressPos;
+	}
+	
+	this.previewRgbaR.buddy = this.staticRgbR;
+	this.previewRgbaG.buddy = this.staticRgbG;
+	this.previewRgbaB.buddy = this.staticRgbB;
+	this.previewRgbaA.buddy = this.staticRgbA;
+	this.previewHsbH.buddy = this.staticHsbH;
+	this.previewHsbS.buddy = this.staticHsbS;
+	this.previewHsbB.buddy = this.staticHsbV;
+	this.previewLabL.buddy = this.staticLabL;
+	this.previewLabA.buddy = this.staticLabA;
+	this.previewLabB.buddy = this.staticLabB;
+
+	this.previewRgbaR.onMouseLeave = function(wParam,lParam){
+	    owner.buddy.text = "红色(R):" 
+	}
+	this.previewRgbaG.onMouseLeave = function(wParam,lParam){
+	    owner.buddy.text = "绿色(R):" 
+	}
+	this.previewRgbaB.onMouseLeave = function(wParam,lParam){
+	    owner.buddy.text = "蓝色(B):" 
+	}
+	this.previewRgbaA.onMouseLeave = function(wParam,lParam){
+	    owner.buddy.text = "透明(A):" 
+	}
+	this.previewHsbH.onMouseLeave = function(wParam,lParam){
+	    owner.buddy.text = "色相(H):" 
+	    this.btnColorPick.hueCount = 3;
+		this.btnColorPick.redrawTransparent();	
+	}
+	this.previewHsbS.onMouseLeave = function(wParam,lParam){
+	    owner.buddy.text = "纯度(S):" 
+	}
+	this.previewHsbB.onMouseLeave = function(wParam,lParam){
+	    owner.buddy.text = "明度(S):" 
+	}
+	this.previewLabL.onMouseLeave = function(wParam,lParam){
+	    owner.buddy.text = "亮度(L):" 
+	}
+	this.previewLabA.onMouseLeave = function(wParam,lParam){
+	    owner.buddy.text = "绿到红(a):" 
+	}
+	this.previewLabB.onMouseLeave = function(wParam,lParam){
+	    owner.buddy.text = "蓝到黄(b):" 
+	}
+	
+	var onRgbPosChanged = function( pos,thumbTrack ){
+		if(thumbTrack){
+			this.setColorSource = "rgb";
+			var r,g,b,a = this.getRgba();
+			this.updateRgbPreviewBar(r,g,b,a);
+			
+			var argb = ..color.argb(r,g,b,a);
+			this.updateHsbColor(argb);
+			this.updateLabColor(argb);
+			owner.buddy.text = pos;
+			this.setColorSource = null;
+		}
+	} 
+	this.previewRgbaR.onPosChanged = onRgbPosChanged;
+	this.previewRgbaG.onPosChanged = onRgbPosChanged;
+	this.previewRgbaB.onPosChanged = onRgbPosChanged;
+	this.previewRgbaA.onPosChanged = onRgbPosChanged;
+	
+	var onHsbPosChanged = function( pos,thumbTrack ){
+		if(thumbTrack){
+			this.setColorSource = "hsb";
+			var h,s,v = this.getHsb();
+			var r,g,b = ..color.hsb2rgb(h,s,v);
+			this.updateHsbPreviewBar(h,s,v);
+			
+			var argb = ..color.argb(r,g,b);
+			this.updateRgbColor(argb);
+			this.updateLabColor(argb);
+			
+			owner.buddy.text = pos;
+			this.setColorSource = null;
+		}
+	}
+	
+	this.previewHsbS.onPosChanged = onHsbPosChanged; 
+	this.previewHsbB.onPosChanged = onHsbPosChanged;
+	this.previewHsbH.onPosChanged = function( pos,thumbTrack ){
+		if(thumbTrack){
+			this.setColorSource = "hsb";
+			
+			var h,s,v = this.getHsb();
+			var r,g,b = ..color.hsb2rgb(h,s,v);
+			this.updateHsbPreviewBar(h,s,v);
+			
+			var argb = ..color.argb(r,g,b);
+			this.updateRgbColor(argb);
+			this.updateLabColor(argb);
+			this.setColorSource = null;	
+			
+			this.btnColorPick.hueCount = 360;
+			owner.buddy.text = pos;
+			this.btnColorPick.redrawTransparent();	
+		}
+	}
+	 
+	var onLabPosChanged = function( pos,thumbTrack ){
+		if(thumbTrack){
+			this.setColorSource = "lab";
+			var ll,la,lb = this.getLab();
+			this.updateLabPreviewBar(ll,la,lb);
+			var r,g,b = ..color.lab2rgb(ll,la,lb);
+			var argb = argb(r,g,b);
+			this.updateHsbColor(argb);
+			this.updateRgbColor(argb);
+			owner.buddy.text = pos;
+			this.setColorSource = null;
+			this.lbArgbColr.redrawColorDetail();
+		}
+	} 
+	this.previewLabL.onPosChanged = onLabPosChanged;
+	this.previewLabA.onPosChanged = onLabPosChanged;
+	this.previewLabB.onPosChanged = onLabPosChanged; 
+		
+	this.lbArgbColr.redrawColorDetail = function(clr){
+		if(clr === null){
+			clr = this.argbColor;
+		}
+		if(clr !== null){
+			var r,g,b,a = ..color.getRgba(clr);
+			var h,s,v = ..color.rgb2hsb(r,g,b);
+			var ll,la,lb = this.getLab();
+			var lightness = v +  (v/2 *-s);
+			this.lbArgbColr.text = ..string.format("RGB(%d,%d,%d) HSB(%d°,%d%%,%d%%) Lab(%g,%g,%g) 亮度(%d%%)"
+				,r,g,b,h,s*100,v*100,..math.round(ll,1),..math.round(la,1),..math.round(lb,1),lightness*100 );
+		}
+	}
+	 
+	this.updateColorOnChanged = function(clr){
+		if( this.argbColor == clr ) return;
+		this.argbColor = clr; 
+		
+		var r,g,b,a = ..color.getRgba(clr);
+		if(this.setColorSource != this.editGdipColor) this.editGdipColor.text = ..string.format("0x%08X",clr)
+		if(this.setColorSource != this.editGdiColor) this.editGdiColor.text = ..string.format("0x%06X",..color.rgb(r,g,b) );
+		if(this.setColorSource != this.editHtmlColor) this.editHtmlColor.text = ..string.format("%02X%02X%02X",r,g,b );
+		
+		this.argbColor = clr;
+		this.plusColor.background = clr;
+		this.lbArgbColr.redrawColorDetail(clr);
+		this.updateColorTable(clr);
+		
+		var palette = this.trackerGroup("palette");
+		if(palette){
+			palette.foreground = clr;
+		}
+		
+		if(this.onColorChange){
+			this.setColorDisabled = true;
+			this.onColorChange(clr);
+			this.setColorDisabled = false;
+		}
+		
+		if(this.dlgColorTable){
+			if(this.setColorSource != this.dlgColorTable){
+				this.setColorDisabled = true;
+				this.dlgColorTable.setItemColor(this.getColor() );
+				this.setColorDisabled = false;
+			} 
+		}
+	} 
+	
+	
+	this.updateRgbColor = function(clr){
+		if( this.setColorSource == "rgb" ) return;
+		
+		var r,g,b,a = ..color.getRgba(clr);
+		var h,s,v = ..color.rgb2hsb(r,g,b);
+		
+		this.previewRgbaA.progressPos = a; 
+		this.previewRgbaR.progressPos = r;
+		this.previewRgbaG.progressPos = g;
+		this.previewRgbaB.progressPos = b;
+		
+		if( this.argbColor!= clr ){
+			this.updateColorOnChanged(clr);
+		}
+		return clr;
+	}
+	
+	this.updateHsbColor = function(clr){
+		if( this.setColorSource == "hsb" ) return;
+		
+		var r,g,b,a = ..color.getRgba(clr);
+		var h,s,v = ..color.rgb2hsb(r,g,b);
+		this.previewHsbH.progressPos = h;
+		this.previewHsbS.progressPos = s*100;
+		this.previewHsbB.progressPos = v*100;
+		
+		if( this.argbColor!= clr ){
+			this.updateColorOnChanged(clr);
+		}
+		return clr;
+	}
+	
+	this.updateLabColor = function(clr){
+		if( this.setColorSource == "lab" ) return;
+		
+		var r,g,b,a = ..color.getRgba(clr);
+		var ll,la,lb = ..color.rgb2lab(r,g,b);
+		this.previewLabL.progressPos = ll;
+		this.previewLabA.progressPos = la;
+		this.previewLabB.progressPos = lb;
+		
+		if( this.argbColor!= clr ){
+			this.updateColorOnChanged(clr);
+		}
+		
+		return clr;
+	}
+	
+	this.updateColorTable = function(argb){
+		var info = ..color.table.find(argb);
+		if(info) {
+			this.plusColorTable.argbColor = info.argbColor;
+			this.plusColorTable.background = info.argb;
+    		this.plusColorTable.text = "参考色卡:" + info.fullname;
+    	}
+    	else  {
+    		this.plusColorTable.text = "";
+    	}
+	}
+	
+	this.plusColorTable.onMouseEnter = function(wParam,lParam){
+		this.plusColorTable.border = {bottom=1;color=0x80000000;padding=15;radius=10}
+		this.plusColorTable.argbColor = 0xFF000000;
+		this.plusColorTable.background = 0;
+	}
+	
+	this.plusColorTable.onMouseDown = function(wParam,lParam){
+	    this.plusColorTable.background = 0xFF808080;
+	    this.plusColorTable.border = {radius=10};
+	}
+	
+	this.plusColorTable.onMouseLeave = function(wParam,lParam){
+		this.updateColorTable( this.getColor() );
+		this.plusColorTable.border = {radius=10};
+	}
+	
+	this.plusColorTable.onMouseClick = function(wParam,lParam){
+		this.plusColorTable.border = {bottom=1;color=0x80000000;padding=15;radius=10}
+	    this.plusColorTable.argbColor = 0xFF000000;
+		this.plusColorTable.background = 0;
+		
+		if(this.dlgColorTable && this.dlgColorTable.valid){
+			this.dlgColorTable.show(9/*_SW_RESTORE*/);
+			return;
+		}
+		
+		this.dlgColorTable = ..color.viewForm(this);
+		this.dlgColorTable.setItemColor(this.getColor() );
+		this.dlgColorTable.onColorChange = function(clr){
+			this.setColorSource = this.dlgColorTable;
+			this.setColor(clr);
+			this.setColorSource = null;
+		}
+		this.dlgColorTable.show();
+	}
+	
+	this.openColorTable = function(clrTable){
+		if(!clrTable) return false;
+		if(this.dlgColorTable && this.dlgColorTable.valid){
+			this.dlgColorTable.setColorTable(clrTable);
+			this.dlgColorTable.show(9/*_SW_RESTORE*/);
+			return true;
+		}
+		
+		this.dlgColorTable = ..color.viewForm(this);
+		this.dlgColorTable.setItemColor(this.getColor() );
+		this.dlgColorTable.onColorChange = function(clr){
+			this.setColorSource = this.dlgColorTable;
+			this.setColor(clr);
+			this.setColorSource = null;
+		}
+		this.dlgColorTable.setColorTable(clrTable);
+		this.dlgColorTable.show(); 
+		return true;
+	}
+	
+	
+	this.setColor = function(argb,gdi){
+		if(argb === null) return;
+		if(gdi)argb = ..color.argbReverse(argb);
+		
+		if(argb == this.argbColor) return;
+		if(this.setColorDisabled) return;
+		
+		this.setColorDisabled = true;
+		this.updateRgbColor(argb);
+		this.updateHsbColor(argb);
+		this.updateLabColor(argb);
+		this.plusColor.background = argb;
+		this.plusColor.redrawTransparent(); 
+		this.argbColor = argb;
+		
+		var r,g,b,a = ..color.getRgba(argb);
+		this.updateRgbPreviewBar(r,g,b,a);
+		
+		var h,s,v = ..color.rgb2hsb(r,g,b);
+		this.updateHsbPreviewBar(h,s,v);
+		
+		var l,a,b = ..color.rgb2lab(r,g,b);
+		this.updateLabPreviewBar(l,a,b);
+		
+		this.setColorDisabled = false;
+	}
+	
+	this.getColor = function(gdi){
+		if(gdi) return ..color.rgbReverse(this.argbColor) & 0xFFFFFF;
+		return this.argbColor;
+	}
+	
+	for(name,ctrl in this.eachControl("trackbar") ){
+		ctrl.oncommand(0,5/*_SB_THUMBTRACK*/);
+	}
+	
+	this.editHtmlColor.limit = 7;	
+	this.editHtmlColor.oncommand = function(id,event){
+		if(event ==0x300/*_EN_CHANGE*/ && !this.setColorSource ){
+			this.setColorSource = this.editHtmlColor;
+			var s = this.editHtmlColor.text;
+			s = ..string.match(s,"^#?\x{6}$");
+			if(s) this.setColor( ..color.parse(s),true); 
+			this.setColorSource = null;
+		}
+	}
+
+	this.editGdiColor.limit = 20
+    this.editGdiColor.oncommand = function(id,event){
+		if(event ==0x300/*_EN_CHANGE*/ && !this.setColorSource ){
+			this.setColorSource = this.editGdiColor;
+			var txt = this.editGdiColor.text;
+			var clr = ..string.match(txt,"^<0x>?\x{6}$");
+			if(clr){
+				 this.setColor( tonumber(clr,16),true ); 
+			}
+			else {
+				var title,a,b,c = ..string.match(txt,"(\a{0,3})\D*(\d+)[\p\s]+(\d+)[\p\s]+(\d+)");
+				if(a && b && c){
+					a,b,c = tonumber(a),tonumber(b),tonumber(c);
+					if(..string.cmp(title,"HSB") == 0 ){
+						if(a>=0 && b>=0 && c>=0){
+							if(b>100) b = 100;
+							if(c>100)c=100;
+							var r,g,b = ..color.hsb2rgb(a%360,b/100,c/100);
+							this.setColor( ..color.argb(r,g,b,0xFF ) );	
+						}
+					}
+					elseif(..string.cmp(title,"Lab") == 0 ){
+						var r,g,b = ..color.lab2rgb(a,b,c);
+						this.setColor( ..color.argb(r,g,b,0xFF ) );
+					}
+					else {
+						if(a>=0 && b>=0 && c>=0){
+							this.setColor( ..color.argb(a,b,c,0xFF ) );
+						}
+					}
+				}
+			}
+			
+			this.setColorSource = null;
+		}	
+		elseif(event == 0x100/*_EN_SETFOCUS*/){
+			this.lbArgbColr.text = "可输入0xFFFFFF、RGB(25,2,3)、HSB(1,2,90)、Lab(90,0,0)"
+		}
+		elseif(event == 0x200/*_EN_KILLFOCUS*/){
+			this.lbArgbColr.redrawColorDetail();
+		}
+	}
+
+	this.editGdipColor.limit = 10;
+    this.editGdipColor.oncommand = function(id,event){
+		if(event == 0x300/*_EN_CHANGE*/ && !this.setColorSource ){
+			this.setColorSource = this.editGdipColor;
+			var s = this.editGdipColor.text;
+			s = ..string.match(s,"^<0x>?\x{8}$");
+			if(s) this.setColor( tonumber(s,16),false ); 
+			this.setColorSource = null;
+		}
+	}
+	
+	this.editGdipColor.wndproc = function(hwnd,message,wParam,lParam){
+		if(message==0x302/*_WM_PASTE*/){
+			var str = ..win.clip.read();
+			if(str){
+				owner.text = ..string.trim(str);
+				return 0;
+			}
+		} 
+	}
+	
+	this.editGdiColor.wndproc = function(hwnd,message,wParam,lParam){
+		if(message==0x302/*_WM_PASTE*/){
+			var str = ..win.clip.read();
+			if(str){
+				owner.text = ..string.trim(str);
+				return 0;
+			}
+		} 
+	}
+	
+	this.editHtmlColor.wndproc = function(hwnd,message,wParam,lParam){
+		if(message==0x302/*_WM_PASTE*/){
+			var str = ..win.clip.read();
+			if(str){
+				owner.text = ..string.trim(str);
+				return 0;
+			}
+		} 
+	}
+	
+	this.lbArgbColr.oncommand = function(id,event){
+		if(event=1/*_STN_DBLCLK*/){
+			if(this.argbColor){ 
+				var s = ..string.match(owner.text,"(.+)亮度");
+				if(s){
+					..win.clip.write(s);
+					this.lbArgbColr.text = "已复制：" + s;;	
+				}
+			}
+		}
+		elseif(event=0/*_STN_CLICKED*/){
+			this.lbArgbColr.redrawColorDetail();
+		}
+	}
+	
+	this.lbPoint.oncommand = function(id,event){
+		if(event=1/*_STN_DBLCLK*/){
+			if(#owner.text){ 
+				var x,y = ..string.match(owner.text,"(\d+)\D+(\d+)");
+				if(x&&y){
+					..win.clip.write(x + "," + y );
+					this.lbArgbColr.text = "已复制：" + x + "," + y;	
+				};
+			}
+		}	
+	}
+	
+	this.plusColor.onMouseClick = function(wParam,lParam){
+		
+	    if( ( ::GetKeyState(0x12/*_VK_ALT*/) & 0x8000 ) ){
+	    	var r,g,b,a = ..color.getRgba(this.getColor());
+	    	this.setColor( ..color.argb(255-r,255-g,255-b,a) );
+	    }
+		elseif( ( ::GetKeyState(0x10/*_VK_SHIFT*/) & 0x8000 ) ){
+			var r,g,b,a = ..color.getRgba(this.getColor());
+			var h,s,v = ..color.rgb2hsb(r,g,b);
+			r,g,b = ..color.hsb2rgb((h+180)%360,s,v);
+	    	this.setColor( ..color.argb(r,g,b,a) );
+		}
+		elseif( ( ::GetKeyState(0x11/*_VK_CTRL*/) & 0x8000 ) ){
+			var r,g,b,a = ..color.getRgba(this.getColor());
+			var h,s,v = ..color.rgb2hsb(r,g,b);
+			r,g,b = ..color.hsb2rgb(((h+180)%360+30)%360,s,v);
+	    	this.setColor( ..color.argb(r,g,b,a) );
+		} 
+	}
+	
+	this.plusColor.onMouseDoubuleClick = function(wParam,lParam){
+	    if(this.onColorDoubuleClick){
+	    	this.onColorDoubuleClick(wParam,lParam);
+	    }
+	}
+	
+	this.plusColor.onMouseEnter = function(wParam,lParam){
+		this.lbArgbColr.text = "按 Shift 点击取补色,按 Ctrl 点击取分散补色,按 Alt 点击取反色"
+	}
+	
+	this.plusColor.onMouseLeave = function(wParam,lParam){
+		this.lbArgbColr.redrawColorDetail();
+	}
+	
+ 	this.btnColorPick.hueCount = 3;
+	this.btnColorPick.onDrawBackground  = function(graphics,rc,backgroundColor,clr){
+		if(!owner.hueCount) return;
+    	
+		rc.inflate(-10,-10);
+		var width = rc.width();
+		var height = rc.height();
+		var x = rc.left + rc.width()/2;
+		var y = rc.height();
+		
+		graphics.rotateRect(rc,-90);
+		var pen = ..gdip.pen(0,20); 
+		var sweepAngle = 360/owner.hueCount;
+		var s,v = 1,1;
+		if(owner.hueCount>12){
+			s = this.previewHsbS.progressPos/100;
+			v = this.previewHsbB.progressPos/100;	
+		};
+		
+		for(angle=0;359;sweepAngle){
+			var r,g,b = ..color.hsb2rgb(angle,s,v);
+			pen.color = ..color.argb(r,g,b);; 
+			graphics.drawArc(pen,rc.left,rc.top, width, height, angle-(sweepAngle/2) ,sweepAngle+2); 
+		}
+		
+		if(owner.hueCount>12){
+			pen.endCap	= 0x14/*_LineCapArrowAnchor*/;
+			pen.width = 6;
+			pen.color = 0xFFFFFFFF;
+		
+			graphics.drawArc(pen,rc.left,rc.top, rc.width(), rc.height(), 0 ,this.previewHsbH.progressPos); 
+		}
+		pen.delete();
+		
+		if(this.btnColorPick.state.active){
+			return true;
+			
+		}
+	}
+
+	this.btnColorPick.background = $"~\lib\win\ui\ctrl\pick\.res\color.png";
+	this.btnColorPick.skin({
+		foreground ={
+			hover = 0x50808000; 
+		} 
+	})
+	
+	var config = ..fsys.config( ..io.appData("/aardio/colorPick") )
+	this.bindConfig( config.pick,{
+		plus = {
+			["^palette"] = "foregroundColor";
+			["plusColor"] = "backgroundColor";
+		}; 
+	} );
+		
+	var palette;
+	for(i=1;20;1){
+		palette = this["palette"+i];
+		palette.skin({
+			color={
+				default=0xFFE0E3D1
+			};
+			border={
+				active={color=0xFF9D9E96;width=2};hover={color=0xFF00AEFF;width=2}
+			};
+			checked={
+				border={
+					default={color=0xF0FF0000;width=1};hover={color=0xFF00AEFF;width=2}
+				}
+			};
+			group="palette";
+		}) 
+		palette.redrawTransparent();
+		palette.oncommand = function(){
+			var clr = owner.foregroundColor;
+			if(clr &&clr != 0xFFFFFFFF ){
+				if !( ::GetKeyState(0x12/*_VK_ALT*/) & 0x8000 )  this.setColor(clr);
+				else {
+					owner.foregroundColor = 0xFFFFFFFF;
+					owner.redraw();
+				}
+				
+			} 
+		} 
+		palette.onMouseEnter = function(wParam,lParam){
+			this.lbArgbColr.text = "按住 Alt 选择并清空此调色格（不改变当前颜色）"
+		}
+		palette.onMouseLeave = function(wParam,lParam){
+			this.lbArgbColr.redrawColorDetail();
+		}
+	}
+
+	this.plusLockClipBoard.stringFormatFlags = 2/*_StringFormatFlagsDirectionVertical*/;
+	this.plusLockClipBoard.skin({
+		background={hover=0xFFB3B3B3};
+		checked={
+			text='取消锁定';
+			background={hover=0xFFB3B3B3};
+		}
+	})
+	
+	this.plusLockClipBoard.oncommand = function(id,event){
+		var root = ..win.getRoot(this.hwnd);
+		if(this.plusLockClipBoard.checked){
+			import win.clip;
+			var hBmp = win.clip.readBitmap()
+			if(!hBmp) {
+				owner.checked = false;
+				return this.msgboxErr("请先按 PrtSc(Print Screen) 键复制屏幕到剪贴板")
+			}
+			
+			this.customClipboard.setBitmap(hBmp) 
+			this.customClipboard.fullscreen(true);	 
+			this.$oldOwner = ..win.getOwner(root);
+			..win.setOwner(root,this.customClipboard.hwnd)
+		}
+		else {
+			..win.setOwner(root,this.$oldOwner) 
+			this.customClipboard.fullscreen(false);	
+			this.customClipboard.setBitmap(null)
+		}
+	}
+	
+	this.setColor(this.plusColor.backgroundColor:0xFF58C734);
+	
+	this.onCancel = function(){
+	   	if(this.continueModal){
+			this.endModal();
+		} 
+	}
+	
+	this.setIcon(hIconColorPick);
+	..win.ui.minmax(this,,,,385);
+	}
+}
+
+namespace pick{
+    hCurColorPick = ..win.image.loadCursorFromFile($"~\lib\win\ui\ctrl\pick\.res\color.cur")
+    hIconColorPick = ..win.image.loadIconFromFile($"~\lib\win\ui\ctrl\pick\.res\color.cur",false);
+}
+
+if( !owner ) ..win.ui.ctrl.pick().doModal();
+/**intellisense()
+win.ui.ctrl.pick = 服于创建取色器的窗口类,\n可用于创建独立窗口,也可以作为控件类使用。\n\n取色放大镜使用技巧:\n取色时取的是放大镜十字准星右下角的那个像素。\n取色时按住Ctrl键放大镜不动且图像不变,\n按住Shift键放大镜不动但图像随鼠标指向改变,\n同时按住Ctrl+Shift键等价于按Ctrl键
+win.ui.ctrl.pick() = 创建取色器,\n可选使用参数@1指定父窗口,可选用参数@2自定义创建窗口的参数,\n可使用setColor函数修改颜色值,参数指定颜色值,\n取色器颜色改变时会触发onColorChange函数,\n该回调函数唯一的参数即为当前变更后的颜色\n!winUiCtrlPick.
+end intellisense**/
+
+/**intellisense(!winUiCtrlPick)
+setColor(.(ARGB颜色数值) = 修改当前颜色
+setColor(.(RGB颜色数值,true) = 修改当前颜色
+openColorTable(__) = 打开color.table支持的色表,\n色表是由多个色卡信息组成的数组,\n每个色卡由颜色中文名、英文名、RGB格式颜色数值三个元素组成
+onColorChange = @.onColorChange = function(argb){
+	__/*调色器当前颜色改变时触发此事件,\n回调参数为ARGB格式颜色数值*/
+}
+getRgba() = 返回当前R,G,B,A颜色分量
+getHsb() = 返回当前H,S,V颜色分量
+getLab() = 返回当前H,S,B颜色分量
+right = 右侧坐标
+top = 顶部坐标
+bottom = 底部坐标
+height = 高度
+width = 宽度
+orphanWindow() = 如果当前是子窗口,\n移除窗口的WS_CHILD样式，使窗口孤立出来,\n参数为true则转换为分层透明窗口,\n孤立窗口仍然显示在原来的位置
+setPos(.(x坐标,y坐标,宽,高,插入位置,参数) = 调整窗口位置或排序,所有参数可选\n同时指定x,y坐标则移动位置\n同时指定宽高则改变大小\n指定插入位置(句柄或_HWND前缀常量)则调整Z序
+getPos() = 返回相对父窗口客户区的坐标,宽,高,\n参数为true返回屏幕坐标,宽,高,\nx,y,cx,cy=win.getPos(hwnd)
+wndproc = @.wndproc = function(hwnd,message,wParam,lParam){ \n	__/*添加消息回调函数*/\n}
+onDropFiles = @.onDropFiles = function(files){\n	__/*接受系统拖放,files是拖放的所有文件路径名数组*/\n}
+redraw() = 刷新
+setRedraw(false) = 禁止重绘
+setRedraw(true) = 恢复重绘
+doModal(__/*请指定所有者窗口\n可省略此参数*/) = 弹出模态对话框
+show( = 显示窗口，并指定显示参数
+show(.() = 显示窗口
+show(.(true) = 显示窗口
+show(.(false) = 隐藏窗口
+getRect() = 窗口区块位置(::RECT结构体)\n!rect.
+getRect(true) = 窗口屏幕区块位置(::RECT结构体)  
+setRect(rc) = 设置窗口区块位置(::RECT结构体)  
+setRect(rc,true) = 设置窗口屏幕区块位置(::RECT结构体) 
+getClientRect() =  窗口客户区块位置(::RECT结构体)\n!rect.
+center(.(目标窗口句柄) = 居中窗口,并调整以保证显示在可见范围内\n目标窗口句柄如果为空则取父窗口或所有者窗口,为0表示桌面
+bgcolor = 背景颜色
+transparent(false) = 取消窗口透明
+transparent(true) = 启用分层窗口,不设置透明度
+transparent(128,225) = 启用分层窗口,设置窗口透明度，\n参数(透明度,透明颜色)\n如果指定了透明颜色，透明度参数将被忽略
+close() = 关闭窗口 
+hwnd = 窗口句柄
+text = 窗口标题
+end intellisense**/

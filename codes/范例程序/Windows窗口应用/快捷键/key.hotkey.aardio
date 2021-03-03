@@ -1,0 +1,107 @@
+//超级热键
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="超级热键演示";right=675;bottom=337;bgcolor=16777215)
+winform.add(
+edit={cls="edit";left=18;top=12;right=655;bottom=256;edge=1;multiline=1;z=1};
+editLog={cls="edit";left=18;top=270;right=655;bottom=322;bgcolor=16777215;multiline=1;z=2}
+)
+/*}}*/
+
+import key.hotkey; 
+var hotkey = key.hotkey(winform) //创建超级热键,必须用于窗口程序中
+
+hotkey.reg(
+    "CTRL","K", 
+    function(hwnd,...){
+        ..winex.say("你按了CTRL+K!")
+    } 
+)
+
+hotkey.reg(
+    "CTRL","K","K", 
+    function(hwnd,...){
+        ..winex.say("你按了CTRL+K,K!")
+    } 
+)
+
+//添加新的热键方案  
+hotkey.reg(
+    "~","H","I",
+    function(hwnd,...){
+        ..winex.say("hello world!")
+    } 
+)
+
+//添加新的热键方案
+import fsys.lnk;
+import process;
+hotkey.reg(
+    "SHIFT","Q","Q", 
+    function(hwnd,...){  
+        var path  = fsys.lnk.search( {"qq.exe";"QQScLauncher.exe";"QQProtect.exe"} ) ;
+        process.execute(path)
+    } 
+)
+
+hotkey.regStr(
+    "~aa",
+    function(hwnd,...){ 
+        ..winex.say("http://www.aardio.com",hwnd)
+    } 
+)
+
+//自定义按键处理，返回true阻止按键消息
+//这个函数的作用是在中文输入法下，可以直接在数字后面输入小数点
+hotkey.onKeyDown = function(vk){
+	var prev = hotkey.prevKeyCode;
+	hotkey.prevKeyCode = vk;
+
+	if(vk==190/*_VK_OEM_PERIOD*/){
+		if(prev){
+			if( (prev>='0'# && prev<='9'# ) 
+				|| (prev>=0x60/*_VK_NUMPAD0*/ && prev<=0x69/*_VK_NUMPAD9*/ ) ){
+        		..winex.say(".") 
+        		return true;
+        	}	
+		}		
+	}
+}
+
+hotkey.setEndKeys("SPACE")
+  
+//可选指定下面的触发器函数, 当用户按下部份热键、并有一个或多个可能的候选键时触发
+import win.util.tray;
+hotkey.waitproc = function(hwnd,enteredKeys,waitingKeys){
+
+    if(!enteredKeys){
+        winform.editLog.text = "准备就绪......";
+        return;
+    }  
+    
+    winform.editLog.text =   '已按下:'  
+    	+ ..string.join(enteredKeys,"+")  
+        + ' 等待候选键:' 
+        + ..string.join(waitingKeys,",") 
+        ,"超级热键模式已启动" 
+} 
+
+winform.edit.text = /*
+热键	~hi	用法：依次按键，每个键都放开
+热键	SHIFT+Q,Q	用法：按下Shift不放，再按2下Q
+热键	~AA WYE	用法：依次按键，每个键都放开
+热键	Ctrl+K	用法：按下Ctrl不放，再按K, 然后都放开
+热键	Ctrl+K,K	用法：按下Ctrl不放，再按2次K
+
+另外：
+还可以使用 onKeyDown事件自定义按键处理，详见本范例源代码
+
+点这里,连续按上面各行的键。
+注意这是超级热键，不是热字符串，以键为输入单位而不是字符。
+例如 ~hi 只按3次键，第一个键不要按Shift + `
+
+超级热键是操作系统级别的热键，系统全局可用。
+*/
+
+winform.show() 
+win.loopMessage();

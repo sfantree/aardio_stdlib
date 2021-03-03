@@ -1,0 +1,35 @@
+import com;
+import console;
+
+//创建COM对象
+request = com.CreateObject("WinHttp.WinHttpRequest.5.1")
+
+request.setOption(6,0 ) //禁止自动重定向,不能写成 request.Option(6) = 0 
+request.SetTimeouts( 9999999,9999999,9999999,9999999 ) //设置超时,调用函数不能省略括号
+ 
+//创建请求
+request.Open("GET", "http://bbs.aardio.com", false/*是不是异步*/ ) 
+
+//自定义请求头,下面修改User Agent
+request.setRequestHeader("User-Agent", "Mozilla/5.0 (Windows; U; Windows NT 6.0; zh-CN; rv:1.9.0.3) Gecko/2008092417 Firefox/3.0.3 (.NET CLR 3.5.30729)"); 
+
+//发送请求,调用函数不能省略括号
+request.Send()
+
+console.log("状态码",request.Status)
+
+//获取返回的网页数据
+arrArray = request.ResponseBody
+
+//输出到控制台窗口
+console.log( arrArray )
+
+console.log( "-----------HTTP头-----------" )
+console.log( request.GetAllResponseHeaders() )
+
+console.log( "-----------COOKIE-----------" )
+try{
+	console.log( request.GetResponseHeader( "Set-Cookie: " ) )
+}
+
+execute("pause")

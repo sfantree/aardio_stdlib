@@ -1,0 +1,130 @@
+﻿//listPopup 弹出列表框
+import win.ui.ctrl.listbox;
+
+namespace win.ui;
+
+class listPopup{
+	ctor(editor){
+		this.editor = editor; 
+		this.height = 170;
+		
+		this.custom = editor.parent.add({
+			{cls="custom";left=0;top=0;right=332;bottom=this.height;bgcolor=16777215;db=1;dl=1;hide=1};
+		})[1];
+		
+		this.custom.add( 
+			listbox={cls="listbox";edge=1;hscroll=1;vscroll=1}
+		)
+		
+		this.custom.orphanWindow();
+		
+		this.onSetText = function(text){
+			return text;
+		}
+	 
+		this.custom.listbox.oncommand = function(id,event){ 
+			if( event == 0x1/*_LBN_SELCHANGE*/ ){
+				editor.text = this.onSetText(this.custom.listbox.selText);
+				if( this.onComplete ) this.onComplete(editor.text);
+				
+				this.shown = false;
+				this.custom.show(false);
+				this.editor.setFocus();
+			} 
+		}
+		
+		editor._precommand = function(id,event){
+			if( event  == 0x300/*_EN_CHANGE*/ ){
+				var listbox = this.custom.listbox;
+				if( this.onGetItems ) {
+					var items,selIndex = this.onGetItems(editor.text);
+					listbox.items = items; 
+					
+					if(selIndex !== null ) listbox.selIndex = selIndex;
+					
+					if(!#items) return;
+					var s = reduce(items,lambda(a,b) #a>#b?a:b);
+					if(!#s) return;
+					
+					var hdc = ::GetDC(listbox.hwnd);
+					var cx = ..gdi.getTextExtent(hdc,s);
+					::SendMessageInt(listbox.hwnd,0x194/*_LB_SETHORIZONTALEXTENT*/,cx,0);
+					::ReleaseDC(listbox.hwnd,hdc); 
+				}
+				
+				var x,y,cx,cy = editor.getPos();
+				x,y = ..win.toScreen(editor.parent.hwnd,x,y)
+				this.custom.setPos(x,y+cy,cx,this.height);
+				this.custom.height = listbox.height;
+				this.custom.show(0x4/*_SW_SHOWNOACTIVATE*/); 
+				this.shown = true;
+			}
+			elseif( event == 0x200/*_EN_KILLFOCUS*/ ){ 
+				if( ..win.getFocus() == this.custom.hwnd ){
+					return;
+				}
+				
+				this.custom.show(false);
+				this.shown = false;
+			}
+		}
+		
+		var defaultTranslateAccelerator = editor.defaultTranslateAccelerator;
+		editor.defaultTranslateAccelerator = function(msg){
+			
+ 			if( msg.message == 0x100/*_WM_KEYDOWN*/ ){
+ 				var vk = msg.wParam;
+ 				if( this.shown ) {
+ 					var listbox = this.custom.listbox;
+					if( vk == 0x26/*_VK_UP*/ ) {
+						listbox.selIndex = listbox.selIndex - 1; 
+						return true;
+					}
+					elseif( vk ==0x28/*_VK_DOWN*/ ) {
+						listbox.selIndex = listbox.selIndex + 1; 
+						return true;
+					}
+					elseif( vk ==0xD/*_VK_ENTER*/ ) {
+						if( this.custom.listbox.selIndex ) editor.text = this.onSetText(this.custom.listbox.selText);
+						if( this.onComplete ) this.onComplete(editor.text);
+						
+						this.shown = false;
+						this.custom.show(false);
+						this.editor.setFocus();
+						return true;
+					}
+					elseif( vk ==0x1B/*_VK_ESC*/ ) { 
+						this.shown = false;
+						this.custom.show(false);
+						this.editor.setFocus();
+						return true;
+					}
+ 				}
+ 				elseif( vk ==0xD/*_VK_ENTER*/ ) {
+ 					if( this.onComplete ) this.onComplete(editor.text);
+ 					else this.editor.tabNext(true);
+ 					return true;
+ 				}
+			}
+ 			
+			if( defaultTranslateAccelerator ) return defaultTranslateAccelerator(msg);
+		}
+	}; 
+}
+
+/**intellisense()
+win.ui.listPopup = 弹出列表框
+win.ui.listPopup(__) = 创建弹出列表框\n参数中指定edit,或richedit控件对象
+win.ui.listPopup() = !winuilistpopup.
+!winuilistpopup.height = 显示高度
+!winuilistpopup.onGetItems = @.onGetItems = function(text){
+	return {__/*text参数是用户已输入的文本,返回要显示的字符串数组,\n可选在第2个返回值返回要选中的索引*/};
+}
+!winuilistpopup.onSetText = @.onSetText = function(text){
+	__/*用户已选择列表项\ntext参数为列表项选中的文本\n返回值为确认输入的文本*/;
+	return text;
+}
+!winuilistpopup.onComplete = @.onComplete = function(text){
+	__/*用户已完成输入\n在候选列表中选中某项并已完成输入\n或者在输入后直接回车可触发此事件*/;
+}
+end intellisense**/

@@ -1,0 +1,17 @@
+//获取桌面图标标题
+
+import winex.desktop; 
+import console;
+ 
+var count = winex.desktop.listview.count;
+var rcItem = ::RECT(); 
+
+for(i=1;count ) {  
+
+	var itemText = winex.desktop.listview.getItemText(i);
+	
+    winex.desktop.listview.getItemRect(i,,rcItem);
+    console.log( itemText,'\t', rcItem.left,rcItem.top )
+}  
+ 
+console.pause();

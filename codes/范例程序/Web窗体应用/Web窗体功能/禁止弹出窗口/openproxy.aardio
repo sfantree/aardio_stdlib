@@ -1,0 +1,26 @@
+import win.ui;
+import web.form;
+
+/*DSG{{*/
+var winform = win.form(parent=...; scroll=1;text="aardio form";right=349;bottom=249 )
+winform.add(  )
+/*}}*/
+
+//创建web窗体
+var wb = web.form( winform );
+
+//禁止打开新窗口
+wb.NewWindow2=function( ppDisp, Cancel) {  
+	return wb.openproxy
+}
+
+//打开目标网站
+wb.go("http://www.aardio.com/")
+//显示窗体
+winform.show() 
+wb.wait("");//等待指定网址,可以使用模式匹配语法
+
+ 
+//进入消息循环
+win.loopMessage();
+return winform,wb;

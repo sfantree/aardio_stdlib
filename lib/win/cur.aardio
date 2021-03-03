@@ -1,0 +1,58 @@
+//cur 鼠标指针
+import win.ui;
+import win.image;
+
+namespace win.cur;
+  
+var hLastCursor;
+loadfile = function(file){
+	hLastCursor = ..win.image.loadCursorFromFile(file) ; 
+	return hLastCursor;
+}
+
+load = function(id,instance){ 
+	hLastCursor = ..win.image.loadCursor( id,instance );  
+	return hLastCursor; 
+}
+
+getCur = function(){
+	return ::GetCursor();
+}
+
+setCur = function( hCur ){ 
+	return ::SetCursor( hCur : hLastCursor )
+}
+
+beginCur = function(hCur){ 
+	if(!hCur){ hCur = hLastCursor} 
+	if(!hCur) return;
+	
+	if(beginning) return; 
+	beginning = true;
+	
+	..win.ui.waitCursor(true,hCur);
+}
+
+endCur = function(){
+	..win.ui.waitCursor(false);
+	beginning = false;
+}
+
+beginWaitCur = function(){
+	hLastCursor = load(0x7F02/*_IDC_WAIT*/);
+	..win.ui.waitCursor(true,hLastCursor);
+} 
+
+/*intellisense(win.cur)
+load(.(id__,instance) = 载入鼠标指针资源,返回鼠标指针句柄\nid为资源ID,或资源名字\ninstance为DLL模块句柄
+load(.(id__) = 载入鼠标指针资源,返回鼠标指针句柄\nid为资源ID,或资源名字 
+loadfile("__") = 载入鼠标指针文件,返回鼠标指针句柄
+getCur() = 返回当前鼠标指针句柄
+setCur(.(hCur) = 设置当前鼠标指针句柄\nhcur为鼠标指针句柄\n此函数一般用于回调函数中响应_WM_SETCURSOR消息
+setCur(.() = 设置为最后一次使用load或loadfile加载的鼠标指针句柄
+beginCur(.(hCur) = 持续设置当前鼠标指针句柄\n直到调用win.cur.endCur()\nhcur为鼠标指针句柄
+beginCur(.() = 持续设置当前鼠标指针句柄为最后一次使用load或loadfile加载的鼠标指针句柄\n建议使用win.ui.waitCursor替代此函数
+beginWaitCur() = 持续设置鼠标指针为等待指针,直到调用win.cur.endCur\n建议使用win.ui.waitCursor替代此函数
+endCur() = 恢复默认鼠标指针\n建议使用win.ui.waitCursor替代此函数
+beginning = 如果调用了beginCur或beginWaitCur\n在尚未调用endCur之前beginning返回true
+end intellisense*/

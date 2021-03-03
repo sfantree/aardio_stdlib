@@ -1,0 +1,131 @@
+﻿//imageAttributes 图像属性
+import gdip.core;
+namespace gdip;
+var gdip = ..gdip;
+
+class imageAttributes {
+
+	ctor(){ {
+		var ia = {ptr handle}
+		var err  = ::Gdiplus.GdipCreateImageAttributes(ia) 
+		if(err) return null,gdip.errMsg[err]; 
+		this.pImgAttr = ia.handle; 
+		
+		..table.gc(this,"delete");
+	} }
+
+	@_metaProperty//元表指向属性表
+}
+
+namespace imageAttributes {
+
+	_metaProperty = ..util.metaProperty(
+		setNegativeMatrix = function(){
+			owner.setColorMatrix({
+				-1;0;0;0;0;
+				0;-1;0;0;0;
+				0;0;-1;0;0;
+				0;0;0;1;0;
+				1;1;1;0;1;
+			})	
+		};
+		setAlphaMatrix = function(a){
+			owner.setColorMatrix({
+				1;0;0;0;0;
+				0;1;0;0;0; 
+				0;0;1;0;0;
+				0;0;0;a;0;
+				0;0;0;0;1;
+			})
+		};
+		setRgba = function(r=1,g=1,b=1,a=1){
+			owner.setColorMatrix({
+				r;0;0;0;0;
+				0;g;0;0;0; 
+				0;0;b;0;0;
+				0;0;0;a;0;
+				0;0;0;0;1;
+			})	
+		};
+		setColorMatrix = function(colorMatrix,grayMatrix,adjustType){
+			var flags = 0;
+			if(grayMatrix){
+				flags = 2/*_ColorMatrixFlagsAltGray*/;
+				if( type(grayMatrix)!="table" || #grayMatrix!=25 ){
+					error("参数@2应指定长度为25的数组",2)
+				}
+				grayMatrix = {float v[25] = grayMatrix }
+			}
+			elseif( grayMatrix === false ){
+				 flags = 1/*_ColorMatrixFlagsSkipGrays*/
+				 grayMatrix = null;
+			}
+			
+			if( type(colorMatrix)!="table" || #colorMatrix!=25 ){
+				if(!colorMatrix){
+					::Gdiplus.GdipSetImageAttributesColorMatrix(owner[["pImgAttr"]],adjustType,false,null,null,0);
+					return;
+				}
+				error("参数@1应指定长度为25的数组",2);
+			}
+			
+			colorMatrix = {float v[25] = colorMatrix }
+			gdip.assert2( ::Gdiplus.GdipSetImageAttributesColorMatrix(owner[["pImgAttr"]],adjustType,true,colorMatrix,grayMatrix,flags) );
+		};
+		setRemapTable = function(map,adjustType){
+			var flags = 0; 
+			
+			if( type(map)!="table" || ( #map/2) < 1  ){
+				if(!map){
+					::Gdiplus.GdipSetImageAttributesRemapTable(owner[["pImgAttr"]],adjustType,false,0,null);
+					return;
+				}
+				error("参数@1应指定为包含成对颜色值的数组",2);
+			}
+			
+			gdip.assert2( ::Gdiplus.GdipSetImageAttributesRemapTable(owner[["pImgAttr"]],adjustType,true,#map/2,{int colors[] = map}) );
+		}; 
+		setColorKey = function(colorLow,colorLowHigh,adjustType){
+			var enable = colorLow!==null ? true  
+			if( colorLowHigh === null ) colorLowHigh = colorLow;
+			gdip.assert2( ::Gdiplus.GdipSetImageAttributesColorKeys(owner[["pImgAttr"]]
+				,adjustType,colorLow!==null ? true,colorLow,colorLowHigh ) );
+		};
+		reset = function(adjustType){
+			gdip.assert2( ::Gdiplus.GdipResetImageAttributes(owner[["pImgAttr"]],adjustType));
+		} 
+		dispose = function(){
+			if( owner[["pImgAttr"]] ){
+				::Gdiplus.GdipDisposeImageAttributes(owner[["pImgAttr"]])
+				owner[["pImgAttr"]] = null;
+			}
+		} 
+		_topointer = function(){
+			return owner[["pImgAttr"]];
+		}
+	)  
+}
+
+/**intellisense()
+gdip.imageAttributes = 图像显示属性控制
+gdip.imageAttributes() = 创建图像显示属性控制对象\n!gdip_imgattr.
+end intellisense**/
+
+/**intellisense(!gdip_imgattr)
+setAlphaMatrix(__) = 设置透明度调色矩阵,\n参数使用表示百分比的小数，例如0.5为Alpha分量调整至50%
+setNegativeMatrix(__) = 设置反相调色矩阵
+setRgba(.(r,g,b,a) = 设置r,g,b,a分量的变化比例,\n参数使用表示百分比的小数，例如0.5表示对应分量调整至50%,\n所有参数可选，默认值都是1
+setColorMatrix(colorMatrix,grayMatrix,adjustType) = @.setColorMatrix({
+	1;0;0;0;0;
+	0;1;0;0;0;
+	0;0;1;0;0;
+	0;0;0;1;0;
+	0;0;0;0;1__/*colorMatrix为null取消调色矩阵\ngrayMatrix可省略,设为false时忽略灰度,也可以指定一个灰度矩阵\nadjustType使用_GdipColorAdjustType前缀的常量指定,省略则默认为0*/
+})
+setRemapTable(colorMap,adjustType) = @.setRemapTable({
+	0xFF00FFFF;0xFFFF0000__/*ccolorMap为null取消颜色映射表\n颜色映射表包含成对的颜色值数组,每一对颜色值使用后面的颜色替换前面的颜色,\nadjustType使用_GdipColorAdjustType前缀的常量指定,省略则默认为0*/
+})
+setColorKey(.(clr1,clr2,adjustType) = 参数@1指定透明色,\n可选使用参数@2指定另一个透明色以确定透明色范围,\n参数@3可选使用_gdipColorAdjustType前缀的常量指定选项
+reset(.(adjustType) = 清除所有设置,adjustType为可选参数
+end intellisense**/
+

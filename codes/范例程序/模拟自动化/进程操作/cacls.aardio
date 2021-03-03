@@ -1,0 +1,15 @@
+//修改文件权限
+import fsys;
+import process.popen;
+ 
+path = fsys.shortpath( "/cacls.aardio" ) 
+
+//禁止所有文件权限,禁止删除
+var prcs = process.popen("cacls.exe",path + " /P everyone:n /C ")
+prcs.write('y\r\n');
+prcs.close();
+
+//恢复完全控制权限
+var prcs = process.popen("cacls.exe",path + " /P everyone:F /C ")
+prcs.write('y\r\n');
+prcs.close();

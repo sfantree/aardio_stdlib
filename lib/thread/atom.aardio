@@ -1,0 +1,27 @@
+//atom 本地原子量
+namespace thread.atom 
+
+AddAtom = ::Kernel32.api("AddAtom","word(string str)") 
+add = function(name){
+	if( type(name) != type.string || #name > 255 ){
+		error("参数必须是小于256字节的字符串",2)
+	}	
+	return AddAtom( name );
+}
+
+find = ::Kernel32.api("FindAtom","word(string str)") 
+delete = ::Kernel32.api("DeleteAtom","word(word)") 
+	
+GetAtomName = ::Kernel32.api("GetAtomName","INT(word atom,string &buf,int size)")   
+getName = function(atom){ 
+	var size,str = GetAtomName(atom,256,256)
+	if(size)
+		return ..string.left(str,size); 
+} 
+	 
+/**intellisense(thread.atom) 
+add("__") = 添加字符串到本地原子表\n字符串长度必须小于256字节\n返回原子数值
+find("__") = 在本地原子表查找字符串\n忽略大写小全串匹配\n返回原子数值
+delete(__/*原子值*/) = 减少原子引用计数\n当引用计数为0时删除原子
+getName(__/*原子值*/) = 返回原子字符串
+end intellisense**/

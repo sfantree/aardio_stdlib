@@ -1,0 +1,28 @@
+﻿//遍历MSAA元素
+import winex; 
+import winex.accObject;
+import console;
+
+for hwnd in winex.each( "TXGuiFoundation" ) {
+	var accObject = winex.accObject.fromWindow(hwnd)
+	if(accObject){
+		var accMessage = accObject.find(role="list")
+		if(accMessage){
+			for accChild in accMessage.each(){
+				console.log(accChild.roleText(),accChild.name(),accChild.value())
+			} 	
+		} 
+		
+		var accEditor = accObject.find(
+			role = "editable text";
+			name = "输入"; 
+		)
+		
+		if(accEditor){
+			var r = accEditor.takeFocus();
+			winex.sayIme("test",hwnd)  
+		}
+	} 
+}
+	
+console.pause(true);

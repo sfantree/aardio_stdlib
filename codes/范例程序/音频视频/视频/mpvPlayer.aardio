@@ -1,0 +1,142 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="MPV 万能播放器演示程序";right=1010;bottom=623)
+winform.add(
+btnFullscreen={cls="button";text="全屏";left=892;top=14;right=968;bottom=50;dr=1;dt=1;z=1};
+btnPlay={cls="button";text="播放";left=792;top=14;right=868;bottom=50;dr=1;dt=1;z=7};
+btnSelectFile={cls="button";text="浏览...";left=696;top=14;right=767;bottom=49;dr=1;dt=1;z=6};
+cbSubtitles={cls="combobox";left=808;top=584;right=952;bottom=608;db=1;dr=1;edge=1;items={};mode="dropdown";z=3};
+editPath={cls="edit";text="http://media.html5media.info/video.mp4";left=32;top=16;right=680;bottom=49;dl=1;dr=1;dt=1;edge=1;multiline=1;z=5};
+ffWindow={cls="custom";left=31;top=64;right=984;bottom=522;bgcolor=0;db=1;dl=1;dr=1;dt=1;edge=1;transparent=1;z=2};
+lbVideo={cls="static";text="字幕:";left=744;top=584;right=802;bottom=606;align="right";center=1;db=1;dr=1;transparent=1;z=4};
+trackbar={cls="trackbar";left=24;top=544;right=984;bottom=574;db=1;dl=1;dr=1;max=100;min=0;z=8}
+)
+/*}}*/
+
+import mpvPlayer;
+var mplayer = mpvPlayer(winform.ffWindow);
+
+//在视频上写字，所有配置参数文档：http://mpv.io/manual/master/#options
+mplayer.setOption("osd-msg1","MPV播放器是极好的");
+
+//订阅播放进度属性变更事件，所有属性参考文档 http://mpv.io/manual/master/#properties
+mplayer.observeProperty("time-pos");//播放进度
+mplayer.observeProperty("duration");//视频长度
+mplayer.observeProperty("track-list");//加载字幕
+
+//属性变更后触发此事件
+mplayer.onPropertyChange = function(name,value){
+	if( name == "time-pos" ){ 
+		if(!winform.trackbar.dragging && (value!==null) )
+			winform.trackbar.pos = value;
+	}
+	elseif(name == "duration"){ 
+		if(value) {
+			winform.trackbar.setRange(1,value);
+			winform.trackbar.setFrequency(value/100);
+		}
+	}	
+	elseif(name == "track-list"){
+		winform.cbSubtitles.trackList();//获取视频加载的字幕
+	}
+}
+
+
+//获取反馈信息
+mplayer.requestLogMessages("info");
+mplayer.onLogMessage = function(text,prefix,level,levelId){
+	
+}
+
+//文件播放结束触发此事件
+mplayer.onEndFile = function(reason,err){
+	winform.btnPlay.text = "播放";
+}
+
+//启动一个定时器用于分发播放器事件（不然不会触发任何事件）
+var tmId = winform.setInterval( 10, 
+	function(){ 
+		event = mplayer.waitEvent(0); 
+		if( event.id == 8/*_MPV_EVENT_FILE_LOADED*/){
+			winform.cbSubtitles.trackList();//获取视频加载的字幕
+			winform.text = mplayer.getMediaTitle();
+			winform.btnPlay.text = "停止";
+		}
+	} 
+)
+
+//选择视频文件
+import fsys.dlg;
+winform.btnSelectFile.oncommand = function(id,event){
+	var path = fsys.dlg.open(,"请选择视频文件");
+	if(path){
+		winform.editPath.text = path;
+	 	winform.btnPlay.oncommand();	
+	};
+}
+
+//开始播放视频文件
+winform.btnPlay.oncommand = function(id,event){ 
+    if( winform.btnPlay.text = "播放" ){ 
+		mplayer.loadFile(winform.editPath.text)
+	}
+	else {
+		mplayer.stop();
+		winform.trackbar.pos = 0;
+	}
+	
+} 
+
+//视频播放进度条
+winform.trackbar.oncommand = function(id,event,pos){
+	if( event == 0x8/*_TB_ENDTRACK*/ ){ 
+		mplayer.seek( winform.trackbar.pos ); 
+		winform.trackbar.dragging = false;
+	}
+	else {
+		winform.trackbar.dragging = true;
+	}
+} 
+ 
+//全屏按钮
+winform.btnFullscreen.oncommand = function(id,event){
+	winform.ffWindow.fullscreen(true);
+}
+
+//获取视频加载的字幕
+winform.cbSubtitles.trackList = function(){
+	winform.cbSubtitles.trackIds = {};
+	winform.cbSubtitles.clear();
+	
+	var count = mplayer.getTrackCount();;
+	for(i=1;count){
+		if( mplayer.getTrackType(i) == "sub" ){
+			winform.cbSubtitles.add( mplayer.getTrackTitle(i) )
+			..table.push(winform.cbSubtitles.trackIds,mplayer.getTrackId(i))
+			
+			if( mplayer.getTrackSelected(i) ) 
+				winform.cbSubtitles.selIndex = winform.cbSubtitles.count;
+		}
+	} 	
+}
+
+
+//切换当前字幕
+winform.cbSubtitles.oncommand = function(id,event){
+	if( event == 0x1/*_CBN_SELCHANGE*/) {
+		mplayer.setSubtitle( winform.cbSubtitles.trackIds[winform.cbSubtitles.selIndex] );
+	}
+	
+}
+
+//添加全屏快捷键
+import win.ui.accelerator
+win.ui.accelerator({ 
+	{ vkey =0x7A/*_VK_F11*/; oncommand = function(id,event) winform.ffWindow.fullscreen() }  
+},winform);
+
+winform.editPath.text = "http://download.aardio.com/demo/video.aardio";
+
+winform.show() 
+win.loopMessage();
+ 

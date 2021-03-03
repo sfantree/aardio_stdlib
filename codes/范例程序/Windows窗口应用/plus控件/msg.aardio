@@ -1,0 +1,38 @@
+//简单提示框
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="简单提示框演示";right=759;bottom=469;bgcolor=8421504)
+winform.add(
+plus={cls="plus";text="显示简单提示框";left=451;top=378;right=576;bottom=403;font=LOGFONT(h=-15);notify=1;z=1}
+)
+/*}}*/
+
+import win.dlg.message;
+var msgDlg = win.dlg.message(winform); 
+msgDlg.okLabel = '\uF087 很好'
+msgDlg.cancelLabel = '\uF088 不好'
+
+winform.plus.skin(msgDlg.buttonStyle)
+winform.plus.oncommand = function(id,event){
+	if( msgDlg.ask("你觉得这个简单提示框好用吗")  ){
+		win.delay(100);
+	  	msgDlg.smile("谢谢！")
+	}
+	else {
+		win.delay(100);
+		
+		var form = msgDlg.create('很遗憾你会这么想,但是\nwin.dlg.message提供了很多自定义外观样式的选项\n您可以根据自己的喜好进行调整',,true)
+		
+		for(i=1;100;1){
+			if(!form.valid){ break; }
+			form.progress.progressPos = form.progress.progressPos + 1;
+			win.delay(100) 
+		}
+		form.close();
+	}	
+}
+
+winform.show() 
+winform.msgOk('win.dlg.message自动安装\nmsgOk,msgErr,msgAsk,msgInfo ......\n等函数到所有窗口',1000) 
+
+win.loopMessage();

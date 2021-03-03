@@ -1,0 +1,90 @@
+//转义字符串生成器 
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="转义字符串生成器";right=528;bottom=482;acceptfiles=1;border="dialog frame";parent=...;topmost=1)
+winform.add(
+btnCpy={cls="button";text="复制";left=382;top=448;right=463;bottom=475;acceptfiles=1;db=1;dr=1;tabstop=1;z=6};
+btnDump={cls="button";text="生成转义字符串";left=350;top=97;right=495;bottom=124;acceptfiles=1;dr=1;dt=1;tabstop=1;z=1};
+btnRestore={cls="button";text="还原并复制";left=270;top=448;right=374;bottom=475;acceptfiles=1;db=1;dr=1;tabstop=1;z=7};
+editResult={cls="richedit";text="也可以直接将外部文件拖放到aardio的代码编辑器中、使用$操作符直接包含文件。
+点击编译按钮即可将外部文件嵌入aardio文件中。";left=16;top=168;right=507;bottom=443;db=1;dl=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;z=5};
+editpath={cls="edit";text="外部文件直接拖放到这里,然后点击转换按钮即可
+也可以在这里直接输入要转换的文本";left=21;top=14;right=507;bottom=87;dl=1;dr=1;dt=1;edge=1;multiline=1;tabstop=1;z=4};
+progress={cls="progress";left=18;top=132;right=503;bottom=152;acceptfiles=1;bgcolor=0;edge=1;max=100;min=0;tabstop=1;z=2};
+static={cls="static";text="aardio在单引号中可以使用转义符表示字符串,支持二进制字符.
+";left=21;top=104;right=352;bottom=118;acceptfiles=1;dl=1;dt=1;tabstop=1;transparent=1;z=3}
+)
+/*}}*/
+
+winform.wndproc = function(hwnd,message,wParam,lParam){
+	select(message) { 
+		case 0x233/*_WM_DROPFILES*/ { 
+			winform.editpath.text = win.getDropFile(wParam )[1];  
+		}  
+	}
+} 
+ 
+import win.clip; 
+winform.btnRestore.oncommand = function(id,event){
+	var str = winform.editResult.text
+	var str = eval(str) 
+	win.clip.write( str )
+	
+	if(#str<1000)
+		winform.editpath.text = str;
+	 
+	winform.static.text = "                  谢谢使用 ,已复制到剪贴板!" 
+} 
+
+winform.btnCpy.oncommand = function(id,event){ 
+	win.clip.write(winform.editResult.text) 
+} 
+ 
+winform.btnDump.oncommand = function(hwnd,event){ 
+	if( winform.editpath.text == ""){
+		winform.static.text = "注意,请选中或输入要编译的文件路径!"
+		winform.redraw();
+		return ;
+	}
+
+	var conv = function(path,hwnd){ 
+		import win;
+		var fullpath = io.exist(path)
+		var str = fullpath? string.load(fullpath) : path;
+		var estr = string.escape(str)  
+		estr = estr ? "'" + estr + "'" : '"' + str + '"'
+		if(#estr > 0x10000 ){
+			import fsys.dlg;
+			var path = fsys.dlg.save("*.txt|*.txt||","生成的文件太大，请选择输出文件",,hwnd);
+			if( path ) string.save(path,estr )
+		} 
+		else{
+			win.setText(hwnd,estr);
+		} 
+	}
+	
+	winform.progress.hide = false;
+	winform.progress.setRange(1,100);
+	var tmId = winform.setInterval( 
+		100,function(hwnd,msg,id,tick){
+			winform.progress.stepIt();
+		} 
+	)
+	
+	winform.static.text = "正在转换......";
+	var h = thread.create(conv,winform.editpath.text,winform.editResult.hwnd );
+	::Kernel32.SetThreadPriority(h,-2/*_THREAD_PRIORITY_LOWEST*/);
+ 	thread.waitOne(h);
+ 	raw.closehandle(h);
+ 	winform.clearInterval(tmId);
+ 	
+	winform.progress.hide = true;//隐藏进度条
+	winform.static.text = "                  谢谢使用 ,转换完成!"
+	winform.redraw() 
+}  
+
+winform.editResult.enablePopMenu();
+winform.enableDpiScaling();
+
+winform.show(true) 
+win.loopMessage( winform );

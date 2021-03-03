@@ -1,0 +1,197 @@
+import win;
+win.msgbox("直接运行此范例将会导致打开太多窗口","已自动中止")
+return;
+
+import process.rundll;
+
+//功能: 打开控制面板
+process.rundll("shell32.dll","Control_RunDLL");
+
+//功能: 显示“控制面板－辅助选项－键盘”选项窗口
+process.rundll("shell32.dll","Control_RunDLL access.cpl,,1");
+ 
+//功能: 显示“控制面板－辅助选项－声音”选项窗口 
+process.rundll("shell32.dll","Control_RunDLL access.cpl,,2");
+
+//功能: 显示“控制面板－辅助选项－显示”选项窗口
+process.rundll("shell32.dll","Control_RunDLL access.cpl,,3");
+ 
+//功能: 显示“控制面板－辅助选项－鼠标”选项窗口 
+process.rundll("shell32.dll","Control_RunDLL access.cpl,,4");
+
+//功能: 显示“控制面板－辅助选项－传统”选项窗口 
+process.rundll("shell32.dll","Control_RunDLL access.cpl,,5");;
+
+//功能: 执行“控制面板－添加新硬件”向导。
+process.rundll("shell32.dll","Control_RunDLL sysdm.cpl @1");
+ 
+//功能: 执行“控制面板－添加新打印机”向导。
+process.rundll("shell32.dll","SHHelpShortcuts_RunDLL AddPrinter");
+ 
+//功能: 显示 “控制面板－添加/删除程序－安装/卸载” 面板
+process.rundll("shell32.dll","Control_RunDLL appwiz.cpl,,1");
+
+//功能: 显示 “控制面板－添加/删除程序－安装Windows” 面板.
+process.rundll("shell32.dll","Control_RunDLL appwiz.cpl,,2");
+
+//功能: 显示 “控制面板－添加/删除程序－启动盘” 面板
+process.rundll("shell32.dll","Control_RunDLL appwiz.cpl,,3"); 
+
+//功能: 在桌面上建立一个新的“我的公文包”。
+process.rundll("syncui.dll","Briefcase_Create"); 
+ 
+//功能: 显示复制软盘
+process.rundll("diskcopy.dll","DiskCopyRunDll"); 
+
+//功能: 显示“建立快捷方式”的对话框,所建立的快捷方式的位置由％1参数决定
+process.rundll("apwiz.cpl","NewLinkHere " + fsys.shortpath(io._exepath) ); 
+
+//功能: 显示“日期与时间”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL timedate.cpl,,0"); 
+ 
+//功能: 显示“时区”选项窗口。 
+process.rundll("shell32.dll","Control_RunDLL timedate.cpl,,1"); 
+
+//功能: 显示某个拨号连接的拨号窗口。如果已经拨号连接,则显示目前的连接状态的窗口。
+process.rundll("rnaui.dll","RnaDial [某个拨号连接的名称]"); 
+
+//功能: 显示“新建拨号连接”向导的窗口。 
+process.rundll("rnaui.dll","RnaWizard");
+
+//功能: 显示“显示属性－背景”选项窗口。 
+process.rundll("shell32.dll","Control_RunDLL desk.cpl,,0");
+
+//功能: 显示“显示属性－萤屏保护”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL desk.cpl,,1"); 
+ 
+//功能: 显示“显示属性－外观”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL desk.cpl,,2"); 
+ 
+//功能: 显示显示“显示属性－属性”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL desk.cpl,,3");
+ 
+//功能: 显示Windows的“字体”文件夹。 
+process.rundll("shell32.dll","SHHelpShortcuts_RunDLL FontsFolder"); 
+
+//功能: 同样是显示Windows的“字体”文件夹。 
+process.rundll("shell32.dll","Control_RunDLL main.cpl @3")
+
+//功能: 显示格式化软碟对话框。
+process.rundll("shell32.dll","SHformatDrive"); 
+ 
+//功能: 显示“控制面板－游戏控制器－一般”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL joy.cpl,,0");
+ 
+//功能: 显示“控制面板－游戏控制器－进阶”选项窗口。 
+process.rundll("shell32.dll","Control_RunDLL joy.cpl,,1"); 
+
+//功能: 列印HTML文档。 
+process.rundll("mshtml.dll","PrintHTML (HTML文档)"); 
+
+//功能: 显示Microsoft Exchange一般选项窗口。
+process.rundll("shell32.dll","Control_RunDLL mlcfg32.cpl"); 
+ 
+//功能: 显示“控制面板－滑鼠” 选项 。 
+process.rundll("shell32.dll","Control_RunDLL main.cpl @0"); 
+
+//功能: 显示 “控制面板－键盘属性－速度”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL main.cpl @1"); 
+ 
+//功能: 显示 “控制面板－键盘属性－语言”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL main.cpl @1,,1"); 
+
+//功能: 显示Windows“打印机”文件夹。 
+process.rundll("shell32.dll","Control_RunDLL main.cpl @2"); 
+
+//功能: 显示Windows“字体”文件夹。
+process.rundll("shell32.dll","Control_RunDLL main.cpl @3");
+ 
+//功能: 显示“控制面板－输入法属性－输入法”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL main.cpl @4"); 
+
+//功能: 执行“添加新调制解调器”向导。 
+process.rundll("shell32.dll","Control_RunDLL modem.cpl,,add"); 
+
+//功能: 显示“控制面板－多媒体属性－音频”属性页。
+process.rundll("shell32.dll","Control_RunDLL mmsys.cpl,,0"); 
+ 
+//功能: 显示“控制面板－多媒体属性－视频”属性页。
+process.rundll("shell32.dll","Control_RunDLL mmsys.cpl,,1"); 
+
+//功能: 显示“控制面板－多媒体属性－MIDI”属性页
+process.rundll("shell32.dll","Control_RunDLL mmsys.cpl,,2"); 
+ 
+//功能: 显示“控制面板－多媒体属性－CD音乐”属性页。
+process.rundll("shell32.dll","Control_RunDLL mmsys.cpl,,3"); 
+ 
+//功能: 显示“控制面板－多媒体属性－设备”属性页
+process.rundll("shell32.dll","Control_RunDLL mmsys.cpl,,4"); 
+ 
+//功能: 显示“控制面板－声音”选项窗口。 
+process.rundll("shell32.dll","Control_RunDLL mmsys.cpl @1"); 
+
+//功能: 显示“控制面板－网路”选项窗口。 
+process.rundll("shell32.dll","Control_RunDLL netcpl.cpl"); 
+
+//功能: 显示ODBC32资料管理选项窗口。 
+process.rundll("shell32.dll","Control_RunDLL odbccp32.cpl"); 
+
+//功能: 显示指定文件(driveath ilename)的“打开方式”对话框。 
+process.rundll("shell32.dll","OpenAs_RunDLL"); 
+
+//功能: 显示“控制面板－密码”选项窗口。 
+process.rundll("shell32.dll","Control_RunDLL password.cpl"); 
+
+//功能: 显示“控制面板－电源管理属性”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL powercfg.cpl");
+ 
+//功能: 显示Windows“打印机”文件夹。(同process.rundll("shell32.dll","Control_RunDLLmain.cpl @2)")
+process.rundll("shell32.dll","SHHelpShortcuts_RunDLL PrintersFolder");
+ 
+//功能: 显示“控制面板－区域设置属性－区域设置”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL intl.cpl,,0"); 
+ 
+//功能: 显示“控制面板－区域设置属性－数字”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL intl.cpl,,1"); 
+ 
+//功能: 显示“控制面板－区域设置属性－货币”选项窗口。 
+process.rundll("shell32.dll","Control_RunDLL intl.cpl,,2"); 
+
+//功能: 显示“控制面板－区域设置属性－时间”选项窗口
+process.rundll("shell32.dll","Control_RunDLL intl.cpl,,3"); 
+
+//功能: 显示“控制面板－区域设置属性－日期”选项窗口。
+process.rundll("shell32.dll","Control_RunDLL intl.cpl,,4"); 
+
+//功能: 将指定的萤屏保护文件设置为Windows的屏保,并显示萤屏保护属性窗口。 
+process.rundll("desk.cpl","InstallScreenSaver [萤屏保护文件名]"); 
+
+//功能: 显示“控制面板－系统属性－传统”属性窗口。
+process.rundll("shell32.dll","Control_RunDLL sysdm.cpl,,0");
+
+//功能: 显示“控制面板－系统属性－设备管理器”属性窗口。 
+process.rundll("shell32.dll","Control_RunDLL sysdm.cpl,,1"); 
+
+//功能: 显示“控制面板－系统属性－硬件配置文件”属性窗口。 
+process.rundll("shell32.dll","Control_RunDLL sysdm.cpl,,2");
+
+//功能: 显示“控制面板－系统属性－性能”属性窗口。 
+process.rundll("shell32.dll","Control_RunDLL sysdm.cpl,,3");
+
+//功能: 显示“拨号属性”选项窗口 
+process.rundll("shell32.dll","Control_RunDLL telephon.cpl"); 
+
+//功能: 显示“桌面主题”选项面板 
+process.rundll("shell32.dll","Control_RunDLL themes.cpl");
+
+//功能:关机
+win.exec("rundll32.exe","user.exe,exitwindows");
+
+//功能: 重启电脑
+win.exec("rundll32.exe","user.exe,restartwindows");
+
+//功能: 强行关闭所有程序并重启机器。
+win.exec("rundll32.exe","user.exe,restartwindows"); 
+ 
+//功能: 强行关闭所有程序并关机。 
+win.exec("rundll32.exe","user.exe,exitwindows");

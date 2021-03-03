@@ -1,0 +1,91 @@
+//cache 运行路径缓存 
+import fsys;
+import fsys.version;
+import process.file;
+import fsys.lnk;
+import win.reg;
+
+namespace process.cache{
+
+	list = function(){
+		var lst = {};
+		var reg = ..win.reg(
+			(!_WINXP) ? "HKEY_CURRENT_USER\Software\Classes\Local Settings\Software\Microsoft\Windows\Shell\MuiCache"
+			: "HKEY_CURRENT_USER\Software\Microsoft\Windows\ShellNoRoam\MUICache"
+		)
+		if( reg ){
+			for(path,name,t in reg.eachValue()) {
+				if( t == 0x1/*_REG_SZ*/ ) {
+					if(! ..io.exist(path) ){
+						var k;
+						path,k = ..string.match(path,"([a-zA-Z].+\.<@@exe@>)")
+						if(! ..io.exist(path) ){
+							continue;
+						}
+					} 
+					
+					var ver = ..fsys.version.getInfo(path)
+					if( ver && ver.productName ){
+						name = ver.productName;
+						if( ..string.match(name,"Microsoft.+Windows.+Operating.+System") ) continue;
+					}
+					lst[path] = name;
+				}
+			}
+			reg.close();
+		}
+		
+		for( fullpath,prcs in ..process.file.each() ){ eachruns:
+			if(!lst[fullpath]){
+				var name = ..io.splitpath(fullpath).file;
+				if(!name) continue;
+				
+				var ver = ..fsys.version.getInfo(fullpath)
+				if( ver && ver.productName ){
+					name = ver.productName;
+					if( ..string.match(name,"Microsoft.+Windows.+Operating.+System") ) continue;
+				}
+				for(k,v in lst){ 
+					if( v == name && ..fsys.path.cmp(k,fullpath) == 0 ){
+						continue eachruns;
+					}
+				}
+				lst[fullpath] = name; 
+				
+			} 
+		}
+
+		return lst;	
+	}
+	
+	each = function(){
+		var lst = list();
+		for( p in lst){ if( ! ..io.exist(p) ) lst[p] = null;  }
+		
+		return function(k){
+			return ..table.next(lst,k);
+		};
+	}
+	
+	find = function(file,name){
+		var lst = list(); 
+		for( p in lst){ if( ! ..io.exist(p) ) lst[p] = null;  }
+		
+		for(cPath,cName in lst){
+			if( ( file && !..string.cmpMatch( ..io.splitpath(cPath).file ,file ) ) ) continue ;
+			if( ( name && !..string.cmpMatch( cName ,name ) ) ) continue ;
+			return  cPath;
+		}
+		
+		return ..fsys.lnk.search(file,name); 
+	} 
+}
+
+/**intellisense()
+process.cache = 用于搜索运行过的程序
+process.cache.each() = @for(path,name in ??.each() ){
+	__/*不包含已删除的程序*/
+}
+process.cache.list() = 返回最近运行的应用程序列表\n键为应用程序路径,值为应用程序名称\n返回列表包含已删除的程序
+process.cache.find(.("文件名","程序名") = 查找并返回运行过并且未删除的应用程序路径\n忽略大小写比较,并支持模式匹配语法,\n可省略其中任意一个参数
+end intellisense**/

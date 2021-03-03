@@ -1,0 +1,115 @@
+﻿//chrome 浏览器接口
+
+import web.json;
+import web.socket.jsonClient;
+import inet.http;
+
+namespace web.socket;
+
+class chrome{
+    
+	ctor(){
+		this = ..web.socket.jsonClient();
+		this.rpc.heartbeatInterval = -1;
+		this.rpc.varargs = false;
+		this.rpc.version = null;
+	}; 
+	getDebuggingInfo = function(port){
+		if(!port) port = self.lastRemoteDebuggingPort : ..electron[["lastRemoteDebuggingPort"]];
+		if(port) port = tonumber(port);
+		
+		if( type(port) != type.number ) return {};
+
+		var http = ..inet.http();
+		http.disableCache();
+		
+		var json = http.get(..string.format("http://localhost:%d/json", port));
+		http.close();
+
+		var info =  ..web.json.tryParse(json) : {};
+		for(i=1;#info;1){
+			v = info[i];
+			if( v.devtoolsFrontendUrl ){
+				v.devtoolsFrontendUrl =  ..string.format("http://localhost:%d%s", port,v.devtoolsFrontendUrl);
+			} 
+		} 
+		return info;
+	};
+	getDebuggingPages = function(port){ 
+		var info = this.getDebuggingInfo(port); 
+		var pages = {};
+		
+		for(i=1;#info;1){
+			var v = info[i];
+			if( v.type !="page" ) continue;
+			if( !v.webSocketDebuggerUrl ) continue; 
+			..table.push(pages,v);
+		} 
+		
+		return pages;
+		
+	};
+	eachDebuggingPage = function(port){ 
+		var pages,i,v = this.getDebuggingPages(port); 
+		return function(){
+			i,v = ..table.next(pages,i);
+			if(v) return v.id,v.title,v.webSocketDebuggerUrl,v.devtoolsFrontendUrl;
+		}
+	}
+	connect = function(url){
+		if(!url) url = this.rpc.url;
+		if( !url ){ 
+			for id,title,wsUrl,devtoolsUrl in this.eachDebuggingPage() {
+				url = wsUrl;
+			} 
+		}
+		
+		if(url) {
+			this.rpc.connect(url);
+			return true;
+		};
+	}; 
+	waitForConnected = function(hwnd,timeout){ 
+		..win.delay(1000);
+		return ..win.wait( 
+			function(){
+				if(!this.rpc.url) this.connect();
+				if( this.rpc.readyState > 1 ) return false;
+				if( this.rpc.readyState == 1 ) return true;
+			},hwnd,timeout,300
+		);	 
+	}
+	
+}
+
+namespace chrome{
+	lastRemoteDebuggingPort = null;
+}
+
+
+/**intellisense()
+web.socket.chrome = chrome远程调试接口\nWebSocket / JSON-RPC 2.0 单线程异步客户端\n[chrome远程调试接口文档]( https://chromedevtools.github.io/devtools-protocol/ )
+web.socket.chrome() = 创建chrome远程调试客户端\n!stdwebsocketchromeClient.
+web.socket.chrome.lastRemoteDebuggingPort = 最近连接的远程调试端口号，也可以使用些属性指定下次连接远程调试服务端使用的默认端口
+end intellisense**/
+
+/**intellisense(!stdwebsocketchromeClient)
+rpc = WebSocket客户端对象\n此对象的成员谨慎改动\n!stdwebsocketjsonClientrpc.
+? = 远程对象名或远程方法名字,\n!stdwebsocketjsonClient.
+on(method,proc) = @.on("__/*需要监听的Rpc通知事件名字*/",function(param){\n    \n})
+on("open",proc) = @.on("open",function(){\n	__/*已打开连接*/		\n}
+on("close",proc) = @.on("close",function(e){\n	__/*连接被关闭\ne.code为错误代码e.reason为错误原因*/\n})
+on("error",proc) = @.on("error",function(err){\n	__/*发生错误,err为错误信息*/\n})
+on("message",proc) = @.on("message",function(msg){\n    __/*收到服务端数据\nmsg.type为1时msg.data为文本,\n否则msg.data为字节数组（buffer类型）*/\n})
+on("fragment",proc) = @.on("fragment",function(msg){\n   __/*收到分片数据\n第一个数据包使用msg.type指明类型,参考WebSocket协议规范\n后续数据包msg.type为0,最后一个数据包msg.fin为1\n\n如果不指定这个回调函数,则自动并接分片数据后触发onMessage事件*/	\n})
+connect("ws://__") = 重新连接到WebSocket服务端\n参数指定WebSocket服务端网址，例如 "ws://localhost:7511"\n如果不指定参数,则获取上次调用此函数指定的网址参数,\n如果之前也没有指定网址则尝试自动查找可用接口地址\n\n如果存在可用的远程接口地址,此函数返回true,否则返回null\n但返回true并不表示连接成功,应在open事件中判断是否连接成功\n\nchrome的远程调试接口必须是独占模式,\nchrome开发工具连上去了,再连接就会失败\nchrome在整个系统只能用一个端口，启动一个开发工具\n但是electron可以每个进程使用自己的端口,启动一个独立的远程调试接口
+waitForConnected(.(关联窗口句柄,超时) = 等待连接到远程调试接口\n所有参数可选,超时以毫秒为单位,\n\n如果没有找到有效的接口地址,\n此函数会自动发现嵌入electron的远程接口地址并重试连接\n\n连接成功返回true,失败返回false或null
+readyState = 连接状态,\n0为等待连接,1为已连接并准备就绪,2为正在关闭,3为已关闭\n只有成功通过WebSocket协议握手以后readyState才会被置为1\n这与socket.readyState连接成功就会置为1是不同的
+isClosed() = 套接字是否已关闭
+isConnected() = 套接字是否已连接并准备就绪(已与服务器握手成功)
+getDebuggingInfo(__) = 用于获取远程调试服务端信息\n参数指定端口号\n返回的参数是一个数组,即使失败也会返回空数组\n每个元素是一个表
+getDebuggingPages(__) = 用于获取所有可以远程调试的页面对象\n返回的参数是一个数组,即使失败也会返回空数组\n每个元素是页面信息表
+eachDebuggingPage(port) = @for id,title,wsUrl,devtoolsUrl in ??.eachDebuggingPage(__/*端口号*/) {
+	
+}
+end intellisense**/

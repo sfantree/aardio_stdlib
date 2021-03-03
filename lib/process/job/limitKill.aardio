@@ -1,0 +1,100 @@
+﻿import process;
+namespace process.job;
+
+var limitKillCtor;
+limitKillCtor = class {
+	ctor(){
+		this.handle = ::Kernel32.CreateJobObjectP( null,null); 
+		if( !this.handle ) return null;
+	
+		var limitInfo = {
+			struct BasicLimitInformation = {
+				LONG PerProcessUserTimeLimit;
+				LONG PerJobUserTimeLimit;
+				INT LimitFlags = 0x2000/*JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE*/;
+				INT MinimumWorkingSetSize;
+				INT MaximumWorkingSetSize;
+				INT ActiveProcessLimit;
+				INT Affinity;
+				INT PriorityClass;
+				INT SchedulingClass;
+			};
+			struct IoInfo = {
+				LONG ReadOperationCount;
+				LONG WriteOperationCount;
+				LONG OtherOperationCount;
+				LONG ReadTransferCount;
+				LONG WriteTransferCount;
+				LONG OtherTransferCount;
+			}; 
+			INT ProcessMemoryLimit;
+			INT JobMemoryLimit;
+			INT PeakProcessMemoryUsed;
+			INT PeakJobMemoryUsed;
+		}
+
+	
+		if( 0 == ::Kernel32.SetInformationJobObject( this.handle
+			, 9/*JobObjectExtendedLimitInformation*/, limitInfo, ..raw.sizeof(limitInfo)))
+		{
+			return null;
+		}	
+	};
+	isIn = function(p){  
+		var result ={bool v};
+		if(type(p)==type.number){
+			var prcs = ..process(p,0x400/*_PROCESS_QUERY_INFORMATION*/)
+			
+			if(prcs){
+				var result ={bool v}
+				::Kernel32.IsProcessInJob(prcs.handle,this.handle,result);
+				prcs.free();  
+			}
+		}
+		elseif(type(p)==type.pointer || p[["handle"]]){
+			var result ={bool v}
+			::Kernel32.IsProcessInJob(p,this.handle,result);
+		}
+		else {
+			error("参数类型错误",2)
+		}
+		
+		return result.v; 
+	}; 
+	assignProcess = function(p){
+		var r;
+		if(type(p)==type.number){
+			var prcs = ..process(p,0x100/*_PROCESS_SET_QUOTA*/ | 0x1/*_PROCESS_TERMINATE*/)
+			if(prcs){
+				r = ::Kernel32.AssignProcessToJobObjectB(this.handle,prcs.handle);
+				prcs.free();  
+			}
+		}
+		elseif(type(p)==type.pointer){
+			r = ::Kernel32.AssignProcessToJobObjectB(this.handle,p);
+		}
+		else {
+			error("参数类型错误",2)
+		}
+		
+		return r;
+	}; 
+	@{
+		_topointer = lambda() this.handle;
+		_call = function(){
+			return limitKillCtor();
+		} 
+	}
+}
+
+limitKill = limitKillCtor();
+
+/**intellisense()
+process.job.limitKill = 使用子进程对象的 assignToJobObject 函数绑定此对象,\n则进程退出时子进程自动终止\n!processJobLimitKill.
+process.job.limitKill() = 创建新的 process.job.limitKill 作业对象\n!processJobLimitKill.
+end intellisense**/
+
+/**intellisense(!processJobLimitKill)
+isIn(.(processId) = 判断参数指定的进程是否属于当前作业对象,\n参数可以指定使用数值指定进程ID，或使用指针指定进程句柄
+assignProcess(.(processId) = 将参数指定的进程绑定当前作业对象,\n参数可以指定使用数值指定进程ID，或使用指针指定进程句柄
+end intellisense**/

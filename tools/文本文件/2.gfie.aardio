@@ -1,0 +1,16 @@
+//图标制作/GFIE
+import process;
+import sevenZip.lzma.httpFile
+
+var gfiePath = process().isWow64() ? "~\download\tools\gfie\gfie64.exe" : "~\download\tools\gfie\gfie32.exe"
+if(!io.exist(gfiePath)){
+	sevenZip.lzma.httpFile.download("http://download.aardio.com/v10.files/tool/gfie.tar.lzma"
+		,"正在下载图标制作工具：Greenfish Icon Editor Pro "
+		,"~/download/tools/gfie-temp","~/download/tools/"
+	)
+	
+	import fsys;
+	fsys.delete("~/download/tools/gfie-temp/")	
+}
+
+process.execute(gfiePath)

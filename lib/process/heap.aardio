@@ -1,0 +1,59 @@
+//heap 进程堆
+import process
+namespace process.heap;
+
+Heap32ListFirst = ::Kernel32.api("Heap32ListFirst","int(pointer hsnap,struct& lppe)")
+Heap32ListNext = ::Kernel32.api("Heap32ListNext","int(pointer hsnap,struct& lppe)") 
+
+class HEAPLIST32{
+	INT dwSize;
+	INT th32ProcessID;
+	INT th32HeapID;
+	INT dwFlags;
+}
+
+eachList = function(pid) {	
+	if( _STUDIO_INVOKED == "thread" ) return function(){}; 
+    return ..process.eachSnap( pid:..process.getId(),0x1/*_TH32CS_SNAPHEAPLIST*/,HEAPLIST32(),Heap32ListFirst,Heap32ListNext)
+}
+
+Heap32First = ::Kernel32.api("Heap32First","int(struct &lphe,INT pid,INT hid)")
+Heap32Next = ::Kernel32.api("Heap32Next","int(struct &lphe)")  
+
+HEAPENTRY32 = class {
+	INT dwSize;
+	int hHandle;
+	INT dwAddress;
+	INT dwBlockSize;
+	INT dwFlags;
+	INT dwLockCount;
+	INT dwResvd;
+	INT th32ProcessID;
+	int th32HeapID;
+}
+
+each = function(heapList) {
+	if( _STUDIO_INVOKED == "thread" ) return function(){}; 
+	
+	var firstEntry = HEAPENTRY32()
+	
+	firstEntry.dwSize = 36 
+	if( ! Heap32First(firstEntry,heapList.th32ProcessID,heapList.th32HeapID) ){
+		firstEntry = null; 
+	}
+    return function(entry){
+    	if( entry){
+    		entry.dwSize = 36 
+    		if( Heap32Next(entry) )
+    			return entry;
+    	}
+    	else
+    		return firstEntry;
+    }
+    
+}
+
+/**intellisense(process.heap)
+each =  @for heapEntry in process.heap.each(heapList) { \n//io.print( heapEntry.dwAddress  )\n \n}
+eachList =  @for heapList in process.heap.eachList(__/*进程ID*/) { \n//io.print( heapList.dwAddress  )\n \n}
+end intellisense**/

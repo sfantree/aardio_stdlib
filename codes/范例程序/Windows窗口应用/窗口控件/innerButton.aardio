@@ -1,0 +1,41 @@
+//按钮中嵌按钮
+import win.ui;
+import win.ui.menu;
+/*DSG{{*/
+var winform = win.form(parent=...; bottom=399;right=599;border="resizable";text="按钮中嵌按钮" )
+winform.add( 
+button={ dr=1;bottom=104;color=0;text="按钮中按钮";left=53;top=43;z=1;right=213;cls="button" };
+btnInner={ dr=1;bottom=72;color=0;right=209;left=181;top=46;font=LOGFONT( name='Marlett';charset=2;weight=500 );z=2;text="4";cls="button" }
+)
+/*}}*/ 
+
+//控件的子窗口应使用消息回调处理事件
+winform.btnInner.wndproc = function(hwnd,message,wParam,lParam){
+	select(message) {//判断消息类型
+		case 0x202/*_WM_LBUTTONUP*/{ 
+		
+			//按下鼠标右键,下面获取按钮屏幕坐标
+			var rc = winform.btnInner.getRect(true/*使用屏幕坐标*/)
+			
+			//创建弹出菜单
+			win.ui.popmenu(winform).addTable( {
+    			{ 
+        			"测试";
+        			function(id){
+        				winform.msgbox("测试")
+        			} 
+    			}; {
+        			"退出程序";
+        			function(id){
+            			winform.close()
+        			} 
+    			};
+			} ).popup(rc.left,rc.bottom,true/*使用屏幕坐标*/)
+		} 
+	}
+} 
+
+winform.btnInner.setParent( winform.button )
+
+winform.show()
+win.loopMessage();

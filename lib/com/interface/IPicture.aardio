@@ -1,0 +1,146 @@
+import util.metaProperty;
+import com.interface;
+
+namespace com.interface;
+
+class IPicture{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer get_Handle = "int(pointer &pHandle)"; 
+	pointer get_hPal = "int(pointer &phPal)"; 
+	pointer get_Type = "int(word &pType)"; 
+	pointer get_Width = "int(int &pWidth)"; 
+	pointer get_Height = "int(INT &pHeight)"; 
+	pointer Render = "int(int hDC,int x,int y, int cx,int cy, int xSrc, int ySrc, int cxSrc,int cySrc,struct pRcWBounds)"; 
+	pointer set_hPal = "int(POINTER hPal)"; 
+	pointer get_CurDC = "int(pointer &phDC)"; 
+	pointer SelectPicture = "int(pointer hDCIn,pointer &phDCOut,pointer &phBmpOut)"; 
+	pointer get_KeepOriginalFormat = "int(bool &pKeep)"; 
+	pointer put_KeepOriginalFormat = "int(bool keep)"; 
+	pointer PictureChanged = "int()"; 
+	pointer SaveAsFile = "int(pointer pStream,bool fSaveMemCopy,int &pCbSize)"; 
+	pointer get_Attributes = "int(INT &pDwAttr)"; 
+}
+
+namespace IPicture{
+	
+	IID = "{7BF80980-BF32-101A-8BBB-00AA00300CAB}";
+	
+	Query = function(obj){ 
+			return {
+				_object = ..com.interface(obj,..com.interface.IPicture);
+				@_metaProperty;
+			}
+	} 
+	
+	_metaProperty = ..util.metaProperty(
+		saveToBuffer = function(saveMemCopy){
+			if(saveMemCopy===null) saveMemCopy = true;
+			var hr,pSteam = ::CreateStreamOnHGlobal( , true ); 
+			owner._object.SaveAsFile(pSteam,saveMemCopy,0);  
+			var hr,handle = ::GetHGlobalFromStream(pSteam);    
+			var size = ::GlobalSize(handle);
+			var ptr = ::GlobalLock(handle); 
+			var bytes = ..raw.buffer(size,ptr); 
+			..com.Release(pSteam);
+			return bytes;
+		};
+		saveAsFile = function(steam,saveMemCopy){
+			if(saveMemCopy===null) saveMemCopy = true;
+			var hr,size = owner._object.SaveAsFile(steam,saveMemCopy,0);
+			if( hr>=0/*_SUCCEEDED*/ ) return size; 
+		};
+		pictureChanged = function(){
+			return owner._object.pictureChanged();
+		};
+		selectPicture = function(hDCIn){
+			var hr,phDCOut,phBmpOut = owner._object.SelectPicture(hDCIn);
+			if( hr>=0/*_SUCCEEDED*/ ) return phDCOut,phBmpOut;
+		};
+		render = function(hDC,x,y, cx,cy, xSrc, ySrc, cxSrc,cySrc,pRcWBounds){
+			pRcWBounds := {};
+			var hr = owner._object.Render(hDC,x,y, cx,cy, xSrc, ySrc, cxSrc,cySrc,pRcWBounds);
+			if( hr>=0/*_SUCCEEDED*/ ) return true;
+		};
+		handle = {
+			_get = function(){ 
+				var hr,hd = owner._object.get_Handle();
+				if( hr>=0/*_SUCCEEDED*/ ) return hd; 
+			}  	
+		}; 
+		hPal = {
+			_get = function(){ 
+				var hr,hp = owner._object.get_hPal();
+				if( hr>=0/*_SUCCEEDED*/ ) return hp; 
+			}  
+			_set = function(v){ 
+				owner._object.set_hPal(v);
+			} 	
+		};
+		attributes = {
+			_get = function(){ 
+				var hr,a = owner._object.get_Attributes(0);
+				if( hr>=0/*_SUCCEEDED*/ ) return a; 
+			}  	
+		}; 
+		keepOriginalFormat = {
+			_get = function(){ 
+				var hr,f = owner._object.get_KeepOriginalFormat(0);
+				if( hr>=0/*_SUCCEEDED*/ ) return f; 
+			}  
+			_set = function(v){ 
+				owner._object.put_KeepOriginalFormat(v);
+			} 	
+		};
+		type = {
+			_get = function(){ 
+				var hr,t = owner._object.get_Type(0);
+				if( hr>=0/*_SUCCEEDED*/ ) return t; 
+			}  	
+		};
+		width = {
+			_get = function(){ 
+				var hr,w = owner._object.get_Width(0);
+				if( hr>=0/*_SUCCEEDED*/ ) return w; 
+			}  	
+		};
+		height = {
+			_get = function(){ 
+				var hr,w = owner._object.get_Height(0);
+				if( hr>=0/*_SUCCEEDED*/ ) return w; 
+			}  	
+		};
+		curDC = {
+			_get = function(){ 
+				var hr,w = owner._object.get_CurDC();
+				if( hr>=0/*_SUCCEEDED*/ ) return w; 
+			}  	
+		};
+		curDC = {
+			_get = function(){ 
+				var hr,w = owner._object.get_CurDC();
+				if( hr>=0/*_SUCCEEDED*/ ) return w; 
+			}  	
+		};
+	)
+}
+
+/**intellisense()
+com.interface.IPicture.Query(.(IPicture对象) = 参数为com.picture 对象\n返回原生接口
+com.interface.IPicture.Query() = !RawIPicture.
+!RawIPicture.saveToBuffer(.(saveMemCopy) = 保存图像到缓冲区\nsaveMemCopy指定是否保存内存副本,默认为true
+!RawIPicture.saveAsFile(.(steam,saveMemCopy) = 保存图像,成功返回保存大小\nsaveMemCopy指定是否保存内存副本,默认为true
+!RawIPicture.pictureChanged() = 图像是否已被修改
+!RawIPicture.selectPicture(.(hDCIn) = 选择绘图设备\n成功返回原设备,以及位图句柄
+!RawIPicture.render(.(hDC,x,y, cx,cy, xSrc, ySrc, cxSrc,cySrc,pRcWBounds) = 绘图\nhdc 绘图设备句柄\nx,y 设备显示坐标\ncx,cy 显示长度和宽度\nxSrc,ySrc 源图像偏移坐标\ncxSrc,cySrc 源图像输出宽度和高度,注意位图在内存是倒过来的,cySrc要取负数
+prcWBounds是指向目标图元设备环境句柄的指针,一般为NULL。
+!RawIPicture.handle = 句柄
+!RawIPicture.hPal = 调色板
+!RawIPicture.attributes = 选项数值
+!RawIPicture.keepOriginalFormat = 保持格式
+!RawIPicture.type = 图像类型\n图标还是位图
+!RawIPicture.width = 宽\n单位是0.01毫米而非像素
+!RawIPicture.height = 高\n单位是0.01毫米而非像素
+!RawIPicture.curDC = 当前绘图设备
+end intellisense**/

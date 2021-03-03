@@ -1,0 +1,36 @@
+//7)生成器
+ 
+import console;
+console.open()
+
+import py;
+pyCode = /***
+
+def fib(max):
+    a, b = 1, 1
+    while a < max:
+        yield a 
+        a, b = b, a+b
+
+#python3取消了raw_input并且input代替,新版中input返回字符串
+for n in fib( int( input("请输入斐波那契数列范围(python):") ) ):
+    print( n )
+***/
+py.exec( pyCode ) //运行python代码
+ 
+
+//下面是类似的aardio代码
+//=========================================================
+function fib(max){
+	var a, b = 1, 1;
+	while a < max {
+        fiber.yield( a );
+        a, b = b, a+b;
+    }
+} 
+ 
+for v in fiber.generator(fib,console.getNumber( "请输入斐波那契数列范围(aardio):" )) {
+	console.log( v )	
+}
+
+console.pause()

@@ -1,0 +1,167 @@
+//DLL查看工具
+import fonts.fontAwesome;
+import win.ui;
+/*DSG{{*/
+winform = win.form(text="DLL查看工具";right=1019;bottom=679;bgcolor=15793151;border="none")
+winform.add(
+btnLoad={cls="plus";text="分析";left=717;top=639;right=826;bottom=674;bgcolor=11580047;db=1;dr=1;font=LOGFONT(h=-13);notify=1;z=9};
+caption={cls="bkplus";text="DLL文件导入/导出表查看工具 ( 双击单元格可以编辑复制 )";left=67;top=9;right=486;bottom=27;align="left";color=6052956;dl=1;dt=1;font=LOGFONT(h=-14);z=6};
+editExportDeclaration={cls="edit";left=102;top=48;right=1001;bottom=627;db=1;dl=1;dr=1;dt=1;edge=1;hide=1;hscroll=1;multiline=1;vscroll=1;z=12};
+editFilePath={cls="plus";left=106;top=636;right=709;bottom=671;align="right";bgcolor=15793151;border={bottom=1;color=-16744448};db=1;dl=1;dr=1;editable="edit";font=LOGFONT(h=-16);tabstop=1;textPadding={top=6;bottom=1};z=8};
+lbInfo={cls="static";text="可拖放DLL到当前窗口";left=834;top=648;right=1001;bottom=673;db=1;dr=1;font=LOGFONT(h=-13);transparent=1;z=10};
+listview={cls="listview";left=102;top=49;right=1002;bottom=628;db=1;dl=1;dr=1;dt=1;edge=1;z=7};
+logo={cls="bkplus";text='\uF15B';left=35;top=7;right=64;bottom=32;color=6450008;dl=1;dt=1;font=LOGFONT(h=-18;name='FontAwesome');z=5};
+navBar={cls="bkplus";left=0;top=37;right=83;bottom=681;bgcolor=4961168;db=1;dl=1;dt=1;z=1};
+navExport={cls="plus";text="导出表";left=0;top=48;right=85;bottom=128;bkBottom=3;bkLeft=7;bkRight=8;bkTop=2;border={color=-65536};color=16777215;dl=1;dt=1;font=LOGFONT(h=-13);iconStyle={font=LOGFONT(h=-37;name='FontAwesome');padding={bottom=20}};iconText='\uF0AE';notify=1;textPadding={bottom=10};valign="bottom";x=0.5;y=0.2;z=3};
+navExportDeclaration={cls="plus";text="声明";left=0;top=216;right=82;bottom=296;bkBottom=3;bkLeft=7;bkRight=8;bkTop=2;border={color=-65536};color=16777215;dl=1;dt=1;font=LOGFONT(h=-13);iconStyle={font=LOGFONT(h=-37;name='FontAwesome');padding={bottom=20}};iconText='\uF0F6';notify=1;textPadding={bottom=10};valign="bottom";x=0.5;y=0.2;z=11};
+navImport={cls="plus";text="导入表";left=0;top=132;right=85;bottom=212;bkBottom=3;bkLeft=7;bkRight=8;bkTop=2;border={color=-65536};color=16777215;dl=1;dt=1;font=LOGFONT(h=-13);iconStyle={font=LOGFONT(h=-37;name='FontAwesome');padding={bottom=20}};iconText='\uF1DE';notify=1;textPadding={bottom=10};valign="bottom";x=0.5;y=0.2;z=4};
+titleBar={cls="bkplus";left=0;top=0;right=1022;bottom=38;bgcolor=6318930;dl=1;dr=1;dt=1;forecolor=16777215;linearGradient=180;z=2}
+)
+/*}}*/
+
+import win.ui.simpleWindow;
+win.ui.simpleWindow( winform );
+
+import win.ui.tabs;
+var tbs = win.ui.tabs( 
+	winform.navExport,
+	winform.navImport,
+	winform.navExportDeclaration
+);
+
+tbs.skin({
+	background={
+		active=0xFFFFFFFF;
+		default=0x00FFFFFF;
+		hover=0x38FFFFFF
+	};
+	color={
+		default=0xFFFFFFFF; 
+	};
+	checked={
+		background={default=0xFFFFFFFF;};
+		color={default=0xFF42A875;};
+	}
+})
+
+winform.btnLoad.skin({
+	background={
+		default=0xFF8FB2B0;
+		hover=0xFF928BB3;
+		disabled=0xFFCCCCCC; 
+	}
+})
+
+tbs.selIndex = 1;
+
+import raw.pefile;
+var showPeFile = function(pefile){
+	winform.lbInfo.text = pefile.isPe32 ? "32位PE文件" : "64位PE文件";
+		
+	winform.listview.clear(true);
+	if(tbs.selIndex==2){
+		winform.listview.hide = false;
+		winform.editExportDeclaration.hide = true;
+		
+		winform.listview.insertColumn("DLL",100) 
+		winform.listview.insertColumn("导入函数",-1) 
+		
+		var data = pefile.getImportDirectory(); 
+		for i,module in table.eachIndex(data){
+			for i,f in table.eachIndex(module.functions){
+				winform.listview.addItem({module.name;f})
+			}
+		}	
+	}
+	elseif(tbs.selIndex==1){ 
+		winform.listview.hide = false;
+		winform.editExportDeclaration.hide = true;
+		
+		winform.listview.insertColumn("序号",50)
+		winform.listview.insertColumn("地址",150)
+		winform.listview.insertColumn("导出函数",-1) 
+		
+		var names = pefile.getExportNames();
+		names.fields = {"ordinal";"address";"name"} 
+		winform.listview.setTable(names);
+	} 
+	elseif(tbs.selIndex==3){
+		winform.listview.hide = true;
+		winform.editExportDeclaration.hide = false; 
+		winform.editExportDeclaration.text = "";
+		
+		var code = pefile.exportDeclaration(); 
+		if(code){
+			winform.editExportDeclaration.text = code;
+		}
+		else {
+			winform.editExportDeclaration.text = '/*\r\n自动生成API声明代码仅支持使用C++修饰名的API函数\r\n*/'
+		}
+		
+	}
+}
+
+var searchDll = function(dllPath){
+	return io.exist(dllPath) 
+		|| win.path.searchDll(dllPath) 
+    	|| win.path.search(dllPath)
+    	|| fsys.wow64.disableRedirection(lambda()win.path.search(dllPath))
+}
+
+import win.path;
+import fsys.wow64;
+winform.btnLoad.oncommand = function(id,event){ 
+    var dllPath = searchDll(winform.editFilePath.text) || searchDll(winform.editFilePath.text+".dll"); 
+	var pefile,err = raw.pefile(dllPath);
+	if(!pefile){
+		winform.setTimeout( 
+			function(){
+				winform.editFilePath.editBox.showWarningTip(,err)
+			});
+			
+		return;
+	}
+		
+	winform.editFilePath.text = dllPath;
+	showPeFile(pefile)
+}
+
+winform.editFilePath.editBox.onOk = function(){
+	winform.btnLoad.oncommand();
+}
+
+import fsys.lnk;
+winform.onDropFiles = function(files){
+    var path = files[1];
+    if(string.endWith(path,".lnk",true)){
+    	var lnk = fsys.lnk().load(path);
+    	if(lnk){
+    		path = lnk.path;
+    	}
+    	else {
+    		return;
+    	}
+    }
+    
+    if(string.endWith(path,".exe",true)){
+    	tbs.selIndex = 2;
+    }
+    
+	winform.editFilePath.text = path;
+	winform.btnLoad.oncommand();
+}
+
+tbs.onSelchange = function(idx,strip,form){
+	var pefile,err = raw.pefile(winform.editFilePath.text);
+	if(pefile) showPeFile(pefile)
+}
+
+import win.ui.grid;
+win.ui.grid(winform.listview);
+
+winform.show();
+winform.editFilePath.setFocus();
+winform.editFilePath.editBox.showInfoTip("DLL文件名","请在这里输入DLL名字、文件路径等然后直接回车,也可以直接拖放DLL文件到这里")
+winform.editFilePath.editBox.disableInputMethod()
+
+return win.loopMessage();

@@ -1,0 +1,20 @@
+﻿//dlg.dir 目录对话框
+import fsys.dlg;
+import com.interface.IFileOpenDialog;
+
+namespace fsys.dlg;
+
+class dir{
+	ctor(path,hwndOwner,title,okLabel,clientGuid,multiSel){
+		if(_WINXP){
+			return ..fsys.dlg.opendir(path,hwndOwner,title);
+		}
+		
+		return ..com.interface.IFileOpenDialog.dir(path,hwndOwner,title,okLabel,clientGuid,multiSel);
+	};
+}
+
+/**intellisense()
+fsys.dlg.dir( = 打开新版目录对话框,\nXP系统自动降级为 fsys.dlg.opendir
+fsys.dlg.dir(.(path,hwndOwner,title,okLabel,clientGuid,multiSel) = 打开目录对话框,所有参数可省略,\n参数@path 指定打开的目录,\n参数@hwndOwner 指定父窗口,\n参数@title 指定窗口标题\n参数@okLabel 指定确定按钮上的文本,\n参数@clientGuid 指定单独存储对话框状态的GUID,\n参数@multiSel 如果为true，则允许选择多目录并返回数组,\n默认仅能选择单个目录并返回选中的路径,\n取消返回null
+end intellisense**/

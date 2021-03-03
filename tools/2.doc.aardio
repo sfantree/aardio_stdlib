@@ -1,0 +1,913 @@
+//库函数文档
+import web.form;
+/*DSG{{*/
+var winform = win.form(cls="WIN_MARKDOWN";text="aardio库函数文档 ( 按F11切换全屏,编辑器右键菜单可快捷插入标记)";right=1120;bottom=612;scroll=1)
+winform.add(
+btnCopyHtml={cls="button";text="复制HTML";left=671;top=583;right=749;bottom=607;db=1;dr=1;z=6};
+btnOpenMarkdown={cls="button";text="查询库函数文档";left=288;top=583;right=408;bottom=607;db=1;dl=1;z=5};
+btnSaveHtml={cls="button";text="另存为HTML文件";left=762;top=583;right=924;bottom=607;db=1;dr=1;z=3};
+btnSaveMarkdown={cls="button";text="另存为Markdown文件";left=762;top=583;right=924;bottom=607;db=1;dr=1;hide=1;z=4};
+btnSwitchView={cls="button";text="切换到Markdow模式";left=936;top=583;right=1080;bottom=607;db=1;dr=1;z=10};
+editLibPath={cls="edit";text="string.find";left=117;top=584;right=280;bottom=604;align="right";db=1;dl=1;edge=1;z=7};
+editMd={cls="richedit";left=272;top=8;right=1108;bottom=576;acceptfiles=1;clip=1;db=1;dl=1;dr=1;dt=1;edge=1;hide=1;hscroll=1;multiline=1;vscroll=1;z=2};
+lbBrowser={cls="custom";left=272;top=8;right=1108;bottom=576;aw=1;clip=1;db=1;dl=1;dt=1;edge=1;z=1};
+radioKernelLib={cls="radiobutton";text="内核库";left=88;top=8;right=146;bottom=25;dl=1;dt=1;z=11};
+radioStdLib={cls="radiobutton";text="标准库/扩展库";left=152;top=8;right=250;bottom=25;checked=1;dl=1;dt=1;z=12};
+radioUiCtrls={cls="radiobutton";text="窗口控件";left=16;top=8;right=85;bottom=25;dl=1;dt=1;z=14};
+static={cls="static";text="查询：库/库函数:";left=4;top=586;right=110;bottom=608;align="right";db=1;dl=1;transparent=1;z=8};
+tvKernel={cls="treeview";left=4;top=33;right=264;bottom=569;asel=false;bgcolor=16777215;db=1;dl=1;dt=1;edge=1;hide=1;vscroll=1;z=13};
+tvStd={cls="treeview";left=4;top=33;right=252;bottom=569;asel=false;bgcolor=16777215;db=1;dl=1;dt=1;edge=1;vscroll=1;z=9}
+)
+/*}}*/
+
+import win.ui.atom;
+var atom,hwnd = winform.atom("D0050311-B063-4B9C-8C4F-5A22B3E4091A.doc");
+if(!atom){
+	win.quitMessage();	
+	return;
+}
+
+::User32.SendMessage(winform.hwnd,0x80/*_WM_SETICON*/,0,::User32.LoadIcon(_HINSTANSE,129));
+::User32.SendMessage(winform.hwnd,0x80/*_WM_SETICON*/,1,::User32.LoadIcon(_HINSTANSE,129));
+winform.show( 0x3/*_SW_MAXIMIZE*/ );
+
+import fsys.table;
+var config = fsys.table("/.md/docSetting.table");
+
+winform.enableDpiScaling();
+var wb = web.form( winform.lbBrowser , , ,,true); 
+wb.noScriptErr = true;
+
+wb.external={
+	saveHtmlFile = function(){
+		winform.btnSaveHtml.oncommand();
+	}
+}
+
+if( config.libPath ){
+	winform.editLibPath.text = config.libPath;
+}
+
+wb.html = /**
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title></title>
+<style type="text/css">
+body {
+    font-family: Helvetica, arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.6;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    background-color: white;
+    padding: 30px; 
+}
+body > *:first-child {
+    margin-top: 0 !important; 
+}
+body > *:last-child {
+    margin-bottom: 0 !important; 
+}
+a {
+    color: #4183C4; 
+}
+a.absent {
+    color: #cc0000; 
+}
+a.anchor {
+    display: block;
+    padding-left: 30px;
+    margin-left: -30px;
+    cursor: pointer;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0; 
+}
+h1, h2, h3, h4, h5, h6 {
+	line-height: 1.5em;
+    margin: 20px 0 10px;
+    padding: 0;
+    font-weight: bold;
+    -webkit-font-smoothing: antialiased;
+    cursor: text;
+    position: relative; 
+}
+h1:hover a.anchor, h2:hover a.anchor, h3:hover a.anchor, h4:hover a.anchor, h5:hover a.anchor, h6:hover a.anchor {
+    text-decoration: none; 
+}
+h1 tt, h1 code {
+    font-size: inherit; 
+}
+h2 tt, h2 code {
+    font-size: inherit; 
+}
+h3 tt, h3 code {
+    font-size: inherit; 
+}
+h4 tt, h4 code {
+    font-size: inherit; 
+}
+h5 tt, h5 code {
+    font-size: inherit; 
+}
+h6 tt, h6 code {
+    font-size: inherit; 
+}
+h1 {
+    font-size: 18pt;
+    color: black; 
+    border-bottom: none;
+	padding-bottom: 3px;
+	text-align:center;
+}
+h2 {
+    font-size: 13.5pt;
+    border-bottom: 3px solid #aaa;
+    color: #444;
+}
+h3 {
+    font-size: 12.7pt; 
+    border-bottom: 2px solid #aaa;
+    color: #555;
+}
+h4 {
+    font-size: 16px; 
+    border-bottom: 1px solid #aaa;
+    color: #666;
+}
+h5 {
+    font-size: 15px; 
+    border-bottom: 1px dotted #aaa;
+    color: #777;
+}
+h6 {
+    font-size: 14px; 
+    border-bottom: 1px dotted #793862;
+    color: #793862;
+}
+p, blockquote, ul, ol, dl, li, table, pre {
+    margin: 15px 0; 
+}
+hr {
+    border: 0 none;
+    color: #cccccc;
+    height: 4px;
+    padding: 0; 
+}
+
+body > h2:first-child {
+    margin-top: 0;
+    padding-top: 0; 
+}
+body > h1:first-child {
+    margin-top: 0;
+    padding-top: 0;
+}
+body > h1:first-child + h2 {
+    margin-top: 0;
+    padding-top: 0; 
+}
+body > h3:first-child, body > h4:first-child, body > h5:first-child, body > h6:first-child {
+    margin-top: 0;
+    padding-top: 0; 
+}
+a:first-child h1, a:first-child h2, a:first-child h3, a:first-child h4, a:first-child h5, a:first-child h6 {
+    margin-top: 0;
+    padding-top: 0; 
+}
+h1 p, h2 p, h3 p, h4 p, h5 p, h6 p {
+    margin-top: 0; }
+
+li p.first {
+    display: inline-block; 
+}
+ul, ol {
+    padding-left: 30px; 
+}
+ul :first-child, ol :first-child {
+    margin-top: 0; 
+}
+ul :last-child, ol :last-child {
+    margin-bottom: 0; 
+}
+dl {
+    padding: 0; 
+}
+dl dt {
+    font-size: 14px;
+    font-weight: bold;
+    font-style: italic;
+    padding: 0;
+    margin: 15px 0 5px; 
+}
+dl dt:first-child {
+    padding: 0; 
+}
+dl dt > :first-child {
+    margin-top: 0; 
+}
+dl dt > :last-child {
+    margin-bottom: 0; 
+}
+dl dd {
+    margin: 0 0 15px;
+    padding: 0 15px; 
+}
+dl dd > :first-child {
+    margin-top: 0; 
+}
+dl dd > :last-child {
+    margin-bottom: 0; 
+}
+blockquote {
+    border-left: 4px solid #dddddd;
+    padding: 0 15px;
+    color: #777777; 
+}
+blockquote > :first-child {
+    margin-top: 0; 
+}
+blockquote > :last-child {
+    margin-bottom: 0; 
+}
+table {
+    padding: 0; 
+}
+table tr {
+    border-top: 1px solid #cccccc;
+    background-color: white;
+    margin: 0;
+    padding: 0; 
+}
+table tr:nth-child(2n) {
+    background-color: #f8f8f8; 
+}
+table tr th {
+    font-weight: bold;
+    border: 1px solid #cccccc;
+    text-align: left;
+    margin: 0;
+    padding: 6px 13px; 
+}
+table tr td {
+    border: 1px solid #cccccc;
+    text-align: left;
+    margin: 0;
+    padding: 6px 13px; 
+}
+table tr th :first-child, table tr td :first-child {
+    margin-top: 0; 
+}
+table tr th :last-child, table tr td :last-child {
+    margin-bottom: 0; 
+}
+img {
+    max-width: 100%; 
+}
+span.frame {
+    display: block;
+    overflow: hidden; 
+}
+span.frame > span {
+    border: 1px solid #dddddd;
+    display: block;
+    float: left;
+    overflow: hidden;
+    margin: 13px 0 0;
+    padding: 7px;
+    width: auto; 
+}
+span.frame span img {
+    display: block;
+    float: left; 
+ }
+span.frame span span {
+    clear: both;
+    color: #333333;
+    display: block;
+    padding: 5px 0 0; 
+}
+span.align-center {
+    display: block;
+    overflow: hidden;
+    clear: both; 
+}
+span.align-center > span {
+    display: block;
+    overflow: hidden;
+    margin: 13px auto 0;
+    text-align: center; 
+}
+span.align-center span img {
+    margin: 0 auto;
+    text-align: center; 
+ }
+span.align-right {
+    display: block;
+    overflow: hidden;
+    clear: both; 
+}
+span.align-right > span {
+    display: block;
+    overflow: hidden;
+    margin: 13px 0 0;
+    text-align: right; 
+}
+span.align-right span img {
+    margin: 0;
+    text-align: right; 
+}
+span.float-left {
+    display: block;
+    margin-right: 13px;
+    overflow: hidden;
+    float: left; 
+}
+span.float-left span {
+    margin: 13px 0 0; 
+}
+span.float-right {
+    display: block;
+    margin-left: 13px;
+    overflow: hidden;
+    float: right; 
+}
+span.float-right > span {
+    display: block;
+    overflow: hidden;
+    margin: 13px auto 0;
+    text-align: right; 
+}
+code, tt {
+    margin: 0 2px;
+    padding: 0 5px;
+    white-space: nowrap;
+    border: 1px solid #eaeaea;
+    background-color: #f8f8f8;
+    border-radius: 3px; 
+}
+pre code {
+    margin: 0;
+    padding: 0;
+    white-space: pre;
+    border: none;
+    background: transparent; 
+}
+.highlight pre {
+    background-color: #f8f8f8;
+    border: 1px solid #cccccc;
+    font-size: 13px;
+    line-height: 19px;
+    overflow: auto;
+    padding: 6px 10px;
+    border-radius: 3px; 
+}
+pre {
+    background-color: #f8f8f8;
+    border: 1px solid #cccccc;
+    font-size: 13px;
+    line-height: 19px;
+    overflow: auto;
+    padding: 6px 10px;
+    border-radius: 3px; 
+}
+pre code, pre tt {
+    background-color: transparent;
+    border: none; 
+}
+</style>
+</head>
+<body>
+</body>
+</html>	 
+**/
+
+fullscreen =function(id,event,shift){  
+	winform.fullscreen()
+} 
+ 
+import win.ui.accelerator;
+var accelerator = win.ui.accelerator( {
+	{ vkey = 0x7A/*_VK_F11*/;  oncommand = fullscreen }  
+	{ vkey = 0x1B/*_VK_ESC*/; oncommand = function(){  if( winform.restoreFullScreen ) fullscreen() } }
+},winform);
+
+winform.lbBrowser.preTranslateAccelerator = function(msg){ 
+	accelerator.translate(msg);
+}
+
+import process;
+wb.BeforeNavigate2=function( pDisp, url, Flags, TargetFrameName, PostData, Headers, Cancel ) { 
+	if( ..string.startWith(url,"javascript:",true) ) return;
+	
+	var id = ..string.match(url,"\#(.+)$"); 
+	if( id && !..string.startWith(url,"http",true) ) {
+		var ele = wb.getEle(id);
+		if( ele ){
+			var x,y,cx,cy = wb.getPoint(ele);
+			wb.scrollPos(,x,y);
+		}
+		else {
+			winform.msgboxErr("在当前页面没有找到相关内容");
+		}
+		
+		return url, Flags, TargetFrameName, PostData, Headers,true;
+	}
+	
+ 	process.execute(url);
+	return url, Flags, TargetFrameName, PostData, Headers,true;
+}
+wb._BeforeNavigate2 = wb.BeforeNavigate2;
+  
+import string.markdown;
+var markdown = string.markdown(); 
+winform.editMd.modifyEvent(,0x1/*_ENM_CHANGE*/);
+winform.editMd.oncommand = function(id,event){
+	if( event = 0x300/*_EN_CHANGE*/ ){
+		var str  = winform.editMd.text;
+		wb.body.innerHTML = markdown.render( str );
+		
+		//如果是在最后面编辑，预览网页也同步滚动到底部
+		if( winform.editMd.lineCount == winform.editMd.lineFromChar() )
+			wb.scrollPos(,,-1); 
+	} 
+}  
+
+import fsys.dlg;
+import fsys.codepage;
+loadMd = function(path){
+	if(!path)return;
+	var str  = string.load(path);
+	if( !..string.isUtf8(str) ) str = string.fromto(str,0,65001);
+	
+	winform.editMd.text = str;
+	wb.body.innerHTML =  markdown.render( str); 
+}
+
+import key;
+winform.editMd.wndproc = function(hwnd,message,wParam,lParam){
+	select(message) { 
+		case 0x100/*_WM_KEYDOWN*/ { 
+			if( wParam == 'A'# ){
+				if( key.getState("CTRL") ) {
+					winform.editMd.selectAll();
+					return false;
+				}
+			}
+			elseif ( wParam == 0x9/*_VK_TAB*/ ){
+				winform.editMd.selText = "    "
+			}
+		} 
+		case 0x233/*_WM_DROPFILES*/{ 
+			var path= win.getDropFile(wParam )[1];   
+			loadMd(path); 
+		} 
+	} 
+} 
+
+import ide.doc.markdown;
+winform.btnOpenMarkdown.oncommand = function(id,event){
+	winform.btnOpenMarkdown.disabled = true;
+	winform.editMd.text = "";
+	wb.body.innerHTML =  "";
+	
+	var libPath = winform.editLibPath.text;
+	var doc = ide.doc.markdown(libPath);
+	while(!doc){
+		libPath = ..string.match(libPath,"^(.+[^\.])\.[^\.]*$");
+		if(!libPath) break;
+		doc = ide.doc.markdown(libPath);
+	}
+	
+	if(!doc)doc = ide.doc.markdown("global");
+	
+	if(!doc){ 
+		winform.msgboxErr("没有找到该支持库的有效文档");
+		winform.editLibPath.setFocus(0,-1);	 
+		winform.btnOpenMarkdown.disabled = false;
+		return;
+	}
+	
+	var str  = tostring(doc)
+	winform.editMd.text = str;
+	wb.body.innerHTML =  markdown.render( str); 
+	config.libPath = winform.editLibPath.text;
+	winform.btnOpenMarkdown.disabled = false;
+	
+	if( libPath != winform.editLibPath.text){
+		var rng = wb.body.createTextRange(); 
+		if (rng.findText(winform.editLibPath.text)==true) { 
+    		rng.select(); 
+    		rng.scrollIntoView(); 
+		} 
+	}
+} 
+
+winform.isDialogMessage = function(hwnd,msg){  
+     if (   (msg.message >= 0x100/*_WM_KEYFIRST*/) && (msg.message <= 0x108/*_WM_KEYLAST*/) ) { 
+         if(msg.wParam==0xD/*_VK_ENTER*/){
+         	var hFocus = win.getFocus();
+         	if(  (msg.message == 0x100/*_WM_KEYDOWN*/) && ( (hFocus == winform.editLibPath.hwnd)
+         		 || (hFocus == winform.btnOpenMarkdown.hwnd) ) ){
+         		winform.btnOpenMarkdown.oncommand();
+         		return true;
+         	}
+        }
+     }   
+     return win.isDialogMessage(hwnd,msg);   
+ }
+
+winform.btnSaveHtml.oncommand = function(id,event){
+	var path = fsys.dlg.save("HTML文件|*.html||","另存为HTML文件",,winform.hwnd)
+	if(!path)return;
+	string.save(path,wb.document.documentElement.outerHTML );
+	
+	wb.BeforeNavigate2 = function(){
+		wb.BeforeNavigate2=wb._BeforeNavigate2;
+	}
+	wb.go(path);
+	config.htmlPath = path;
+}
+
+winform.btnSaveMarkdown.oncommand = function(id,event){
+	var path = fsys.dlg.save("Markdown文件|*.md|文本文件|*.txt||","另存为Markdown文件|",,winform.hwnd)
+	if(!path)return;
+	string.save(path,winform.editMd.text )
+} 
+
+winform.btnCopyHtml.oncommand = function(id,event){
+	wb.execWb( 0x11/*_OLECMDID_SELECTALL*/,0 )
+	wb.execWb( 0xC/*_OLECMDID_COPY*/,0 )  
+}
+
+import win.ui.menu;
+import win.clip.html;
+var cbHtml = win.clip.html();
+ 
+winform.editMd.wndproc = function(hwnd,message,wParam,lParam){  
+    if( message == 0x204/*_WM_RBUTTONDOWN*/  ){ 
+    	var menu = ..win.ui.popmenu( winform )   
+		menu.addTable(  
+         {
+			{ "全选";  function(id){
+				winform.editMd.selectAll()
+			} };
+			{ /*分隔线*/ };
+			{ "复制";  function(id){
+				winform.editMd.copy()
+			}; !winform.editMd.canCopy() ? 0x1/*_MF_GRAYED*/ : 0}; 
+			{ "剪切"; function(id){  
+				winform.editMd.cut()
+			}; !winform.editMd.canCopy() ? 0x1/*_MF_GRAYED*/ : 0 };
+			{ "粘贴"; function(id){  
+				winform.editMd.paste()
+			}; !winform.editMd.canPaste() ? 0x1/*_MF_GRAYED*/ : 0 };
+			{ /*分隔线*/ };
+			{ "粘贴HTML代码";  function(id){
+				if(cbHtml.read()) {
+					var html = cbHtml.fragment;
+					html = string.replace(html,"\<\!\-\-.+?\-\-\>","")
+					winform.editMd.selText = html;
+				}
+			}; !(cbHtml.read()) ? 0x1/*_MF_GRAYED*/ : 0}; 
+			{ /*分隔线*/ };
+			{ "插入标记";  {  
+				{ "一级标题";  function(id){
+					winform.editMd.selText = '\r\n标题\r\n===========================================\r\n'
+				} };
+				{ "二级标题";  function(id){
+					winform.editMd.selText = '\r\n标题\r\n-------------------------------------------------------------------------------------------------\r\n'
+				} };
+				{ "六级标题";  function(id){
+					winform.editMd.selText = '\r\n###### 标题 ######\r\n'
+				} };
+				{ "超链接";  function(id){
+					winform.editMd.selText = '[显示文本](http://)'
+				} };
+				{ "图像";  function(id){
+					winform.editMd.selText = '![显示文本](http://)'
+				} };
+				{ "表格";  function(id){
+					winform.editMd.selText = "
+
+列标题    |  列标题
+--------- | -------------
+表格扩展  | 至少连续三个横线,竖线不必对齐
+表格扩展  | 每列列数要一致
+"
+				} };
+				
+
+				{ "无序列表";  function(id){
+					winform.editMd.selText = "
+
+* 项目1，注意前面第一个列表前应当有个空行。
+* 项目2，注意星号后面应当有一个空格。
+* 项目3，注意最后一个列表项后面也应当有一个空行。
+
+"
+				} };
+				{ "有序列表";  function(id){
+					winform.editMd.selText = "
+
+1. 项目1，注意前面第一个列表前应当有个空行。
+2. 项目2，注意数字后面紧跟一个圆点，以及一个空格。
+3. 项目3，注意最后一个列表项后面也应当有一个空行。
+
+"
+				} };
+				{ "引用块";  function(id){
+					winform.editMd.selText = '\r\n>'
+				} };
+				{ "代码块";  function(id){
+					winform.editMd.selText = '```\r\n\r\n```'
+				} };
+			} }; 
+			{ "语法说明";  function(id){
+				winform.editMd.text = /****
+>请使用鼠标右键在本编辑框中点击，在弹出菜单中点击展开 **【插入】** 菜单项，  可以快速插入Markdown标记
+
+标题、段落、换行
+-------------------------------------------------------------------------------------------------
+在行首用1到6个连续的#号表示1到6级标题，一级标题也可以在文本行下面放连续的等号表示，二级标题也可以在文本行下面放连续的横线来表示，如果空行下面放连续的三个横线（只能是三个）将输出一个水平的横线。
+
+如果一段文本首尾各有一个空行（空行可以包含空白字符），markdown会转换为一个HTML段落。注意在markdown中默认是忽略文本换行的，除非在文本行的尾部加上两个空格这可以表示一个真实的换行。  
+
+
+HTML、超链接、图像
+-------------------------------------------------------------------------------------------------
+在markdown中可以直接写HTML代码，例如超链接可以这样写 <a href="http://www.aardio.com">aardio</a>  
+但是直接写一个网址也会自动转换为超链接，例如: http://www.aardio.com 
+
+使用markdown定义超链接的语法如下：
+[显示文本](http://www.aardio.com/)
+
+括入图像的语法与超链接一样，前面多放一个感叹号就可以:
+![显示文本](/path/to/img.jpg)
+
+如果图像或超链接是一个相对路径，请先点击[这里另存为HTML文件](javascript:external.saveHtmlFile(\))
+HTML保存到文件以后，相对路径就是相对该HTML所在目录了。
+
+超链接或图像都可以使用引用ID来指定，例如
+[aardio][引用ID]
+
+[引用ID]: http://www.aardio.com "这是提示文本"
+
+表格
+-------------------------------------------------------------------------------------------------
+可以用最简单的横线、竖线画表格，所有行的列数应该一样，而横线只要至少有三个连续的横线就可以，对齐仅仅是为了美观（不对齐不影响输出表格）。但是在表格前面应当至少有一个空行。
+
+列标题    |  列标题
+--------- | -------------
+表格扩展  | 表格扩展演示
+表格扩展  | 表格扩展演示
+无序列表以*号开头就可以了，例如：
+
+
+无序列表
+-------------------------------------------------------------------------------------------------
+
+* 项目1，注意前面第一个列表前应当有个空行。
+* 项目2，注意星号后面应当有一个空格。
+* 项目3，注意最后一个列表项后面也应当有一个空行。
+
+
+有序列表
+-------------------------------------------------------------------------------------------------
+
+1. 项目1，注意前面第一个列表前应当有个空行。
+2. 项目2，注意数字后面紧跟一个圆点，以及一个空格。
+3. 项目3，注意最后一个列表项后面也应当有一个空行。
+
+
+强调
+-------------------------------------------------------------------------------------------------
+文本首尾各加一个星号表示强调，例如 *显示为斜体* 
+文本首尾各加两个星号表示强调加粗，例如 **显示为粗体** 
+强调的星号外侧应当各有一个空格，内侧不应当有空格
+
+
+引用块
+-------------------------------------------------------------------------------------------------
+>行首放一个尖括号表示一个引用块
+>并不是每一行都要放，可以放也可以不放
+>>行首放更多的尖括号表示嵌套的引用块
+
+
+代码块
+-------------------------------------------------------------------------------------------------
+用一个或多个反引号配对使用表示一个代码块，首尾使用的反引号数目应当一致，例如：
+```这是一段代码```
+
+也可以在代码的每行前面加一个缩进（四个空格或一个tab制表符）表示一个代码块，例如：
+
+    这是代码，代码块前面应当有一个空行。
+    这是第二行代码，代码块后面也应当有一个空行
+
+转义符
+-------------------------------------------------------------------------------------------------
+在markdown中反斜杠可以作为转义符，对于特殊符号可以在前面加反斜杠用来显示普通的符号（符号本身表示的字面值），例如：
+\< \( \-
+****/
+				wb.body.innerHTML =  markdown.render( winform.editMd.text ); 
+			} }; 
+			{ /*分隔线*/ };
+			{ "重做"; function(id){  
+				winform.editMd.redo()
+			}; !winform.editMd.canRedo() ? 0x1/*_MF_GRAYED*/ : 0 };
+			{ "撤消"; function(id){  
+				winform.editMd.undo()
+			}; !winform.editMd.canUndo() ? 0x1/*_MF_GRAYED*/ : 0 };
+		} );
+        menu.popup();
+		menu.close();
+		
+        return 0;
+    }
+}
+ 
+wb.wait();
+
+winform.editMd.text = /****
+自动生成库文档
+-------------------------------------------------------------------------------------------------
+本工具可自动生成内核库、标准库、已安装的扩展库的函数说明文档,  
+请在左下角文本框中输入支持库名字（或函数名）,然后点击【查询库函数文档】按钮或直接按回车键。
+也可以直接输入窗口控件类名，然后点击【查询库函数文档】按钮。
+
+使用编辑器
+-------------------------------------------------------------------------------------------------
+请先切换到Markdown编辑模式，
+可使用鼠标右键在本编辑框中点击，在弹出菜单中点击展开 **【插入标记】** 菜单项，  可以快速插入Markdown标记
+
+友情提醒
+-------------------------------------------------------------------------------------------------
+aardio库函数用法是能简单就尽量不搞复杂，函数说明皆以最精简的语言说明关键用法。
+如果要了解高级用法，标准库请查看源码以及范例，内核库请查看帮助文档与范例。
+
+凡是我提供的标准库函数，无一不会说明清楚或者附上范例（一些扩展库需要查看第三方文档），
+另外几乎所有库都是我一个人写的，aardio的库有良好的概念一致性，很多函数用法习惯相同，可以一通百通。
+
+如果你发现某个函数真的是不知道怎么用，请提供具体的函数名称并联系我改进该函数的文档，
+也就是整理并提供具体的、他人能理解的信息，例如具体的函数名称，哪个参数用法不明白等等。
+****/
+wb.body.innerHTML =  markdown.render( winform.editMd.text ); 
+
+
+winform.onClose = function(hwnd,message,wParam,lParam){ 
+	config.libPath = winform.editLibPath.text;
+    ..string.save( "/.md/tempDoc.md", winform.editMd.text )
+}
+
+import win.ui.explorer;
+var libExplorer = win.ui.explorer(winform.tvStd);
+libExplorer.loadFile("~/lib","*.aardio","^[^.#]");
+libExplorer.onSelChanged = function(libPath,hItem){ 
+	if(..fsys.isDir(libPath) ) return;
+	
+	var doc = ide.doc.markdown(libPath);
+	while(!doc){
+		libPath = ..string.match(libPath,"^(.+[^\.])\.[^\.]*$");
+		if(!libPath) break;
+		doc = ide.doc.markdown(libPath);
+	}
+	
+	if(!doc){ 
+		winform.msgboxErr("没有找到该支持库的有效文档");
+		winform.btnOpenMarkdown.disabled = false;
+		return;
+	}
+	
+	winform.editMd.text = "";
+	wb.body.innerHTML =  "";
+	
+	var str  = tostring(doc)
+	winform.editMd.text = str;
+	wb.body.innerHTML =  markdown.render( str); 
+	config.libPath = winform.editLibPath.text;
+	winform.btnOpenMarkdown.disabled = false;
+}
+
+import process;
+import win.ui.menu;
+import ide;
+libExplorer.onRightClick = function(filePath,hItem,x,y){
+    var hItem,tvht = winform.tvStd.hitTest(x,y,true);
+    var menu = win.ui.popmenu(winform)
+    
+    if( !fsys.isDir(filePath) ) {
+    	menu.add("在IDE中打开库源码",
+        	function(){
+            	ide.openDocument(filePath);
+            	win.setForeground( ide.getMainHwnd() ); 
+        	}
+    	)
+    	menu.add("生成文档并转到该文档",
+        	function(){
+            	libExplorer.onSelChanged(filePath,hItem); 
+        	}
+    	)
+    }
+    
+    menu.add("使用资源管理器浏览...",
+        function(){
+            process.explore_select(filePath)
+        }
+    )
+    menu.popup(x,y,true);   
+}
+
+winform.btnSwitchView.oncommand = function(id,event){
+	if( winform.lbBrowser.hide){
+		winform.lbBrowser.hide = false;
+		winform.editMd.hide = true;
+		winform.btnSaveHtml.hide = false;
+		winform.btnSaveMarkdown.hide = true;
+		winform.btnSwitchView.text = "切换到Markdown模式";
+	}
+	else {
+		winform.lbBrowser.hide = true;
+		winform.editMd.hide = false;
+		winform.btnSaveHtml.hide = true;
+		winform.btnSaveMarkdown.hide = false;
+		winform.btnSwitchView.text = "切换到HTML模式";
+	}
+}
+
+winform.radioStdLib.oncommand = function(id,event){
+	winform.tvStd.hide = false;
+	winform.tvKernel.hide = true;
+	winform.tvStd.clear();
+	libExplorer.loadFile("~/lib","*.aardio","^[^.#]");	
+}
+
+winform.radioUiCtrls.oncommand = function(id,event){
+	winform.tvStd.hide = false;
+	winform.tvKernel.hide = true;
+	winform.tvStd.clear();
+	libExplorer.loadFile("~/lib/win/ui/ctrl","*.aardio","^[^.#]");
+	
+}
+
+winform.radioKernelLib.oncommand = function(id,event){
+	winform.tvStd.hide = true;
+	winform.tvKernel.hide = false;
+	
+}
+
+winform.tvKernel.insertItem( {   
+		{  text = "global" };
+        {  text = "string"  };
+        {  text = "table" };
+        {  text = "math" };
+        {  text = "time" };
+        {  text = "com" };
+        {  text = "thread" };
+        {  text = "fiber" };
+        {  text = "raw" };
+        {  text = "io" };
+    }
+ ) 
+ 
+ winform.tvKernel.onnotify = function(id,code,ptr){
+ 
+    if( code ==  0xFFFFFE3D/*_TVN_SELCHANGEDW*/){ //改变选项
+        var hItem = winform.tvKernel.getSelection(); 
+        if( hItem ){
+            var libPath  = winform.tvKernel.getItemText(hItem);
+            var doc = ide.doc.markdown(libPath);
+            
+			winform.editMd.text ="";
+			wb.body.innerHTML = "";
+	
+			var str  = tostring(doc);
+			winform.editMd.text = str;
+			wb.body.innerHTML =  markdown.render(str); 
+			config.libPath = winform.editLibPath.text; 
+        }
+    }
+    elseif(code = 0xFFFFFFFB/*_NM_RCLICK*/){ //鼠标右键单击
+		var hItem = winform.tvKernel.hitTest();
+		
+        var menu = win.ui.popmenu(winform)
+        menu.add("生成文档并转到该文档",
+            function(){ 
+            	winform.tvKernel.setSelected(hItem);
+                var libPath  = winform.tvKernel.getItemText(hItem);
+                var doc = ide.doc.markdown(libPath);
+            
+				var str  = tostring(doc)
+				winform.editMd.text = str;
+				wb.body.innerHTML =  markdown.render( str); 
+				config.libPath = winform.editLibPath.text; 
+            }
+        )
+        menu.popup(x,y,true);
+    }
+}
+
+
+win.loopMessage();

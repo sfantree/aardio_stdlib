@@ -1,0 +1,106 @@
+﻿//acl 文件权限
+import process.popen;
+import process.token;
+import sys.acl;
+
+namespace fsys.acl;
+
+takeOwnBySid = function(filePath,sid){
+	if(!sid) sid = ..process.token.sid();
+	return ..sys.acl.takeOwnBySid(sid,filePath);	
+}
+
+takeOwn = function(filePath,...){
+	var prcs = ..process.popen(,"takeown","/f",..io.fullpath(filePath),...);
+	if(!prcs) return null,"运行takeown命令失败,注意takeown不支持XP系统";
+	
+	var ok,out,err = prcs.waitOne()
+	if(!ok) return false,err;
+	return out || "ok";
+}
+
+cacls = function(filePath,...){
+	var prcs;
+	if(!...) prcs = ..process.popen(,"cacls",..io.fullpath(filePath),"/e","/g",..sys.acl.getUserName() +":F");
+	else prcs = ..process.popen(,"cacls",..io.fullpath(filePath),...); 
+	prcs.writeClose("y")
+	
+	var ok,out,err = prcs.waitOne();
+	if(!ok) return false,err;
+	return out || "ok";
+}
+
+ownCacls = function(filePath,...){
+	if(takeOwn(filePath) || takeOwnBySid(filePath)) {
+		return cacls(filePath,...);
+	}
+}
+
+icacls = function(filePath,...){
+	var prcs;
+	if(!...) prcs = ..process.popen(,"icacls",..io.fullpath(filePath),"/grant",..sys.acl.getUserName() +":(F)");
+	else prcs = ..process.popen(,"icacls",..io.fullpath(filePath),...); 
+	
+	if(!prcs) return null,"运行icacls命令失败,注意icacls不支持XP系统";
+	prcs.writeClose("y")
+ 
+	var ok,out,err = prcs.waitOne();
+	if(!ok || #err) return false,err;
+	return out || "ok";
+}
+
+ownICacls = function(filePath,...){
+	if takeOwn(filePath) return icacls(filePath,...);
+}
+
+save = function(filePath,aclPath){
+	var ok,out,err = ..process.popen(,"icacls",..io.fullpath(filePath),"/save",..io.fullpath(aclPath)).waitOne()
+	if(!ok) return false,err;
+	return out || "ok";	
+}
+
+restore = function(filePath,aclPath){
+	var ok,out,err = ..process.popen(,"icacls",..io.fullpath(filePath),"/restore",..io.fullpath(aclPath)).waitOne()
+	if(!ok) return false,err;
+	return out || "ok";	
+}
+
+temp = function(filePath,proc){
+	filePath = ..io.exist(filePath);
+	if(!filePath) return proc();
+	
+	var tempAclDir = ..io.tmpname();
+	var tempAclPath = ..io.joinpath(tempAclDir,"acl.dat") 
+		
+	var ok,err = save(filePath,tempAclPath);
+	if(!ok) {
+		..io.remove(tempAclPath);
+		..io.remove(tempAclDir);
+		return false,err;
+	}
+	
+	var procRet,procErr = proc(filePath);
+	
+	var ok,err = restore(filePath,tempAclPath);
+	..io.remove(tempAclPath);
+	..io.remove(tempAclDir);
+	if(!ok) return false,err; 
+	
+	return procRet,procErr;	
+}
+
+/**intellisense()
+fsys.acl = 管理文件权限\n当前进程需要通过管理权限启动 
+end intellisense**/
+
+/**intellisense(fsys.acl)
+takeOwnBySid(.(filePath,sid) = 使用安全标识符获取文件或目录的所有者权限,\n@sid 参数省略时默认取运行当前进程的用户SID,\n这个函数由纯aardio代码实现，不需要调用takeown.exe，\n可以解决XP等系统上没有takeown.exe的问题
+takeOwn(.(filePath,->->->) = 执行takeown命令获取文件所有权限,\n参数@filePath指定文件路径，\n可附加不定个数的字符串参数指定命令行参数,\n省略命令行参数时默认为当前登录用户获取权限,\n失败返回false,错误信息,成功返回进程标准输出文本
+cacls(.(filePath,->->->) = 执行cacls命令修改文件权限,\n参数@filePath指定文件路径，\n可附加不定个数的字符串参数指定命令行参数,\n省略命令行参数时默认为当前登录用户添加全部权限,\n失败返回false,错误信息,成功返回进程标准输出文本
+ownCacls(.(filePath,->->->) = 执行takeown命令获取文件所有权限,\n如果成功再执行cacls命令修改文件权限,\n参数@filePath指定文件路径，\n可附加不定个数的字符串参数指定命令行参数,\n省略命令行参数时默认为当前登录用户添加全部权限,\n失败返回false,错误信息,成功返回进程标准输出文本
+icacls(.(filePath,->->->) = 执行icacls命令修改文件权限,\n参数@filePath指定文件路径，\n可附加不定个数的字符串参数指定命令行参数,\n省略命令行参数时默认为当前登录用户添加全部权限,\n失败返回false,错误信息,成功返回进程标准输出文本
+ownICacls(.(filePath,->->->) = 执行takeown命令获取文件所有权限,\n如果成功再执行icacls命令修改文件权限,\n参数@filePath指定文件路径，\n可附加不定个数的字符串参数指定命令行参数,\n省略命令行参数时默认为当前登录用户添加全部权限,\n失败返回false,错误信息,成功返回进程标准输出文本
+save(.(filePath,aclPath) = 执行icacls命令导出文件权限,\n参数@filePath指定文件路径,\n失败返回false,错误信息,成功返回进程标准输出文本
+restore(.(filePath,aclPath) = 执行icacls命令导入文件权限,\n参数@filePath指定文件路径,\n失败返回false,错误信息,成功返回进程标准输出文本
+temp(filePath,proc) = @.temp(__/*指定目标文件路径，\n执行icacls命令备份权限后调用参数@2指定的回调函数,\n回调函数执行完自动恢复权限,\n如果文件不存在，仍然会回调此函数,但回调参数为null\n成功返回回调函数的返回值,失败返回false,错误信息*/,function(filePath){\n	\n})
+end intellisense**/

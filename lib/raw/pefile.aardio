@@ -1,0 +1,426 @@
+﻿//pefile 解析PE文件
+import fsys.file;
+
+namespace raw;
+
+class pefile{
+	ctor( path ){ {
+		if( !..io.exist(path) ){
+			return null,"请输入有效的文件路径"
+		}
+		
+		var file = ..fsys.file(path,"rb");
+		if(!file){ return null,"文件路径错误"}
+		this.path = path;
+		
+		if( (file.read(2) != '\x4d\x5a' ) || (file.seek("set",60)!=60 ) ){
+			return null,"文件不是PE格式"
+		} 
+		
+		file.seek("set",60);
+		this.headerAddress = file.read({INT lfanew})[["lfanew"]];
+		if(!this.headerAddress){ return null,"PE格式错误" }
+		
+		file.seek("set",this.headerAddress)
+		this.imageHeader = file.read({
+			BYTE signature[4];
+			WORD machine;
+			WORD numberOfSections;  
+			INT timeDateStamp;
+			INT f4;
+			INT f5;
+			WORD sizeOfOptionalHeader;
+			WORD characteristics;
+		}) 
+		
+		if(this.imageHeader.signature!='PE\0\0'){
+			return null,"PE格式错误" 
+		}
+		
+		var optionalHeader = file.read({WORD magic})
+		this.optionalMagic = ({ [0x10B] = "PE32";[0x20B]="PE64";[0x107]="ROM"})[optionalHeader.magic] 
+		this.isPe32 = optionalHeader.magic == 0x10B;
+		this.sizeNtHeader = this.isPe32 ? 0xF8 : 0x108;
+		
+		file.seek("set",this.headerAddress + 0x5C);
+		this.subsystem = file.read({WORD subsystem})[["subsystem"]]
+		
+		this.sections = {};
+		for(i=1;this.imageHeader.numberOfSections){
+			file.seek("set",this.headerAddress + this.sizeNtHeader + (i-1)*40 );
+			
+			var sec = file.read({
+				BYTE name[8];
+				INT virtualSize;
+				INT virtualAddress;
+				INT sizeOfRawData;
+				INT pointerToRawData;
+				INT pointerToRelocations;
+				INT pointerToLinenumbers;
+				WORD numberOfRelocations;
+				WORD numberOfLinenumbers;
+				INT characteristics;
+			});
+			
+			if(!sec) return null,"PE格式错误";
+			..table.push(this.sections,sec); 
+		}
+		
+		this.file = file; 
+		..table.gc(this,"close");
+	} }; 
+	close = function(){
+		if(this.file){
+			this.file.close();
+			this.file = null;
+		}
+	};
+	read = function(...){
+		return this.file.read(...)
+	};
+	rvaToOffset = function(rva) { 
+		for i,section in ..table.eachIndex(this.sections){ 
+			if( rva < section.virtualAddress + section.virtualSize ){
+				return rva - section.virtualAddress + section.pointerToRawData;
+			}      
+		} 
+	}; 
+	getImportDirectory = function(){
+		var file = this.file;
+		
+		file.seek( "set",this.headerAddress + (this.isPe32?0x78:0x88) + 8 )
+		var header = file.read({ INT address; INT size; });
+		if(!header) return null,"PE格式错误";
+		
+		var index = 1;
+		var offsetFirst = this.rvaToOffset(header.address);
+		file.seek( "set",offsetFirst );
+		
+		var result = {}
+		while( var importDescriptor = file.read({
+			INT originalFirstThunk;
+			INT timeDateStamp;
+			INT forwarderChain;
+			INT name;
+			INT firstThunk;
+		}) ){
+			if(!importDescriptor.firstThunk ){ break } 
+				
+			var dllInfo = {}
+			file.seek("set",this.rvaToOffset(importDescriptor.name)) 
+			dllInfo.name = file.readTo('\0')  
+		
+			var i = 1;
+			var firstOffset = this.rvaToOffset(importDescriptor.firstThunk) 
+			file.seek( "set",firstOffset) 
+			
+			dllInfo.functions = {}
+			var thunkData = this.isPe32?{int ordinal}:{long ordinal}
+			while(var ordinal = file.read(thunkData)[["ordinal"]]) {
+				if( ordinal > 0){ 
+					file.seek( "set",this.rvaToOffset(ordinal)  )
+					file.read({WORD value;})
+			
+					var funcName = file.readTo('\0'); 
+					if(#funcName)..table.push(dllInfo.functions,funcName)
+				}
+	
+				file.seek( "set",firstOffset + i*..raw.sizeof(thunkData) )
+				i++;
+			}               
+			
+			..table.push(result,dllInfo);
+			file.seek( "set",offsetFirst + 20*index)
+			index++   
+		}
+		
+		return result;
+	};
+	getExportDirectory = function(){
+		var file = this.file;
+		file.seek( "set",this.headerAddress +  (this.isPe32?0x78:0x88) )
+		var header = file.read( {INT address; INT size} );
+		if(!header) return null,"PE格式错误";
+		
+		file.seek("set",this.rvaToOffset(header.address))
+		var exportDirectory = file.read({
+			INT characteristics;
+			INT timeDateStamp;
+			WORD majorVersion;
+			WORD minorVersion;
+			INT name;
+			INT base;
+			INT numberOfFunctions;
+			INT numberOfNames;
+			INT addressOfFunctions;
+			INT addressOfNames;
+			INT addressOfNameOrdinals;
+		} ) 
+		
+		file.seek("set",this.rvaToOffset(exportDirectory.name));
+		
+		var result = { 
+			module = file.readTo('\0') ; 
+			names = {}; 
+			numberOfFunctions = exportDirectory.numberOfFunctions; 
+			timeDate = ..time(exportDirectory.timeDateStamp) 
+		}  
+		if(!exportDirectory.numberOfFunctions){return result;}
+		
+		file.seek("set", this.rvaToOffset(exportDirectory.addressOfFunctions) ) 
+		result.addressOfFunctions = file.read({INT rvas[] = {length = exportDirectory.numberOfFunctions} })[["rvas"]]
+		
+		file.seek("set", this.rvaToOffset(exportDirectory.addressOfNameOrdinals) )
+		result.nameOrdinals = file.read({word ordinals[] = {length = exportDirectory.numberOfNames} })[["ordinals"]]
+		
+		file.seek("set", this.rvaToOffset(exportDirectory.addressOfNames) ) 
+		result.addressOfNames = file.read({INT rvas[] = {length = exportDirectory.numberOfNames} })[["rvas"]]
+		for i,rva in ..table.eachIndex(result.addressOfNames){ 
+			var offset = this.rvaToOffset(rva); 
+			file.seek("set",offset)
+			
+			var name = file.readTo('\0'); 
+			..table.push(result.names,name)
+		}
+		
+		result.base = exportDirectory.base
+		return result;
+	};
+	getExportNames = function(){
+		var items = { fields = {"ordinal";"address";"name"} }
+		var data = this.getExportDirectory();
+		for i,name in ..table.eachIndex(data.names){
+			var ord = data.nameOrdinals[i];
+			..table.push(items,{
+				ordinal = ord+data.base;
+				address = data.addressOfFunctions[ord+1];
+				name = name
+			})
+		}
+		
+		return items;
+	};
+	exportDeclaration = function(){
+		var names = this.getExportNames();
+		
+		var defaultCalling;
+		var cdecl,fastcall,stdcall = 0,0,0;
+		for i,v in ..table.eachIndex(names){ 
+			var func,calling,proto = ..string.match(v.name,"^\?(\w+)[\@\w]+?\@\@(<YA>|<YG>|<YI>)(.+?)[\@X]Z$") 
+			if(calling=="YA"){cdecl++;}
+			elseif(calling=="YI"){fastcall++;}
+			elseif(calling=="YG"){stdcall++}
+		}
+		
+		if(stdcall>cdecl && stdcall>fastcall){
+			defaultCalling = "stdcall"
+		}
+		elseif(cdecl>fastcall){
+			defaultCalling = "cdecl"
+		}
+		elseif(stdcall) {
+			defaultCalling = "stdcall"
+		}
+		else {
+			return;
+		}
+		
+		var declaration = { 
+		'/*
+\r\n以下自动生成的 aardio 代码用于声明使用 C++ 修饰名的 API 函数，
+\r\n注意 C++ 同一类型可能实际上指向的内存数据结构或用途并不相同，例如 C++ 里的 double *  
+\r\n在 aardio 中根据参数用途可声明为 double&（引用）、struct(数组)、pointer(指针)等。
+\r\n*/';
+		`var dll = ..raw.loadDll("`+this.path+`",,"`+defaultCalling+`")`
+		}
+		for i,v in ..table.eachIndex(names){ 
+			var func,calling,proto = ..string.match(v.name,"^\?(\w+)[\@\w]*?\@\@(<YA>|<YG>|<YI>)(.+?)[\@X]Z$");
+			if(!func) continue; 
+			
+			var types = getDecoratedTypes(proto); 
+			if(!#types){ 
+				continue;
+			}
+			
+			if(calling=="YA"){
+				calling = "cdecl"
+			}
+			elseif(calling=="YI"){
+				calling = "fastcall"
+			}
+			elseif(calling=="YG"){
+				calling = "stdcall"
+			}
+			
+			if(declaration[func]===null){
+				declaration[func] = 0;
+			}
+			else {
+				declaration[func] = declaration[func] + 1;
+				func = func ++ 	declaration[func]
+			}
+				
+			var retType = ..table.shift(types);
+			if(defaultCalling==calling){
+				..table.push(declaration,..string.format(`%s = dll.api("%s","%s(%s)")`,func,v.name,retType,..string.join(types,",") ) )
+			}
+			else {
+				..table.push(declaration,..string.format(`%s = dll.api("%s","%s(%s)","%s")`,func,v.name,retType,..string.join(types,","),calling ) )
+			}
+		}
+		
+		return ..string.join(declaration,'\r\n');	
+	};
+}
+
+namespace pefile{
+	
+	decoratedCharToTypes={ 
+		['C'#]="byte"; 
+		['D'#]="byte"; 
+		['E'#]="BYTE";
+		['F'#]="word";
+		['G'#]="WORD";
+		['H'#]="int";
+		['I'#]="INT";
+		['J'#]="long";
+		['K'#]="LONG";
+		['N'#]="double";
+		['M'#]="float"; 
+		['W'#]="INT";
+		['X'#]="void";
+	}
+	
+	getDecoratedTypes = function(types){
+		var i=1;
+		
+		var nextType;
+		nextType = function(){
+			var c = types[i]; 
+			i++;
+		 	
+			if(c>='0'# && c<='9'# ){ 
+				return types[[i-1]] ; 
+			}
+			
+			if(c=='_'#){
+				c = types[i];
+				i++;
+				
+				if(c=='W'#){return "WORD","wchar_t"} 
+				if(c=='N'#){return "byte"}
+					
+				return decoratedCharToTypes[c];
+			}
+			
+			if(decoratedCharToTypes[c]){
+				return decoratedCharToTypes[c]
+			}
+			
+			if(c=='U'#){
+				var e = ..string.indexOf(types,"@@",i); 
+				if(e){i = e+2;}
+				elseif(types[i+1]=='@'#) {i = i+ 2;}
+				else {return;}
+				
+				return "struct"
+			}
+			
+			if(c=='P'#){
+				c = types[i];
+				i++;
+				if(c=='A'#){
+					
+					if(..string.slice(types,i,i+8)=="UHWND__@@"){
+						i=i+9;
+						return "addr"; 
+					}
+					
+					var t,raw = nextType();
+					if(!t){ return }
+					
+					if(raw=="wchar_t"){
+						return "ustring&";
+					}
+					
+					if(t=="byte"){
+						return "string&";
+					}
+					
+					if(t=="void"){
+						return "pointer";
+					} 
+					
+					if(t=="struct"||t=="BYTE"||t=="word"||t=="WORD"||t=="int"||t=="INT"||t=="long"||t=="LONG"||t=="double"||t=="float"||t=="bool"){
+						return t+"&";
+					}
+					
+					if(t=="string"||t=="ustring"){
+						return "pointer&";
+					}
+					
+					return "pointer";
+				} 
+				if(c=='B'#){                                     
+					var t,c = nextType();
+					if(!t){ return }
+					
+					if(t=="byte"){
+						return "string";
+					}
+					
+					if(t=="WORD"){
+						return "ustring";
+					}
+					
+					if(t=="struct"){
+						return "struct";
+					}
+					
+					return "pointer";
+				}
+			}
+		}
+		
+		var ntype = {}
+		var result = {};
+		while(i<=#types){
+			var j = i;
+			var t =  nextType();
+				
+			if(!t){
+				return;
+			}
+ 	
+			if(#result>=1 && i>j+1){ 
+				if(ntype[#ntype]!=t){
+					..table.push(ntype,t)
+				}
+			}
+			
+			if(tonumber(t)!==null){ 
+				t = ntype[t+1]
+				if(!t){ return; } 
+			}
+			
+			..table.push(result,t);
+		}
+		
+		return result;
+	}
+
+}
+
+
+/**intellisense()
+raw.pefile = 用于分析PE文件
+raw.pefile(.(path) = 参数指定PE文件路径
+raw.pefile() = !rawPeFile.
+!rawPeFile.getExportDirectory() = 返回导出表信息,\n用法请查看函数源码
+!rawPeFile.getImportDirectory() = 返回导入表信息,\n用法请查看函数源码
+!rawPeFile.getExportNameItems() = 返回一个包含所有导出函数名信息的数组,\n每个数组成员包含"ordinal";"address";"name"三个字段\n返回对象的fields属性是一个列名数组,\n返回对象可以作为listview控件的setTable函数参数使用
+!rawPeFile.isPe32 = 是否PE32文件
+!rawPeFile.read(__/*字节数*/) = 读取指定长度的字节\n不支持多参数
+!rawPeFile.read({int number}) = 读取结构体\n不支持多参数
+!rawPeFile.exportDeclaration() = 导出aardio格式的导出函数声明，\n仅支持使用C++修饰名导出的API函数,\n导出的aardio代码仅供参考。
+end intellisense**/

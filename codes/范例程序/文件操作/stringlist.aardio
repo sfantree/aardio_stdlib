@@ -1,0 +1,21 @@
+//字符串列表
+import console;
+
+import string.list;
+tlist = string.list();
+
+tlist.load("/可从指定文件加载.lst")
+
+tlist.a = 123;
+tlist.b = 456;
+tlist.c = 789; 
+
+console.log( tlist.find("b") )
+
+for i,k,v in tlist.each() { 
+	console.log("顺序:"+i,"名字:"+k,"值:"+v ) 
+}
+
+tlist.save("/可保存到文件.lst")
+
+console.pause();

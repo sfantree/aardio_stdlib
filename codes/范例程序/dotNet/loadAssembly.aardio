@@ -1,0 +1,73 @@
+//调用C#程序集 
+import dotNet; 
+import console;
+
+import dotNet; 
+var clr = dotNet.clr(); 
+if( !clr ){
+    console.log("当前系统未安装.Net Framework", err )
+    console.pause();
+    return;
+}
+
+//创建应用程序域
+var appDomain = clr.createAppDomain();
+
+//引用程序集,注意凡aardio扩展的接口函数首字母小写,凡C#对象提供的接口函数首字母大写
+var system = appDomain.load("System");
+var CSharpCodeProvider = system.new( "Microsoft.CSharp.CSharpCodeProvider" )
+
+//直接指定文件路径,资源文件路径,或内存数据加载程序集
+var Interop = appDomain.loadFile($"~/lib/dotNet/.res/Aardio.InteropServices.dll");
+var csUtility = Interop.new("Utility");//Aardio.InteropServices.csUtility可以省略程序集的名字空间
+
+console.log(CSharpCodeProvider,csUtility)
+
+//加载应用程序目录下的程序集( 或 "/bin/" 目录下的程序集 )
+var CSNET2ClassLibrary = appDomain.load("CSNET2ClassLibrary");
+var simpleObject = CSNET2ClassLibrary.new("CSSimpleObject") //CSNET2ClassLibrary.CSSimpleObject可以省略程序集的名字空间
+
+//修改.Net对象的值
+simpleObject.FloatProperty = 936;
+console.log("获取.Net对象的值",simpleObject.FloatProperty);
+
+console.log( "调用类的静态方法",simpleObject.GetStringLength("HelloWorld")  )
+
+//卸载应用程序域
+appDomain.unload();
+console.pause();
+
+/****
+
+\CSNET2ClassLibrary.dll 的 C#源码如下：
+
+namespace CSNET2ClassLibrary
+{
+    using System;
+    using System.Runtime.InteropServices;
+
+    [ComVisible(true), ClassInterface(ClassInterfaceType.AutoDual), IDispatchImpl(IDispatchImplType.InternalImpl)]
+    public class CSSimpleObject
+    {
+        private float fField = 13456.78f;
+
+        public static int GetStringLength(string str)
+        {
+            return str.Length;
+        }
+
+        public float FloatProperty
+        {
+            get
+            {
+                return this.fField;
+            }
+            set
+            {
+                this.fField = value;
+            }
+        }
+    }
+}
+****/
+

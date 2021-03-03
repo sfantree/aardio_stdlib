@@ -1,0 +1,93 @@
+//进制转换
+import win.ui;
+import win.ui.atom;
+/*DSG{{*/
+var winform = win.form(text="aardio 进制转换工具";left=-2;top=-2;right=444;bottom=246;border="dialog frame";max=false)
+winform.add(
+btnBin={cls="button";text="二进制";left=132;top=78;right=192;bottom=108;dr=1;z=10};
+btnDec={cls="button";text="十进制";left=334;top=78;right=394;bottom=108;dr=1;z=4};
+btnHex={cls="button";text="十六进制";left=265;top=78;right=325;bottom=108;dr=1;z=2};
+btnOct={cls="button";text="八进制";left=196;top=78;right=256;bottom=108;dr=1;z=3};
+editCustom={cls="edit";text="10";left=63;top=82;right=96;bottom=105;dr=1;edge=1;num=1;z=5};
+editExpression={cls="edit";text="0x1000 + 017 + 11#3100";left=33;top=39;right=416;bottom=68;dr=1;edge=1;z=1};
+lbInfo={cls="static";text='\n16进制以0x为前缀( 例如 0xEF ),八进制以0为前缀( 例如 077 )\n其他自定义进制,以进制加#号为前缀（ 例如 2#1010 ）\n\n字符串转为数值 tonumber( "字符串",可选指定进制 ) \n数值转为字符串 tostring( 数值,可选指定进制 )\n';left=32;top=111;right=416;bottom=228;dr=1;transparent=1;z=8};
+spin={cls="spin";left=96;top=82;right=122;bottom=105;dr=1;edge=1;transparent=1;z=6};
+static={cls="static";text="表达式:";left=22;top=16;right=73;bottom=36;align="right";dr=1;transparent=1;z=7};
+static2={cls="static";text="进制:";left=21;top=86;right=61;bottom=106;align="right";dr=1;transparent=1;z=9}
+)
+/*}}*/
+
+var atom,hwnd = winform.atom("aardio.radix.F4700CFB-B4ED-4637-8F19-C76B3B8DC7F9");
+if(!atom){ 
+	win.quitMessage();	return;
+}
+convert  = function(ratio){
+	var exp = winform.editExpression.text
+	if(!#exp){
+		return;
+	}
+	
+	var num;
+	try{
+		num = eval(exp)
+		if( num === null ) { 
+			winform.editExpression.showWarningTip(,"空值"); 
+			winform.editExpression.setFocus();
+			return; 
+		}
+		
+		var str = tostring(num,ratio);
+		select(ratio) {
+			case 10{
+			} 
+			case 16{ 
+				str = string.replace(str,"(\x+)",function(a){
+					return  string.upper(a); 
+				} )  
+			}
+			else {
+				str = string.replace(str,"(-?)(\w+)",function(a,b){
+					return a ++ ratio + "#" +  string.upper(b) 
+				} ) 
+			}
+		}
+		winform.editExpression.text = str;
+	}
+	catch(e){
+		winform.msgboxErr("表达式语法错误:" + e,"aardio进制转换工具");
+		winform.editExpression.setFocus();
+	}
+} 
+
+winform.spin.setRange(2,36);
+winform.spin.buddy = winform.editCustom; 
+winform.spin.oncommand = function(id,event,pos){
+	if(pos){
+		convert( pos )
+	}
+}
+
+winform.btnBin.oncommand = function(id,event){
+	convert( 2 )
+	winform.editCustom.text = "2"
+	
+}
+
+winform.btnHex.oncommand = function(id,event){
+	convert( 16 )
+	winform.editCustom.text = "16"
+}
+
+winform.btnDec.oncommand = function(id,event){
+	convert( 10 )
+	winform.editCustom.text = "10"
+}
+
+winform.btnOct.oncommand = function(id,event){
+	convert( 8 )
+	winform.editCustom.text = "8"	
+}
+
+winform.enableDpiScaling();
+winform.show() 
+win.loopMessage();

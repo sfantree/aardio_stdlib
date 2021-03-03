@@ -1,0 +1,7 @@
+//登录、创建进程
+import process;
+ 
+process( "notepad.exe", ,{
+	username = "administrator";
+	password = "请输入密码"
+} ) 

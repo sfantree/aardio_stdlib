@@ -1,0 +1,41 @@
+//urlpart 网址拆分
+namespace inet.urlpart;
+ 
+::Shlwapi := ..raw.loadDll("Shlwapi.dll");
+UrlGetPart  = Shlwapi.api("UrlGetPart", "int(str in,str &out,INT& out,INT part,INT flags)" );
+getLocation  = Shlwapi.api("UrlGetLocationW", "ustring(str url)" );
+
+getScheme = function(url){
+	hr,str = UrlGetPart(url,0x40,0x20,1,0);
+	if(!hr)return str;
+}
+getHost = function(url){
+	hr,str = UrlGetPart(url,0x200,0x100,2,0);
+	if(!hr)return str;
+}
+getUser = function(url){
+	hr,str = UrlGetPart(url,0x100,0x80,3,0);
+	if(!hr)return str;
+}
+getPassword = function(url){
+	hr,str = UrlGetPart(url,0x100,0x80,4,0);
+	if(!hr)return str;
+}
+getPort = function(url){
+	hr,str = UrlGetPart(url,10,5,5,0);
+	if(!hr)return str;
+}
+getQuery = function(url){
+	hr,str = UrlGetPart(url,0x1000,0x800,6,0);
+	if(!hr)return str;
+}
+
+/**intellisense(inet.urlpart)
+getLocation(__/*url*/) = 返回url尾部#号后面指定的锚点名称\n包含#号
+getQuery(__/*url*/) = 返回url尾部?号后面的QueryString参数\n不包含?号
+getPort(__/*url*/) = 如果url中包含端口号则返回端口号\n未明确指定则返回null
+getUser(__/*url*/) = 返回url中的登录用户名
+getPassword(__/*url*/) = 返回url中的登录密码
+getHost(__/*url*/) = 返回url主机域名部份
+getScheme(__/*url*/) = 返回url协议头,例如"http"
+end intellisense**/

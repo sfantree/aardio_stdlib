@@ -1,0 +1,131 @@
+//decoder 解码器
+namespace bencoding
+
+class decoder {
+
+	ctor( strData ){ 
+		 
+		if(!strData) return null,"请指定正确的种子文件数据或路径";
+	 
+		var pos = 1; 
+		var length = #strData;
+		var slice = ..string.slice;
+		var find = ..string.find;
+		this.__raw_offset__ = {};
+		
+		var parseNext,parseNumber,parseString,parseList,parseDict;
+		parseNumber = function(endChar){ 
+			var b,e = find(strData,"\d+",pos) 
+			if( b ){ 
+				pos = e + 1; 
+				if( strData[pos] != endChar){  
+					return null,"整数没有正确的标识结束,位置[" + pos + "]" ;
+				}
+				pos++; 
+				return ( tonumber( slice(strData,b,e),10 ) ),null;
+			}
+			return  null,"错误的数值格式,位置[" + pos + "]" ;
+		} 
+		parseString = function(){
+			var n,err = parseNumber(':'#);  
+			if(err)return null,"字符串长度语法错误,位置[" + pos + "]" 
+				
+			var ret  = slice(strData,pos,pos+n-1); 
+			pos += n ;  
+			return ret;
+		} 
+		parseList = function(){  
+ 			var list = {@{_type="array" }} 
+ 			this.__raw_offset__[list] = { ["begin"] = pos-1;}; 
+ 			
+ 			while( 
+ 				var val,err;
+ 				val,err = parseNext(); 
+ 				(val!==null) || err
+ 			) {
+ 				if( err ) return null,err;
+ 				..table.push(list,val );
+ 			} 
+ 			
+ 			this.__raw_offset__[list].end = pos - 1;
+ 			return list; 
+		};
+		parseDict = function(){  
+ 			var dict = {@{_type="object" }} 
+ 			this.__raw_offset__[dict] = { ["begin"] = pos-1;};  
+ 			
+ 			while( 
+ 				var key,err;
+ 				key,err = parseNext(); 
+ 				(key!==null) || err
+ 			) { 
+ 				if( err ) return null,err;
+ 				
+ 				var dataBegin = pos;
+ 				var val,err = parseNext();  
+ 				if( err ) return null,err;
+ 				
+ 				dict[key] = val; 
+ 			} 
+ 			
+ 			this.__raw_offset__[dict].end = pos - 1;
+ 			return dict; 
+		};
+		parseNext = function(){ 
+			var c = strData[pos];
+			select(c) {
+				case 'i'# { 
+					pos++;
+					return parseNumber( 'e'# );
+				}
+				case 'l'# {
+					pos++;
+					return parseList(); 
+				}
+				case 'd'# {
+					pos++;
+					return parseDict()
+				}
+				case 'e'# {
+					pos++;
+					return;
+				}
+				else {
+					return parseString();
+				}
+			}
+		}; 
+		this.parse = function(){
+			var result,err = parseNext();
+			pos = 1;;
+			return result,err;
+		};
+		this.getRange = function(obj){
+			var range = obj ? this.__raw_offset__[obj];
+			if( range ) return range.begin,range.end;
+		};
+		this.getString = function(obj){
+			var range = obj ? this.__raw_offset__[obj];
+			if( range ) return ..string.slice(strData, range.begin,range.end);
+		};
+	};
+} 
+
+namespace decoder{
+
+	load = function(path){
+		var s,e = ..string.load(path);
+		if(!s) return null,e;
+		return ..bencoding.decoder(s); 
+	} 
+}
+
+
+/**intellisense() 
+bencoding.decoder = bencoding解码器
+bencoding.decoder.load(.("文件路径") = 自文本文件中加载并解码返回数据
+bencoding.decoder() = 创建bencoding解码器\n!stdbencodingdecoder.
+!stdbencodingdecoder.parse() = 解码并返回数据
+!stdbencodingdecoder.getRange(.(对象) = 参数传入解码后返回的字典或列表对象,\n返回该对象在解码前原始数据中的起始位置,结束位置
+!stdbencodingdecoder.getString(.(对象) = 参数传入解码后返回的字典或列表对象,\n返回该对象在解码前的原始数据
+end intellisense**/ 

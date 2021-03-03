@@ -1,0 +1,36 @@
+//7、使用事件对象同步
+/*
+请参考《多线程中的交通信号灯：thread.event》
+http://bbs.aardio.com/forum.php?mod=viewthread&tid=11531
+*/
+
+import console;
+import thread.event;
+var evt = thread.event()
+
+thread.create( 
+	function(evt){ 
+		import console;
+		
+		evt.wait();
+		console.log("工作线程: 不在,有事请留言",'\n')  
+		evt.set() sleep(100) evt.wait();
+		
+		console.log("工作线程: 说了不在,有事请留言",'\n') 
+		evt.set() sleep(100) evt.wait();
+		
+		console.log("工作线程: 都说了不在！谁让你等一天了,不在就是不在！")  
+		evt.set() sleep(100)
+	},evt
+)
+
+console.log("主线程: 在吗?") 
+evt.set()/*开绿灯*/ sleep(100)/*等别的线程抢绿灯*/ evt.wait()/*等待别的线程过去以后再次打开绿灯*/;
+
+console.log("主线程: 现在在了吗?")
+evt.set() sleep(100) evt.wait()
+
+console.log("主线程: 都等了一天了,你还是不在吗?")
+evt.set() sleep(100) evt.wait()
+
+console.pause(true,"那好吧,请按任意键挂机！")

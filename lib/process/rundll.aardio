@@ -1,0 +1,22 @@
+//rundll 运行DLL
+import fsys
+import process;
+
+namespace process; 
+
+class rundll{
+	ctor(dll,arg,...){
+		if( dll === null ) dll = "shell32.dll";
+		..process.execute("rundll32.exe",..fsys.shortpath(dll) +"," +arg,...); 
+	} 
+}
+ 
+/**intellisense(process)
+rundll = 运行DLL接口支持库
+rundll(.("DLL文件","回调函数名 参数列表") = 运行DLL回调函数,回调函数原型:\n void(addr hwnd,pointer hinst,str lpCmdLine,int nCmdShow)\n参数@1指定dll文件,省略则默认为shell32.dll
+rundll(,"OpenAs_RunDLL 文件路径")=指定文件打开方式
+rundll(,"SHHelpShortcuts_RunDLL AddPrinter")=添加新打印机
+rundll(,"SHHelpShortcuts_RunDLL PrintersFolder")=打印机文件夹
+rundll(,"SHHelpShortcuts_RunDLL FontsFolder")=字体
+rundll("mshtml->dll","PrintHTML (HTML文档)")=打印HTML文档
+end intellisense**/

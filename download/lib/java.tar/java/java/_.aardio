@@ -1,0 +1,1020 @@
+import fsys;
+import raw.interface;
+import process.popen;
+import win.reg; 
+import win;
+
+class java{
+
+	ctor (...){  
+		if( self._jvm ){
+			return self._jvm;
+		}
+		
+		var vm = ..thread.get("_std.java.vm" )
+	 	var result,jniEnv;
+		if(!vm){
+			if( !getJvmPath() ) return null,"应用程序未包含JAVA运行库";
+			
+			var vm_args = getInitArgs(...); 
+			vm_args.nOptions = #vm_args.options.array;
+			vm_args.options = ..raw.malloc( vm_args.options ); 
+			
+			if( vm_args.version === null )
+				vm_args.version = 0x00010006/*_JNI_VERSION_1_6*/;
+			
+			if( vm_args.ignoreUnrecognized === null )
+				vm_args.ignoreUnrecognized = 1/*_JNI_TRUE*/;
+			
+			result,vm,jniEnv = JNI_CreateJavaVM(null, null,vm_args);
+			if (result < 0) {
+				error( "Can't create Java VM,Result:" + result,2);
+				return;
+			} 
+			 
+			this.__createdJavaVm = true;
+			..thread.set("_std.java.vm",vm )  
+		}
+		else {
+			this.__createdJavaVm = false; 
+		}
+		 
+		
+		if( !vm ) {
+			error( "Can't create Java VM(2) " ,2);
+		}   
+		this.vm = ..raw.interface( vm,JavaVM ) 
+		
+		result,jniEnv = this.vm.AttachCurrentThread(); 
+		if( !jniEnv ) {
+			error( "Can't attach current thread to Java VM,Result:" + result,2);
+		}   
+		this.env = ..raw.interface(jniEnv,JNIEnv )
+		jniEnv = this.env ;
+		
+		..table.add_gc(this,
+			function(){  
+				if(jniEnv){
+					this.vm.DetachCurrentThread();
+					//this.vm.DestroyJavaVM(); 
+					this.env = null;
+					this.vm = null;
+					jniEnv = null;
+				}
+			} 
+		); 
+  
+		this._javaClasses  = { @{_weak="kv"}};
+		self._jvm = this;
+		this.exceptionClear = function(){
+			if ( jniEnv.ExceptionCheck() == 1/*_JNI_TRUE*/ ) {
+            	jniEnv.ExceptionDescribe(); //打印错误信息
+        		jniEnv.ExceptionClear(); //清除异常
+        		return true; 
+        	} 
+		}; 
+		this.interop = ..java.class(this,"aardio.interopServices.utility",$"~\lib\java\.interopServices\utility.class") 
+		this.fieldExists = this.interop.getMethodEx("getFieldValue","pointer(pointer[])");
+		this.getFieldValue__ = this.interop.getMethodEx("getFieldValue","pointer(pointer[])");
+		this.setFieldValue__ = this.interop.getMethodEx("setFieldValue","void(pointer[])");
+		this.invokeMethod__ = this.interop.getMethodEx("invokeMethod","pointer(pointer[])");
+		this.createInstance = this.interop.getMethodEx("createInstance","pointer(pointer[])");
+		this.objectIsNumber  = this.interop.getMethodEx("objectIsNumber","bool(pointer)");
+		this.objectIsString = this.interop.getMethodEx("objectIsString","bool(pointer)");
+		this.object2Number  = this.interop.getMethodEx("object2Number","double(pointer)");
+		this.object2String = this.interop.getMethodEx("object2String","string(pointer)");
+		this.invokeMethod = function(obj,...){
+			var obj = this.invokeMethod__(obj,...);
+			if( obj ) {
+				if( this.objectIsString(obj) )return this.object2String(obj);
+				if( this.objectIsNumber(obj) )return this.object2Number(obj);
+			}
+			return obj;
+		}
+		this.getFieldValue = function(...){
+			var obj = this.getFieldValue__(...);
+			if( obj ) {
+				if( this.objectIsString(obj) )return this.object2String(obj);
+				if( this.objectIsNumber(obj) )return this.object2Number(obj);
+			}
+			return obj;
+		}
+		this.setFieldValue = function(obj,k,v){
+			this.setFieldValue__( obj,k,v );
+		}
+		
+	};
+	loadClass =  function(classPath,clssBuffer,classLoader){
+		return ..java.class(this,classPath,clssBuffer,classLoader);	
+	};
+	object = function(jInstance){
+		return ..java.object(this, jInstance );
+	};
+	string = function(str){
+		var jInstance = jniEnv.NewStringUTF((tostring(str)));
+		if (!jInstance) { 
+            this.exceptionClear();
+            return;
+		}
+		return ..java.object(this, jInstance );
+	};
+	double = function(v){
+		return this.loadClass("java.lang.Double").createInstanceEx("void(double)",v);
+	};
+	float = function(v){
+		return this.loadClass("java.lang.Float").createInstanceEx("void(float)",v);
+	};
+	long = function(v){
+		return this.loadClass("java.lang.Long").createInstanceEx("void(long)",v);
+	};
+	char = function(v){
+		return this.loadClass("java.lang.Character").createInstanceEx("void(char)",v);
+	};
+	short = function(v){
+		return this.loadClass("java.lang.Short").createInstanceEx("void(short)",v);
+	};
+	int = function(v){
+		return this.loadClass("java.lang.Integer").createInstanceEx("void(int)",v);
+	};
+	boolean = function(v){
+		return this.loadClass("java.lang.Boolean").createInstanceEx("void(boolean)",v);
+	};			
+	array = function(atype,...){
+		if(atype=="string") return this.stringArray(...)
+			
+		var jtype = typeNameAardio2Java(atype)
+		var arr = ...
+		if(type(arr)!=type.table || arr@._topointer){
+			arr = {...}
+		} 
+		if( jtype == "Object" ){
+			var t;
+			var jarr = jniEnv.NewObjectArray( #arr,this.loadClass("java/lang/Object")); 
+			for(i=1;#arr;1){
+				t = type(arr[i]);
+				if(t == type.string || t == type.buffer){ 
+					jniEnv.SetObjectArrayElement(jarr,i-1,this.string(arr[i]));
+				}
+				elseif(t == type.table && arr[i]@._topointer){
+					jniEnv.SetObjectArrayElement(jarr,i-1,arr[i]);
+				}
+				elseif(t == type.number){
+					jniEnv.SetObjectArrayElement(jarr,i-1,this.double(arr[i]));
+				}
+				elseif(t == type.boolean){
+					jniEnv.SetObjectArrayElement(jarr,i-1,this.boolean(arr[i]));
+				}
+			}
+			return ..java.object(this,jarr);
+		}
+		
+		var newArray = jniEnv[  ..string.format("New%sArray",jtype) ]
+		var setArray = jniEnv[  ..string.format("Set%sArrayRegion",jtype) ] 
+		if(! (newArray && setArray) )
+			error("错误的数组类型" + atype ,2)
+			
+		var jarr = newArray( #arr);
+		setArray(jarr,0,#arr-1,..raw.toarray( arr ,atype,"array" )) 
+		return ..java.object(this,jarr);
+	};
+	stringArray = function(...){ 
+		var jclass = this.loadClass("java/lang/String"); 
+		if(!jclass) error("查找类失败。类:java/lang/String",2);
+		
+		var args = ...
+		if(type(args)!=type.table)
+			args = {...};
+		
+		if(!args){
+			error("参数不能为空",2);
+		} 
+		
+		var array = jniEnv.NewObjectArray(#args, jclass );
+		var jstr;
+		for(i=1;#args;1){ 
+			jstr = tostring( args[i] )
+			jstr = this.string( args[i] );
+			if(!jstr)
+				error("创建字符串对象失败",2)
+				 
+		    jniEnv.SetObjectArrayElement(array, i-1,jstr  );
+        	if ( this.exceptionClear() ) { 
+            	error("创建字符串数组失败",2);
+        	}
+
+		}
+		return ..java.object(this,array);
+
+	};
+	parseString = function(jstr){
+		if(!jstr)return;
+		var pstr = jniEnv.GetStringUTFChars(jstr, 0);
+		if (!pstr) { 
+            this.exceptionClear();
+            return;
+		}
+		var len = jniEnv.GetStringUTFLength(jstr);
+		var str = ..raw.tostring(pstr,1,len); 
+		
+		jniEnv.ReleaseStringUTFChars(jstr,pstr);
+		jniEnv.DeleteLocalRef(jstr);
+		return str; 
+	};
+	parseArray = function(atype,jarr){
+		if( type(atype) != "string") error("参数一必须是字符串指定的类型名",3);
+		
+		if(atype=="string")
+			return this.parseStringArray(jarr)
+			
+		var len = jniEnv.GetArrayLength(jarr)
+		if(!len)  return {};
+	
+		var jtype = typeNameAardio2Java(atype) 
+		if( jtype == "Object" ){ 
+			var array = {};
+			for(i=1;len;1){
+				array[i] = ..java.object(this,jniEnv.GetObjectArrayElement(jarr,i-1));
+			} 
+			return array;
+		}
+		
+		var getArray = jniEnv[  ..string.format("Get%sArrayRegion",jtype) ];
+		if(! getArray ){ 
+			jniEnv.DeleteLocalRef(jstr);
+			error("错误的数组类型" + atype ,2)
+		}
+		
+		var carr = ..raw.toarray( len ,atype,"array" );
+		getArray(jarr,0,len-1,carr) 
+		
+		jniEnv.DeleteLocalRef(jstr);
+		return carr.array;
+	};
+	parseStringArray = function(jarr){
+		var arr = this.parseArray("pointer",jarr)
+		for(k,v in arr){
+			arr[k] = this.parseString(v); 
+		}
+		return arr;
+	};
+	getClassLoader = function(){ 
+		if( this.classLoader ) return this.classLoader;
+		
+		var getCurrentThread = this.loadClass("java.lang.Thread").getMethodEx("currentThread","java.lang.Thread()" );
+		var curThread = getCurrentThread();
+		var getContextClassLoader = curThread.getMethodEx("getContextClassLoader","java.lang.ClassLoader()" )
+		var classLoader = getContextClassLoader();
+		
+		if( !classLoader ){ 
+			var getSystemClassLoader = this.loadClass("java.net.URLClassLoader").getMethodEx("getSystemClassLoader","java.lang.ClassLoader()");
+			classLoader = getSystemClassLoader();
+		}
+		this.classLoader = classLoader;
+		
+		var addURL = classLoader.getMethodEx( "addURL","void(java.net.URL)" );
+		classLoader[["addUrl"]] = function(path){
+			if(!#path) return;
+			if( ! ..string.match(path,"^\w+\:\/\/") ){
+				var shortPath = ..io.exist(path) && ..fsys.shortpath(path);  
+				if( shortPath ){
+					path = ..io.fullpath(path);
+					if( ..fsys.isDir(path) ){
+						path = ..fsys.path.addBackslash(path);
+					} 
+					path = "file:///" + path;
+				}
+			}
+			
+			if( __globalClassLoadedPaths[path] ) { return; }
+			__globalClassLoadedPaths[path] = true;
+			
+			var url = this.loadClass( "java.net.URL").createInstanceEx("void(string)" ,path); 
+			addURL(url);//该java函数有自动去重功能(但不忽略大小写) 
+		};
+		classLoader[["addUrls"]] = function(urls,...){
+			if( type(urls) != "table" ) urls = {urls;...};
+			for(i=1;#urls;1){
+				owner.addUrl(urls[i]); 
+			} 	
+		}
+		
+		return classLoader; 
+	};
+	addClassLoaderUrl = function(...){
+		return this.getClassLoader().addUrls(...);
+	};
+	reopen = function(funcName,filename){
+		var outstream = this.loadClass( "java.io.FileOutputStream")( ..io.fullpath(filename) ); 
+		var printstream = this.loadClass("java.io.PrintStream").createInstanceEx("void(java.io.OutputStream)",outstream)	 
+		var reset = this.loadClass("java.lang.System").getMethod(funcName);	
+		reset(printstream);
+	};
+	setOut = function(filename){
+		return this.reopen("setOut",filename); 
+	};
+	setErr = function(filename){
+		return this.reopen("setErr",filename); 
+	}; 
+	__initLocalClassPaths(this) and null;
+}
+
+import java.class;
+import java.object;
+
+namespace java{  
+
+	_classPaths = {"/";"/java/";..io.fullpath( "~/java/") }
+	_libPaths = {"/java/";..io.fullpath( "~/java/") }
+	
+	addClassPath = function(...){ 
+		..table.push(_classPaths,...) 
+	};
+	addLibPath = function(...){ 
+		..table.push(_libPaths,...) 
+	};
+	getLibPathCommand = function(...){ 
+		var libPath;
+		var argLp = {...};  
+		for(i=1;#_libPaths){ 
+			libPath = ..io.exist(_libPaths[i]);
+			if(libPath)..table.push(argLp,libPath )
+		}
+		
+		for(k,path in argLp){ 
+			argLp[k] = ..string.fromto( ..fsys.shortpath(path) );
+		}
+		return ..string.join(argLp,";" )
+	};
+	 
+	__prepareLocalClassPaths = function(...){ 
+		if( __localClassPaths ) return __localClassPaths;
+		__localClassPaths  = {...};
+		
+		var searchJar = function(dir){
+			var dir = ..io.exist(dir)
+			if( dir ) {
+				..table.push( __localClassPaths ,dir);
+				..fsys.enum( dir, 
+							"*.jar", 
+							function(dir,file,fullpath,findData){ 
+								if(file){  
+		           					..table.push( __localClassPaths ,fullpath )
+								} 
+							},false //不搜索子目录
+				  		); 
+			}	
+		} 
+		for(i=1;#_classPaths){
+			searchJar(_classPaths[i])
+		}
+		
+		for(k,path in __localClassPaths ){ 
+			__localClassPaths [k] = ..string.fromto( ..fsys.shortpath(path) );
+		}
+		return __localClassPaths;
+	};	
+	getClassPathCommand = function( cmd ,... ){
+		var args =  ..string.join( __prepareLocalClassPaths(...) ,";" )
+		if( cmd ) args = cmd +  ";" + args;
+		return args;
+	};
+ 
+	//__globalClassLoadedPaths = null; 
+	__initLocalClassPaths = function(jvm){
+		if( jvm.__createdJavaVm ){
+			__globalClassLoadedPaths = __localClassPaths;
+			..thread.set("_std.java.vm.loadedPaths", __globalClassLoadedPaths);
+		}
+		else {
+			__globalClassLoadedPaths = ..thread.get("_std.java.vm.loadedPaths" );
+			__localClassPaths = __prepareLocalClassPaths();
+			jvm.getClassLoader().addUrls( __localClassPaths );
+		};
+	}
+	
+	//-D<propertyName>=value 在程序中可以使用System.getProperty("propertyName") 得到value的值
+	getInitArgs = function(...){
+		var args = ...; 
+		if( args[["options"]] ){ 
+			return args;
+		}
+		args = {"-Djava.compiler=NONE";getClassPathCommand( "-Djava.class.path=." );getLibPathCommand("-Djava.library.path=."); ...}   
+	 
+		var vm_args = InitArgs();
+		//JNI_GetDefaultInitArgs(vm_args); 
+		vm_args.options = {
+			struct array[] = {};
+		} 
+		
+		for(i=1;#args;1){ 
+			vm_args.options.array[i] = VmOption( args[i] ); 
+		} 
+		return vm_args;
+	} 
+	
+	//jre可以放在工程目录，也可以放在主程序目录,也可以使用系统安装的java环境
+	getJvmPath = function( filename = "bin\client\jvm.dll" ){
+		filename = "\" + ..string.trim(filename,"\/");
+		
+		var jvm = ..fsys.searchFile(filename
+			,"\jre\" 
+			,"\java\jre\" 
+			, ..io.fullpath("~\jre\")  
+			, ..io.fullpath("~\java\jre\") 
+			 )
+		
+		if( ! #jvm ){
+			var jrehome = ..win.getenv("JRE_HOME");
+			if( ..io.exist(jrehome) ){ 
+				jvm = ..fsys.searchFile(filename, jrehome ); 
+				if( ..io.exist(jvm) ){ 
+					var pe = ..process.isExe(jvm);
+					if( pe == "PE32" ) return ..io.fullpath(jvm)
+				} 
+			} 
+		} 
+		
+		if( !#jvm ){
+			var jrehome = getRegJreHome(false);
+			if( ..io.exist(jrehome) ){ 
+				jvm = ..fsys.searchFile(filename, jrehome)   
+			} 
+		} 
+		
+		if( !#jvm ){
+			var javahome = getRegJavaHome(false);
+			if( ..io.exist(javahome) ){ 
+				jvm = ..fsys.searchFile(filename, ..fsys.joinpath(javahome,"/jre/"))   
+			} 
+		}
+		
+		if( !#jvm ){
+			jvm = ..fsys.searchFile(filename);
+		}
+		
+		if( jvm ){
+			var pe = ..process.isExe(jvm);
+			if( pe == "PE32" ) return ..io.fullpath(jvm)
+		} 
+	};
+	getRegJreHome = function(wow64){
+	
+		var regJre = ..win.reg("HKEY_LOCAL_MACHINE\SOFTWARE\JavaSoft\Java Runtime Environment",,,
+			wow64 ? ( 0x20019/*_KEY_READ*/ | 0x0100/*_KEY_WOW64_64KEY*/ ) :  0x20019/*_KEY_READ*/   ) 
+		if(!regJre) return;  
+
+		var ver = regJre.queryValue("CurrentVersion"); 
+		if( ver ){
+			var regItem = regJre.openReg(ver); 
+			if( regItem ){
+				jrehome = regItem.queryValue("JavaHome"); 
+				if( ..io.exist( ..fsys.joinpath(jrehome,"bin\java.exe") ) ){
+					regItem.close();
+					regJre.close();
+					return jrehome,ver;
+				}
+				regItem.close();
+			}
+		}
+		
+		for(keyname,writetime in regJre.eachKey() ){
+			var regItem = regJre.openReg(keyname); 
+			if( regItem ){
+				jrehome = regItem.queryValue("JavaHome"); 
+				if( ..io.exist( ..fsys.joinpath(jrehome,"bin\java.exe") ) ){
+					regItem.close();
+					regJre.close(); 
+					return jrehome,keyname;
+				}
+				regItem.close();
+			}
+		}
+		
+		regJre.close();	
+	}
+	getRegJavaHome = function(wow64,version){ 
+		var regJdk  = ..win.reg("HKEY_LOCAL_MACHINE\SOFTWARE\JavaSoft\Java Development Kit",,,
+			wow64 ? ( 0x20019/*_KEY_READ*/ | 0x0100/*_KEY_WOW64_64KEY*/ ) :  0x20019/*_KEY_READ*/   )  
+		if(!regJdk) return; 
+		
+		if( version == 0x00010006 ) version = "1.6"
+		if( version == 0x00010007 ) version = "1.7"
+		if( version == 0x00010008 ) version = "1.8"
+		if( version == 0x00090000 ) version = "9"
+		
+		var ver = version || regJdk.queryValue("CurrentVersion"); 
+		if( ver ){
+			var regItem = regJdk.openReg(ver); 
+			if( regItem ){
+				javahome = regItem.queryValue("JavaHome");
+				if( ..io.exist( ..fsys.joinpath(javahome,"bin\javac.exe") ) ){
+					regItem.close();
+					regJdk.close();
+					return javahome,ver;
+				}
+				regItem.close();
+			}
+		}
+		if(version!==null) return;
+		
+		for(keyname,writetime in regJdk.eachKey() ){
+			var regItem = regJdk.openReg(keyname); 
+			if( regItem ){
+				javahome = regItem.queryValue("JavaHome");
+				if( ..io.exist( ..fsys.joinpath(javahome,"bin\javac.exe") ) ){
+					regItem.close();
+					regJdk.close();
+					return javahome,keyname;
+				}
+				regItem.close();
+			}
+		}
+		
+		if(#javahome)return javahome,ver; 
+	};
+	getJavaHome = function(version){ 
+		if(version) return getRegJavaHome(true,version) || getRegJavaHome(false,version);
+		
+		var javahome = ..win.getenv("JAVA_HOME"); 
+		if( ..io.exist( ..fsys.joinpath(javahome,"bin\javac.exe") ) ){
+			return javahome;
+		}
+		
+		return getRegJavaHome(true) || getRegJavaHome(false);
+	};
+	getJreHome = function(){ 
+		var jrehome = ..win.getenv("JRE_HOME");
+		if( ..io.exist( ..fsys.joinpath(jrehome,"bin\java.exe") ) ){
+			return jrehome;
+		}
+		
+		var jrehome = getRegJreHome(true) || getRegJreHome(false);
+		if( ..io.exist( ..fsys.joinpath(jrehome,"bin\java.exe") ) ){
+			return jrehome;
+		}
+	}; 
+	getJvmHome = function(){
+		if(!jvmPath)jvmPath = getJvmPath("bin\client\jvm.dll") || getJvmPath("bin\server\jvm.dll");
+		if(jvmPath){
+			return ..fsys.path.canonicalize(..fsys.joinpath(jvmPath,"/../../../") );
+		}
+	};
+	getJavacPath = function(version){
+		var javahome = getJavaHome(version);
+		if(#javahome) return ..fsys.joinpath(javahome,"bin\javac.exe"); 
+		return ..fsys.searchFile("bin\javac.exe");
+	};
+	getJvmBinPath = function(jvmPath){
+		if(!jvmPath)jvmPath = getJvmPath("bin\client\jvm.dll") || getJvmPath("bin\server\jvm.dll");
+		if(jvmPath){
+			return ..fsys.path.canonicalize(..fsys.joinpath(jvmPath,"/../../") );
+		}
+	};
+	__openProcess = function(process,exeFile,...){
+		var startInfo;
+		var binPath = getJvmBinPath();
+		if(!binPath) {
+			binPath = getJreHome();
+			if(binPath) binPath = ..fsys.joinpath(binPath,"\bin"); 
+			if(!binPath) {
+				return null,"没有找到Java运行库";
+			};
+		}
+		
+		binPath = ..fsys.joinpath(binPath,exeFile);
+		if( ! ..io.exist(binPath) ) return null,"没有找到" + exeFile;
+		args = ...;
+		if( type(args) != type.table)
+			args = {...};
+		else{
+			startInfo = ...;
+		}
+		
+		if( #args > 1 ){	
+			for(k,v in args){
+				v = ..string.trim(v);
+				if( ..string.find(v,"\s") ){
+					v = '"' + v +  '"'
+				}
+				args[k] = v;
+			}
+		}
+		
+		..table.unshift(args,"-classpath",getClassPathCommand( "%CLASSPATH%" ) );
+		args = ..string.join(args," ");  
+		return process( ..string.fromto(binPath),args,startInfo );
+	};
+	openProcess = function(...){
+		return __openProcess(..process,"javaw.exe",...);	
+	};
+	popenProcess = function(...){
+		return __openProcess(..process.popen,"java.exe",...);	
+	};
+	compile = function(filepath,args=""){
+		args = args + " " + getClassPathCommand( "-classpath ." );
+		var local = ..io.localpath(filepath)
+		if(local)
+			filepath = local;
+		  
+		var javac,version = getJavacPath(); 
+		if( ..io.exist(javac) ){ 
+			..process(  javac, args + ' "' + (filepath) + '"')
+		}
+		else{
+			error('找不到javac.exe\n当前系统尚未安装Java开发环境',2)
+		}
+	}
+	 
+	var jvmPath = getJvmPath("bin\client\jvm.dll") || getJvmPath("bin\server\jvm.dll");
+	getJvmPath = function(){
+		return jvmPath;
+	}
+	if(!jvmPath) return; 
+	 
+	var binDir = getJvmBinPath(jvmPath); 
+	..fsys.setCurDir(binDir) 
+	
+	var jvm;
+	try{
+		jvm = ..raw.loadDll( jvmPath  )
+	}
+	if(!jvm) return; 
+	 
+	JNI_GetDefaultJavaVMInitArgs = jvm.api("JNI_GetDefaultJavaVMInitArgs","int(struct &args)" )
+	JNI_CreateJavaVM = jvm.api("JNI_CreateJavaVM","int(pointer &pvm,pointer &penv,struct args)" )
+	JNI_GetCreatedJavaVMs = jvm.api("JNI_GetCreatedJavaVMs","int(pointer &pvm,int size,int & sizeout)" )
+	
+	class InitArgs {
+    	int version;
+		int nOptions;
+    	pointer options;
+    	BYTE ignoreUnrecognized;
+	};
+	
+	class VmOption {
+		ctor(str,extra){
+			this.optionString = str;
+			this.extraInfo = extra;
+		}
+    	string optionString;
+    	pointer extraInfo;
+	}
+	
+	class JavaVM{ //
+    	pointer reserved0;
+    	pointer reserved1;
+    	pointer reserved2;
+		pointer DestroyJavaVM = "int()";
+		pointer AttachCurrentThread = "int(pointer &evn,pointer args)";
+		pointer DetachCurrentThread = "int()"; 
+		pointer GetEnv = "int(pointer &evn,int version)";
+		pointer AttachCurrentThreadAsDaemon = "int(pointer &evn,pointer args)"; 
+	} 
+	
+	class JNIEnv { //
+		pointer reserved0;
+		pointer reserved1;
+		pointer reserved2; 
+		pointer reserved3;
+		pointer GetVersion = "int()";
+		pointer DefineClass = "pointer(STRING name,pointer loader,pointer buf,int len)";
+		pointer FindClass = "pointer(STRING name)";
+		pointer FromReflectedMethod = "pointer(POINTER method)";
+		pointer FromReflectedField = "pointer(POINTER field)";
+		pointer ToReflectedMethod = "pointer(POINTER cls,pointer methodID,BYTE isStatic)";
+		pointer GetSuperclass = "pointer(POINTER sub)";
+		pointer IsAssignableFrom = "BYTE(POINTER sub,pointer sup)";
+		pointer ToReflectedField = "pointer(POINTER cls,pointer fieldID,BYTE isStatic)";
+		pointer Throw = "int(POINTER obj)";
+		pointer ThrowNew = "int(POINTER clazz,string msg)";
+		pointer ExceptionOccurred = "pointer()";
+		pointer ExceptionDescribe = "void()";
+		pointer ExceptionClear = "void()";
+		pointer FatalError = "void(string msg)";
+		pointer PushLocalFrame = "int(int capacity)";
+		pointer PopLocalFrame = "pointer(POINTER result)";
+		pointer NewGlobalRef = "pointer(POINTER lobj)";
+		pointer DeleteGlobalRef = "void(POINTER gref)";
+		pointer DeleteLocalRef = "void(POINTER obj)";
+		pointer IsSameObject = "BYTE(POINTER obj1,pointer obj2)";
+		pointer NewLocalRef = "pointer(POINTER ref)";
+		pointer EnsureLocalCapacity = "int(int capacity)";
+		pointer AllocObject = "pointer(POINTER clazz)";
+		pointer NewObject = ""; //= "pointer(POINTER clazz,pointer methodID,...)";
+		pointer NewObjectV = "pointer(POINTER clazz,pointer methodID,struct args)";
+		pointer NewObjectA =  "pointer(POINTER clazz,pointer methodID,struct args)";
+		pointer GetObjectClass = "pointer(POINTER obj)";
+		pointer IsInstanceOf = "BYTE(POINTER obj,pointer clazz)";
+		pointer GetMethodID = "pointer(POINTER clazz,STRING name,string sig)";
+		pointer CallObjectMethod ; //= "pointer(POINTER obj,pointer methodID,...)";
+		pointer CallObjectMethodV = "pointer(POINTER obj,pointer methodID,struct args)";
+		pointer CallObjectMethodA = "pointer(POINTER obj,pointer methodID,struct args)";
+		pointer CallBooleanMethod ; //= "BYTE(POINTER obj,pointer methodID,...)";
+		pointer CallBooleanMethodV = "BYTE(POINTER obj,pointer methodID,struct args)";
+		pointer CallBooleanMethodA = "BYTE(POINTER obj,pointer methodID,struct args)";
+		pointer CallByteMethod ; //= "byte(POINTER obj,pointer methodID,...)";
+		pointer CallByteMethodV = "byte(POINTER obj,pointer methodID,struct args)";
+		pointer CallByteMethodA = "byte(POINTER obj,pointer methodID,struct args)";
+		pointer CallCharMethod ; //= "WORD(POINTER obj,pointer methodID,...)";
+		pointer CallCharMethodV = "WORD(POINTER obj,pointer methodID,struct args)";
+		pointer CallCharMethodA = "WORD(POINTER obj,pointer methodID,struct args)";
+		pointer CallShortMethod ; //= "BYTE(POINTER obj,pointer methodID,...)";
+		pointer CallShortMethodV = "BYTE(POINTER obj,pointer methodID,struct args)";
+		pointer CallShortMethodA = "BYTE(POINTER obj,pointer methodID,struct args)";
+		pointer CallIntMethod ; //= "int(POINTER obj,pointer methodID,...)";
+		pointer CallIntMethodV = "int(POINTER obj,pointer methodID,struct args)";
+		pointer CallIntMethodA = "int(POINTER obj,pointer methodID,struct args)";
+		pointer CallLongMethod ; //= "long(POINTER obj,pointer methodID,...)";
+		pointer CallLongMethodV = "long(POINTER obj,pointer methodID,struct args)";
+		pointer CallLongMethodA = "long(POINTER obj,pointer methodID,struct args)";
+		pointer CallFloatMethod ; //= "float(POINTER obj,pointer methodID,...)";
+		pointer CallFloatMethodV = "float(POINTER obj,pointer methodID,struct args)";
+		pointer CallFloatMethodA = "float(POINTER obj,pointer methodID,struct args)";
+		pointer CallDoubleMethod ; //= "double(POINTER obj,pointer methodID,...)";
+		pointer CallDoubleMethodV = "double(POINTER obj,pointer methodID,struct args)";
+		pointer CallDoubleMethodA = "double(POINTER obj,pointer methodID,struct args)";
+		pointer CallVoidMethod ; //= "void(POINTER obj,pointer methodID,...)";
+		pointer CallVoidMethodV = "void(POINTER obj,pointer methodID,struct args)";
+		pointer CallVoidMethodA = "void(POINTER obj,pointer methodID,struct args)";
+		pointer CallNonvirtualObjectMethod ; //= "pointer(POINTER obj,pointer clazz,pointer methodID,...)";
+		pointer CallNonvirtualObjectMethodV = "pointer(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualObjectMethodA = "pointer(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualBooleanMethod ; //= "BYTE(POINTER obj,pointer clazz,pointer methodID,...)";
+		pointer CallNonvirtualBooleanMethodV = "BYTE(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualBooleanMethodA = "BYTE(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualByteMethod ; //= "byte(POINTER obj,pointer clazz,pointer methodID,...)";
+		pointer CallNonvirtualByteMethodV = "byte(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualByteMethodA = "byte(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualCharMethod ; //= "WORD(POINTER obj,pointer clazz,pointer methodID,...)";
+		pointer CallNonvirtualCharMethodV = "WORD(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualCharMethodA = "WORD(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualShortMethod ; //= "BYTE(POINTER obj,pointer clazz,pointer methodID,...)";
+		pointer CallNonvirtualShortMethodV = "BYTE(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualShortMethodA = "BYTE(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualIntMethod ; //= "int(POINTER obj,pointer clazz,pointer methodID,...)";
+		pointer CallNonvirtualIntMethodV = "int(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualIntMethodA = "int(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualLongMethod ; //= "long(POINTER obj,pointer clazz,pointer methodID,...)";
+		pointer CallNonvirtualLongMethodV = "long(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualLongMethodA = "long(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualFloatMethod ; //= "float(POINTER obj,pointer clazz,pointer methodID,...)";
+		pointer CallNonvirtualFloatMethodV = "float(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualFloatMethodA = "float(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualDoubleMethod ; //= "double(POINTER obj,pointer clazz,pointer methodID,...)";
+		pointer CallNonvirtualDoubleMethodV = "double(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualDoubleMethodA = "double(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualVoidMethod ; //= "void(POINTER obj,pointer clazz,pointer methodID,...)";
+		pointer CallNonvirtualVoidMethodV = "void(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer CallNonvirtualVoidMethodA = "void(POINTER obj,pointer clazz,pointer methodID,struct args)";
+		pointer GetFieldID = "pointer(POINTER clazz,STRING name,string sig)";
+		pointer GetObjectField = "pointer(POINTER obj,pointer fieldID)";
+		pointer GetBooleanField = "BYTE(POINTER obj,pointer fieldID)";
+		pointer GetByteField = "byte(POINTER obj,pointer fieldID)";
+		pointer GetCharField = "WORD(POINTER obj,pointer fieldID)";
+		pointer GetShortField = "BYTE(POINTER obj,pointer fieldID)";
+		pointer GetIntField = "int(POINTER obj,pointer fieldID)";
+		pointer GetLongField = "long(POINTER obj,pointer fieldID)";
+		pointer GetFloatField = "float(POINTER obj,pointer fieldID)";
+		pointer GetDoubleField = "double(POINTER obj,pointer fieldID)";
+		pointer SetObjectField = "void(POINTER obj,pointer fieldID,pointer val)";
+		pointer SetBooleanField = "void(POINTER obj,pointer fieldID,BYTE val)";
+		pointer SetByteField = "void(POINTER obj,pointer fieldID,byte val)";
+		pointer SetCharField = "void(POINTER obj,pointer fieldID,WORD val)";
+		pointer SetShortField = "void(POINTER obj,pointer fieldID,BYTE val)";
+		pointer SetIntField = "void(POINTER obj,pointer fieldID,int val)";
+		pointer SetLongField = "void(POINTER obj,pointer fieldID,long val)";
+		pointer SetFloatField = "void(POINTER obj,pointer fieldID,float val)";
+		pointer SetDoubleField = "void(POINTER obj,pointer fieldID,double val)";
+		pointer GetStaticMethodID = "pointer(POINTER clazz,STRING name,string sig)";
+		pointer CallStaticObjectMethod ; //= "pointer(POINTER clazz,pointer methodID,...)";
+		pointer CallStaticObjectMethodV = "pointer(POINTER clazz,pointer methodID,struct args)";
+		pointer CallStaticObjectMethodA = "pointer(POINTER clazz,pointer methodID,struct jvalue)";
+		pointer CallStaticBooleanMethod ; //= "BYTE(POINTER clazz,pointer methodID,...)";
+		pointer CallStaticBooleanMethodV = "BYTE(POINTER clazz,pointer methodID,struct args)";
+		pointer CallStaticBooleanMethodA = "BYTE(POINTER clazz,pointer methodID,struct jvalue)";
+		pointer CallStaticByteMethod ; //= "byte(POINTER clazz,pointer methodID,...)";
+		pointer CallStaticByteMethodV = "byte(POINTER clazz,pointer methodID,struct args)";
+		pointer CallStaticByteMethodA = "byte(POINTER clazz,pointer methodID,struct jvalue)";
+		pointer CallStaticCharMethod ; //= "WORD(POINTER clazz,pointer methodID,...)";
+		pointer CallStaticCharMethodV = "WORD(POINTER clazz,pointer methodID,struct args)";
+		pointer CallStaticCharMethodA = "WORD(POINTER clazz,pointer methodID,struct jvalue)";
+		pointer CallStaticShortMethod ; //= "BYTE(POINTER clazz,pointer methodID,...)";
+		pointer CallStaticShortMethodV = "BYTE(POINTER clazz,pointer methodID,struct  args)";
+		pointer CallStaticShortMethodA = "BYTE(POINTER clazz,pointer methodID,struct jvalue)";
+		pointer CallStaticIntMethod ; //= "int(POINTER clazz,pointer methodID,...)";
+		pointer CallStaticIntMethodV = "int(POINTER clazz,pointer methodID,struct args)";
+		pointer CallStaticIntMethodA = "int(POINTER clazz,pointer methodID,struct jvalue)";
+		pointer CallStaticLongMethod ; //= "long(POINTER clazz,pointer methodID,...)";
+		pointer CallStaticLongMethodV = "long(POINTER clazz,pointer methodID,struct args)";
+		pointer CallStaticLongMethodA = "long(POINTER clazz,pointer methodID,struct jvalue)";
+		pointer CallStaticFloatMethod ; //= "float(POINTER clazz,pointer methodID,...)";
+		pointer CallStaticFloatMethodV = "float(POINTER clazz,pointer methodID,struct args)";
+		pointer CallStaticFloatMethodA = "float(POINTER clazz,pointer methodID,struct jvalue)";
+		pointer CallStaticDoubleMethod ; //= "double(POINTER clazz,pointer methodID,...)";
+		pointer CallStaticDoubleMethodV = "double(POINTER clazz,pointer methodID,struct args)";
+		pointer CallStaticDoubleMethodA = "double(POINTER clazz,pointer methodID,struct jvalue)";
+		pointer CallStaticVoidMethod ; //= "void(POINTER cls,pointer methodID,...)";
+		pointer CallStaticVoidMethodV = "void(POINTER cls,pointer methodID,struct args)";
+		pointer CallStaticVoidMethodA = "void(POINTER cls,pointer methodID,struct args)";
+		pointer GetStaticFieldID = "pointer(POINTER clazz,STRING name,string sig)";
+		pointer GetStaticObjectField = "pointer(POINTER clazz,pointer fieldID)";
+		pointer GetStaticBooleanField = "BYTE(POINTER clazz,pointer fieldID)";
+		pointer GetStaticByteField = "byte(POINTER clazz,pointer fieldID)";
+		pointer GetStaticCharField = "WORD(POINTER clazz,pointer fieldID)";
+		pointer GetStaticShortField = "BYTE(POINTER clazz,pointer fieldID)";
+		pointer GetStaticIntField = "int(POINTER clazz,pointer fieldID)";
+		pointer GetStaticLongField = "long(POINTER clazz,pointer fieldID)";
+		pointer GetStaticFloatField = "float(POINTER clazz,pointer fieldID)";
+		pointer GetStaticDoubleField = "double(POINTER clazz,pointer fieldID)";
+		pointer SetStaticObjectField = "void(POINTER clazz,pointer fieldID,pointer value)";
+		pointer SetStaticBooleanField = "void(POINTER clazz,pointer fieldID,BYTE value)";
+		pointer SetStaticByteField = "void(POINTER clazz,pointer fieldID,byte value)";
+		pointer SetStaticCharField = "void(POINTER clazz,pointer fieldID,WORD value)";
+		pointer SetStaticShortField = "void(POINTER clazz,pointer fieldID,BYTE value)";
+		pointer SetStaticIntField = "void(POINTER clazz,pointer fieldID,int value)";
+		pointer SetStaticLongField = "void(POINTER clazz,pointer fieldID,long value)";
+		pointer SetStaticFloatField = "void(POINTER clazz,pointer fieldID,float value)";
+		pointer SetStaticDoubleField = "void(POINTER clazz,pointer fieldID,double value)";
+		pointer NewString = "pointer (POINTER unicode,int len)";
+		pointer GetStringLength = "int(POINTER  str)";
+		pointer GetStringChars = "pointer(POINTER  str,BYTE &isCopy)";
+		pointer ReleaseStringChars = "void(POINTER  str,pointer chars)";
+		pointer NewStringUTF = "pointer (string utf)";
+		pointer GetStringUTFLength = "int(POINTER  str)";
+		pointer GetStringUTFChars = "pointer (POINTER  str,BYTE &isCopy)";
+		pointer ReleaseStringUTFChars = "void(POINTER  str,pointer  chars)";
+		pointer GetArrayLength = "int(POINTER array)";
+		pointer NewObjectArray = "pointer(int len,pointer clazz,pointer init)";
+		pointer GetObjectArrayElement = "pointer(POINTER array,int index)";
+		pointer SetObjectArrayElement = "void(POINTER array,int index,pointer val)";
+		pointer NewBooleanArray = "pointer(int len)";
+		pointer NewByteArray = "pointer(int len)";
+		pointer NewCharArray = "pointer(int len)";
+		pointer NewShortArray = "pointer(int len)";
+		pointer NewIntArray = "pointer(int len)";
+		pointer NewLongArray = "pointer(int len)";
+		pointer NewFloatArray = "pointer(int len)";
+		pointer NewDoubleArray = "pointer(int len)"; 
+		pointer GetBooleanArrayElements = "pointer(POINTER array,BYTE &isCopy)";
+		pointer GetByteArrayElements = "pointer(POINTER array,BYTE &isCopy)";
+		pointer GetCharArrayElements = "pointer(POINTER array,BYTE &isCopy)";
+		pointer GetShortArrayElements = "pointer(POINTER array,BYTE &isCopy)";
+		pointer GetIntArrayElements = "pointer(POINTER array,BYTE &isCopy)";
+		pointer GetLongArrayElements = "pointer(POINTER array,BYTE &isCopy)";
+		pointer GetFloatArrayElements = "pointer(POINTER array,BYTE &isCopy)";
+		pointer GetDoubleArrayElements = "pointer(POINTER array,BYTE &isCopy)";
+		pointer ReleaseBooleanArrayElements = "void(POINTER array,pointer elems,int mode)";
+		pointer ReleaseByteArrayElements = "void(POINTER array,pointer elems,int mode)";
+		pointer ReleaseCharArrayElements = "void(POINTER array,pointer elems,int mode)";
+		pointer ReleaseShortArrayElements = "void(POINTER array,pointer elems,int mode)";
+		pointer ReleaseIntArrayElements = "void(POINTER array,pointer elems,int mode)";
+		pointer ReleaseLongArrayElements = "void(POINTER array,pointer elems,int mode)";
+		pointer ReleaseFloatArrayElements = "void(POINTER array,pointer elems,int mode)";
+		pointer ReleaseDoubleArrayElements = "void(POINTER array,pointer elems,int mode)"; 
+		pointer GetBooleanArrayRegion = "void(POINTER array,int start,int l,struct &arrbuf)";
+		pointer GetByteArrayRegion = "void(POINTER array,int start,int len,struct &arrbuf)";
+		pointer GetCharArrayRegion = "void(POINTER array,int start,int len,struct &arrbuf)";
+		pointer GetShortArrayRegion = "void(POINTER array,int start,int len,struct &arrbuf)";
+		pointer GetIntArrayRegion = "void(POINTER array,int start,int len,struct &arrbuf)";
+		pointer GetLongArrayRegion = "void(POINTER array,int start,int len,struct &arrbuf)";
+		pointer GetFloatArrayRegion = "void(POINTER array,int start,int len,struct &arrbuf)";
+		pointer GetDoubleArrayRegion = "void(POINTER array,int start,int len,struct &arrbuf)"; 
+		pointer SetBooleanArrayRegion = "void(POINTER array,int start,int l,struct buf)";
+		pointer SetByteArrayRegion = "void(POINTER array,int start,int len,struct buf)";
+		pointer SetCharArrayRegion = "void(POINTER array,int start,int len,struct buf)";
+		pointer SetShortArrayRegion = "void(POINTER array,int start,int len,struct buf)";
+		pointer SetIntArrayRegion = "void(POINTER array,int start,int len,struct buf)";
+		pointer SetLongArrayRegion = "void(POINTER array,int start,int len,struct buf)";
+		pointer SetFloatArrayRegion = "void(POINTER array,int start,int len,struct buf)";
+		pointer SetDoubleArrayRegion = "void(POINTER array,int start,int len,struct buf)";
+		pointer RegisterNatives = "int(POINTER clazz,struct methods,int nMethods)"; 
+		pointer UnregisterNatives = "int(POINTER clazz)";
+		pointer MonitorEnter = "int(POINTER obj)";
+		pointer MonitorExit = "int(POINTER obj)";
+		pointer GetJavaVM = "int(pointer &vm)";
+		pointer GetStringRegion = "void(POINTER  str,int start,int len,pointer buf)";
+		pointer GetStringUTFRegion = "void(POINTER  str,int start,int len,pointer buf)";
+		pointer GetPrimitiveArrayCritical = "pointer (POINTER array,BYTE &isCopy)";
+		pointer ReleasePrimitiveArrayCritical = "void(POINTER array,pointer carray,int mode)";
+		pointer GetStringCritical = "pointer (POINTER  string,BYTE &isCopy)";
+		pointer ReleaseStringCritical = "void(POINTER  string,pointer cstring)";
+		pointer NewWeakGlobalRef = "pointer(POINTER obj)";
+		pointer DeleteWeakGlobalRef = "void(POINTER ref)";
+		pointer ExceptionCheck = "BYTE()";
+		pointer NewDirectByteBuffer = "pointer(POINTER address,long capacity)";
+		pointer GetDirectBufferAddress = "pointer(POINTER buf)";
+		pointer GetDirectBufferCapacity = "long(POINTER buf)";
+		pointer GetObjectRefType = "int(POINTER obj)"
+    }
+    
+    
+    var typename_a2j = {
+		pointer = "Object";
+		BOOL= "Boolean";
+		bool= "Boolean";
+		BYTE= "Boolean";
+		CHAR = "Char";
+		char = "Char";
+		WORD = "Char";
+		SHORT = "Short";
+		short = "Short";
+		word = "Short";
+		int = "Int";
+		INT = "Int";
+		long = "Long";
+		LONG = "Long";
+		string = "Object";
+		byte = "Byte";
+		float = "Float";
+		double = "Double";
+		void = "Void";
+	}
+	
+	typeNameAardio2Java = function(t){
+		if(!#t) return "Void"; 
+		if( ..string.find(t,"\;") ) return "Object"; 
+		return typename_a2j[t] || "Object"
+	}
+	 
+	/*intellisense(java)*/
+	JNI_VERSION_1_1 = 0x00010001
+	JNI_VERSION_1_2 = 0x00010002
+	JNI_VERSION_1_4 = 0x00010004
+	JNI_VERSION_1_6 = 0x00010006
+	JNI_VERSION_1_7 = 0x00010007	
+	JNI_VERSION_1_8 = 0x00010008
+	JNI_VERSION_9 = 0x00090000
+	/*end intellisense*/  
+}
+  
+/**intellisense() 
+java(.(命令行参数) = 创建JAVA运行环境,如果未找到JAVA运行库返回null\n搜索JRE的顺序为:"\JAVA\JRE","~\JAVA\JRE","%JRE_HOME%","%JAVA_HOME%",其他系统路径\njar包搜索顺序为"\","\java\","~\java",可使用 java.addClassPath 函数添加搜索路径\n可指定一个或多个启动命令行参数\n对于每个打开的进程,JAVA虚拟机仅创建一次实例,因此所有参数、搜索路径等仅在首次创建虚拟机时生效
+java() = !java. 
+java.getJvmPath() = 查找当前加载的Java虚拟机路径\n搜索JRE的顺序为:"\JAVA\JRE","~\JAVA\JRE","%JRE_HOME%","%JAVA_HOME%",其他系统路径
+java.getJvmBinPath() = 查找当前加载的Java虚拟机的bin目录\n搜索JRE的顺序为:"\JAVA\JRE","~\JAVA\JRE","%JRE_HOME%","%JAVA_HOME%",其他系统路径
+java.getJvmHome() = 查找当前加载的Java虚拟机根目录
+java.getJreHome() = 查找系统安装的Java运行库根目录\n查找顺序为先查找环境变量"%JRE_HOME%",然后在注册表中查找
+java.getJavaHome() = 查找系统安装的JDK根目录\n查找顺序为先查找环境变量"%JAVA_HOME%",然后在注册表中查找\n可选在参数中指定版本号,仅查找指定版本JDK\n版本号参数格式如"1.8"，或JNI_VERSION_1_8皆可
+java.getJavacPath() = 查找java编译器javac.exe路径\n可选在参数中指定版本号,仅查找指定版本java编译器\n版本号参数格式如"1.8"，或JNI_VERSION_1_8皆可
+java.openProcess(.("-jar","命令行参数", ->->-> ) = 创建Java窗口应用程序返回process进程对象\n命令行参数可以是数组或任意个文本参数,用法与process对象类似\n如果命令行参数有多个,则自动合并 - 以空格分隔,单个参数含空格则首尾添加双引号
+java.openProcess() = !process.
+java.popenProcess(.("-jar","命令行参数", ->->-> ) = 创建Java控制台应用程序返回process.popen对象\n命令行参数可以是数组或任意个文本参数,用法与process对象类似\n如果命令行参数有多个,则自动合并 - 以空格分隔,单个参数含空格则首尾添加双引号
+java.popenProcess() = !process_popen.
+java.compile(.("java源文件路径") = 编译java源文件\n该函数需要系统安装JDK,可事先设置JAVA_HOME环境变量手动指定JDK位置\n注意如果aardio自带了jre版本必须与JDK一致,不然java程序编译后可能无法运行
+java.addClassPath(__) = 添加一个或多个目录\n以支持在该目录以及目录下的jar文件中查找java类\n子目录下的jar文件将被忽略\n注意:必须在进程首次创建java虚拟机之前调用该函数
+java.addLibPath(__) = 添加一个或多个目录\nJava中调用System.loadLibrary()时将在指定的目录查找DLL组件
+!java.__createdJavaVm = 仅第一次创建java虚拟机时该值为true,\n随后创建的虚拟机都会返回false
+!java.addClassLoaderUrl(.("类搜索路径") = 添加jar包或类搜索路径\n参数可以是一个数组,也可以是多个路径参数
+!java.loadClass(.("类名","类文件路径") = 加载指定的类\n可选用参数@2指定类文件路径、或者自内存文件加载类\n如果类不存在或加载失败返回null空值 - 不会抛出异常
+!java.exceptionClear() = 该函数如果检测到抛出的异常,并清除异常返回true\n如果未检测到异常返回空值
+!java.array("int",__) = 将一个或多个基本类型转换为java数组对象\n传入参数也可以是一个table类型字符串数组
+!java.stringArray(__) = 将一个或多个字符串转换为java字符串数组\n传入参数也可以是一个table类型字符串数组
+!java.string(__) = 将aardio字符串转换为java字符串对象\n返回对象指针
+!java.double(__) = 创建64位浮点数值-返回Java对象
+!java.float(__) = 创建32位浮点数值-返回Java对象
+!java.char(__) = 创建8位整型数值-返回Java对象
+!java.short(__) = 创建16位整型数值-返回Java对象
+!java.int(__) = 创建32位整型数值-返回Java对象
+!java.long(__) = 创建64位整型数值-返回Java对象
+!java.boolean(__) = 创建布尔值-返回Java对象
+!java.parseString(__) = 将Java字符串转换为aardio字符串\n注意:该函数会销毁传入的java对象指针
+!java.parseStringArray(.(java数组) = 将Java对象指针转换为aardio数组对象\n注意:该函数会销毁传入的java对象指针
+!java.parseArray(.("int",java数组)  = 将Java对象指针转换为aardio数组对象,参数一指定数组元素数据类型\n注意:该函数会销毁传入的java对象指针
+!java.invokeMethod(.(类或对象,其他调用参数->->->) = 调用Java函数,支持多个参数\n对于数值类型,aardio将会自动检测适用的数值类型\n也可以调用java.int,java.short,java.char,java.long等函数显式的声明数值类型
+!java.interop = aardio.interopServices.utility类
+!java.fieldExists(.(java对象,"字段名") = 返回是否存在指定字段名
+!java.getFieldValue(.(java对象,"字段名") = 返回字段值
+!java.setFieldValue(.(java对象,"字段名",字段值) = 修改字段值
+!java.createInstance(.(java类对象,->->->) = 调用构造函数创建对象
+!java.objectIsNumber(__) = 返回参数指定的java对象是否数值
+!java.objectIsString(__) = 返回参数指定的java对象是否字符串
+!java.object2Number(__) = java数值对象转换为aardio数值
+!java.object2String(__) = java字等串对象转换为aardio字符串
+!java.reopen("setErr","/error.txt") = 重定向错误输出到文件
+!java.reopen("setOut","/output.txt") = 重定向标准输出到文件
+!java.setErr("/error.txt") = 重定向错误输出到文件
+!java.setOut("/output.txt") = 重定向标准输出到文件 
+!java.loadClass() = !stdJavaClass.
+!stdJavaClass.getMethod(.("函数名") = 返回静态函数\n参数支持任意个数参数\n注意无论Java类是否存在该函数,此方法都会返回一个函数对象
+!stdJavaClass.getFieldEx(.("字段名","int") = 参数@2指定字段类型声明\n与函数原型使用的语法一致
+!stdJavaClass.getMethodEx(.("函数名","void()") = 参数@2指定函数签名，参数只能指定单个参数或数组类型,\n如果需要使用多个参数或动态参数，请直接使用 类对象.函数名 获取函数\n注意返回的是原生函数,调用时数值、布尔值不可以使用Java对象
+!stdJavaClass.registerNative(函数,函数名,签名) = @.registerNative(\n	function(env,jobject,jstring){\n		var str = owner.parseString(jstring)\n		\n		return owner.string( func() )\n	},"__/*函数名*/","string(string)"\n)
+!stdJavaClass.unregisterNatives() = 注销所有注册到Java类中的函数
+!stdJavaClass.free(.("字段名","int") = 参数@2指定字段类型声明\n与函数原型使用的语法一致
+!stdJavaClass.createInstance(.(->->->) = 使用Java调用构造函数创建对象\n不限制参数个数以及类型,\n允许以类名本身替代此函数
+!stdJavaClass.createInstanceEx(.("void()"，->->->) = 使用JNI调用构造函数创建对象\n参数最多只能是一个参数,或者一个参数数组,\n用户应使用createInstance，该函数不限制参数个数以及类型
+!stdJavaClass.createInstanceEx() = !stdJavaObject.
+!stdJavaClass() = !stdJavaObject.
+!stdJavaObject.getMethod("方法名__") = 返回对象的成员函数\n,注意Java区分大小写，返回的函数支持任意个数参数\n注意无论Java对象是否存在该函数,此方法都会返回一个函数对象
+!stdJavaObject.getMethodEx("方法名__","int(int)") = 返回对象的成员函数\n,注意Java区分大小写，参数只能指定单个参数或数组类型,\n如果需要使用多个参数或动态参数，请直接使用 对象.函数名 获取函数\n注意返回的是原生函数,调用时数值、布尔值不可以使用Java对象
+!stdJavaObject.getFieldEx("字段名__","int") = 第二个参数指定字段类型声明\n与函数原型使用的语法一致
+_JNI_VERSION_1_1=@0x10001/*_JNI_VERSION_1_1*/
+_JNI_VERSION_1_2=@0x10002/*_JNI_VERSION_1_2*/
+_JNI_VERSION_1_4=@0x10004/*_JNI_VERSION_1_4*/
+_JNI_VERSION_1_6=@0x10006/*_JNI_VERSION_1_6*/
+_JNI_VERSION_1_7=@0x10007/*_JNI_VERSION_1_7*/
+_JNI_VERSION_1_8=@0x10008/*_JNI_VERSION_1_8*/
+_JNI_VERSION_9=@0x90000/*_JNI_VERSION_9*/
+_JNI_FALSE = @0/*_JNI_FALSE*/
+_JNI_TRUE = @1/*_JNI_TRUE*/
+end intellisense**/

@@ -1,0 +1,71 @@
+namespace sys;
+
+lock = function(){
+	return ::User32.LockWorkStation();
+} 
+
+shutdown = function( flags ){
+    if(! setprivilege("SeShutdownPrivilege",true) ) return false;
+    if( flags === null ) flags = 0xd /*_EWX_SHUTDOWN | _EWX_POWEROFF | _EWX_FORCE*/
+    if( type(flags) != type.number ) error("参数错误",2);
+    return !!::User32.ExitWindowsEx(flags,null);
+}
+
+restart = function(){
+	return shutdown(6/*_EWX_REBOOT|_EWX_FORCE*/)
+} 
+
+logoff = function(){
+	return shutdown(4/*EWX_LOGOFF|_EWX_FORCE*/)	
+}
+
+standby = function(){
+	if(! setprivilege("SeShutdownPrivilege",true) ) return false;
+	::Kernel32.SetSystemPowerState(1,1);
+}
+self.sleep = standby;
+
+hibernate = function(){
+	if(! setprivilege("SeShutdownPrivilege",true) ) return false;
+	::Kernel32.SetSystemPowerState(false,0);
+}
+
+getStartTime = function(){
+	return ..time().addsecond(-(..time.tick()/1000)); 
+}
+
+getComputerName = function(nameType){ 
+    var nameSize = {INT value};
+    ::Kernel32.GetComputerNameEx(nameType,null,nameSize) 
+    if(nameSize.value>1){
+        var name = ..raw.buffer((nameSize.value-1)*2);
+		if( ::Kernel32.GetComputerNameEx(nameType,name,nameSize) ) { 
+			return ..string.fromUnicode(name);
+		}
+    }
+}
+
+setComputerName = function( name,nameType  ){
+	if( nameType === null ) nameType = 5;
+	if( type(name) != type.string ) error("参数@1未指定名称参数",2)
+    return ::Kernel32.SetComputerNameEx(nameType,name)
+}
+
+::Advapi32 := ..raw.loadDll("Advapi32.dll") 
+getUserName = function(){ 
+    var name = ..raw.buffer(0x202);
+	if( ::Advapi32.GetUserNameW(name,{INT size=0x101}) ) return ..string.fromUnicode(name,,-1);
+}
+
+/**intellisense(sys)
+shutdown()=关机
+restart()=重启
+logoff()=注销
+sleep()=睡眠,\n即硬盘休眠+内存待机
+hibernate()=休眠
+lock()=锁定计算机
+getUserName() = 返回当前登录用户名
+getComputerName() = 返回计算机名
+setComputerName(.("计算机名") = 修改计算机名,重启后生效
+getStartTime() = 返回系统启动时间\n!time.
+end intellisense**/

@@ -1,0 +1,105 @@
+//listview响应事件
+import win.ui;
+import win.ui.menu;
+/*DSG{{*/
+var winform = win.form(text="aardio form";right=349;bottom=249;parent=...)
+winform.add(
+listview={cls="listview";left=37;top=36;right=303;bottom=207;acceptfiles=1;asel=false;bgcolor=16777215;dl=1;dr=1;edge=1;font=LOGFONT(name='SimSun');fullRow=1;gridLines=1;msel=false;z=1};
+static={cls="static";text="请使用鼠标左键、鼠标右键点击列表项";left=37;top=10;right=310;bottom=28;transparent=1;z=2}
+)
+/*}}*/
+
+winform.popmenu = win.ui.popmenu(winform);//创建弹出菜单
+winform.popmenu.add('删除',function(id){
+	//在下面输入菜单响应代码
+	winform.listview.delItem( winform.listview.selIndex )
+});
+
+//双击listview控件添加下面的代码 
+import win.util.tray;
+winform.listview.onnotify = function(id,code,ptr){ 
+    
+    select(code) {
+    	case  0xFFFFFF9B/*_LVN_ITEMCHANGED*/ {
+    		var nm = winform.listview.getNotifyMessage(code,ptr)
+    		if(winform.listview.selIndex){
+        		winform.static.text = "选中了" +  winform.listview.getItemText(nm.iItem,nm.iSubItem)
+            	win.util.tray.pop( winform.static.text )
+        	}
+    	}
+    	case 0xFFFFFF94/*_LVN_COLUMNCLICK*/ {
+    		winform.static.text = "请实现排序"
+        	win.util.tray.pop("请实现排序")
+    	}
+    	case 0xFFFFFFFB/*_NM_RCLICK*/  {
+    		var x,y = win.getCursorPos();
+    		winform.popmenu.popup(x,y,true);//弹出菜单
+    	}
+    }
+    
+}
+
+//接受拖放文件并修改指定列
+winform.listview.wndproc = function(hwnd,message,wParam,lParam){
+    select(message) { 
+        case 0x233/*_WM_DROPFILES*/{ 
+            var path = win.getDropFile(wParam )[1];  
+            var row,col = winform.listview.hitTest();
+            winform.listview.setItemText(path,row,col);
+        } 
+    }
+}
+
+//自适应列宽度 
+winform.listview.adjust = function(cx,cy){
+    winform.listview.fillParent(/*列序号*/);
+} 
+ 
+winform.listview.insertColumn("列标题2",100,,0x0/*_LVCFMT_LEFT*/) 
+winform.listview.insertColumn("列标题1",100,,0x0/*_LVCFMT_LEFT*/) //第二列开始可以使用_LVCFMT_CENTER居中
+
+winform.listview.addItem( { 
+	text={"第一行内容";"yes"} 
+} )
+winform.listview.addItem("第二行内容")
+winform.listview.addItem("第三行内容") 
+
+winform.listview.setItemText("改变第三行",3)
+winform.listview.setItemText( {
+	"改变第二行";"第二列"
+},2);
+ 
+
+winform.show() 
+win.loopMessage();
+
+/*
+_LVN_BEGINDRAG 鼠标左键正在被触发以便进行拖放操作(当鼠标左键开始拖拽列表视图控件中的项目时产生)
+_LVN_BEGINRDRAG 鼠标右键正在被触发以便进行拖放操作(当鼠标右键开始拖拽列表视图控件中的项目时产生)
+_LVN_BEGINLABELEDIT 开始编辑项的文本
+_LVN_COLUMNCLICK 单击列(当鼠标单击列表视图控件列标题时产生)
+_NM_CLICK 当鼠标单击列表视图控件时产生
+_LVN_COLUMNCLICK 单击列
+_LVN_DELETEALLITEMS 删除所有项
+_LVN_DELETEITEM 删除某个项
+_NM_DBLCLK 当鼠标双击列表视图控件时产生
+_LVN_ENDLABELEDIT 结束对项文本的编辑
+_LVN_GETDISPINFO 请求需要显示的信息
+_LVN_GETINFOTIP 请求显示在工具提示窗口内的附加的文本信息
+_LVN_HOTTRACK 鼠标滑过某个项
+_LVN_INSERTITEM 当向列表视图控件插入项目时产生
+_LVN_ITEMACTIVATE 激活某个项
+_LVN_ITEMCHANGED 某个项已经发生变化
+_LVN_ITEMCHANGING 某个项目正在发生变化
+_NM_KILLFOCUS 当视表列图控件失去焦点时产生
+_LVN_KEYDOWN 某个键被按下
+_LVN_MARQUEEBEGIN 开始某个边框选择
+_NM_OUTOFMEMORY 当内存溢出时产生
+_LVN_ODCACHEHINT 虚拟列表控件的显示区域的内容发生了变化
+_LVN_ODSTATECHANGED 虚拟列表的控件的某个项或某个范围内的项已经发生变化
+_LVN_ODFINDITEM 需要拥有者查找一个特定的回调项
+_NM_RCLICK 当鼠标右键单击列表视图控件时产生
+_NM_RDBLCLK 当鼠标右键双击列表视图控件时产生
+_NM_SETFOCUS 当列表视图控件获得焦点时产生
+_LVN_SETDISPINFO 父窗口必须更新控件为项所维护的信
+*/ 

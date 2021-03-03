@@ -1,0 +1,230 @@
+import com;
+import win.guid;
+import raw.interface;
+
+namespace com;
+ 
+class interface{
+	ctor(pObj,itface){ 
+		itface = checkInterface(itface,2); 
+		if(!pObj) error("参数@1 不能为空值!",2)
+		
+		if( (!pObj@) && type(pObj) == "table" ){ 
+			..table.mix(pObj, {
+				QueryInterface = function(iid,ptr){
+					iid = ..raw.convert(iid, ..win.guid() );
+					if( iid == IUnknown.IID ){
+						this.AddRef() 
+						return 0/*_S_OK*/,this ;
+					}
+					if( iid == itface.IID){
+						this.AddRef()
+						return 0x0/*_S_OK*/,this;
+					}
+					return -2147467262/*_E_NOINTERFACE*/
+				}
+				AddRef = function(){
+					this.count = ( this.count : 0 ) + 1;
+					__box__[this] = true;
+					return this.count;
+				}
+				Release = function(){   
+					this.count = ( this.count : 0 ) - 1;
+					if( this.count < 1 ) { __box__[this] = null}; 
+					return this.count;
+				} 
+			} );
+			
+			this  = ..raw.interface( pObj, itface ); 
+		}
+		else{
+			var pItface = ..com.GetIUnknown(pObj,itface.IID);
+			assert(pItface,"无效的com指针");
+			
+			this  = ..raw.interface( pItface, itface );
+			var queryInterface = this.QueryInterface;
+			this.QueryInterface = function(itface){
+				itface = checkInterface(itface,2); 
+				var hr,pObj = queryInterface( itface.IID );
+				if(  (hr)>=0/*_SUCCEEDED*/ ){
+					var obj =  ..com.interface(pObj,itface); 
+					..com.Release(pObj);
+					return obj;
+				}
+				else {
+					return null,..lasterr(hr);
+				}
+			}
+		}
+	} 
+}
+
+namespace interface{
+	::Ole32 := ..raw.loadDll("ole32.dll");
+	CoCreateInstance = Ole32.api("CoCreateInstance","int(struct rclsid, pointer pUnkOuter,INT dwClsContext, struct riid, pointer &ppv)" )
+    
+	var guid = ..win.guid;
+	checkInterface = function(interface,el=1){
+		var interfaceType = type(interface);
+	    if(interfaceType!=type.class){
+	    	if( interfaceType == type.string && ! ..com.interface[interface] )
+	    		error("无效的接口类",el+1);
+	    	
+	    	interface = ..com.interface[interface];
+	    	if( type(interface) != type.class ) error("无效的接口类",el+1);
+	    }
+	    
+	    interface.IID = guid.valid(interface.IID)
+	    if( ! interface.IID ) error("未指定有效的接口IID(类的静态成员,字符串或 win.guid 对象)",el+1); 
+	    return interface; 
+	}
+	
+ 	checkError = function(hr,ci = 1){
+		if(  hr<0/*_FAILED*/ ) 
+			error(..lasterr(hr),ci + 1) 
+	}
+	
+	create = function(clsid,itface,context=7/*_CLSCTX_INPROC | _CLSCTX_LOCAL_SERVER*/){
+		if(type(clsid)==type.string)
+			clsid = guid.fromString(clsid)
+			 
+		itface = checkInterface(itface,2);  
+		var iid =itface.IID ;
+		var hr,unknown =CoCreateInstance(clsid,null,context,iid ); 
+		checkError(hr,2);
+		
+		var iterface =  ..com.interface(unknown,itface);
+		..com.Release(unknown) 
+		return iterface;
+	}
+	
+	var tlbTemplate = /*
+	namespace com.interface;
+
+	class ${INTERFACE}{
+		ctor(){
+			this = ..com.interface.IUnknown(); 
+			if(self._funtions){ ..table.assign(this,_funtions); }
+		}; 
+		${FIELD}
+	}
+	${INTERFACE}.IID = "${IID}"
+	*/
+	
+	loadTypelibrary = function(tlb,interface){
+		if(type(tlb) === type.string){
+			tlb = ..com.LoadTypeLibrary(tlb);
+		}
+		
+		if(!tlb){ error("请指定正确的类型库",2) }
+		
+		for(i=1;tlb.GetTypeInfoCount();1){
+			var info = tlb.GetTypeInfo(i) 
+			if(info.GetDocumentation().name===interface){
+				var attr = info.GetTypeAttr();
+				if(attr.typekind === "interface"){
+					var fields = {}
+					for(i=1;attr.Funcs;1){
+						var f = info.GetFuncDesc(i)
+						..table.push(fields,"ptr " + (f.name:"unknown"));
+					}
+					
+					var code = ..string.replace(tlbTemplate,"@${FIELD}",..string.join(fields,";"));
+					var code = ..string.replace(code,"@${IID}",attr.GUID);
+					var code = ..string.replace(code,"@${INTERFACE}",interface);
+					loadcodex(code);
+				}
+			} 
+		} 
+	}
+
+	class IUnknown{
+    	ptr QueryInterface = "int(struct iid,ptr &ptr)" ;
+    	ptr AddRef = "int()" ;
+    	ptr Release ="int()" ;
+	}
+	IUnknown.IID = guid.fromString("{00000000-0000-0000-C000-000000000046}");
+	
+	__box__ = {};
+}
+ 
+/**intellisense(com.interface)
+checkInterface(__/*接口类*/) = 检查是否com.interface名字空间下的接口类或类名,\n不合法则抛出异常,可使用参数2指定调用级别,\n成功返回类对象
+checkError(__/*请输入COM静态接口函数返回值*/) = 如果有错误调用error函数抛出异常
+checkError(__/*请输入COM静态接口函数返回值+函数返回值*/,2) = 如果有错误调用error函数抛出异常\n参数2指定抛出异常的调用级别\n2表示调用当前函数的函数
+create(.(clsid,静态接口类) = 创建静态接口对象
+loadTypelibrary(.(类型库,接口类名) = 自类型库加载接口类,\n并在com.interface名字空间创建参数@2指定名称的类,\n类型库可以是路径等可传入com.LoadTypeLibrary函数的参数,\n也可以是该函数创建的类型库对象,\n可选在定义接口类以后,\n在该类的名字空间下使用_funtions对象补全函数原型
+IUnknown = 未知接口对象
+end intellisense**/                
+
+/**intellisense()
+com.interface(.(com对象,静态接口类) = 参数一可以是com对象、com指针、托管com指针\n参数二是com.interface名字空间下的接口类或类名\n注意com.interface下接口类中的自定义函数必须用owner代替this,\nowner才是com实例对象,this指向的是接口定义结构体
+?.QueryInterface = !interface.
+?.interface = !interface.
+?.interface.create = !interface. 
+!interface.AddRef() = 引用计数加一,返回引用计数
+!interface.Release() = 引用计数减一,返回引用计数
+!interface.QueryInterface(__/*接口数*/) = 参数是接口类,参考com.interface.IUnknown源码
+end intellisense**/           
+
+/**intellisense()
+_SUCCEEDED = @ __/*hr*/ >= 0/*_SUCCEEDED*/
+_FAILED = @ __/*hr*/ < 0/*_FAILED*/
+_CLSCTX_INPROC_SERVER=@1/*_CLSCTX_INPROC_SERVER*/
+_CLSCTX_INPROC_HANDLER=@2/*_CLSCTX_INPROC_HANDLER*/
+_CLSCTX_LOCAL_SERVER=@4/*_CLSCTX_LOCAL_SERVER*/
+_CLSCTX_SERVER=@5/*_CLSCTX_LOCAL_SERVER*/
+_CLSCTX_INPROC=@3/*_CLSCTX_INPROC*/
+_VT_EMPTY=@0/*_VT_EMPTY*/
+_VT_NULL=@1/*_VT_NULL*/
+_VT_I2=@2/*_VT_I2*/
+_VT_I4=@3/*_VT_I4*/
+_VT_R4=@4/*_VT_R4*/
+_VT_R8=@5/*_VT_R8*/
+_VT_CY=@6/*_VT_CY*/
+_VT_DATE=@7/*_VT_DATE*/
+_VT_BSTR=@8/*_VT_BSTR*/
+_VT_DISPATCH=@9/*_VT_DISPATCH*/
+_VT_ERROR=@0xA/*_VT_ERROR*/
+_VT_BOOL=@0xB/*_VT_BOOL*/
+_VT_VARIANT=@0xC/*_VT_VARIANT*/
+_VT_UNKNOWN=@0xD/*_VT_UNKNOWN*/
+_VT_DECIMAL=@0xE/*_VT_DECIMAL*/
+_VT_I1=@0x10/*_VT_I1*/
+_VT_UI1=@0x11/*_VT_UI1*/
+_VT_UI2=@0x12/*_VT_UI2*/
+_VT_UI4=@0x13/*_VT_UI4*/
+_VT_I8=@0x14/*_VT_I8*/
+_VT_UI8=@0x15/*_VT_UI8*/
+_VT_INT=@0x16/*_VT_INT*/
+_VT_UINT=@0x17/*_VT_UINT*/
+_VT_VOID=@0x18/*_VT_VOID*/
+_VT_HRESULT=@0x19/*_VT_HRESULT*/
+_VT_PTR=@0x1A/*_VT_PTR*/
+_VT_SAFEARRAY=@0x1B/*_VT_SAFEARRAY*/
+_VT_CARRAY=@0x1C/*_VT_CARRAY*/
+_VT_USERDEFINED=@0x1D/*_VT_USERDEFINED*/
+_VT_LPSTR=@0x1E/*_VT_LPSTR*/
+_VT_LPWSTR=@0x1F/*_VT_LPWSTR*/
+_VT_RECORD=@0x24/*_VT_RECORD*/
+_VT_INT_PTR=@0x25/*_VT_INT_PTR*/
+_VT_UINT_PTR=@0x26/*_VT_UINT_PTR*/
+_VT_FILETIME=@0x40/*_VT_FILETIME*/
+_VT_BLOB=@0x41/*_VT_BLOB*/
+_VT_STREAM=@0x42/*_VT_STREAM*/
+_VT_STORAGE=@0x43/*_VT_STORAGE*/
+_VT_STREAMED_OBJECT=@0x44/*_VT_STREAMED_OBJECT*/
+_VT_STORED_OBJECT=@0x45/*_VT_STORED_OBJECT*/
+_VT_BLOB_OBJECT=@0x46/*_VT_BLOB_OBJECT*/
+_VT_CF=@0x47/*_VT_CF*/
+_VT_CLSID=@0x48/*_VT_CLSID*/
+_VT_VERSIONED_STREAM=@0x49/*_VT_VERSIONED_STREAM*/
+_VT_BSTR_BLOB=@0xFFF/*_VT_BSTR_BLOB*/
+_VT_VECTOR=@0x1000/*_VT_VECTOR*/
+_VT_ARRAY=@0x2000/*_VT_ARRAY*/
+_VT_BYREF=@0x4000/*_VT_BYREF*/
+_VT_RESERVED=@0x8000/*_VT_RESERVED*/
+_VT_ILLEGAL=@0xFFFF/*_VT_ILLEGAL*/
+_VT_ILLEGALMASKED=@0xFFF/*_VT_ILLEGALMASKED*/
+_VT_TYPEMASK=@0xFFF/*_VT_TYPEMASK*/
+end intellisense**/

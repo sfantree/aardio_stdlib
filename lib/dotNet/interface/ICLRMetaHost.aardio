@@ -1,0 +1,17 @@
+  
+import com.interface;
+namespace  dotNet.interface;
+
+class ICLRMetaHost{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer GetRuntime = "int(ustring version,struct riid,pointer &ppRuntime)"; 
+	pointer GetVersionFromFile = "int(ustring filePath,ustring &wstrBuffer,INT &cchBuffer )"; 
+	pointer EnumerateInstalledRuntimes = "int(pointer &ppEnumerator)"; 
+	pointer EnumerateLoadedRuntimes = "int(pointer hndProcess,pointer &ppEnumerator)"; 
+	pointer RequestRuntimeLoadedNotification = "int(pointer pCallbackFunction)"; 
+	pointer QueryLegacyV2RuntimeBinding = "int(struct riid,pointer &ppUnk)"; 
+	pointer ExitProcess = "int(INT iExitCode)";  
+}
+ICLRMetaHost.IID = "{D332DB9E-B9B3-4125-8207-A14884F53216}";

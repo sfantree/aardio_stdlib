@@ -1,0 +1,18 @@
+//Excel 图表
+import com.excel;
+
+var excel = com.excel( true );
+if( !excel ) error("该示例需要安装EXCEL");
+
+var book  = excel.WorkBooks.Add()
+var sheet = book.Worksheets(1)
+excel.Visible = true
+ 
+for row=1;30 begin
+  sheet.Cells(row, 1).Value2 = math.floor(math.random(1*19) * 100)
+end
+ 
+var chart = excel.Charts.Add()
+chart.ChartType = 4 //xlLine
+var range = sheet.Range("A1:A30")
+chart.SetSourceData(range,2)

@@ -1,0 +1,92 @@
+﻿//播放声音
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="播放声音";right=679;bottom=78;border="dialog frame";max=false;min=false)
+winform.add(
+btnBeep={cls="button";text="主板发声";left=510;top=19;right=652;bottom=51;z=1};
+btnMessageBeep={cls="button";text="系统警报声";left=349;top=19;right=491;bottom=51;z=2};
+btnWav={cls="button";text="播放WAV文件";left=188;top=19;right=330;bottom=51;z=3};
+button={cls="button";text="播放MP3";left=27;top=19;right=169;bottom=51;z=4}
+)
+/*}}*/
+
+import fsys.media;
+import fsys.dlg;
+
+winform.btnWav.oncommand = function(id,event){
+    
+    var path = fsys.dlg.open("*.wav|*.wav||");
+    if(!path) return;
+    
+	import fsys.media;
+	fsys.media.playSound(path);
+}
+
+import fsys.media;
+winform.button.oncommand = function(id,event){
+    
+    var path = fsys.dlg.open("*.mp3|*.mp3||");
+    if(!path) return;
+    	
+    if(mediaFile) mediaFile.stop();
+	mediaFile = fsys.media(path);
+	if(mediaFile) mediaFile.play();
+}
+
+winform.btnMessageBeep.oncommand = function(id,event){
+	::User32.MessageBeep(0x10/*_MB_ICONHAND*/);//播放系统警报声
+}
+
+winform.btnBeep.oncommand = function(id,event){
+    winform.btnBeep.disabledText = "正在播放..."
+  
+	/*
+	主板发声
+	第一个参数指定声音频率(从37Hz到32767Hz),第二个参数指定持续时间声音的持续时间,
+	以毫秒为单位。如为-1,表示一直播放声音,直到再次调用该函数为止。
+	
+	《今天看到主板发声的例子,于是写了一首歌》 
+	http://bbs.aardio.com/forum.php?mod=viewthread&tid=5022 
+	*/
+	Beep = ::Kernel32.Beep;
+	Beep(550,500);
+	Beep(600,500);
+	Beep(700,500);
+	Beep(550,500);
+	Beep(550,500);
+	Beep(600,500);
+	Beep(700,500);
+	Beep(550,500);
+	Beep(700,500);
+	Beep(750,500);
+	Beep(850,500);
+	if(!win.delay(500))return;
+	Beep(700,500);
+	Beep(750,500);
+	Beep(850,500);
+	if(!win.delay(600))return;
+	Beep(800,230);
+	Beep(950,230);
+	Beep(750,230);
+	Beep(650,230);
+	Beep(700,500);
+	Beep(600,500);
+	Beep(800,230);
+	Beep(950,230);
+	Beep(750,230);
+	Beep(650,230);
+	Beep(700,500);
+	Beep(600,500);
+	Beep(700,500);
+	Beep(400,500);
+	Beep(550,500);
+	if(!win.delay(500))return;
+	Beep(700,500);
+	Beep(400,500);
+	Beep(550,1000); 
+	
+	winform.btnBeep.disabledText = null;
+}
+
+winform.show() 
+win.loopMessage();

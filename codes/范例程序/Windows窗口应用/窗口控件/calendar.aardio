@@ -1,0 +1,19 @@
+//日历时间等控件
+import win.ui;
+/*DSG{{*/
+var winform = ..win.form(text="日历控件演示";right=440;bottom=249;parent=...)
+winform.add(
+button={cls="button";text="同步控件时间";left=302;top=205;right=422;bottom=233;db=1;dr=1;z=2};
+calendar={cls="calendar";left=20;top=8;right=426;bottom=195;db=1;dl=1;dr=1;dt=1;edge=1;transparent=1;z=1};
+datetimepick={cls="datetimepick";left=46;top=209;right=287;bottom=229;db=1;dr=1;edge=1;z=3}
+)
+/*}}*/
+
+//关于格式化字符串 http://msdn.microsoft.com/en-us/library/windows/desktop/bb761726(v=vs.85).aspx#dtp_format_chars 
+winform.datetimepick.setFormat("'时间'hh':'m':'s ddddMMMdd', 'yyy")
+
+winform.button.oncommand = function(id,event){   
+	 winform.calendar.time = winform.datetimepick.time   
+}
+winform.show() 
+win.loopMessage();

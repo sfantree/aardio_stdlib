@@ -1,0 +1,217 @@
+﻿if(type(winex[["accObject"]])!="class"){
+	error("只能在 winex.accObject中 导入 winex.accObject.element",2)
+}
+
+namespace winex.accObject;
+	
+class element{
+	ctor(accObject,varElement){ 
+		this.accObject = accObject;
+		this.childId = varElement  : 0/*CHILDID_SELF*/;
+		this.type = "element";
+	};
+	name = function(){
+		var r;
+		try{r = this.accObject.accName(this.childId)} 
+		return r;
+	};
+	setName = function(value){
+		var r;
+		try{
+			this.accObject.setAccName(this.childId ,value);
+			r = true;
+		}
+		return r;
+	};
+	value = function(){
+		var r;
+		try{r = this.accObject.accValue(this.childId)} 
+		return r;
+	};
+	setValue = function(value){
+		var r;
+		try{
+			this.accObject.setAccValue(this.childId ,value);
+			r = true;
+		} 
+		
+		return r;
+	};
+	role = function(){
+		var r;
+		try{r = this.accObject.accRole(this.childId)}
+		return r;
+	};
+	roleText =  function(){
+		var roleText;
+		try{ 
+			var role = this.accObject.accRole(this.childId)
+			if(role){ 
+				var len = ::OleAcc.GetRoleTextW(role,null,0);
+				var buf = ..raw.buffer(len*2);
+				len = ::OleAcc.GetRoleTextW(role,buf,len+1/*the terminating null character*/);
+				roleText = ..string.fromUnicode(buf)
+			}
+		}
+		return roleText;
+	};
+	state = function(){
+		var r;
+		try{r = this.accObject.accState(this.childId)}
+		return r;
+	};
+	stateText =  function(){
+		var stateText;
+		try{ 
+			var state = this.accObject.accState(this.childId)
+			if(state){
+				var len = ::OleAcc.GetStateTextW(state,null,0);
+				var buf = ..raw.buffer(len*2);
+				len = ::OleAcc.GetStateTextW(state,buf,len+1/*the terminating null character*/);
+				stateText = ..string.fromUnicode(buf)
+			}
+		}
+		return stateText;
+	};
+	location = function(){ 
+		var x,y,cx,cy;
+		try{
+			x,y,cx,cy = this.accObject.accLocation(0,0,0,0,this.childId)
+		}
+		
+		return x,y,cx,cy;
+	};
+	keyboardShortcut = function(){ 
+		var k;
+		try{
+			k = this.accObject.accKeyboardShortcut(this.childId)
+		}
+		
+		return k;
+	}; 
+	takeFocus = function(){
+		return this.takeSelection(1/*SELFLAG_TAKEFOCUS*/)
+	};
+	takeSelection = function(flags){
+		if(flags===null){
+			flags = 2/*SELFLAG_TAKESELECTION*/
+		}
+		
+		var r;
+		try{
+			this.accObject.accSelect(flags,this.childId);
+			r = true;
+		}
+		 
+		return r;
+	}; 
+	extendSelection = function(){
+		return this.takeSelection(4/*SELFLAG_EXTENDSELECTION*/)
+	};
+	addSelection = function(){
+		return this.select(8/*SELFLAG_ADDSELECTION*/)
+	};
+	removeSelection = function(){
+		return this.select(0x10/*SELFLAG_REMOVESELECTION*/)
+	};
+	selection = function(){};
+	focus = function(){};
+	hitTest = function(){};
+	doDefaultAction = function(){ 
+		var r;
+		try{
+			r = this.accObject.accDoDefaultAction(this.childId)
+		}
+		
+		return r;
+	};
+	defaultAction = function(){ 
+		var r;
+		try{
+			r = this.accObject.accDefaultAction(this.childId)
+		}
+		
+		return r;
+	};
+	childCount = function(){return 0;};
+	parent = function(){
+		var r;
+		try{
+			r = this.accObject.accParent()
+		}
+		
+		return ..winex.accObject(r);
+	};
+	focus = function(){
+		
+	};
+	focusElement = function(){
+		var r;
+		var next = owner.focus();
+		while(  next  ) { 
+			r = next;
+			next = next.focus() 
+		}
+		return r;
+	};
+	each =  function(childId){
+		return function(){}
+	};
+	enum = function(proc,options,parent){
+		if( false === __enumCallback(proc,options,this,parent) ) {
+			return false;
+		}
+	
+		if(this.childId) return;
+		
+		for(accChild in owner.each() ){
+			if( false ===accChild.enum(proc,options,this) ) return false;
+		} 
+	};
+	hwnd = function(){
+		if(this["(hwnd)"]){ return this["(hwnd)"] }
+		
+		if(!this.unkAccessible){
+			this.unkAccessible = ..com.GetIUnknown(this.accObject,"{618736E0-3C3D-11CF-810C-00AA00389B71}")
+		}
+		
+		var phwnd = { addr value; }
+		if( 0 == ::OleAcc.WindowFromAccessibleObject(this.unkAccessible,phwnd) ){
+			this["(hwnd)"] = phwnd.value;
+			return this["(hwnd)"];
+		}
+	} 
+}
+
+namespace element{
+    
+	__enumCallback = function(proc,options,accChild,accParent){
+		if(!options){ return proc(accChild,accParent);}
+			
+		if(#options.name && !..string.match(accChild.name():"",options.name) ){
+			return;
+		}
+		
+		if(#options.value && !..string.match(accChild.value():"",options.value ) ){
+			return;
+		}
+		
+		if(#options.role && (accChild.roleText() !== options.role) ){
+			return;
+		}
+		
+		if(#options.state && (accChild.stateText() !== options.state) ){
+			return;
+		}
+		
+		if(#options.shortcut && !..string.match(accChild.keyboardShortcut():"",options.keyboardShortcut) ){
+			return;
+		}
+		
+		if(#options.type && (accChild.type !== options.type) ){
+			return;
+		}
+		
+		return proc(accChild,accParent);	
+	}
+}

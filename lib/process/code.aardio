@@ -1,0 +1,78 @@
+﻿//code VSC编辑器
+import process;
+import win.reg;
+import process.cache;
+import fsys.lnk;
+import fsys;
+
+namespace process;
+
+class code{
+	ctor(parameters, startInfo,...){
+		if(parameters===null) parameters = "";
+		if( ( type(parameters) === type.string ) && ..io.exist(parameters) )
+			parameters = ..io.fullpath(parameters);
+			
+   		if( type(startInfo) == type.string ){
+   			parameters = {parameters;startInfo;...};
+   			startInfo = null;
+   		}
+   		else {
+   			if(..io.exist(parameters) ){
+   				parameters = '"' + parameters + '"'
+   			}
+   		}
+   		
+   		
+   		var sa = ..table.assign(..process.STARTUPINFO(),startInfo);
+		if(!sa.workdir)  sa.workdir = ..fsys.getCurDir();
+   			
+		this = ..process(self.path,parameters, startInfo)
+	}; 
+}
+
+namespace code{
+    
+    var getPath = function(){
+        var codePath = ..io.appData("\Programs\Microsoft VS Code\Code.exe");
+		if(..io.exist(codePath)){ 
+			return codePath;
+		}
+		
+		var reg = ..win.regReader("HKEY_CLASSES_ROOT\*\shell\VisualCode\command");
+		if( reg ){
+			var v = reg.queryValue("");
+			reg.close();
+			
+			if( v ){
+				var path = ..string.match(v,`[^"']+`)
+				if( ..io.exist(path) ) return path;
+			}
+		}
+		
+		var reg = ..win.regReader("HKEY_CLASSES_ROOT\Applications\Code.exe\shell\open\command");
+		if( reg ){
+			var v = reg.queryValue("");
+			reg.close();
+			
+			if( v ){
+				var path = ..string.match(v,`[^"']+`)
+				if( ..io.exist(path) ) return path;
+			}
+		}
+		
+		var codePath = ..process.cache.find("Code","Visual Studio Code")
+    	if( codePath ){ 
+        	return codePath;
+    	} 
+    }
+    
+    path = ..io.exist( getPath() );
+	
+}
+
+/**intellisense()
+process.code.path = VS Code安装路径
+process.code(.(文件,参数,->->->) = 启动VS Code
+process.code() = !process.
+end intellisense**/

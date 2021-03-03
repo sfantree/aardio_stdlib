@@ -1,0 +1,39 @@
+//ESC、Enter
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="对话框默认快捷键 ESC、Enter等";right=759;bottom=469)
+winform.add()
+/*}}*/
+
+winform.onCancel = function(){
+    winform.msgbox("你按了ESC");
+    winform.close();
+}
+
+winform.onOk = function(){
+  	winform.msgbox("你按了Enter");	  
+}
+
+/*
+窗口会自动检测默认的对话框快捷键，
+默认Enter会触发onOk事件，ESC键会触发onCancel事件，
+可选如下自定义检测对话框快捷键函数 winform.isDialogMessage
+*/
+winform.isDialogMessage = function(hwnd,msg){
+	if( msg.message == 0x100/*_WM_KEYDOWN*/){
+		
+		if(  msg.wParam == 0xD/*_VK_RETURN*/ ){ 
+			//return true;//告诉消息处理函数这是一个快捷键,阻止按键消息继续分发
+		}
+		
+		if( msg.wParam == 0x1B/*_VK_ESC*/ ){
+			//return true;//告诉消息处理函数这是一个快捷键,阻止按键消息继续分发
+		} 
+	}
+	
+	//检测并响应默认快捷键
+	return win.isDialogMessage(hwnd,msg);
+}
+
+winform.show() 
+win.loopMessage();

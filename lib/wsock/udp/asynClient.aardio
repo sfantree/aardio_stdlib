@@ -1,0 +1,62 @@
+﻿//asynClient 异步客户端
+
+import wsock.udp.client;
+import win.ui;
+
+namespace wsock.udp;
+
+class asynClient{
+	ctor(){
+		this = ..wsock.udp.client(hSocket);  
+	
+		this._form = ..win.form();
+		this._form.messageOnly();
+		this.asyncSelect(0x1/*_FD_READ*/,0xACD1/*_WM_STD_SOCKET_NOTIFY*/,this._form.hwnd)
+	
+		this._form.wndproc ={
+			[0xACD1/*_WM_STD_SOCKET_NOTIFY*/] =  function(hwnd,message,wParam,lParam){
+				var hSocket = topointer(wParam);
+				var err,event = ::HIWORD(lParam),::LOWORD(lParam);
+				if( hSocket != this.hSocket ) return;
+
+				select(event) {
+					case 0x1/*_FD_READ*/{
+						if( this.onReceive ) this.onReceive(err);
+					} 
+				}
+			}
+			[0x2/*_WM_DESTROY*/] = function(){
+				this.close();
+			}
+		} 
+	 }
+}
+
+/**intellisense()
+wsock.udp.asynClient = 异步客户端
+wsock.udp.asynClient() = 创建异步客户端\n!udp_asynClient.
+!udp_asynClient.bind(.(IP,端口) = 绑定IP端口\n如果不指定IP则默认获取内网IP作为参数
+!udp_asynClient.setBroadcast(true) = 允许广播
+!udp_asynClient.getRemoteAddress() = 最后最后发送或接收的sockaddr_in结构体\n!sockaddr_in.
+!udp_asynClient.getRemoteIp() = 返回最后发送或接收的IP,端口
+!udp_asynClient.getLocalIp() = 返回本机IP,端口
+!udp_asynClient.sendto(.(发送数据,IP或域名,端口号) = 发送数据,IP端口号为可选参数,\n成功返回true
+!udp_asynClient.recvfrom(.(缓冲区长度,IP或域名,端口号) = 接收并返回数据,IP端口号为可选参
+!udp_asynClient.connect(.(IP或域名,端口号) = 连接IP以及端口号\n省略参数则使用lastAddr
+!udp_asynClient.recv(.(最大接收长度) = 调用connect以后可以使用此函数接收数据包\n如果参数不指定长度，则使用bufferSize指定的长度\n成功返回字符串,\n失败返回null,错误代码
+!udp_asynClient.send(.(数据,长度) = 调用connect以后可以使用此函数接收数据包发送数据包
+!udp_asynClient.close() = 关闭udp客户端\n如果未显式调用此函数\n在对象析构时,将会自动调用.
+!udp_asynClient.setTimeouts(.(发送超时,接收超时) = 设置超时,以亳秒为单位(1秒为1000毫秒)
+!udp_asynClient.setopt(_SO__) = 设置选项\n参数@1使用_SO_前缀的常量指定选项,参数@2使用结构体、数值、布尔值都可以\n可选用参数@3指定设置层次，默认为SOL_SOCKET\n成功返回true
+!udp_asynClient.getopt(_SO__) = 获取选项\n参数@1使用_SO_前缀的常量指定选项,参数@2使用结构体指定值\n如果不指定参数@2,则获取一个32位整型数值,\n可选用参数@3指定设置层次，默认为SOL_SOCKET\n成功返回读取的结构体
+!udp_asynClient.joinGroup(.(广播组IP地址,网络接口IP) = 加入广播组\n参数@2可省略
+!udp_asynClient.leaveGroup(.(广播组IP地址,网络接口IP) = 退出广播组\n参数@2可省略
+!udp_asynClient.reuseAddress(true) = 是否允许端口重用
+!udp_asynClient.setMulticastLoopback(true) = 是否启用多播回送
+!udp_asynClient.setMulticastInterface(__) = 设置组播网卡IP，不指定参数自动取网卡IP
+!udp_asynClient.setMulticastTtl(__) = 设置组播报文的数据包的TTL
+!udp_asynClient.asyncSelect(.(event,userMsgId,hwnd) = 检测到由event参数指明的网络事件后,\n事件到达向hwnd指定句柄的窗口发送userMsgId消息,\n第二次调用此函数可省略句柄以及消息ID\n\n失败返回null,以及错误信息,\n成功返回true,以及上次调用此函数指定的event参数
+!udp_asynClient.onReceive = @.onReceive = function(err){
+	var str = udpServer.recvfrom(1024);__/*收到数据*/	
+}	
+end intellisense**/

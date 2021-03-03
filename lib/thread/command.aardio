@@ -1,0 +1,314 @@
+//command 线程命令
+import win.ui;
+import thread.table;
+namespace thread;
+
+class command{ 
+	ctor( winform ){  
+		if(!winform){
+			winform = ..win.form( {} );
+			winform.messageOnly();
+		}
+		this._form = winform;
+		this.hwnd = winform.hwnd;
+		this._commands = {};
+		
+		if( winform.__onThreadCommand ){
+			error("目标窗口已绑定线程命令,禁止重复绑定!",2)
+		}
+		
+		winform.__onThreadCommand  = function( cmdId ){
+        	return receive( this._commands,cmdId);
+		}
+		
+		..table.gc(this,function(){
+			for(name in this._commands ){
+				 this[name] = null;
+			} 
+		});
+	};
+	subscribe = function(k,f){
+		if( type(f) != "function" ) error("参数@2必须是函数对象",2);
+		if( type(k) != "string" ) error("参数@1必须是字符串",2);
+		
+		var list = this._commands[k];
+		var tl = type(list);
+		if( tl= "function"){
+			list = {list};
+		}
+		elseif( tl != "table") {
+			list = {};
+		}
+		
+		if( ..table.find(list,f) ) return;
+		..table.push(list,f);
+		 
+		this[k] = f;
+		this._commands[k] = list;
+		return;	
+	};
+	unsubscribe = function(k,f){
+		if( type(f) != "function" ) error("参数@2必须是函数对象",2);
+		if( type(k) != "string" ) error("参数@1必须是字符串",2);
+		var list = this._commands[k];
+		var tl = type(list);
+		if( tl == "table") { 
+			var idx = ..table.find(list,f)  
+			if(idx ) ..table.remove(list,idx ); 
+		}
+		else if( list == f ){
+			this[k] = null;
+		} 
+	};
+	invoke = function( tfunc,...){
+		..thread.invoke( tfunc ,this._form.hwnd,... );
+	};
+	@_meta;
+}
+ 
+namespace command {  
+	var commandTable = ..thread.table("{3EA9E65D-B101-42AF-93D7-08522F8841CD}.commands"); 
+ 	var commandRet = ..thread.table("{89ACA2D9-FC21-4834-8C70-0FDFD267EB27}.return"); 
+ 	
+ 	_meta = {
+		_set = function(k,v){ 
+			commandTable.setByNamespace("subscribe['"+k+"'][" + owner._form.hwnd + "]",v?true:null)
+			owner._commands[k] = v;
+		};
+		_get = function(k,ownerCall){
+			if(ownerCall) {
+				if(k[1]=='$'#){
+					return function(...){
+						return self.post(owner._form.hwnd,k,...);
+					} 		
+				} 
+				
+				return function(...){
+					return self.send(owner._form.hwnd,k,...);
+				} 	
+			}
+		};
+		_serialize = function(kernelCall){
+			if(kernelCall){
+				return ..string.format(`global.import('thread.command') : ..thread.command.bind(%d)`,owner._form.hwnd); 	
+			} 
+		}
+	};
+	
+	receive = function( methodTable,wParam ){ 
+		var args = commandTable.get(wParam) 
+		commandTable.set(wParam,null); 
+		if(!args) error("错误的递归触发线程命令被中止,请检查是否在线程命令中调用了消息分发函数",2);
+		
+		var method = methodTable[ args[1] ]
+		var tm = type(method); 
+		var _,argc = ..table.range(args); 
+		if( tm =="function" ){ 
+			var ret = invoke(method,methodTable, ..table.unpack( args,2,argc) );
+			if( ret !== null ) return commandRet.push(ret);  
+		}
+		elseif( tm == "table" ){
+			var ret;
+			for(i=1;#method){
+				 ret = invoke(method[i],methodTable, ..table.unpack( args,2,argc) );
+				 if( ret !== null ) return commandRet.push(ret);
+			}
+		}
+	};
+
+ 	send = function( hwnd,method,... ){  
+ 		var t = type(hwnd);
+ 		var bindargs;
+ 		if(t == "table" ){
+ 			bindargs = hwnd;
+			hwnd = bindargs[1];
+			t = type(hwnd);
+			if(t != "number" ) error("绑定的线程命令参数第一个参数必须是窗口句柄",2);
+		} 
+		
+		if( t == "string" ){  
+			var sendTable;
+			sendTable = {hwnd;method;...};
+			method = hwnd;
+			var subscribe = commandTable.getByNamespace("subscribe['"+method+"']");
+			
+			var ret;
+			for(hwnd in subscribe){
+				var id = commandTable.push(sendTable); 
+				ret = ::SendMessageInt(hwnd,0xACCC/*_WM_THREAD_COMMAND*/,id,0);
+				if( ret ) { var r = commandRet.get(ret); commandRet.set(ret, null); return r; } 
+			}
+		}
+		elseif(t == "number" ){
+			var sendTable = {method;...}; 
+			if( bindargs ) ..table.spliceArgs(sendTable,2,0,bindargs,2)
+			var id = commandTable.push( sendTable ); 
+			var ret = ::SendMessageInt( hwnd,0xACCC/*_WM_THREAD_COMMAND*/,id,0);
+			if( ret ) { var r = commandRet.get(ret); commandRet.set(ret, null); return r; }  
+		};  
+	};
+	
+	post = function( hwnd,method,... ){  
+ 		var t = type(hwnd); 
+ 		var bindargs;
+ 		if(t == "table" ){
+ 			bindargs = hwnd;
+			hwnd = bindargs[1];
+			t = type(hwnd);
+		} 
+		
+		if( t == "string" ){
+			var sendTable;
+			sendTable = {hwnd;method;...};
+			method = hwnd; 
+			var subscribe = commandTable.getByNamespace("subscribe['"+method+"']");
+			
+			var ret;
+			for(hwnd in subscribe){
+				var id = commandTable.push(sendTable); 
+				if( !::PostMessage(hwnd,0xACCC/*_WM_THREAD_COMMAND*/,id,0) ){
+					commandTable.set(id,null); //避免有进无出
+				}
+			} 
+		}
+		elseif(t == "number" ){
+			var sendTable = {method;...}; 
+			if( bindargs ) ..table.spliceArgs(sendTable,2,0,bindargs,2)
+			var id = commandTable.push( sendTable ); 
+			if(! ::PostMessage( hwnd,0xACCC/*_WM_THREAD_COMMAND*/,id,0) ){
+				//超过消息队列上限(10,000),此函数返回0表示丢失消息发送失败
+				commandTable.set(id,null); //避免有进无出
+				return false;
+			}
+			return true;
+		}; 
+	};
+	 
+	
+	var tickIdle = 0;
+	var time_tick = ..time.tick;
+	sendIdle = function(delay,...){
+		var tick = time_tick();
+		if( tick - tickIdle > delay ){
+			tickIdle = tick
+			return send(...);
+		}
+	};
+	
+	postIdle = function(delay,...){
+		var tick = time_tick();
+		if( tick - tickIdle > delay ){
+			tickIdle = tick
+			return post(...);
+		}
+	};
+	
+	self.invoke = function( id,f,... ){
+		..raw.closehandle( ..thread.create(
+			function(id,f,...){ 
+				import thread.command; 
+				thread.command.post(id,f(...) ) 
+			},id,f,...) );   
+	};
+	
+	sendInvoke = function(hwnd,method,...){
+		return ..win.invoke(
+			function(hwnd,method,...){
+				import thread.command;
+				return thread.command.send(hwnd,method,...)
+			},hwnd,method,...
+		)
+	};
+	
+	instance = function(){
+		if( ! self[["_instance"]] ){
+			self[["_instance"]] =  ..thread.command(); 
+		}
+		return self[["_instance"]];
+	}
+	
+	bind = function(hwndListener,...){
+		if( type(hwndListener) != type.number ){
+			error("参数@1必须指定命令处理窗口句柄",2)
+		}
+		
+		if( ... ) { hwndListener = {hwndListener;...};}
+
+		return { 
+			send = function(...){
+				return self.send(hwndListener,...);
+			}
+			post = function(...){
+				self.post(hwndListener,...);
+			} 
+			sendIdle = function(delay,...){
+				self.sendIdle(delay,hwndListener,...);
+			}
+			postIdle = function(delay,...){
+				self.postIdle(delay,hwndListener,...);
+			} 
+			@{
+				_get = function(k){
+					if(k[1]=='$'#){
+						return function(...){
+							return self.post(hwndListener,k,...);
+						} 		
+					} 
+					
+					return function(...){
+						return self.send(hwndListener,k,...);
+					} 
+				} 
+			}
+		}
+	}
+	
+	self@ = {
+		_get = function(k){
+			if(k[1]=='$'#){
+				return function(...){
+					return owner.post(k,...);
+				} 		
+			}
+					
+			return function(...){
+				return owner.send(k,...);
+			} 
+		} 
+	}
+}
+
+/**intellisense()
+thread.command.post(.(窗口句柄,"命令函数名",其他参数) = 不阻塞调用跨线程命令,\n参数@1指定句柄时,超过消息队列限制发送失败返回false,否则返回true
+thread.command.post(.("命令函数名",其他参数) = 不阻塞调用跨线程命令,不接收返回值\n不指定窗口句柄,所有同名的线程命令函数都会被调用\n函数无返回值
+thread.command.send(.(窗口句柄,"命令函数名",其他参数) = 阻塞调用跨线程命令,\n注意send函数发送的消息有可能比之前post函数发送的消息更早被接收\n可获取回调函数的返回值,默认返回空值
+thread.command.send(.("命令函数名",其他参数) = 阻塞调用跨线程命令,\n注意send函数发送的消息有可能比之前post函数发送的消息更早被接收\n不指定窗口句柄,所有同名的线程命令函数都会被调用,\n可获取回调函数的返回值,默认返回空值
+thread.command.sendInvoke(.(窗口句柄,"命令函数名",其他参数) = 调用线程命令并等待返回值,等待过程中不卡界面,\n注意sendInvoke函数发送的消息有可能比之前post函数发送的消息更早被接收\n可获取回调函数的返回值,默认返回空值
+thread.command.sendInvoke(.("命令函数名",其他参数) = 调用线程命令并等待返回值,等待过程中不卡界面,\n注意sendInvoke函数发送的消息有可能比之前post函数发送的消息更早被接收\n不指定窗口句柄,所有同名的线程命令函数都会被调用,\n可获取回调函数的返回值,默认返回空值
+thread.command.sendIdle(.(延时值,窗口句柄,"命令函数名",其他参数) = 在指定的延时值内忽略部份消息\n其他同send函数
+thread.command.sendIdle(.(延时值,"命令函数名",其他参数) = 在指定的延时值内忽略部份消息\n其他同send函数
+thread.command.postIdle(.(延时值,窗口句柄,"命令函数名",其他参数) = 在指定的延时值内忽略部份消息\n其他同post函数
+thread.command.postIdle(.(延时值,"命令函数名",其他参数) = 在指定的延时值内忽略部份消息\n其他同post函数
+thread.command.命令函数名() = 如果命令函数名首字符为$以post模式异步调用命令，\n否则以send模式同步调用该命令,\n传入参数应与该命令定义时预设的形参一致,\nsend模式调用可获取回调函数的返回值,默认返回空值
+thread.command(.(窗口对象) = 创建线程命令订阅对象\n省略参数则创建 message only window,\n该对象定义的成员函数,都可在其他线程中用 thread.command.post()调用
+thread.command() = !thread_command.
+thread.command.instance() = 全局单实例线程命令订阅对象\n!thread_command.
+!thread_command.? = @.__/*订阅命令函数名字,支持不定个数参数\n如果同一个名字要注册多个回调函数请使用subscribe函数,\n使用"."成员操作符可获取命令调用函数,不可使用下标,\n默认以send模式同步调用，函数名首字符为$以post模式异步调用\nsend模式下返回值可阻止命令继续传递*/ = function( ... ){
+	
+}
+!thread_command.subscribe(  = 订阅指定的命令
+!thread_command.subscribe(.("订阅命令名字",回调函数对象) = 同一个名字可以多此调用此函数添加多个不同的关注回调函数\n回调函数如果返回值可阻止命令继续传递
+!thread_command.unsubscribe( = 取消订阅指定的命令
+!thread_command.unsubscribe(.("订阅命令名字",回调函数对象) = 函数无返回值
+!thread_command.invoke( 线程函数,->->-> ) = @.invoke(\n    function( hwndListener,... ){\n        import thread.command;\n        var notifier = thread.command.bind(hwndListener);\n        \n        notifier.post("begin") \n        notifier.post("end") \n    },...\n)
+thread.command.invoke("命令名",线程函数,调用参数) = @.invoke(  \n	"__/*创建线程\n使用线程函数的返回值作为参数触发该命令*/" ,function( ... ){\n		\n	}, \n)
+!thread_command._form = 窗体对象\n!winform.
+!thread_command.hwnd = 绑定监听对象窗体句柄
+thread.command.bind(hwndListener) = 绑定监听对象窗体句柄\n可添加绑定任意个默认调用参数
+thread.command.bind() = !thread_command_bind.
+!thread_command_bind.send("__/*命令函数名*/",) = 不阻塞调用跨线程命令
+!thread_command_bind.post("__/*命令函数名*/",) = 不阻塞调用跨线程命令
+!thread_command_bind.sendIdle(1000,"__/*命令函数名*/",) = 阻塞调用跨线程命令,\n在参数@1指定的延时值内忽略部份消息
+!thread_command_bind.postIdle(1000,"__/*命令函数名*/",) = 阻塞调用跨线程命令,\n在参数@1指定的延时值内忽略部份消息
+!thread_command_bind.? = 调用send函数发送该命令,\n传入参数应与该命令定义时预设的形参一致\n可获取回调函数的返回值,默认返回空值
+end intellisense**/

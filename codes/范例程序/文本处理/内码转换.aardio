@@ -1,0 +1,16 @@
+//内码转换
+import console;
+
+var str = "aardio代码中的字符串字面量为UTF-8编码";
+console.log("是否UTF8",str,string.isUtf8(str));
+
+str = string.toUnicode(str,65001); 
+console.log("是否UTF16",str,string.isUnicode(str));
+
+str = string.fromUnicode(str,0);
+console.log("ANSI",str,string.getUtf(str));
+
+//从一种编码转换另一种编码可以使用 string.fromto 函数
+console.log("UTF8->ANSI",string.fromto("转换编码",65001,0) );
+console.pause();
+ 

@@ -1,0 +1,38 @@
+//上传文件
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="web form 上传文件";right=717;bottom=524;parent=...;scroll=1)
+winform.add()
+/*}}*/
+
+import web.form;
+var wb = web.form( winform );//创建web窗体
+string.save("/test.txt","这是测试数据" );//构建数据包
+
+//构建上传数据包
+import web.multipartFormData;
+var formData = web.multipartFormData();
+formData.add("username","用户名");
+formData.add("password","密码");
+formData.add("file1","@/test.txt") 
+
+//httpbin.org总是会返回JSON,用FileDownload事件取消JSON下载
+wb.FileDownload = function( activeDocument, cancel) {if( !activeDocument ) return true;} 
+wb.post("http://eu.httpbin.org/post"
+	, formData.readAll() //上传数据包 
+	, formData.contentHeader()  //要添加的HTTP头
+	);
+winform.show() 
+
+//也可以用inet.http上传(与web.form共享会话)
+import inet.http;
+import string.html;
+var http = inet.http(wb.script.navigator.userAgent);
+var json = http.post("http://eu.httpbin.org/post" 
+	, formData.readAll() //上传数据包 
+	, formData.contentHeader()  //要添加的HTTP头
+	);
+wb.write(string.html.fromText(json));
+
+//启动消息循环
+win.loopMessage();

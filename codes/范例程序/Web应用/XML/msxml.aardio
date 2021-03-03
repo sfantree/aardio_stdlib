@@ -1,0 +1,68 @@
+//MSXML读写XML
+
+import console;
+import web.msxml
+
+xmlstr =/*<?xml version="1.0" encoding="utf-8"?>
+<国家 id="china">
+    <省份>
+        <省份详情 id="shanxi">陕西</省份详情>
+        <地区>
+            <市 id="xian">西安</市>
+            <市 id="xianyang">咸阳</市>
+        </地区>
+    </省份>
+    <省份>
+        <省份详情 id="hunan">湖南</省份详情>
+        <地区>
+            <市 id="changsha">长沙</市>
+            <市 id="zhuzhou">株洲</市>
+        </地区>
+    </省份>
+</国家>*/
+
+xmlDoc = web.msxml()
+xmlDoc.loadXml(xmlstr) 
+console.log( xmlDoc.xml );
+ 
+//还记得 wb.queryEles() 吗 ?
+qNodes = xmlDoc.queryNodes( tagName="市";text ="西安" ) 
+console.log( qNodes.text ); 
+
+//eachNode() 参数一可选指定tagName,参数二可选指定父节点
+for(k,xnode in xmlDoc.eachNode( "省份") ){ 
+	for(k,xnode in xmlDoc.eachNode( "省份详情",xnode) ){ 
+		console.log( "省份详情 Id: " ,  xnode.attributes(0).nodeValue  );
+    	console.log( "省份详情 value: " ,xnode.text  );
+	} 
+	for(k,xnode in xmlDoc.eachNode( "地区",xnode ) ){ 
+		for(k,xnode in xmlDoc.eachNode( "市",xnode ) ){
+			console.log( "   市 Id: ", xnode.attributes(0).nodeValue );
+			console.log( "   市 value: ", xnode.text ); 
+		}
+	}
+}
+
+root = xmlDoc.documentElement
+
+//修改国家下属第一个字节点的文本内容
+//注意 aardio数组下标从1开始,而com数组下标从零开始
+//下面两句的作用是一样的
+root.childNodes(0).Text="testitem" 
+root.childNodes(0).setText("testitem2") //在属性名字前加上set前缀、并以函数形式调用属性方法
+
+//下面这几句作用是一样的
+var text = root.childNodes(0).Text;
+var text = root.childNodes(0).getText() //在属性名字前加上get前缀、并以函数形式调用属性方法
+var text = root.childNodes.item(0).getText() 
+console.log( text)
+
+//更简单的方法
+console.log( xmlDoc.市(0).text  ); 
+
+//保存xml文件
+xmlDoc.save( "/result.xmlDoc" )
+
+import process;
+process.execute("notepad.exe",xmlDoc.url )
+

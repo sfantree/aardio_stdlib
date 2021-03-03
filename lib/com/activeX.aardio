@@ -1,0 +1,255 @@
+//activeX 控件
+import win; 
+import com;
+import process;
+import process.admin;
+import win.reg;
+import win.version;
+import win.guid;
+
+class com.activeX{
+
+	ctor(clsPath,version){
+		if( version === null ) version = 1;
+		version = tonumber(version)
+		if(!version) error("请在第二个参数中指定正确的版本号",2)
+		
+		var tClsPath = ..string.split( clsPath,".") 
+		if(#tClsPath<2){
+			error("类不应置于全局名字空间",2)
+		}
+		
+		try{
+			..global.import(clsPath); 
+		}
+		
+		this._class = ..table.getByNamespace( clsPath );
+		if( ! this._class ){
+			error("参数一指定的类库错误",2)
+		}
+		
+		this._object = this._class(this);
+		this.clsPath = clsPath  		
+		this.Arguments = "/Automation" 
+	 	this.VersionIndependentProgID = clsPath
+	 	this.ProgID = this.VersionIndependentProgID + "." +  version
+		this.CoClass = tClsPath[#tClsPath];
+		this.ComponentName = tClsPath[1] + " Component";
+		this.TypeLib = ..io._exepath;
+		
+		this.Control = !!(this._object.CreateWindow && this._object.DestroyWindow && this._object.SetExtent);
+		if(this.Control ){
+			if(!this._object.GetClass){
+				this._object.GetClass = function(){
+					return tostring(..win.guid.fromString(this.ProgID))
+				}	
+			} 
+			
+			if(!this._object.InitialSize){
+				this._object.InitialSize = function(){
+					return 0,0
+				}	
+			}
+		}
+	};
+	main = function(){
+		if( _STUDIO_INVOKED ) return false,"请生成EXE文件后再运行此控件" 
+		if( _ARGV.automation || _ARGV.Automation ){  
+			var ret,err;
+			try{
+				this.start();
+				ret = true; 
+			}
+			catch(e){
+				err = e;
+			} 
+			return ret,err;
+		}  
+		elseif(  _ARGV.r || _ARGV.regserver || _ARGV.RegServer || _ARGV.RegServerPerUser ){ 
+			var ret,err;
+			try{
+				this.register();
+				ret = true;
+				err = "注册组件成功";
+			}
+			catch(e){
+				err = e;
+			} 
+			return ret,err;
+		}
+		elseif( _ARGV.u || _ARGV.unregserver || _ARGV.UnregServer || _ARGV.UnregServerPerUser){
+			var ret,err;
+			try{
+				this.unRegister();
+				ret = true;
+				err = "卸载组件成功";
+			}
+			catch(e){
+				err = e;
+			} 
+			return ret,err; 
+			
+		}
+		 
+	};
+	register = function() { 
+		if( _STUDIO_INVOKED ) error("请生成EXE文件后再注册控件",2)
+			
+		::Kernel32.SetCurrentDirectoryW(..io.fullpath("/"));
+		
+		var succeeded;
+		..win.reg.overrideClasses(..process.admin.isRunAs(),
+			function(){
+				succeeded = ..com.RegisterObject( this )
+				if(succeeded && this._class.safeForScripting){
+					regSafeForScripting(this.VersionIndependentProgID);
+				}	
+			}
+		)
+		
+		if(!succeeded) error("RegisterObject failed!"); 
+	};
+	unRegister = function() { 
+		if( _STUDIO_INVOKED ) error("请生成EXE文件后再卸载控件",2)
+
+		::Kernel32.SetCurrentDirectoryW(..io.fullpath("/"));
+		
+		var succeeded;
+		..win.reg.overrideClasses(..process.admin.isRunAs(),
+			function(){
+				succeeded = ..com.UnRegisterObject( this ) 	
+			}
+		)
+		 
+		if(!succeeded) error("UnRegisterObject failed!");
+	}; 
+	start = function() { 
+		var appObject, event, e;
+		
+		if( this.Control ){
+			appObject, event, e = ..com.NewControl(this._object, this.ProgID);
+		}
+		else {
+			appObject, event, e = ..com.NewObject(this._object, this.ProgID,this.TypeLib )
+		}
+ 	
+		if( ! appObject) {
+			error("NewObject failed: " ++ e)
+		}
+ 	
+		var cookie = ..com.ExposeObject(appObject)
+		if( ! cookie) {
+			error("ExposeObject failed!")
+		} 
+		
+		this.app = appObject; 
+		this.exposeCookie = cookie; 
+		this._object.externalEvent = event;
+		
+		if(!this._object.Quit){
+		    this._object.Quit = function(){ 
+				this.activeX.stop(); // ActiveX EXE 必须提供此函数以退出进程
+			}
+		} 
+		
+		..win.loopMessage();
+	}; 
+	stop = function(){
+		if(this.exposeCookie){
+			..com.RevokeObject(this.exposeCookie);
+			..win.quitMessage();
+			
+			this.app = null;
+			this._object.externalEvent = null; 
+			collectgarbage("collect");
+		} 
+	};
+}
+
+try {
+	::OleAut32 := ..raw.loadDll("OleAut32.dll");
+	::OleAut32.OaEnablePerUserTLibRegistration(); //vista以后的系统,允许以普通权限注册控件
+}
+
+namespace com.activeX{
+
+	install = function( filepath,i,... ){
+		..process.admin.runasWait("regsvr32", {"/s";"/i";i?"":"/u";filepath;...} );
+	};
+	regsvr32As = function(filepath,reg=true){
+		var filepath = ..io.localpath(filepath) : filepath; 
+		..process.admin.runasWait("regsvr32", "/s "  + ( reg? "" : "/u " ) + '"' + filepath + '"' )
+	};
+	regsvr32 = function( filepath,install ){
+	
+		if( install === null ) install = true;
+		
+		var err;
+		var succeeded;
+		..win.reg.overrideClasses(..process.admin.isRunAs(),
+			function(){
+				try{  
+					var ocx = ..raw.loadDll(filepath)
+					if( install ){
+						succeeded = ( ocx.DllRegisterServer() >= 0 );
+					}
+					else {
+						succeeded = ( ocx.DllUnregisterServer() >= 0 ); 
+					} 
+					..raw._release(ocx);
+				}	
+				catch(e){
+					err = e;
+				}
+			}
+		);	
+		
+		if( succeeded ) return true; 
+		return null,err : ( ..lasterr() );
+	};
+	regSafeForScripting = function(clsid){
+		if( type( clsid ) == type.string ) clsid = ..win.guid.fromString(clsid);
+		var reg = ..win.reg("HKEY_CURRENT_USER\Software\Classes\Component Categories\{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
+		reg.setSzValue("409","Controls safely scriptable!");
+		reg.close()
+		
+		var reg = ..win.reg("HKEY_CURRENT_USER\Software\Classes\Component Categories\{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
+		reg.setSzValue("409","Controls safely initializable from persistent data!");
+		reg.close()
+		
+		var reg = ..win.reg("HKEY_CURRENT_USER\Software\Classes\CLSID\{" + tostring(clsid) + "}\Implemented Categories\{7DD95801-9882-11CF-9FA9-00AA006C42C4}");
+		reg.setSzValue("409","Controls safely initializable from persistent data!");
+		reg.close()
+		
+		var reg = ..win.reg("HKEY_CURRENT_USER\Software\Classes\CLSID\{" + tostring(clsid) + "}\Implemented  Categories\{7DD95802-9882-11CF-9FA9-00AA006C42C4}");
+		reg.setSzValue("409","Controls safely initializable from persistent data!");
+		reg.close() 
+	}; 
+	license = function(clsid,licKey){
+		clsid = ..win.guid.valid(clsid);
+		var reg = ..win.reg("HKEY_CURRENT_USER\Software\Classes\Licenses\" + tostring(clsid));
+		reg.setSzValue("",licKey);
+	};
+	appData = function(p,d,install){
+		var p = ..io.appData(p,d);
+		return regsvr32(p,install);
+	};
+	
+} 
+
+/**intellisense()
+?com.activeX = !com_activeX.
+!com_activeX.register() = 注册组件
+!com_activeX.unRegister() = 卸载组件
+!com_activeX.main() = 该函数检测传入参数并执行相应操作\n/r 注册控件 /u卸载控件 /Automation 运行
+!com_activeX.start() = 运行控件 
+com.activeX.registerSafeForScripting(.("CLSID") = 注册类名为脚本安全\n参数可以是CLSID或已注册ProgID
+com.activeX.install() = 尝试用普通权限安装控件\n如果失败则申请管理权限注册控件
+com.activeX.regsvr32("__") = 尝试用普通权限注册控件,参数@1指定dll路径,\n如果~/或~\开头的路径不存在，自动转换为/或\开头的路径重试
+com.activeX.regsvr32("__",false) = 尝试用普通权限卸载外部控件,参数@1指定dll路径,\n如果~/或~\开头的路径不存在，自动转换为/或\开头的路径重试
+com.activeX.regsvr32As("__") = 注册外部控件,\n如果需要管理权限则申请管理权限
+com.activeX.regsvr32As("__",false) = 卸载外部控件,\n如果需要管理权限则申请管理权限
+com.activeX.install("__",true,->->->) = 安装控件,可添加任意个命令行参数,\n如果需要管理权限则申请管理权限
+com.activeX.license(.(clsid,licKey) = 参数@1为类名或GUID，\n参数@2为授权码
+com.activeX.appData(.(path,data) = 将@path指定的相对路径转换为系统AppData目录下的绝对路径,\n可选使用@data指定需要存入的数据,\n只有在存入字节与目标文件内容长度不同时才会更新文件,\n最后使用该路径注册
+end intellisense**/

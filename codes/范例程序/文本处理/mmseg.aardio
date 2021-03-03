@@ -1,0 +1,20 @@
+﻿//中文分词
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="mmseg 中文分词";right=759;bottom=469)
+winform.add(
+richedit={cls="richedit";left=38;top=33;right=723;bottom=423;autohscroll=false;bgcolor=16777215;db=1;dl=1;dr=1;dt=1;edge=1;hscroll=1;multiline=1;vscroll=1;wrap=1;z=1}
+)
+/*}}*/
+
+import mmseg
+var str = /*
+认真地思考，准备好你的问题。草率的提问只能得到草率的回答，甚至得不到回答。在提问时，你越是表现出在此前做过思考与努力去解决自己的问题，你越有可能得到真正的帮助。
+*/
+
+for word,attr in mmseg.each(str){
+    winform.richedit.appendText( word,"  " )
+}
+ 
+winform.show() 
+win.loopMessage();

@@ -1,0 +1,20 @@
+﻿	
+import com.interface;
+namespace com.interface;
+
+class IShellItemArray {
+    ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	ptr BindToHandler = "int(ptr pbc,struct bhid,struct riid,ptr &ppvOut)";     
+	ptr GetPropertyStore = "int(int flags,struct riid,ptr &ppv)";  
+	ptr GetPropertyDescriptionList = "int(struct keyType,struct riid,ptr &ppv)";    
+	ptr GetAttributes = "int(int AttribFlags,INT sfgaoMask,INT &psfgaoAttribs)"; 
+	ptr GetCount = "int(INT &pdwNumItems)"; 
+	ptr GetItemAt = "int(INT dwIndex,ptr &ppsi)"; 
+	ptr EnumItems = "int(ptr ppenumShellItems)"; 
+}
+
+namespace IShellItemArray{
+    IID = "{b63ea76d-1f85-456f-a19c-48159efa858b}" 
+}

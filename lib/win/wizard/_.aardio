@@ -1,0 +1,406 @@
+//.. 向导窗口
+import win;
+import win.ui.ctrl.metaProperty
+
+namespace win;
+
+wizard = class {
+	ctor (options) { 
+		this[["_psHeader"]] = PROPSHEETHEADER() 
+		..table.assign( this, { text = ""; width = 300; height = 150 },options );  
+		var psHeader = this[["_psHeader"]]; 
+		psHeader.pszCaption = this.text;
+		psHeader.dwFlags = 0x2000/*_PSH_WIZARD97*/ | 0x4000/*_PSH_AEROWIZARD*/ | 4/*_PSH_USEICONID*/ | 0x100/*_PSH_USECALLBACK*/;
+		psHeader.icon = _HAPPICON : this.icon;  
+		psHeader.nPages = 0;
+		psHeader.nStartPage = 0; 
+		if (this.flags){
+			psHeader.dwFlags |= this.flags;
+		} 
+		  
+		this._psh_callback_c = ..raw.tostdcall(
+			function (hwndDlg, uMsg, lParam) {
+			if (uMsg === 1/*_PSCB_INITIALIZED*/) {
+				this.hwnd = hwndDlg;
+			}
+			return 0;
+		}, "int(int,INT,int)");
+		psHeader.pfnCallback = this._psh_callback_c;
+		 
+		this._dlgproc_c = {}; 
+		this._hPropertyPages = {};
+		this._tPageCreateInfo = {}; 
+		this[["items"]] = {}; 
+	};
+	
+	add = function (title, subtitle) { 
+		var psPage = PROPSHEETPAGE();
+		psPage.dwFlags = 0x1000/*_PSP_USEHEADERTITLE*/ | 0x2000/*_PSP_USEHEADERSUBTITLE*/ | 1/*_PSP_DLGINDIRECT*/;
+		 
+	 	var dlg = DLGTEMPLATEEX();
+	 	dlg.style = 0x400;
+		dlg.cx = this.width;
+		dlg.cy = this.height;
+		
+		dlg.title =  this[["_psHeader"]].pszCaption;
+		psPage.pResource = ..raw.buffer(dlg);
+		psPage.pszHeaderTitle = title;
+		psPage.pszHeaderSubTitle = subtitle;
+		  
+		var tPageCreateInfo = {}
+		var ind = ..table.push( this._tPageCreateInfo, tPageCreateInfo ); 
+		var dlgproc = function (hDlg, message, wParam, lParam) {
+			select (message) {
+				case 0x110/*_WM_INITDIALOG*/ {
+					if (!this._centered) {
+						var ret, rc = ::SystemParametersInfo(0x30/*_SPI_GETWORKAREA*/, 0, ::RECT(), 0);
+						var workingWidth = rc.right - rc.left;
+						var workingHeight = rc.bottom - rc.top;
+						var x, y, cx, cy = ..win.getPos(this.hwnd);
+						..win.setPos(this.hwnd, rc.left + (workingWidth - cx) / 2, rc.top + (workingHeight - cy) / 2);
+						this._centered = true;
+					}
+					var loader = tPageCreateInfo.loader;
+					if( type(loader) == type.string ){
+						..win.loadForm(loader,function(tParam){
+							tParam.hwnd = hDlg; //绑定现有窗口
+							tParam.mode="child";
+							this.items[ind] = ..win.form(tParam);
+							this.items[ind].parent = this;
+							return this.items[ind];
+						},this);
+						
+						return 0;
+					}
+					elseif( type(loader) == type.function ) {
+						this.items[ind] = loader(hDlg);
+						this.items[ind].parent = this;
+						return 0;
+					}  	
+					return 1;
+				}
+				case 0x004e/*_WM_NOTIFY*/ {
+				
+				var ptr = topointer(lParam);  
+					var code = ..raw.convert(topointer(lParam), { int code }, 8).code;
+					this.selIndex = ind; 
+					this.selItem = this.items[ind];
+					var form = this.selItem;
+					  
+					select (code) {
+						case -200/*_PSN_SETACTIVE*/ {
+							
+							if(!form) return 0;  
+					
+							if (form[["onActive"]])
+								form.onActive(this.hwnd, message, wParam, lParam);
+							
+							var wizardButtons = form.wizardButtons
+							if(wizardButtons){
+								this.wizardButtons = wizardButtons;
+							}
+							else{ 
+								if (#this._hPropertyPages === 1) {
+									this.wizardButtons = { finish=true };
+								}
+								elseif(ind==1){
+									this.wizardButtons = { next=true }
+								}
+								elseif(ind == #this._hPropertyPages ){
+									this.wizardButtons = { back=true;finish=true }
+								}
+								else {
+									this.wizardButtons = { back=true;next=true}
+								}
+							}
+							 
+							return 0;
+						}  
+					}
+					
+					var funcName = commands[code];
+					if (funcName) {
+						var forms = { form; this } ; 
+						for(i=1;2){ 
+							var form = forms[i];
+							var func = form[funcName];
+							
+							var ok, ret;
+							if (func){ 
+								ok, ret = call(func,form,hDlg, message, wParam, lParam); 
+								if(!ok){
+									..win.msgboxErr(ret,,this.hwnd);
+									ret = false;
+								}
+							}
+							if (ret !== null) {
+								if (ret === false) {
+									::SetWindowLong(hDlg, 0x0/*_DWL_MSGRESULT*/, -1);
+									return 1;
+								}
+								else {
+									return ret;
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			return 0;
+		}
+		
+		psPage.pfnDlgProc = ..raw.tostdcall(dlgproc, "int(int,INT,int,int)");
+		this._dlgproc_c[ind] = psPage.pfnDlgProc 
+		..table.push(this._hPropertyPages, CreatePropertySheetPage(psPage)); 
+		
+		return tPageCreateInfo; 
+	};
+	
+	doModal = function(parent){
+		if( parent ){
+			psHeader.hwndParent = parent[["hwnd"]] : parent;
+			this.parent = parent;
+		}
+		this[["_psHeader"]].nPages = #this._hPropertyPages; 
+		this[["_psHeader"]].phpage = ..raw.buffer( ..raw.toarray(this._hPropertyPages, "pointer") );
+		
+		PropertySheet(this[["_psHeader"]]);
+		for (i = 1; #this.items) {
+			this.items[i].close();
+		}	
+		..win.close(psHeader.hwndParent)
+	}; 
+	
+	@_metaProperty;
+}
+
+namespace wizard {
+	_metaProperty = ..win.ui.ctrl.metaProperty(
+		wizardButtons = {
+			_set = function (value) {
+				var hwnd = owner[["hwnd"]];
+				if (hwnd) {
+					var wizShownButtons = 0;
+					var wizEnabledButtons = 0;
+					for (k, v in value) {
+						k = buttonsMap[k];
+						wizShownButtons |= k;
+						if (v) {
+							wizEnabledButtons |= k;
+						}
+						else {
+							if (k === 4/*_PSWIZB_FINISH*/)
+								wizEnabledButtons |= 8/*_PSWIZB_DISABLEDFINISH*/;
+						}
+					}
+					::PostMessage(hwnd, 0x470/*_PSM_SETWIZBUTTONS*/, 0, 0x10/*_PSWIZB_CANCEL*/);
+					::PostMessage(hwnd, 0x48A/*_PSM_SHOWWIZBUTTONS*/, wizShownButtons, 0);
+					::PostMessage(hwnd, 0x470/*_PSM_SETWIZBUTTONS*/, 0, wizEnabledButtons);
+				}
+			}
+		}
+	);
+	
+	/* Structures */
+	PROPSHEETHEADER = class {
+		INT dwSize = 52;
+		INT dwFlags;
+		int hwndParent;
+		int hInstance = _HINSTANSE;
+		INT icon;
+		ustring pszCaption;
+		INT nPages;
+		INT nStartPage;
+		pointer phpage;
+		pointer pfnCallback;
+		pointer hbmWatermark;
+		pointer hplWatermark;
+		pointer hbmHeader;
+	}
+	
+	PROPSHEETPAGE = class {
+		INT dwSize = 52;
+		INT dwFlags;
+		int hInstance = _HINSTANSE;
+		pointer pResource;
+		pointer hIcon;
+		ustring pszTitle;
+		pointer pfnDlgProc;
+		int lParam;
+		pointer pfnCallback;
+		pointer pcRefParent;
+		ustring pszHeaderTitle;
+		ustring pszHeaderSubTitle;
+		int hActCtx;
+	}
+	
+	PSHNOTIFY = class {
+		struct hdr = ::NMHDR();
+		int lParam;
+	}
+	
+	CreatePropertySheetPage = ::Comctl32.api("CreatePropertySheetPageW", "pointer(struct lppsp)");
+	DestroyPropertySheetPage = ::Comctl32.api("DestroyPropertySheetPage", "int(pointer hPSPage)");
+	PropertySheet = ::Comctl32.api("PropertySheetW","pointer(struct lppsph)");
+	 
+	DLGTEMPLATEEX = class {
+		WORD dlgVer = 1 ;
+		WORD signature = 0xFFFF;
+		INT helpID;
+		INT exStyle;
+		INT style;
+		WORD cDlgItems;
+		word x;
+		word y;
+		word cx;
+		word cy;
+		word menu = 0x0;
+		word windowClass = 0x0;
+		WORD title[];
+		WORD pointsize;
+		WORD weight;
+		BYTE italic;
+		BYTE charset;
+		BYTE typeface[] = '\0\0';
+	}
+	 
+	buttonsMap = {
+		back = 1/*_PSWIZB_BACK*/;
+		next = 2/*_PSWIZB_NEXT*/;
+		finish = 4/*_PSWIZB_FINISH*/;
+	}
+	
+	commands = {
+		[-206/*_PSN_WIZBACK*/] = "onBack";
+		[-207/*_PSN_WIZNEXT*/] = "onNext";
+		[-208/*_PSN_WIZFINISH*/] = "onFinish";
+	}
+}
+
+//感谢lujjjh贡献最初的源代码
+
+/**intellisense()
+win.wizard = 向导库
+win.wizard(参数表) = @.wizard( text = "向导窗口标题__" )
+?win.wizard = !wiz.
+!wiz.add("__/*标题*/") = 添加属性页
+!wiz.add() = !win_wizard_page. 
+!win_wizard_page.loader = @.loader = function () {\n	var form = win.form( right=100;bottom=100 );\n	return form;\n}
+!win_wizard_page.loader_file = @.loader = "/文件路径__.aardio" 
+!wiz.doModal(__/*父窗口*/) = 显示向导(模态),\n可选指定父窗口,父窗口将被设置为parent成员.
+!wiz.selItem = !winform.
+!wiz.items = 子窗口列表
+!wiz.selIndex = 当前选中索引
+!wiz.onBack = @.onBack = function () {\n	__\n}
+!wiz.onNext = @.onNext = function () {\n	__\n}
+!wiz.onFinish = @.onFinish = function () {\n	__\n}
+!wiz.wizardButtons = @.wizardButtons = { finish = 1 }
+end intellisense**/
+
+
+/**intellisense()
+_PSM_ADDPAGE=@0x467/*_PSM_ADDPAGE*/
+_PSM_APPLY=@0x46E/*_PSM_APPLY*/
+_PSM_CANCELTOCLOSE=@0x46B/*_PSM_CANCELTOCLOSE*/
+_PSM_CHANGED=@0x468/*_PSM_CHANGED*/
+_PSM_GETCURRENTPAGEHWND=@0x476/*_PSM_GETCURRENTPAGEHWND*/
+_PSM_GETRESULT=@0x487/*_PSM_GETRESULT*/
+_PSM_GETTABCONTROL=@0x474/*_PSM_GETTABCONTROL*/
+_PSM_HWNDTOINDEX=@0x481/*_PSM_HWNDTOINDEX*/
+_PSM_IDTOINDEX=@0x485/*_PSM_IDTOINDEX*/
+_PSM_INDEXTOHWND=@0x482/*_PSM_INDEXTOHWND*/
+_PSM_INDEXTOID=@0x486/*_PSM_INDEXTOID*/
+_PSM_INDEXTOPAGE=@0x484/*_PSM_INDEXTOPAGE*/
+_PSM_INSERTPAGE=@0x477/*_PSM_INSERTPAGE*/
+_PSM_ISDIALOGMESSAGE=@0x475/*_PSM_ISDIALOGMESSAGE*/
+_PSM_PAGETOINDEX=@0x483/*_PSM_PAGETOINDEX*/
+_PSM_PRESSBUTTON=@0x471/*_PSM_PRESSBUTTON*/
+_PSM_QUERYSIBLINGS=@0x46C/*_PSM_QUERYSIBLINGS*/
+_PSM_REBOOTSYSTEM=@0x46A/*_PSM_REBOOTSYSTEM*/
+_PSM_RECALCPAGESIZES=@0x488/*_PSM_RECALCPAGESIZES*/
+_PSM_REMOVEPAGE=@0x466/*_PSM_REMOVEPAGE*/
+_PSM_RESTARTWINDOWS=@0x469/*_PSM_RESTARTWINDOWS*/
+_PSM_SETCURSEL=@0x465/*_PSM_SETCURSEL*/
+_PSM_SETCURSELID=@0x472/*_PSM_SETCURSELID*/
+_PSM_SETFINISHTEXT=@0x473/*_PSM_SETFINISHTEXT*/
+_PSM_SETFINISHTEXTA=@0x473/*_PSM_SETFINISHTEXTA*/
+_PSM_SETFINISHTEXTW=@0x479/*_PSM_SETFINISHTEXTW*/
+_PSM_SETHEADERSUBTITLE=@0x47F/*_PSM_SETHEADERSUBTITLE*/
+_PSM_SETHEADERSUBTITLEA=@0x47F/*_PSM_SETHEADERSUBTITLEA*/
+_PSM_SETHEADERSUBTITLEW=@0x480/*_PSM_SETHEADERSUBTITLEW*/
+_PSM_SETHEADERTITLE=@0x47D/*_PSM_SETHEADERTITLE*/
+_PSM_SETHEADERTITLEA=@0x47D/*_PSM_SETHEADERTITLEA*/
+_PSM_SETHEADERTITLEW=@0x47E/*_PSM_SETHEADERTITLEW*/
+_PSM_SETTITLE=@0x46F/*_PSM_SETTITLE*/
+_PSM_SETTITLEA=@0x46F/*_PSM_SETTITLEA*/
+_PSM_SETTITLEW=@0x478/*_PSM_SETTITLEW*/
+_PSM_SETWIZBUTTONS=@0x470/*_PSM_SETWIZBUTTONS*/
+_PSM_UNCHANGED=@0x46D/*_PSM_UNCHANGED*/
+_PSM_SETNEXTTEXTW=@0x489/*_PSM_SETNEXTTEXTW*/
+_PSM_SHOWWIZBUTTONS=@0x48A/*_PSM_SHOWWIZBUTTONS*/
+_PSM_ENABLEWIZBUTTONS=@0x48B/*_PSM_ENABLEWIZBUTTONS*/
+_PSM_SETBUTTONTEXTW=@0x48C/*_PSM_SETBUTTONTEXTW*/
+_PSN_APPLY=@-202/*_PSN_APPLY*/
+_PSN_CANCEL=@-203/*_PSN_CANCEL*/
+_PSN_FIRST=@-200/*_PSN_FIRST*/
+_PSN_GETOBJECT=@-210/*_PSN_GETOBJECT*/
+_PSN_HELP=@-205/*_PSN_HELP*/
+_PSN_KILLACTIVE=@-201/*_PSN_KILLACTIVE*/
+_PSN_LAST=@-299/*_PSN_LAST*/
+_PSN_QUERYCANCEL=@-209/*_PSN_QUERYCANCEL*/
+_PSN_QUERYINITIALFOCUS=@-213/*_PSN_QUERYINITIALFOCUS*/
+_PSN_RESET=@-203/*_PSN_RESET*/
+_PSN_SETACTIVE=@-200/*_PSN_SETACTIVE*/
+_PSN_TRANSLATEACCELERATOR=@-212/*_PSN_TRANSLATEACCELERATOR*/
+_PSN_VALIDATE=@-201/*_PSN_VALIDATE*/
+_PSN_WIZBACK=@-206/*_PSN_WIZBACK*/
+_PSN_WIZFINISH=@-208/*_PSN_WIZFINISH*/
+_PSN_WIZNEXT=@-207/*_PSN_WIZNEXT*/
+_PSH_DEFAULT=@0/*_PSH_DEFAULT*/
+_PSH_HASHELP=@0x200/*_PSH_HASHELP*/
+_PSH_HEADER=@0x80000/*_PSH_HEADER*/
+_PSH_MODELESS=@0x400/*_PSH_MODELESS*/
+_PSH_NOAPPLYNOW=@0x80/*_PSH_NOAPPLYNOW*/
+_PSH_NOCONTEXTHELP=@0x2000000/*_PSH_NOCONTEXTHELP*/
+_PSH_PRO_PSHEETPAGE=@8/*_PSH_PRO_PSHEETPAGE*/
+_PSH_PROPTITLE=@1/*_PSH_PROPTITLE*/
+_PSH_RTLREADING=@0x800/*_PSH_RTLREADING*/
+_PSH_STRETCHWATERMARK=@0x40000/*_PSH_STRETCHWATERMARK*/
+_PSH_USECALLBACK=@0x100/*_PSH_USECALLBACK*/
+_PSH_USEHBMHEADER=@0x100000/*_PSH_USEHBMHEADER*/
+_PSH_USEHBMWATERMARK=@0x10000/*_PSH_USEHBMWATERMARK*/
+_PSH_USEHICON=@2/*_PSH_USEHICON*/
+_PSH_USEHPLWATERMARK=@0x20000/*_PSH_USEHPLWATERMARK*/
+_PSH_USEICONID=@4/*_PSH_USEICONID*/
+_PSH_USEPAGELANG=@0x200000/*_PSH_USEPAGELANG*/
+_PSH_USE_PSTARTPAGE=@0x40/*_PSH_USE_PSTARTPAGE*/
+_PSH_WATERMARK=@0x8000/*_PSH_WATERMARK*/
+_PSH_WIZARD=@0x20/*_PSH_WIZARD*/
+_PSH_WIZARD_LITE=@0x400000/*_PSH_WIZARD_LITE*/
+_PSH_WIZARD97=@0x2000/*_PSH_WIZARD97*/
+_PSH_WIZARDCONTEXTHELP=@0x1000/*_PSH_WIZARDCONTEXTHELP*/
+_PSH_WIZARDHASFINISH=@0x10/*_PSH_WIZARDHASFINISH*/
+_PSH_AEROWIZARD=@0x4000/*_PSH_AEROWIZARD*/
+_PSP_DEFAULT=@0/*_PSP_DEFAULT*/
+_PSP_DLGINDIRECT=@1/*_PSP_DLGINDIRECT*/
+_PSP_HASHELP=@0x20/*_PSP_HASHELP*/
+_PSP_HIDEHEADER=@0x800/*_PSP_HIDEHEADER*/
+_PSP_PREMATURE=@0x400/*_PSP_PREMATURE*/
+_PSP_RTLREADING=@0x10/*_PSP_RTLREADING*/
+_PSP_USECALLBACK=@0x80/*_PSP_USECALLBACK*/
+_PSP_USEFUSIONCONTEXT=@0x4000/*_PSP_USEFUSIONCONTEXT*/
+_PSP_USEHEADERSUBTITLE=@0x2000/*_PSP_USEHEADERSUBTITLE*/
+_PSP_USEHEADERTITLE=@0x1000/*_PSP_USEHEADERTITLE*/
+_PSP_USEHICON=@2/*_PSP_USEHICON*/
+_PSP_USEICONID=@4/*_PSP_USEICONID*/
+_PSP_USEREFPARENT=@0x40/*_PSP_USEREFPARENT*/
+_PSP_USETITLE=@8/*_PSP_USETITLE*/
+_PSWIZB_BACK=@1/*_PSWIZB_BACK*/
+_PSWIZB_DISABLEDFINISH=@8/*_PSWIZB_DISABLEDFINISH*/
+_PSWIZB_FINISH=@4/*_PSWIZB_FINISH*/
+_PSWIZB_NEXT=@2/*_PSWIZB_NEXT*/
+_PSWIZB_CANCEL=@0x10/*_PSWIZB_CANCEL*/
+_PSWIZB_SHOW=@0/*_PSWIZB_SHOW*/
+_PSWIZB_RESTORE=@1/*_PSWIZB_RESTORE*/
+end intellisense**/

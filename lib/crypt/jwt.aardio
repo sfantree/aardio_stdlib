@@ -1,0 +1,78 @@
+﻿//jwt 令牌
+import web.json;
+import crypt.hmac;
+import crypt.bin;
+
+namespace crypt
+
+class jwt{
+    
+	ctor(privateKey,expiresIn){
+		this.privateKey = privateKey;
+		this.expiresIn = expiresIn;
+	};
+	
+	encode = function(data){
+		if(!data.iat)data.iat = tonumber(..time());
+		if(this.expiresIn && data.exp===null){
+			data.exp = tonumber(..time().addsecond(this.expiresIn));
+		}
+		
+		var header = ..crypt.bin.encodeUrlBase64(`{"alg":"HS256","typ":"JWT"}`);
+		var payload = ..crypt.bin.encodeUrlBase64( ..web.json.stringify(data) );
+		var sign = ..crypt.hmac.sha256(this.privateKey,header + "." + payload).getValue();
+		return ..string.format("%s.%s.%s",header,payload,..crypt.bin.encodeUrlBase64(sign));
+	};
+	
+	decode = function(token){
+		var jwt = ..string.split(token,".",3);
+		if(#jwt==3){
+			var ret =  {
+        		header = ..web.json.parse(..crypt.bin.decodeBase64(jwt[1]));
+        		payload = ..web.json.parse(..crypt.bin.decodeBase64(jwt[2]));
+        		sign = ..crypt.bin.decodeBase64(jwt[3]);
+    		} 
+    		
+    		if(ret.payload[["exp"]]){
+    			ret.payload[["exp"]] = ..time(ret.payload[["exp"]])
+    		}	
+    		
+    		if(ret.payload[["iat"]]){
+    			ret.payload[["iat"]] = ..time(ret.payload[["iat"]])
+    		}
+    		
+    		if(ret.payload[["nbf"]]){
+    			ret.payload[["nbf"]] = ..time(ret.payload[["iat"]])
+    		}
+    		return ret;
+		}
+	};
+	
+	verify = function(token){
+		token = ..string.match(token,"[Bb]earer\s+(\S+)") : token;
+		if(this.privateKey){
+			var jwt = ..string.split(token,".",3);
+        	var sign = ..crypt.hmac.sha256(this.privateKey,jwt[1] + "." + jwt[2]).getValue() ;
+        	
+        	if( jwt[3] === ..crypt.bin.encodeUrlBase64(sign) ){
+        		var ret = this.decode(token);
+        		if(ret.payload[["exp"]]){
+        			if( ret.payload[["exp"]] <= ..time() ){
+        				return;
+        			}
+        		}
+        		return ret;
+        	}
+         
+    	}
+	};
+}
+
+/**intellisense()
+crypt.jwt = JSON Web Token 令牌
+crypt.jwt(.(密钥,超时) = 使用字符串指定签名使用的密钥,\n参数@2指定令牌超时秒数
+crypt.jwt() = !crypt_jwt.
+!crypt_jwt.verify(__) = 验证参数指定的token是否在有效期内，以及签名是否有效\n如果验证token有效，就解码返回令牌信息
+!crypt_jwt.decode(__) = 解码并返回令牌信息
+!crypt_jwt.encode(__) = 生成令牌，\n参数指定要存储到客户端的数据，\n参数必须是表对象
+end intellisense**/

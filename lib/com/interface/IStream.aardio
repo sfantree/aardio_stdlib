@@ -1,0 +1,26 @@
+import win.ole;
+import com.interface; 
+namespace com.interface;
+
+class IStream{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer Read = "int(string &pv,INT size,INT & pcbRead)";
+	pointer Write = "int(pointer pv,INT cb,INT &pcbWritten)";
+	pointer Seek = "int(LONG dlibMove,INT dwOrigin,LONG &plibNewPosition)"; 
+	pointer SetSize = "int(LONG libNewSize)"; 
+	pointer CopyTo = "int(POINTER pstm,LONG cb,LONG &pcbRead,LONG &pcbWritten)"; 
+	pointer Commit = "int(INT flags)"; 
+	pointer Revert = "int()"; 
+	pointer LockRegion = "int(LONG libOffset,LONG cb,INT dwLockType)"; 
+	pointer UnlockRegion = "int(LONG libOffset,LONG cb,INT dwLockType)"; 
+	pointer Stat = "int(struct& pstatstg,INT grfStatFlag)"; 
+	pointer Clone = "int(pointer &ppstm)";  
+	
+}
+IStream.IID = "{0000000c-0000-0000-C000-000000000046}";
+
+/**intellisense()
+com.interface.IStream = IStream
+end intellisense**/

@@ -1,0 +1,23 @@
+﻿//RUNAS//启用禁用网卡
+import com;
+import process
+import console;
+if(_WINXP) return;
+
+var wmi = com.GetObject("winmgmts:\\.\root\cimv2");
+var networkAdapters = wmi.ExecQuery("SELECT * FROM Win32_NetworkAdapter WHERE NetConnectionId IS NOT NULL");
+
+for i,networkAdapter in com.each(networkAdapters) { 
+    networkAdapter.Disable();
+    console.log( networkAdapter.NetConnectionId + " Disabled")
+}
+
+process.explore("shell:::{7007ACC7-3202-11D1-AAD2-00805FC1270E}");
+console.pause();
+
+for i,networkAdapter in com.each(networkAdapters) { 
+    networkAdapter.Enable();
+    console.log( networkAdapter.NetConnectionId + " Enabled" )
+}
+
+console.pause();

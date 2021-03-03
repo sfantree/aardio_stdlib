@@ -1,0 +1,37 @@
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="键盘钩子演示 - 请按键";right=438;bottom=396;max=false;parent=...;topmost=1)
+winform.add(
+edit={cls="edit";left=13;top=12;right=426;bottom=382;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+import key.hook;
+var hook = key.hook();
+
+//录制回调函数
+hook.proc = function(msg,vkcode,scancode,injected,flags,timeStamp,extraInfo){ 
+	if( injected ) return; //模拟鼠标不处理
+  
+    var kn = key.getName( vkcode ); 
+    	
+    select(msg) {
+    	case 0x100/*_WM_KEYDOWN*/ ,0x104/*_WM_SYSKEYDOWN*/ {
+    	    winform.edit.print("按下","键名:" + kn,"键码:"+vkcode)
+    	}
+    	case 0x101/*_WM_KEYUP*/,0x105/*_WM_SYSKEYUP*/ {
+    	    winform.edit.print("弹起","键名:" + kn,"键码:"+vkcode)
+    	}  
+    } 
+    
+    if( win.getForeground() == winform.hwnd ) return true;  
+} 
+
+/*
+一般不使用这种方法实现快捷键、热键功能,
+创建快捷键、热键参考:aardio范例->Windows窗口应用->快捷键
+*/
+
+winform.show(true) 
+win.loopMessage();  
+hook.close();

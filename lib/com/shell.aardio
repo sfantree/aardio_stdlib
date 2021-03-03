@@ -1,0 +1,41 @@
+//shell 外壳接口
+import com;
+import com.interface.IApplicationActivationManager;
+
+namespace com.shell;
+
+eachApp = function(){
+	var shell = ..com.CreateObject("Shell.Application")
+	if(!_WIN10_LATER){ return function(){} }
+	return ..com.each( shell.NameSpace("shell:::{4234d49b-0245-4df3-b780-3893943456e1}").Items() )
+} 
+
+activateApp = function(aumid,arguments,options){
+    if(_WIN10_LATER){
+		var mgr = ..com.interface.IApplicationActivationManager.Create()
+		var hr,pid = mgr.ActivateApplication(aumid,arguments:"",options:0/*_AO_NONE*/, 0);
+		if( (hr)>=0/*_SUCCEEDED*/){
+			return pid;
+		}    	
+    }
+}
+
+eachWindow = function(){
+	var shell = ..com.CreateObject("Shell.Application")
+	return ..com.each(shell.Windows)
+} 
+
+/**intellisense()
+com.shell.activateApp(.(aumid,arguments,options) = 打开Win10 APP,\n参数@1 指定 Application User Model ID,\n也可以将应用拖到桌面上,然后打开快捷方式的属性在taget中查看，\n参数@2,@3为可选参数,
+com.shell.eachApp = @for i,item in com.shell.eachApp(){ 
+	io.print( item.name,item.path );__/*遍历WIN10 appsFolder目录下安装的应用*/
+}
+com.shell.eachWindow = @for i,objWnd in com.shell.eachWindow(){ 
+	io.print( ..com.GetTypeInfo(objWnd.document).GetDocumentation().name );
+}  
+com.shell.eachApp() = !comShellAppItem.
+!comShellAppItem.name = 应用名称
+!comShellAppItem.path = 应用路径
+com.shell.eachWindow() = !comShellWnd.
+!comShellWnd.document = 文档对象
+end intellisense**/

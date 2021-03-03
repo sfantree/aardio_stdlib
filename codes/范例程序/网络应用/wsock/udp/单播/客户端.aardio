@@ -1,0 +1,18 @@
+import console;
+import wsock.udp.client;
+
+var udpClient = wsock.udp.client();
+console.log( udpClient.sendto("test","127.0.0.1",50) );
+console.log("对方端口", udpClient.getRemoteIp() )
+
+var str = udpClient.recvfrom( )
+console.log("收到服务器的反馈",str)
+console.log("对方端口", udpClient.getRemoteIp() )
+
+//得到对方端口以后也可以connect
+udpClient.connect();
+var str= udpClient.recvfrom( )
+console.log("收到服务器的反馈2",str)
+
+console.log("发送完毕")
+console.pause();

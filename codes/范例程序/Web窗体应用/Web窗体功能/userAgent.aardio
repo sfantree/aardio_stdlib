@@ -1,0 +1,23 @@
+﻿//更改UserAgent
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="Web Form - 自定义User Agent";right=759;bottom=469)
+winform.add()
+/*}}*/
+
+import web.form;
+var wb = web.form( winform,,,"web.form",true);
+
+import wsock.tcp.simpleHttpServer;
+var url = wsock.tcp.simpleHttpServer.startUrl(
+	function(response,request){
+		response.write("<html><script>alert( navigator.userAgent )</script>")
+		response.write("<body><pre>User Agent:")
+		response.write(request.headers["user-agent"])
+	} 
+)
+
+wb.go(url);
+winform.show(true);
+
+win.loopMessage();

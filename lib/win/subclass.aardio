@@ -1,0 +1,38 @@
+//subclass 子类化
+namespace win;
+class subclass {
+
+	ctor( hwnd, wndproc ){
+		hwnd = hwnd[["hwnd"]] : hwnd;
+		if(!tonumber(hwnd)) error("请指定正确的窗口句柄参数@1",2);
+		if(type(wndproc) != type.function ) error("参数@2必须是函数对象",2)
+ 
+ 		this.wndproc = wndproc;
+		var wndproc_c = ..raw.tostdcall(function(hwnd,msg,wParam,lParam){
+			var prev = this.prevWndproc;
+			if( msg == 0x2/*_WM_DESTROY*/ ) { this.free(); } 
+			
+			var ret = this.wndproc(hwnd,msg,wParam,lParam); 
+			if( ret!== null ) return ret; 
+			return ::CallWindowProc(prev,hwnd,msg,wParam,lParam);
+		}, "int(addr hwnd,INT msg,ADDR wParam,addr lParam)");
+		
+		this.prevWndproc = ::SetWindowPointer(hwnd, -4/*_GWL_WNDPROC*/, wndproc_c) ;  
+		__wndproc_gc__[this] = wndproc_c;
+	} 
+	free = function(){ 
+		if( this.prevWndproc ){ 
+			::SetWindowPointer(hwnd, 0xFFFFFFFC/*_GWL_WNDPROC*/, this.prevWndproc ); 
+			__wndproc_gc__[this] = null; 
+			this.prevWndproc = null;
+		}
+	}
+}
+subclass.__wndproc_gc__ = {};
+ 
+/**intellisense()
+win.subclass = 窗口子类化:\n即替换当前进程内指定窗口的消息回调函数,\n用于个别无法直接指定消息回调函数的窗口
+win.subclass(窗口对象, 消息回调函数) = @.subclass(\n    hwnd__/*窗口对象或句柄*/,function (hwnd,message,wParam,lParam) { \n        \n    })
+!winsubclass.free() = 取消子类化.
+win.subclass()= !winsubclass.
+end intellisense**/

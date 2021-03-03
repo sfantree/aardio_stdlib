@@ -1,0 +1,31 @@
+import com.interface; 
+namespace com.interface;
+
+class IApplicationActivationManager{
+	ctor(){
+		this = ..com.interface.IUnknown(); 
+	}; 
+	pointer ActivateApplication = "int(ustring appUserModelId,ustring arguments,int options,INT &processId)";
+	pointer ActivateForFile = "int(ustring appUserModelId,pointer itemArray,string verb)";
+	pointer ActivateForProtocol = "int(ustring appUserModelId,pointer itemArray,INT &processId)";
+}
+IApplicationActivationManager.IID = "{2e941141-7f97-4756-ba1d-9decde894a3d}";
+ 
+IApplicationActivationManager.Create = function(){ 
+	var activationManager  =  ..com.interface.create( "{45BA127D-10A8-46EA-8AB7-56EA9078943C}" 
+		, IApplicationActivationManager, 0x1/*_CLSCTX_INPROC_SERVER*/  );
+		 
+	return activationManager;
+}
+          
+/**intellisense()
+com.interface.IApplicationActivationManager.Create() = 仅适合win8,win10\n创建IApplicationActivationManager接口\n!IApplicationActivationManager.
+!IApplicationActivationManager.AddRef() = 引用计数加一,返回引用计数
+!IApplicationActivationManager.Release() = 引用计数减一,返回引用计数
+!IApplicationActivationManager.QueryInterface(__/*接口数*/) = 参数是接口类,参考com.interface.IUnknown源码
+!IApplicationActivationManager.ActivateApplication(.(appUserModelId,arguments,options,processId) = 激活指定的Windows商店应用,\n@appUserModelId,@arguments必须是字符串,\n@options为_AO_前缀常量,processId请传入0即可\n也可以直接调用 com.shell.activateApp 函数激活应用
+_AO_NONE=@0/*_AO_NONE*/
+_AO_DESIGNMODE=@1/*_AO_DESIGNMODE*/
+_AO_NOERRORUI=@2/*_AO_NOERRORUI*/
+_AO_NOSPLASHSCREEN=@4/*_AO_NOSPLASHSCREEN*/
+end intellisense**/

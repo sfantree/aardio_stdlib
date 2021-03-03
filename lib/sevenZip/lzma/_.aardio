@@ -1,0 +1,139 @@
+import fsys;
+namespace sevenZip.lzma;
+
+var ERRORMESSAGE = {
+	[ 1/*_SZ_ERROR_DATA*/ ] = "数据错误";
+	[ 2/*_SZ_ERROR_MEM*/ ] = "分配内存失败";
+	[ 6/*SZ_ERROR_INPUT_EOF*/ ] = "输入溢出";
+	[ 7/*SZ_ERROR_OUTPUT_EOF*/ ] = "输出溢出";
+	[ 8/*_SZ_ERROR_READ*/ ] = "读输入文件失败"; 
+	[ 9/*_SZ_ERROR_WRITE*/ ] = "写输出文件失败";
+}
+
+decodeFile = function(inFile,outFile,progress){
+	inFile = ..io.exist(inFile);
+	if(!inFile) return null,"打开输入文件失败";
+	
+	if(!outFile) error("请指定输出路径参数@2",2);
+	outFile = outFile ? ..io.fullpath(outFile);
+	if(!..fsys.createParentDir(outFile)) return null,"创建输出目录失败"
+	
+	var progress_c;
+	if( progress ){
+		progress_c = ..raw.tocdecl(progress,"int( INT inProcessed,INT outProcessed)");  
+	}
+	var ret  = lzmafile(inFile,outFile,progress_c,false);
+	if( ret ) return false,ERRORMESSAGE[ret]
+	return true;
+} 
+
+encodeFile = function(inFile,outFile,progress){
+	
+	inFile = ..io.exist(inFile);
+	if(!inFile) return null,"读输入文件失败";
+	
+	if(!outFile) outFile = inFile + ".lzma";
+	outFile = outFile ? ..io.fullpath(outFile);
+	if(!..fsys.createParentDir(outFile)) return null,"创建输出目录失败";	
+	
+	var progress_c;
+	if( progress ){
+		progress_c = ..raw.tocdecl(function(p,inSize,outSize){
+			return progress( inSize,outSize );
+		},"int(pointer,LONG,LONG)");
+	}
+	var ret  = lzmafile(inFile,outFile,progress_c,true);
+	if( ret ) return false,ERRORMESSAGE[ret]
+	return true;
+}
+
+class LZMA_HEADER {
+	BYTE properties[5]; 
+	long uncompressedSize; 
+	_struct_aligned = 1;
+} 
+
+compress = function( src,level=5,dictSize=0x1000000,numThreads=2, lc=3,lp=0,pb=2,fb=32){
+	var srcLen = #src;
+	var header = LZMA_HEADER(); 
+	var propSize = 5;
+	
+	var dest = ..raw.buffer( ( srcLen * 2) + 5 ,0);
+	var destLen = #dest; 
+ 	
+	var ret,destLen,,propSize = LzmaCompress(dest,destLen,src,srcLen,header,5/*_LZMA_PROPS_SIZE*/,level, dictSize, lc,lp,pb,fb,numThreads);
+	if(  ret == 7/*_SZ_ERROR_OUTPUT_EOF*/ ) { 
+		destLen = destLen *2;
+		dest = ..raw.buffer( destLen );
+		ret,destLen = LzmaCompress(dest,destLen,src,srcLen,header,5/*_LZMA_PROPS_SIZE*/,level, dictSize, lc,lp,pb,fb,numThreads); 
+	}
+	if( ret ) return false,ret;   
+	header.uncompressedSize = srcLen;
+	return header,..raw.tostring(dest,1,destLen);
+}
+
+unCompress = function( src,header ){
+	var srcLen = #src;
+	if(!header){
+		header = LZMA_HEADER(); 
+		..raw.convert(src,header); 
+		src = ..raw.toPointer(src,13);
+		srcLen = srcLen-13;
+	}
+	
+	var destLen = header.uncompressedSize;
+	if( (!destLen) or ( destLen < 0 ) ) destLen = srcLen*50;
+	var dest = ..raw.buffer( destLen); 
+	var ret,destLen = LzmaUncompress(dest,destLen,src,srcLen,header,5);  
+	
+	if( ret && ret!=6/*SZ_ERROR_INPUT_EOF*/) return false,ret; 
+	return ..raw.tostring(dest,1,destLen);
+}
+
+save = function(str,path,...){
+	var h,s = compress(str,...)
+	if( h ){
+		var file,err = ..io.open(path,"w+b")
+		if(!file) return null,err;
+		file.write(h);
+		file.write(s);
+		file.close();
+		return true;
+	}
+}
+
+load = function(path){
+	var file,err = ..io.open(path,"rb")
+	if(!file) return null,err;
+	
+	var header = LZMA_HEADER(); 
+	if( file.read(header) ){
+		var s = file.read(-1) 
+		if( s ){
+			file.close();
+			return unCompress(s,header);
+		}
+	}
+	file.close();
+}
+
+//7ZIP 15.14
+_dll = ..raw.loadDll( $"~/lib/sevenZip/lzma/.res/LzmaUtil.dll","sevenZip.LzmaUtil.dll")
+lzmafile = _dll.api("lzmafile","int(ustring in_path,ustring out_path,pointer progress,bool encodeMode)" ,"cdecl") 
+LzmaCompress = _dll.api("LzmaCompress","int(pointer dest,INT &destLen,pointer src,INT srcLen,struct &outProps, INT &outPropsSize,int level, INT dictSize,int lc,int lp,int pb,int fb, int numThreads )" ,"cdecl") 
+LzmaUncompress = _dll.api("LzmaUncompress","int(pointer dest,INT &destLen, pointer src,INT &srcLen, struct props, INT propsSize)" ,"cdecl") 
+ 
+/**intellisense(sevenZip.lzma)
+decodeFile(.(输入文件路径,输出文件路径,进度回调函数) = 解压文件,\n执行成功返回true,否则返回false,以及错误信息,\n\n可选指定进回调函数,回调函数原型如下：\nfunction(inProcessed,outProcessed){ } \n回调函数返回true停止解压
+encodeFile(.(输入文件路径,输出文件路径,进度回调函数) = 压缩文件,\n如果不指定输出路径,则自动添加.lzma后缀作为输出路径\n执行成功返回true,否则返回false,以及错误信息,\n\n可选指定进回调函数,回调函数原型如下：\nfunction(inSize,outSize){ } \n回调函数返回true停止压缩
+compress(.(待压缩数据,压缩级别,字典大小,线程数,lc,lp,pb,fb) = 压缩字符串,除参数一以外其他参数可选,\n成功返回两个值:lzmaHeaer,lzmaData,\nlzmaHeaer为LZMA压缩头,lzmaData为压缩后字符串\n失败返回false,以及错误代码\n存为lzma文件时必须首先写入文件头,然后再写入压缩数据
+unCompress(.(待解压数据,LZMA头) = 解压字符串,\n如果待解压数据已包含LZMA头，可省略参数@2
+compress() = !SEVERZIP_LZMA_HEADER.
+save(.(待压缩数据,输出文件路径,压缩级别,字典大小,线程数,lc,lp,pb,fb) = 压缩字符串并存储到文件\n除参数@1,@2以外其他参数可选
+load(.(lzma文件路径) = 解压文件并返回字符串
+end intellisense**/
+
+/**intellisense(!SEVERZIP_LZMA_HEADER) 
+properties = 记录压缩参数,\n该值为(pb * 5 + lp) * 9 + lc
+uncompressedSize = 文件原始大小
+end intellisense**/

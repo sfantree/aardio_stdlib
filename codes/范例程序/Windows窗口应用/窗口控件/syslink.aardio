@@ -1,0 +1,47 @@
+//超链接控件
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="超链接控件测试";right=713;bottom=504)
+winform.add(
+lnkWebsite={cls="syslink";text="使用syslink控件教程";left=84;top=30;right=279;bottom=97;transparent=1;z=1};
+plus={cls="plus";left=37;top=99;right=633;bottom=426;repeat="center";z=2}
+)
+/*}}*/
+
+import process; 
+winform.lnkWebsite.text = `<a href="http://bbs.aardio.com/forum.php?mod=viewthread&tid=13220&extra=&from=portal">使用syslink控件教程</a>`
+winform.lnkWebsite.onHyperlinkClick = function(nmSysLink,url,id){
+
+    thread.invoke( 
+    	function(url){
+    		import process;
+    		process.execute(url); //创建线程打开超链接速度会更快
+    	},url
+    );
+    	
+}
+
+if(!io.exist("/.syslink.gif") ){
+	import thread.command;
+	thread.command.instance().done = function(){
+		winform.plus.setBackground("/.syslink.gif");
+	}
+
+	thread.invoke( 
+		function(){
+			import inet.whttp;
+			import thread.command;
+			var str = inet.whttp().get("http://bbs.aardio.com/data/attachment/forum/201603/23/012221dqjbtemqqbjjnvvq.gif")
+			if( str ){
+				string.save("/.syslink.gif",str)
+				thread.command.send("done")
+			}
+		}
+	)
+}
+else {
+	winform.plus.setBackground("/.syslink.gif");
+}
+
+winform.show() 
+win.loopMessage();

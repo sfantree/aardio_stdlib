@@ -1,0 +1,32 @@
+﻿import web.json;
+import fsys;
+
+namespace chrome.extensions;
+
+get = function(profile="Default"){
+	var extensionsPath = ..io.appData("\Google\Chrome\User Data\" + profile + "\Extensions\");
+	if(!extensionsPath) return {};
+	
+	var files,folders = ..fsys.list(extensionsPath);
+	var result = {}
+	for(i=1;#folders;1){
+		var name = folders[i] 
+		var _,vFolders = ..fsys.list(folders[name]);
+		..table.sort(vFolders);
+		
+		var lastName = vFolders[#vFolders]
+		var fullpath = vFolders[lastName]; 
+		var manifestData = ..string.load( ..io.joinpath(fullpath,"manifest.json") )
+		if(manifestData){
+			var manifestInfo = ..web.json.parse(manifestData); 
+			manifestInfo.fullpath = fullpath;
+			..table.push(result,manifestInfo);
+		}
+	}
+	
+	return result;	
+}
+
+/**intellisense()
+chrome.extensions.get() = 返回chrome已安装的扩展程序数组
+end intellisense**/

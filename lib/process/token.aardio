@@ -1,0 +1,78 @@
+﻿//token 权限令牌
+
+namespace process;
+
+class token{
+	ctor( processHandle ){
+		if(!processHandle) processHandle = ::Kernel32.GetCurrentProcessP();
+		this.processHandle = processHandle;
+		
+		var token = {ptr handle}
+		if(::Advapi32.OpenProcessToken(::Kernel32.GetCurrentProcessP(),access : 8/*_TOKEN_QUERY*/,token)){
+			this.tokenHandle = token.handle
+		}
+		else {
+			return null;
+		} 
+		
+		..table.gc(this,"close");
+	};
+	info = function(infClass,info){ 
+		if ( this.tokenHandle ) { 
+			var size ={INT v } 
+			var res = ::Advapi32.GetTokenInformation(this.tokenHandle,infClass,null,0,size); 
+			if(!res && !size.v ){  
+				return false
+			} 
+		
+			var buf = ..raw.buffer(size.v); 
+			var ok = ::Advapi32.GetTokenInformation(this.tokenHandle,infClass,buf,#buf,size);
+			if(ok){
+				..raw.convert(buf,info); 
+				info["($safe-buffer)"] = buf; 
+				return info;
+			} 
+		}
+	};
+	user = function(){ 
+		var info,buf = this.info(1/*_TokenUser*/,{ ptr sid;INT attributes;})
+		//避免buf无引用时释放内存( info.sid实际上是指向buf去掉头部8个字节的内存 )
+		var size = ::Advapi32.GetLengthSid(info.sid);
+		info.sid = ..raw.buffer(size,info.sid);
+		return info;
+	};
+	sid = function(){
+		return this.user()[["sid"]]; 
+	};
+	elevation = function(){ 
+		return _WINXP || !! this.info(20/*TokenElevation*/,{ INT TokenIsElevated })[["TokenIsElevated"]];
+	};
+	close = function(){
+		if(this.tokenHandle){
+			..raw.closehandle(this.tokenHandle)
+			this.tokenHandle = null;
+		} 
+	};
+}
+
+namespace token{
+    ::Advapi32 := ..raw.loadDll("Advapi32.dll");
+    
+	sid = function(hPrcs){
+		var token = ..process.token(hPrcs);
+		var sid = token.sid();
+		token.close();
+		return sid;
+	} 
+}
+
+/**intellisense()
+process.token(.(hPrcs,access) = 打开进程令牌,\n@hPrcs参数指定进程句柄，省略时取当前进程句柄,\naccess指定访问权限,省略时默认值为_TOKEN_QUERY
+process.token() = !processToken.
+process.token.sid(.(hPrcs,access) = 返回运行进程的用户SID,返回值为buffer类型指针,\n@hPrcs参数指定进程句柄，省略时取当前进程句柄
+!processToken.user() = 获取进程令牌的用户信息,\n返回TokenUser结构体，返回值不需要手动释放
+!processToken.sid() = 返回运行进程的用户SID指针句柄,\n返回值不需要手动释放,标准库 sys.acl提供操作转换sid的函数
+!processToken.info(.(infClass,info) = 获取令牌信息\n@infClass参数使用枚举数值标明要获取的类型,\n@info参数为要获取的结构体,\n成功返回info参数
+!processToken.elevation() = 当前进程是否使用管理员权限启动
+!processToken.close() = 关闭对象
+end intellisense**/

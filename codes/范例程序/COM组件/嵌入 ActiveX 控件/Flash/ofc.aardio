@@ -1,0 +1,113 @@
+//嵌入open-flash-chart报表
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="正在下载open-flash-chart.swf";right=511;bottom=352;parent=...)
+winform.add(
+btnScreen={cls="button";text="全屏";left=403;top=314;right=491;bottom=341;db=1;dr=1;z=2};
+btn_xcall={cls="button";text="重新加载图表";left=217;top=313;right=394;bottom=340;db=1;dr=1;z=3};
+flashBox={cls="custom";left=19;top=16;right=488;bottom=303;db=1;dl=1;dr=1;dt=1;edge=1;z=1}
+)
+/*}}*/
+
+//创建控件
+import com.flash;
+var flash = com.flash( winform.flashBox ); 
+ 
+import web.json;
+var chartData = { //定义报表数据
+    bg_colour = "#000000";
+    elements = {
+        {
+            ["alpha"] = 0.6; 
+            ["animate"] = true;//动画效果
+            ["border"] = 2;
+            ["colours"] = { //颜色数组与values对应
+                "#d01f3c";
+                "#356aa0";
+                "#C79810"
+            }; 
+            ["start-angle"] = 35;//第一个图的起绘位置
+            ["type"] = "pie"; //饼图
+            ["values"] = {
+                2;
+                3; {
+                    ["label"] = "hello"; //这个是标题
+                    ["on-click"] = "on_click_pie"; //http:协议前缀则为网址,也可以使用flash.external里的函数名
+                    ["tip"] = "99 bottles of beer(#val#)";//#val#是变量,只有在tip里才可以使用变量
+                    ["value"] = 65
+                }; { 
+                    ["on-click"] = "my_function"; //点击时调用 flash.external.my_function
+                    ["value"] = 65
+                }
+            }
+        }
+    };
+    title = {
+        style = "{font-size: 30px;}";
+        text = "Pie for you sir?"
+    }
+}
+
+//导出接口函数给FLASH里的AS脚本,注意一定不要在加载swf动画以后再设置此属性
+flash.external = { 
+    open_flash_chart_data = function(){
+        return web.json.stringify(chartData); //open-flash-chart默认调用此函数加载JSON格式的报表数据
+    }
+    ofc_ready = function(){
+        winform.text = "aardio嵌入open-flash-chart报表演示";
+    }
+    ofc_resize = function(left,width,top,height){ 
+    
+    }	
+    save_image = function(){
+        import crypt.bin;
+        import fsys.dlg;
+        var bin = flash.xcall("get_img_binary"); 
+        if(!bin) return;
+        
+        import web.script;
+        bin = web.script().Eval('"' + bin + '"' );//移除掉JS语法的转义符
+        var bin = crypt.bin.decodeBase64(bin); 
+    
+        var path = fsys.dlg.save("*.png|*.png||","报表另存为",,winform.hwnd)
+        if(path) string.save(path,bin)
+    }
+    on_click_pie = function( _x ){
+        winform.flashBox.msgbox("响应点击")
+    } 
+    my_function = function(){
+    	winform.flashBox.msgbox("my_function被调用了")
+    }
+    	
+}  
+
+import inet.url;
+flash.parameters = {
+    save_image_message = "另存为图像"; //这是设置初始化参数,也就是flashVars
+} 
+
+//打开swf文件
+flash.movie = "http://download.aardio.com/v10.files/demo/open-flash-chart.swf";
+flash.play();
+
+winform.btn_xcall.oncommand = function(id,event){ 
+    flash.xcall("load",  web.json.stringify(chartData) ); //调用FLASH里的AS脚本中用ExternalInterface.addCallback导出的接口函数
+    //flash.xcall("reload",url)
+    //flash.xcall("post_image",url,callback,debug)
+} 
+
+winform.btnScreen.oncommand = function(id,event){
+    winform.flashBox.fullscreen(true); 
+} 
+
+winform.show(true) 
+win.loopMessage();
+return winform;
+
+/***
+open-flash-chart 官网示例下载:
+http://sourceforge.net/projects/openflashchart/files/
+
+open-flash-chart介绍
+http://teethgrinder.co.uk/open-flash-chart-2/tutorial.php
+***/

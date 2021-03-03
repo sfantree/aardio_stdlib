@@ -1,0 +1,32 @@
+//4)Python列表
+?>
+<title>Python列表介绍</title>
+
+<pre style="font-size:16px;">
+Python中的列表在aardio扩展库中即py.list对象，
+一般在函数调用中会自动转换为aardio中的表（通过JSON序列化）
+但是也可以自己使用py.list访问原来的python列表。
+
+Python中的列表的语法与JS定义数组相似，示例：
+
+list =[1,2,34,56] #等价于aardio中的 list = {1;2;34;56 }
+print( list[0] ); #注意 python中数组索引自0开始,而aardio中是自1开始
+
+#Python中输出数组的长度
+print( "数组长度",len(list) ) #aardio中取数组长度用#操作符,例如 #list
+
+#Python中循环遍历列表
+for i in list:
+    print( i ) 
+    
+#Python中类似aardio中的计数循环 
+#这种方法既占内存又费时间，Python为此提供了xrange()函数，在Python3中已转正改名为range
+for i in range(1,10): #类似在aardio中的 for(i=i:10){ }
+	print(i)
+
+#python支持很有意思的切片语法
+#在索引操作符中冒号之前表示切片开始(包含该位置,省略表示数组开始,负数表示自尾部倒计数)，
+#冒号之后表示切片结束(不包含该位置,省略表示数组结束,负数表示自尾部倒计数)。
+#也可以再添加一个冒号用第三个数表示切片间隔数,例如： 
+print( list[2:4] ) #类似aardio中的table.slice(list,3,4)
+</pre>

@@ -1,0 +1,315 @@
+//ftp 文件传输协议
+import inet
+import fsys;
+namespace inet  
+ 
+class ftp {
+
+	ctor(server,user,password,port = 21,pasv,agent = "Mozilla/4.0", proxy,proxyBypass="",flags=0 ){ 
+		port = tonumber(port);
+		
+	    if( #proxy ){
+	   		this.session = ::InternetOpen(agent,0x3/*_INTERNET_OPEN_TYPE_PROXY*/,proxy,proxyBypass,flags);	
+	    }
+	    else{ 
+	    	this.session = ::InternetOpen(agent,(!proxy)? 0x1/*_INTERNET_OPEN_TYPE_DIRECT*/:0x0/*_INTERNET_OPEN_TYPE_PRECONFIG*/,null,null,flags);
+	    } 
+	    if(!this.session)
+			error("inet.ftp初始化失败",2) 
+	       
+    	//连接
+    	this.connect = ::InternetConnect(this.session 
+    		,server
+    		,port 
+    		,user
+    		,password
+    		, 1
+    		, pasv?0x8000000:0 //是否被动模式
+    		, 0); 
+    		
+		if( not this.connect )
+			return null,"连接FTP服务器失败"; 
+			
+		..table.gc(this,"close");
+    };  
+ 	close = function(){ 
+ 		if(this.connect)
+ 			::InternetCloseHandle(this.connect);
+ 			
+    	if(this.session)
+    		::InternetCloseHandle(this.session);
+    };
+    command = function(cmd,flags=2/*_INTERNET_FLAG_TRANSFER_BINARY*/, expectResponse){
+    	return FtpCommand(this.connect,expectResponse,flags,cmd );
+    };
+    upload=function(path,remotePath,flags=0){ 
+    	if( !..io.exist(path) ){
+    		return false,"上传出错:本地文件不存在",path
+    	}
+    	remotePath = ..string.replace(remotePath,"@@\","/")
+   		return FtpPutFile(this.connect,..io.fullpath(path),remotePath,flags,0)  
+    };
+    download=function(local,remote,failIfExists,flags=0){
+    	return FtpGetFile(this.connect,remote,..io.fullpath(local),failIfExists,0x80/*_FILE_ATTRIBUTE_NORMAL*/,flags,0) 
+    }; 
+    delete = function(path){
+    	path = ..string.replace(path,"\\","/");
+    	FtpDeleteFile(this.connect,path);
+    }
+    deleteDir = function(path){ 
+    	return FtpRemoveDirectory(this.connect,canonicalizeDirectory(path) );
+    }; 
+    createDir = function(path){
+    	if(!path)error("目录不能为空",2);
+    	path = canonicalizeDirectory(path);
+    	var parent,last = ..string.match(path,"(.+)/([^/]+/)")
+    	if( parent && last ){
+    		owner.createDir(parent)
+    	};
+    	return FtpCreateDirectory(this.connect,canonicalizeDirectory(path));
+    };
+    createParentDir = function(path){ 
+    	if(!path)error("路径参数不能为空",2);
+    	var pdir = getParentDir(path);
+    	if( pdir ) return this.createDir( getParentDir(path) );
+    };
+    rename = function(path,new){
+    	return FtpRenameFile(this.connect,..string.replace(path,"\\","/"),..string.replace(new,"\\","/") );
+    };
+    getCurDir = function(){
+    	var ok,path,len = FtpGetCurrentDirectory(this.connect,0x208/*_MAX_PATH_U16*/,0x104/*_MAX_PATH*/);
+    	if(ok)return canonicalizeDirectory(path);
+    };
+    setCurDir = function(path){
+    	if(!path)error("目录不能为空",2);
+    	return FtpSetCurrentDirectory(this.connect,canonicalizeDirectory(path) )
+    };
+    eachDir = function(dir,p="*.*"){ 
+    	var oldCurDir = this.getCurDir();
+     	dir = canonicalizeDirectory(dir);
+     	FtpSetCurrentDirectory(this.connect,dir);
+     	dir = this.getCurDir();
+     	
+     	var hfile;
+     	var findData = ..fsys.WIN32_FIND_DATA() 
+     	var freeItor = function(){  
+   			if(hfile){ 
+   				::InternetCloseHandle(hfile); 
+   				hfile = null;
+   				FtpSetCurrentDirectory(this.connect,oldCurDir );
+   			}
+   		}   
+   		var gcFile;
+   		
+     	return function(){
+     	
+     		if(hfile){
+     			if(!InternetFindNextFile(gcFile,findData)) return;
+     		}
+     		else{
+     			hfile = FtpFindFirstFile(this.connect,p,findData,0,0);
+     			if(!hfile) return;
+     			gcFile = ..gcdata( _gc = freeItor ;_topointer =  hfile ) 
+     		}
+     		
+     		var fileName =..string.str( findData.cFileName );
+     		if( findData.dwFileAttributes & 0x10/*_FILE_ATTRIBUTE_DIRECTORY*/ )
+     			return fileName/*dirName*/, ,findData,dir
+     		else
+     			return dir,fileName,findData,dir 
+     	},freeItor 
+    };
+    enumDir = function( dir,p="*.*",proc){
+    	var queue = { dir }; 
+    	var filter = { ["."]=1;[".."]=1 };
+    	var fullpath;
+    	if( type(proc) != type.function ) error("请指定回调函数",2);
+    	
+		do{
+			var curDir = ..table.pop(queue);
+			for(dirName,fileName,findData,rootDir in this.eachDir(curDir,p)){
+	 			if( !fileName ){
+	 				if( !filter[dirName]){
+	 					fullpath = rootDir + dirName;
+	 					..table.push(queue,fullpath); 
+	 				}
+	 				else continue; 
+	 			}
+	 			else{
+	 				fullpath = dirName + fileName;
+	 			} 
+	 			if( proc(dirName,fileName,fullpath,findData) === false )break;
+			}	
+		}while (#queue)
+    }
+    open = function( path,mode,flag){
+    	var f = file( this.connect,path,mode,flag )
+    	return f;
+    };	
+ }
+ 
+namespace ftp{
+	canonicalizeDirectory = function(path){
+		if(!path)error("目录不能为空",2); 
+		path = ..string.replace(path,"@@\", "/") ;
+     	if( not ..string.endWith( path,"/") ) path = path + "/";  
+     	return path;
+	};
+	getParentDir = function(path){
+		if( !#path ) return;
+		path = ..string.replace(path,"@@\","/");
+		if( path == "/" ) return;
+		
+		if( ..string.endWith(path,"/",true) ) path = ..string.left(path,-2);
+		if( !#path ) return;
+		
+		var pdir = ..string.match( path,".*[/\\]" );
+		if( #pdir  ){ 
+			return pdir;
+		}
+		else {
+			return "./"
+		}
+	}
+	
+	FtpGetFile = ::Wininet.api("FtpGetFile","bool(POINTER hConnect,ustring remoteFile,ustring newFile,bool failIfExists,INT dwFlagsAndAttributes,INT dwFlags,INT dwContext)")
+	FtpPutFile = Wininet.api("FtpPutFile","bool(POINTER hConnect,ustring localFile,ustring remoteFile, INT dwFlags,INT dwContext)")	
+	FtpRenameFile = Wininet.api("FtpRenameFile","bool(POINTER hConnect,USTRING lpszExisting,USTRING lpszNew)")
+	FtpDeleteFile  = Wininet.api("FtpDeleteFile","bool(POINTER hConnect,USTRING lpszFileName)")
+	FtpRemoveDirectory  = Wininet.api("FtpRemoveDirectory","bool(POINTER hConnect,USTRING lpszFileName)")
+	FtpFindFirstFile = Wininet.api("FtpFindFirstFile","pointer(POINTER hFtpSession,USTRING lpszSearchFile,struct& lpFindFileData,int dwFlags,int dwContent)");
+	InternetFindNextFile = ::Wininet.api("InternetFindNextFile","int(pointer hFind,struct& lpvFindData)");
+	FtpSetCurrentDirectory = ::Wininet.api("FtpSetCurrentDirectoryW","bool(POINTER hFtpSession,ustring dir)");
+	FtpGetCurrentDirectory = ::Wininet.api("FtpGetCurrentDirectoryW","bool(POINTER hConnect,ustring &dir,INT &len)");
+	FtpCommand = ::Wininet.api("FtpCommand","bool(POINTER hConnect,bool expectResponse,INT flags,ustring command,pointer context,pointer &phFtpCommand)");
+ 	FtpCreateDirectory  = ::Wininet.api("FtpCreateDirectory","bool(POINTER hConnect,USTRING dir)")
+   
+	class file{
+		ctor( hConnect,fileName,mode="rb",flags = 0){
+			flags = flags | (  ..string.find(mode,"b") ? 2/*_FTP_TRANSFER_TYPE_BINARY*/ : 1/*_FTP_TRANSFER_TYPE_ASCII*/ );
+	
+			if(!fileName) return null,"null fileName";
+			fileName = ..string.replace(fileName,"@@\", "/") ;
+			
+			mode = mode[1] == 'r'#  ? 0x80000000/*_GENERIC_READ*/ : 0x40000000/*_GENERIC_WRITE*/;
+			var hFile = FtpOpenFile( hConnect,fileName,mode,flags);
+			if(!hFile){
+				return null,..inet.lastResponse();
+			};
+			..table.gc(this,"close");
+		};
+		write = function(...){
+			return wirteFile(hFile,...);
+		}; 
+		read = function(bufferSize){
+			if( bufferSize != -1 ){
+				return readFile(hFile,bufferSize);  
+			}
+			else {
+				var size,sizeHigh = FtpGetFileSize(hFile,0);
+				if(!sizeHigh){
+					return readFile(hFile,,)
+				}
+				error("文件太大,请循环读取",2)
+			}
+		};
+		eachRead = function(bufferSize){
+			return function(){
+				return readFile(hFile,bufferSize); 
+			};
+		}; 
+		writeBuffer = function(buffer,l){
+			return writeBuffer(hFile,buffer,l);
+		}; 
+		readBuffer = function(buffer,l){
+			return readBuffer(hFile,buffer,l);  
+		};
+		eachReadBuffer = function(buffer,l){ 
+			return function(){
+				return readBuffer(hFile,buffer,l); 
+			};
+		}; 
+		size64 = function(){ 
+			var low,high = FtpGetFileSize(hFile,0);
+			return ..math.size64(low,high);
+		};
+		size = function(){
+			var low,high = FtpGetFileSize(hFile,0);
+			return tonumber(..math.size64(low,high));
+		};
+		close = function(){
+			if(hFile){
+				::InternetCloseHandle(hFile);
+				hFile = null;
+			}
+		}; 
+	}
+	namespace file{
+		import inet.file;
+		readFile = inet.file.read;
+		wirteFile = inet.file.write; 
+		readBuffer = inet.file.readBuffer;
+		writeBuffer = inet.file.writeBuffer;
+		
+		FtpOpenFile = ::Wininet.api("FtpOpenFile","pointer(POINTER hConnect,STRING fileName,INT dwAccess,INT flags,pointer contect)")
+		FtpGetFileSize = ::Wininet.api("FtpGetFileSize","INT(POINTER hFile,INT &sizeHigh)");
+	};
+
+}
+ 
+/**intellisense()
+inet.ftp = FTP文件传输支持库
+inet.ftp(.(主机,用户名,密码,端口号,是否被动模式,UserAgent,代理,绕过代理,选项) = 除第一个参数以外,其他参数可选
+inet.ftp.getParentDir(.(路径) = 返回父目录
+!inet_ftp.eachDir = @for(dirName,fileName,findData,curDir in ??.eachDir("\")){
+	 if( !fileName ){
+	 	io.print("目录名",dirName);__
+	 }
+	 else{
+	 	io.print("文件名",fileName);
+	 }
+	 __/*curDir为当前目录\n如果当前是一个文件请忽略dirName参数\n如果当前是一个目录,fileName为空*/
+}
+!inet_ftp.enumDir(目录,通配符,回调函数) = @.enumDir("\","*.*",\n	function(dir,fileName,fullpath,findData ){\n		io.print( fileName?"文件":"目录",fullpath )\n		return true;__/*返回false停止*/\n	} \n); 
+!inet_ftp.setCurDir(.(目录) = 设置服务器上的当前目录
+!inet_ftp.getCurDir() = 返回服务器上的当前目录,该函数保证返回的目录尾部是斜杠
+!inet_ftp.deleteDir(.(目录) = 删除目录
+!inet_ftp.createParentDir(.(目录) = 创建指定路径的父目录
+!inet_ftp.createDir(.(目录) = 创建目录,支持创建多级目录\n可以斜杠开头的的路径表示相对于根目录的完整路径\n也可使用setCurDir()设定当前目录
+!inet_ftp.delete(.(文件) = 删除文件
+!inet_ftp.rename(.(文件名,新名字) = 文件改名
+!inet_ftp.download(.("/本地路径","/远程路径") = 下载前可使用setCurDir()设定当前目录\n也可以斜杠开头的的路径表示相对于根目录的完整路径
+!inet_ftp.upload(.("/本地路径","远程路径") = 上传前可使用setCurDir()设定当前目录\n也可以斜杠开头的的路径表示相对于根目录的完整路径
+!inet_ftp.download(.(loadfile,remotefile,1/*_INTERNET_FLAG_TRANSFER_ASCII*/) = ASCII模式下载
+!inet_ftp.download(.(loadfile,remotefile,2/*_INTERNET_FLAG_TRANSFER_BINARY*/) = BINARY模式下载
+!inet_ftp.upload(.(formfile,todir,1/*_INTERNET_FLAG_TRANSFER_ASCII*/) = ASCII模式上传
+!inet_ftp.upload(.(formfile,todir,2/*_INTERNET_FLAG_TRANSFER_BINARY*/) = BINARY模式上传
+!inet_ftp.command("OPTS UTF8 off") = 发送命令通知服务器关闭UTF8编码模式\n可解决中文文件名乱码问题
+!inet_ftp.command(.(命令,选项,是否返回句柄) = 仅指定第一个参数即可,\n参数2指定传送模式,默认为BINARY模式\n也可指定为_INTERNET_FLAG_TRANSFER_ASCII\n参数3默认为false,如果为true则第二个返回值为返回句柄
+!inet_ftp.close() = 关闭连接
+!inet_ftp.open("/目录/文件路径","rb") = 二进制只读模式打开ftp文件流\n参数2为"rt"则使用文本模式,\n打开文件后仅允许读文件,其他所有FTP操作被禁用,\n直到调用close()关闭文件
+!inet_ftp.open("/目录/文件路径","wb") = 二进制只写模式打开ftp文件流\n参数2为"wt"则使用文本模式,\n打开文件后仅允许写文件,其他所有FTP操作被禁用,\n直到调用close()关闭文件
+!inet_ftp.open() = !ftp_file.
+!ftp_file.size() = 返回文件大小
+!ftp_file.size64() = 返回文件大小\n返回文件大小\n返回值为math.size64长整数对象\n!math_size64.
+!ftp_file.read() = 读文件,返回文件数据,\n可选指定缓冲区长度
+!ftp_file.read(-1) = 读取所有数据
+!ftp_file.write(.(写入字符串,不定个数字符串) = 写文件,支持多参数,\n返回写入数据的总长度,失败返回空或0
+!ftp_file.writeBuffer(.(缓冲区指针,写入长度) = 上传文件数据\n参数一必须是使用raw.malloc()函数创建的缓冲区指针\n长度参数可选,默认为缓冲区长度. 
+!ftp_file.readBuffer(.(缓冲区指针,写入长度) = 下载文件数据\n参数一必须是使用raw.malloc()函数创建的缓冲区指针\n长度参数可选,默认为缓冲区长度. 
+!ftp_file.eachRead(缓冲区长度) = @for(str in ??.eachRead() ){
+	__
+}
+!ftp_file.eachReadBuffer = @var buffer = ..raw.buffer( 1024 * 10 );\nfor( size in ??.eachReadBuffer( buffer ) ){ 
+	table.push(__,str ) ; 
+} 
+!ftp_file.close() = 关闭FTP文件
+inet.ftp() = !inet_ftp.
+end intellisense**/
+
+/**intellisense()
+_INTERNET_FLAG_TRANSFER_ASCII=@1/*_INTERNET_FLAG_TRANSFER_ASCII*/
+_INTERNET_FLAG_TRANSFER_BINARY=@2/*_INTERNET_FLAG_TRANSFER_BINARY*/
+_FTP_TRANSFER_TYPE_ASCII=@1/*_FTP_TRANSFER_TYPE_ASCII*/
+_FTP_TRANSFER_TYPE_BINARY=@2/*_FTP_TRANSFER_TYPE_BINARY*/
+end intellisense**/

@@ -1,0 +1,55 @@
+//aardio调用js事件
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="js 调用 aardio 自定义事件";right=1014;bottom=523;parent=...)
+winform.add()
+/*}}*/
+
+import web.sciter;
+var wbSciter = web.sciter( winform );
+ 
+namespace web.sciter.behavior.my.customEvent {  
+	
+	/* 注意：自定义事件第3个回调参数 data 指向 behaviorParams.data 解包后的值，而不是behaviorParams.reason */
+	onMyCustomEvent = function (scTarget,scOwner,data,behaviorParams) { 
+		 
+		import console
+		console.log("onMyCustomEvent",data)
+	} 
+	
+	onButtonClick = function (scTarget,scOwner,reason,behaviorParams) {
+		// 下面代码即可以触发 JS 事件，也可以触发 aardio 事件，sciter扩展库必须使用最新版本
+		scOwner.fireEvent("onMyCustomEvent","这是data参数")
+	} 
+}
+
+wbSciter.html = /**
+<!doctype html>
+<html>
+<head>
+	<META http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<script type="text/tiscript">
+	
+	</script>
+	<style type="text/css">
+	html,body{ height:100%; margin:50; } 
+	
+	#my-button{  
+		behavior:"my.customEvent clickable"; 
+	}
+	</style>
+</head>
+<body> 
+<button id="my-button">请点击这里调用 behavior 里定义的 aardio函数：onMyCustomEvent </button> 
+<script>
+var button = document.getElementById("my-button");
+button.addEventListener('onMyCustomEvent', (event) => {  
+	event.currentTarget.innerHTML = "aardio触发了JS事件，收到data参数：" + event.data; 
+})
+</script>
+</body>
+</html>
+**/
+	
+winform.show();	
+win.loopMessage();

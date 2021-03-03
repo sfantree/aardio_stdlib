@@ -1,0 +1,35 @@
+
+import com.interface;
+namespace  dotNet.interface;
+
+class ICLRRuntimeHost{
+	ctor(  ){
+		this = ..com.interface.IUnknown(); 
+	};  
+	pointer Start = "int()"; 
+	pointer Stop = "int()"; 
+	pointer SetHostControl = "int(pointer pHostControl)"; 
+	pointer GetCLRControl = "int(pointer &pCLRControl)"; 
+	pointer UnloadAppDomain = "int(INT ppDomainId,bool waitUntilDone)"; 
+	pointer ExecuteInAppDomain = "int(INT appDomainId,pointer pCallback,pointer cookie)"; 
+	pointer GetCurrentAppDomainId = "int(INT &appDomainId)";
+	pointer ExecuteApplication = "int(ustring wzAppFullName,INT manifestPaths,struct ppwzManifestPaths,INT ActivationData,struct ppwzActivationData,int &retValue)"; 
+	pointer ExecuteInDefaultAppDomain = "int(ustring pwzAssemblyPath,ustring pwzTypeName,ustring pwzMethodName,ustring pwzArgument,INT &retValue)"; 
+	executeInDefaultAppDomain = function(assemblyPath,typeName,methodName,argument){
+		var hr,ret = this.ExecuteInDefaultAppDomain(
+			..io.localpath(assemblyPath) : assemblyPath,typeName,methodName,argument ,0)
+		if(  (hr)>=0/*_SUCCEEDED*/ ){
+			return ret;
+		}
+		else {
+			return null,..lasterr(hr,"dotNet.clr().executeInDefaultAppDomain()")
+		}
+	}
+}
+ICLRRuntimeHost.IID = "{90F1A06C-7712-4762-86B5-7A5EBA6BDB02}";
+
+/**intellisense(!dotNetCorRuntimeHost)
+executeInDefaultAppDomain(.("DLL路径","类名","方法名","参数") = 成功返回数值,\n失败返回null,错误信息 
+end intellisense**/
+
+ 

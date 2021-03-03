@@ -1,0 +1,99 @@
+﻿//print 打印对话框
+namespace win.dlg;
+ 
+print = class {
+	ctor(hParent,param){
+		..table.assign(this,{
+			INT structSize = 66;
+			addr hwndOwner = hParent[["hwnd"]] : hParent; 
+			ptr hDevMode;
+			ptr hDevNames;
+			ptr hdc;
+			INT flags = 0x100/*PD_RETURNDC*/;
+			WORD fromPage;
+			WORD toPage;
+			WORD minPage;
+			WORD maxPage;
+			WORD copies;
+			ptr hInstance;
+			addr custData;
+			ptr lpfnPrintHook;
+			ptr lpfnSetupHook;
+			ustring printTemplateName;
+			ustring setupTemplateName;
+			ptr hPrintTemplate;
+			ptr hSetupTemplate;
+			_struct_aligned = 1;
+		},param);
+		
+		..table.gc(this,"free");
+	} 
+	doModal = function(){
+		var ret = ::Comdlg32.PrintDlg(this);
+		if(!ret) return null,::Comdlg32.CommDlgExtendedError();
+		
+		if(this.hDevMode){
+			var p = ::GlobalLock(this.hDevMode);
+			var devMode = ..raw.convert(p,{WORD dmDeviceName[32]} );
+			this.deviceName = devMode.dmDeviceName;
+			::GlobalUnlock(p);
+		}
+		return true;
+	} 
+	free = function(){
+		if(this.hDevMode) ::GlobalFree(this.hDevMode);
+   		if(this.hDevNames) ::GlobalFree(this.hDevNames);
+   		if(this.hdc) ::Gdi32.DeleteDC(this.hdc);
+   		this.hDevMode = null;
+   		this.hDevNames = null;
+   		this.hdc = null;	
+	}
+}
+
+::Comdlg32 := ..raw.loadDll("comdlg32.dll");
+::Gdi32 := ..raw.loadDll("Gdi32.dll")
+
+/**intellisense()
+win.dlg.print = 打印对话框
+win.dlg.print(winform__/*父窗体*/) = 创建打印对话框
+win.dlg.print() = !stdwinprintdlg.
+!stdwinprintdlg.doModal() = 弹出打印对话框
+!stdwinprintdlg.deviceName = 用户选择的打印机名称
+!stdwinprintdlg.hdc = 绘图设备句柄
+!stdwinprintdlg.fromPage = 开始页码
+!stdwinprintdlg.toPage = 结束页码
+!stdwinprintdlg.minPage = 页码最小值
+!stdwinprintdlg.maxPage = 页码最大值
+!stdwinprintdlg.copies = 拷贝份数
+!stdwinprintdlg.flags = 选项
+!stdwinprintdlg.free() = 释放hdc等句柄
+
+_PD_ALLPAGES=@0/*_PD_ALLPAGES*/
+_PD_SELECTION=@1/*_PD_SELECTION*/
+_PD_PAGENUMS=@2/*_PD_PAGENUMS*/
+_PD_NOSELECTION=@4/*_PD_NOSELECTION*/
+_PD_NOPAGENUMS=@8/*_PD_NOPAGENUMS*/
+_PD_COLLATE=@0x10/*_PD_COLLATE*/
+_PD_PRINTTOFILE=@0x20/*_PD_PRINTTOFILE*/
+_PD_PRINTSETUP=@0x40/*_PD_PRINTSETUP*/
+_PD_NOWARNING=@0x80/*_PD_NOWARNING*/
+_PD_RETURNDC=@0x100/*_PD_RETURNDC*/
+_PD_RETURNIC=@0x200/*_PD_RETURNIC*/
+_PD_RETURNDEFAULT=@0x400/*_PD_RETURNDEFAULT*/
+_PD_SHOWHELP=@0x800/*_PD_SHOWHELP*/
+_PD_ENABLEPRINTHOOK=@0x1000/*_PD_ENABLEPRINTHOOK*/
+_PD_ENABLESETUPHOOK=@0x2000/*_PD_ENABLESETUPHOOK*/
+_PD_ENABLEPRINTTEMPLATE=@0x4000/*_PD_ENABLEPRINTTEMPLATE*/
+_PD_ENABLESETUPTEMPLATE=@0x8000/*_PD_ENABLESETUPTEMPLATE*/
+_PD_ENABLEPRINTTEMPLATEHANDLE=@0x10000/*_PD_ENABLEPRINTTEMPLATEHANDLE*/
+_PD_ENABLESETUPTEMPLATEHANDLE=@0x20000/*_PD_ENABLESETUPTEMPLATEHANDLE*/
+_PD_USEDEVMODECOPIES=@0x40000/*_PD_USEDEVMODECOPIES*/
+_PD_USEDEVMODECOPIESANDCOLLATE=@0x40000/*_PD_USEDEVMODECOPIESANDCOLLATE*/
+_PD_DISABLEPRINTTOFILE=@0x80000/*_PD_DISABLEPRINTTOFILE*/
+_PD_HIDEPRINTTOFILE=@0x100000/*_PD_HIDEPRINTTOFILE*/
+_PD_NONETWORKBUTTON=@0x200000/*_PD_NONETWORKBUTTON*/
+_PD_CURRENTPAGE=@0x400000/*_PD_CURRENTPAGE*/
+_PD_NOCURRENTPAGE=@0x800000/*_PD_NOCURRENTPAGE*/
+_PD_EXCLUSIONFLAGS=@0x1000000/*_PD_EXCLUSIONFLAGS*/
+_PD_USELARGETEMPLATE=@0x10000000/*_PD_USELARGETEMPLATE*/
+end intellisense**/

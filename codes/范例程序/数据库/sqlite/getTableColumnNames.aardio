@@ -1,0 +1,16 @@
+//获取表的所有字段名 
+import console;
+import sqlite
+
+var sqlConnection = sqlite("/dbGetColumnNames.db") 
+if( not sqlConnection.existsTable("film") )
+	sqlConnection.exec( "CREATE TABLE film(title, length, year, starring);") 
+
+getTableColumnNames = function(tableName){
+	cmd = sqlConnection.prepare("SELECT * FROM ["+ tableName +"] ") 
+	return cmd.getColumns();	
+}
+
+var column = getTableColumnNames("film");
+console.varDump( column );
+console.pause();

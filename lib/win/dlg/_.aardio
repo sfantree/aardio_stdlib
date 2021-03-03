@@ -1,0 +1,7 @@
+import win.dlg.font;
+import win.dlg.color; 
+import win.dlg.findReplace; 
+
+/**intellisense()
+win.dlg = 导入该库可同时导入以下库\nwin.dlg.font\nwin.dlg.color\nwin.dlg.findReplace
+end intellisense**/

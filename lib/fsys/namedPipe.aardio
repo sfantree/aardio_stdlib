@@ -1,0 +1,95 @@
+//namedPipe 命名管道
+import fsys.file;
+namespace fsys;
+
+class namedPipe{
+
+	ctor( pipeName,maxInstancess,defaultTimeOut
+		,openMode,pipeMode,outBufferSize,inBufferSize,securityAttributes){
+	
+		var pipe =  ::Kernel32.CreateNamedPipe(pipeName
+			, ( openMode : 0x3/*_PIPE_ACCESS_DUPLEX*/ )
+			, pipeMode : 0/*_PIPE_TYPE_BYTE | _PIPE_READMODE_BYTE | _PIPE_WAIT*/
+			, maxInstancess : 255 
+			, outBufferSize : 0  
+			, inBufferSize : 0
+			, defaultTimeOut : 0
+			, securityAttributes : null
+		);
+	 	if( !pipe || pipe == -1/*_INVALID_HANDLE_NUM*/ ) return null;
+	 	this = ..fsys.file( topointer( pipe ) )
+	};
+	connect = function(){
+		if(  !!::Kernel32.ConnectNamedPipe( this.hfile ,null ) ) 
+			return true;
+		
+		if( ::GetLastError() == 0x217/*_ERROR_PIPE_CONNECTED*/){
+			return true;
+		}
+	};
+	disconnect = function(){
+		return !!::Kernel32.DisconnectNamedPipe( this.hfile );
+	};
+	getClientComputerName = function(){
+		var buffer = ..raw.buffer(15/*_MAX_COMPUTERNAME_LENGTH*/);
+		var r,name = ::Kernel32.GetNamedPipeClientComputerName( this.hfile,buffer,15 );
+		if(r) return tostring(buffer);
+	};
+	getClientSessionId = function(){
+		var r,client = ::Kernel32.GetNamedPipeClientSessionId( this.hfile,{INT id} );
+		if(r) return client.id;
+	};
+	getClientProcessId = function(){
+		var r,client = ::Kernel32.GetNamedPipeClientProcessId( this.hfile,{INT id} );
+		if(r) return client.id;
+	};
+	peek = function(){   
+		var ret,read,total,leftmsg = PeekNamedPipe(this.hfile, ,0,0,0,0) 
+		if(ret && total) return this.read(total);
+	}; 
+}
+
+namespace namedPipe{
+	PeekNamedPipe = ::Kernel32.api( "PeekNamedPipe", "bool(pointer pipe,pointer buf,INT size,INT &read,INT & total,INT & leftMsg)");
+
+	wait = function(pipeName,mode = "r+",timeout,secAttrib,template){
+		if( !!::Kernel32.WaitNamedPipe(pipeName,timeout : 0x0/*_NMPWAIT_USE_DEFAULT_WAIT*/) ){
+			return ..fsys.file(pipeName,mode,0,0x3/*_OPEN_EXISTING*/,0x80/*_FILE_ATTRIBUTE_NORMAL*/,secAttrib,template)
+		}
+	} 
+}
+
+/**intellisense()
+fsys.namedPipe.wait("\\->\pipe\pipename","r+") = 等待并打开可用管道
+fsys.namedPipe.wait() = !fsysPipe.
+fsys.namedPipe("\\->\pipe\pipename",2,2000) = 参数分别为管道名,最大实例数,超时值\n其他参数就参考源码
+fsys.namedPipe() = !fsysPipe.
+!fsysPipe.connect() = 等待客户端连接
+!fsysPipe.disconnect() = 断开客户端连接
+!fsysPipe.getClientComputerName() = 返回客户端计算机名，不支持WinXP系统
+!fsysPipe.getClientSessionId() = 返回客户端会话ID
+!fsysPipe.getClientProcessId() = 返回客户端进程ID
+!fsysPipe.peek() = 如果命名管道中有数据则返回数据
+!fsysPipe.read(__/*字节数*/) = 读取指定长度的字节\n不支持多参数
+!fsysPipe.read({int number} ) = 参数可以是一个结构体\n不支持多参数
+!fsysPipe.read() = 读取一行文本\n返回文本不包含回车换行符
+!fsysPipe.read(-1) = 读取所有内容到文件尾部
+!fsysPipe.write(__/*字符串*/) = 写入字符串\n参数也可以是数值、结构体
+!fsysPipe.readBuffer( = 读取数据到缓冲区,成功返回读取长度,失败返回null
+!fsysPipe.readBuffer(.(缓冲区指针,读取长度) = 直接读数据到内存\n参数@1可以是缓冲区,或内存指针,\n如果是指针则必须指定读取长度,否则长度参数可选\n成功返回读取长度
+!fsysPipe.writeBuffer( = 写入缓冲区数据,成功返回写入长度,失败返回null
+!fsysPipe.writeBuffer(.(缓冲区指针,写入长度) = 直接写数据到内存\n参数@1可以是缓冲区,或内存指针,\n如果是指针则必须指定写入长度,否则长度参数可选\n成功返回写入长度
+!fsysPipe.seek("end") = 移动指针至结束处\n返回当前位置,返回值大于2GB则为负值,\n获取文件大小推荐使用 size() 函数
+!fsysPipe.seek("end",__) = 移动至相对结束处的指定偏移量
+!fsysPipe.seek() = 得到当前位置
+!fsysPipe.seek("cur",__) = 移动至相对当前位置的指定偏移量
+!fsysPipe.seek("set") = 移动指针到开始
+!fsysPipe.seek("set",__) = 移动至相对开始处的指定偏移量
+!fsysPipe.path = 返回文件路径
+!fsysPipe.flush() = 刷新缓冲区
+!fsysPipe.close() = 关闭文件句柄
+!fsysPipe.seteof() = 设置文件结束 
+!fsysPipe.size() = 返回文件大小\n可选参数一指定单位大小(默认自动选择),\n可选用参数二指定小数精度(默认为2)\n返回文件大小,单位大小,单位名("bytes","KB","MB","GB"等)
+!fsysPipe.size64() = 返回文件大小\n返回值为math.size64长整数对象\n!math_size64.
+!fsysPipe.handle = 返回文件句柄
+end intellisense**/

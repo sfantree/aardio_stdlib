@@ -1,0 +1,304 @@
+namespace ustring;
+
+::Msvcrt := ..raw.loadDll("Msvcrt.dll",,"cdecl")
+span = Msvcrt.api("wcsspn","INT(STRING s,STRING charset)");
+cspan = Msvcrt.api("wcscspn","INT(STRING s,STRING charset)"); 
+
+var push = ..table.push;
+format = function(f,...){
+	if( (type(f)!="string") || ( #f%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	var size = Msvcrt._snwprintf(null,0,f,...)
+	if( size <= 0 ) return f;
+	size = (size) * 2
+	var m = ..raw.buffer( size )
+	var r = Msvcrt._snwprintf(m,size,f,...)
+	return ..raw.str(m,true);  
+}
+
+reverse = function(s){
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	var m = ..raw.buffer(#s,s);
+	Msvcrt._wcsrev(m);
+	return ..raw.str(m,true);  
+}
+
+trimright = function(s,set){
+	if(set===null) set='\t\n\r\v\x20\u3000\u00a0'u; 
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(set)!="string") || ( #set%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	 
+	var pl = span(reverse(s),set);
+	if(pl == 0) return s; 
+	
+	return ..string.sliceUnicode(s,1,-pl); 
+}
+
+trimleft = function(s,set){
+	if(set===null) set='\t\n\r\v\x20\u3000\u00a0'u; 
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(set)!="string") || ( #set%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	
+	
+	var pl = span(s,set); 
+	if(pl == 0) return s;
+	return ..string.sliceUnicode(s,pl+1); 
+}
+ 
+trim = function(s,set){
+	if(set===null) set='\t\n\r\v\x20\u3000\u00a0'u; 
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(set)!="string") || ( #set%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	
+	var pr = span(reverse(s),set); 	
+	var pl = span(s,set); 
+	if(!(pr || pl) ) return s; 
+	return ..string.sliceUnicode(s,pl+1,-pr ); 
+}
+
+wcstok  = Msvcrt.api("wcstok","pointer(pointer s,STRING delimit)")
+tokenize = function(s,delimit){
+	if(delimit===null) delimit='\t\n\r\v\x20\u3000\u00a0'u;
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(delimit)!="string") || ( #delimit%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	
+	if(!s) error("参数@1错误");
+	s = ..raw.buffer(#s+1,s);
+	var tok;
+	return function(  _,delimit2 /*允许重新指定分隔符*/){ 
+		if(tok) {
+			tok = wcstok( ,delimit2 or delimit)
+			return tok ? ..raw.str( tok,true ) 
+		}
+		tok = wcstok(s,delimit) 
+		return tok ? ..raw.str(tok,true);
+	} 
+} 
+
+wcspbrk  = Msvcrt.api("wcspbrk","pointer(STRING s,STRING charset)");
+split = function(str,sep,limit){ 
+	if( (type(str)!="string") || ( #str%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(sep)!="string") || ( #sep%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	
+	if(!sep) sep ='\t\n\r\v\x20\u3000\u00a0'u;
+	 
+	var p;
+	var s  = wcspbrk(str,sep)
+	var arr = { ..raw.toPointer(str)};
+	var sparr = {};
+	var sp;
+	while(s){ 
+		sp = span(s,sep);
+		s = topointer(s,sp * 2 );
+		
+		push( sparr, sp * 2 );   
+		push( arr, s ); 
+	 	s = wcspbrk( s,sep); 
+	}
+
+	if( limit && #arr ){
+		if( limit < 0 ){
+			var tail = arr[#arr ] ? ..raw.str( arr[#arr ] ,true ); 
+			if(! #tail ) {
+				 limit--;
+			}
+			
+			limit = #arr + limit - 1;
+			if( limit > 0 ){
+				..table.splice(arr,2,limit );
+				..table.splice(sparr,1,limit ); 
+			}
+		}
+		else { 
+			if( arr[2] && ( tonumber(arr[2])-tonumber(arr[1]) - sparr[1] == 0 ) ){
+				..table.remove(arr,1);
+				..table.remove(sparr,1);
+			}
+			
+			limit = #arr - limit - 1;
+			if( limit > 0 ) {
+				..table.pop(arr,limit);	
+				..table.pop(sparr,limit);	
+			}
+		} 
+	}
+
+	var addr = tonumber(..raw.toPointer(str));
+	for( i=1;#arr-1 ){ 
+		var b = tonumber(arr[i])-addr;
+		arr[i] = ..string.sliceUnicode(str,b/2+1,(b + ( tonumber(arr[i+1])-tonumber(arr[i]) - sparr[i]) )/2 ); 
+	}
+	
+	if( #arr ){
+		var tail = arr[#arr ] ? ..raw.str( arr[#arr ],true  );
+		arr[#arr ] = tail?tail:null; 
+	}
+	
+	return arr; 
+} 
+
+breakAny = function(s,set){
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(set)!="string") || ( #set%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	
+	var p = wcspbrk(s,set);
+	if(p) return ..raw.str(p,true);
+}
+
+indexAny = function(s,set){
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(set)!="string") || ( #set%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	
+	var p = wcspbrk(s,set);
+	if(p){ 
+		var r = ..raw.convert( {pointer s = s;pointer d = p},{addr s;addr d});
+		return ((r.d - r.s)/2) + 1; 
+	}
+}
+
+lastIndexAny = function(str,set){
+	if( (type(str)!="string") || ( #str%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(set)!="string") || ( #set%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	
+	var idx = indexAny( reverse(str),set);
+	if( idx ) return ( (#str)/2 ) - idx +1; 
+}
+
+wcsstr  = Msvcrt.api("wcsstr","ptr(POINTER s,pointer s2)");
+indexOf = function(s,p,f){
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(p)!="string") || ( #p%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	
+	if(!f || f<0 )f=0 else f = f - 1;
+	if(#s/2 < f ) return;  
+	
+	var sp = ..raw.toPointer(s,f*2);
+	var r = wcsstr(sp,p);
+	if(!r) return;
+	var i = ( tonumber(r) - tonumber(sp) ) / 2  + f;
+	return i+1,i + (#p/2);
+}
+
+eachIndexOf = function(s,p){
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(p)!="string") || ( #p%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	
+	var i,j  = 0,0;
+	return function(){ 
+		i,j = indexOf(s,p,j+1); 
+		return i,j
+	};
+};
+
+lastIndexOf = function(s,p){
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	if( (type(p)!="string") || ( #p%2 !=0) ) error("参数@2必须指定UTF16字符串",2);
+	
+	var a,b;
+	for i,j in eachIndexOf(s,p){
+		a,b = i,j;
+	};
+	return a,b;
+};
+
+len = function(s){
+	if( (type(s)!="string") || ( #s%2 !=0) ) error("参数@1必须指定UTF16字符串",2);
+	return ::Msvcrt.wcslen(s);
+}
+
+left = function(s,n){
+	return ..string.sliceUnicode(s,1,n);
+}
+
+right = function(s,n){
+	return ..string.sliceUnicode(s,-n)
+}
+
+slice = ..string.sliceUnicode
+sub = ..string.sliceUnicode
+ 
+fromCharCode = function(chrs,...){
+	if(type(chrs)!= type.table) chrs ={chrs;...};
+	var c;
+	var ustr = {};
+	for(i=1;#chrs;1){ 
+		if( chrs[i] < 0x10000) ..table.push(ustr,chrs[i]);
+   		else {
+   			..table.push(ustr, (chrs[i] -0x10000 >> 10)  + 0xD800,(chrs[i]  & 2#1111111111) + 0xDC00 );
+   		}
+	}
+	if(#ustr)return ..raw.str( {WORD bytes[] = ustr},true);
+}
+
+charCodeEx = function(ustr,b,e){
+	var bytes = {};
+	ustr = ..string.toUnicode(ustr);
+	
+	var len = #ustr/2;
+	if( b===null) b =1;
+	if( b < 1 ) b = len + b + 1;
+	if( b>len) b = len;
+
+	if( e===null) e = len;
+	if( e < 1 ) e = len + e + 1;
+	if( e>len) e = len;
+	
+	var chr;
+	for(i=b;e){
+	
+		if( ustr[i] < 0xD800 || ustr[i] > 0xDFFF ) {
+			..table.push(bytes,ustr[i]);
+		}
+		else {
+			if( ustr[i]  > 0xDC00 ) continue ;
+			..table.push(bytes,0x10000 + (ustr[i] - 0xD800 << 10) + ustr[i+1]- 0xDC00 );
+			i++;
+		} 
+	};
+	
+	return bytes;
+}
+
+charCode = function(ustr,b,e){
+	return ..table.unpack(charCodeEx(ustr,b,e));
+}
+
+charCodeAt = function(str,i){
+	str = ..string.fromto(str,0,65001);
+	return ..string.charCodeAt(str,i); 
+}
+
+pack = fromCharCode;
+unpack = charCode;
+/**intellisense()
+ustring = Unicode - UTF16编码字符串函数库
+end intellisense**/
+
+/**intellisense(ustring)
+fromCharCode(__) = 使用1个或多个Unicode编码值转换为Unicode字符串(UTF16编码)\n参数可以指定1个或多个Unicode编码数值,也可以直接指定一个包含多个编码的数组参数\n可指定大于0x10000的编码
+charCodeEx(.(字符串,开始位置,结束位置) = 返回一个数组，包含每个字符的Unicode编码值,\nUnicode代理对字符转换为大于0x10000的Unicode编码值\n参数@1如果未标记为UTF16编码,会自动转换为Unicode字符串\n其他参数可省略\n\n开始位置、结束位置按UTF16编码字符计数(每字符占2个字节)\n可以使用负数表示尾部倒计数字符位置
+charCode(.(字符串,开始位置,结束位置) = 返回每个字符的Unicode编码值\n参数@1如果未标记为UTF16编码,会自动转换为Unicode字符串\n其他参数可省略\n\n开始位置、结束位置按UTF16编码字符计数(每字符占2个字节)\n可以使用负数表示尾部倒计数字符位置
+charCodeAt(.(字符串,位置) = 返回指定位置的Unicode编码值\n位置按字符计数（无论字符占用几个字节,需要4字节编码的字符计数仍然为1）
+len(.('字符串'u) = 计算文本字符串的字符数,\n如果字符串内包含文本终止符'\u0000',则计数到该字节前停止
+format(.('%s__'u,) = 格式化字符串
+left(.(str__,n) =  从字符串左侧截取n个字符\n按字符计数,汉字为一个字符
+right(.(str__,n ) =  从字符串右侧截取n个字符\n按字符计数,汉字为一个字符
+slice(.(str__,i,j ) =  从字符串中截取位置i开始的字符串,\n如果i为负数则从右侧倒数计数\n按字符计数,汉字为一个字符
+reverse(.('字符串'u) = 反转字符串
+tokenize('字符串'u,"分隔符") = @for(tok in ustring.tokenize(,'__/*分隔符,默认为空白字符*/'u)){
+	console.log( tok );
+}
+span(.('字符串'u,'查找字符集'u) = 返回字符串开始在指定字符集中的字符所占字节长度
+cspan(.('字符串'u,"字符补集") = 查找字符补集组成的开始标记长度- complement span\n即所有不在指定字符集中的字符所占字节长度
+trimright(.('字符串'u,"字符集") = 清除尾部在指定字符集中的字符,\n参数2可选,默认为空白字符
+trimleft(.('字符串'u,"字符集") = 清除头部在指定字符集中的字符,\n参数2可选,默认为空白字符
+trim(.('字符串'u,"字符集") = 清除头尾在指定字符集中的字符,\n参数2可选,默认为空白字符
+breakAny(.('字符串'u,'查找字符集'u) = 查找字符集中任意字符开始的字符串,\n参数2默认为空白字符
+indexAny(.('字符串'u,'查找字符集'u) = 查找字符集中任意字符出现位置
+lastIndexAny(.('字符串'u,'查找字符集'u) = 自后向前查找字符集中任意字符出现位置
+indexOf(.('字符串'u,'查找文本'u,开始索引) = 查找匹配文本,成功返回开始与结束字符位置,\n不支持模式语法
+lastIndexOf(.('字符串'u,'查找文本'u) = 在字符串尾部查找匹配文本\n不支持模式语法
+eachIndexOf('字符串'u,'查找文本'u) = @for i,j in ustring.eachIndexOf(str,'__/*查找文本*/'u){
+	
+} 
+split(.('字符串'u,'分隔符'u,拆分次数) = 拆分为数组,\n分隔符为可选参数,默认为空白字符\n拆分次数为可选参数,负数指定最后拆分次数,其他分组保持不变
+end intellisense**/

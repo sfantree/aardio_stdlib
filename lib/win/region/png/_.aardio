@@ -1,0 +1,108 @@
+import win;
+import win.region;
+
+namespace win.region;
+
+class png { 
+
+	ctor(bmpOrForm,bmpPath){ {
+	
+		this.updateWindow = function( hwnd,bRedraw = true,copy){
+			if(!this.hRegion) return;
+			
+			hwnd = hwnd || this.hwnd ;
+			if(!hwnd) error("请指定句柄参数",2)
+			
+			if(  ::SetWindowRgn( hwnd,this.hRegion,bRedraw) ){
+				this.hRegion = copy ? ..win.region.getWindowRgn(hwnd) : null;
+			}
+		} 
+		
+		if( ..gdip.bitmap.is(bmpOrForm)  ) {
+			this.hRegion = createFromBitmap( bmp ); 
+				
+			if( type(this.hRegion) != "pointer" ){
+				error("参数@1指定了无效位图",2)
+			}  
+		} 
+		elseif( bmpOrForm[["hwnd"]] && bmpOrForm.background){ 
+			var form = bmpOrForm;
+			var bmp = bmpPath ? ..gdip.bitmap(bmpPath) : form.background.getLayeredBitmap();
+			if(!bmp) error("请先设置窗体背景图为png图像",2);
+			
+			if( ..win.getStyle(form.hwnd,0x800000/*_WS_BORDER*/) ) error("请设置窗体属性为无边框样式",2)
+			this.hRegion = createFromBitmap( bmp );
+			this.hwnd = form.hwnd; 
+			
+			//禁止九宫格拉伸
+			form.bkLeft = null;
+			form.bkTop = null;
+			form.bkRight = null;
+			form.bkBottom = null;
+
+			if( this.hRegion ){
+				form.setBitmap(bmp.copyHandle())
+				this.updateWindow(); 
+			}
+		} 
+		else{
+			var bmp = ..gdip.bitmap(bmpOrForm)
+			this.hRegion = createFromBitmap(bmp);
+			if( type(this.hRegion) != "pointer" ){
+				error("参数@1指定了无效位图",2)
+			}  
+		}
+		 
+		..table.gc(this,"delete");
+	} };
+	
+	restore = function(){
+		if(!this.hwnd) return;
+		
+		var hwnd = this.hwnd;
+		if( hwnd ){
+			if(!this.hRegion){
+				this.hRegion = ..win.region.getWindowRgn( hwnd ) 
+				::SetWindowRgn( hwnd ,null ); 
+				::RedrawWindow(hwnd,{},null,0x105 /*_RDW_INVALIDATE | _RDW_UPDATENOW  | _RDW_ERASE*/); 
+			}
+			else {
+				this.updateWindow(); 
+			}
+			
+		}
+	}
+	
+	delete = function(){
+		if(this.hRegion){
+			::DeleteObject( this.hRegion );
+			this.hRegion = null;
+		}
+	}  
+}
+
+namespace png{
+	var dll = ..raw.loadDll( $"~/lib/win/region/png/.res/c.dll","win.region.png.dll" );   
+	PngDataScan0ToRegion = dll.api( "PngDataScan0ToRegion","pointer(ptr pDataScan0,INT imgWidth,INT imgHeight)", "cdecl" );    
+
+	createFromBitmap = function(bmp){  
+		if(!bmp)return;
+		
+		var data  = bmp.lockMemory(,0x26200A/*_PixelFormat32bppARGB*/,1/*_GdipImageLockModeRead*/) 
+		var hRgn  = PngDataScan0ToRegion(data.Scan0,data.Width,data.Height) 
+		bmp.unlockMemory(data);
+		return hRgn;
+	} 
+}
+  
+/**intellisense()
+win.region.png = 使用位图创建窗体绘图区域
+win.region.png( = 创建窗体显示区域
+win.region.png(.(窗体,图像路径) = 创建显示区域并显示png图像,\n如果省略图像路径，窗体必须事先指定背景图像,\n此函数会自动禁用九宫格拉伸,\n仅支持透明或不透明色,不支持半透明色
+win.region.png(.(png图像文件路径或数据) = 创建GDI+位图对象并使用该位图创建显示区域,\n参数用法与gdip.bitmap相同,
+win.region.png(.(位图) = 使用参数传入的gdip.bitmap位图对象创建显示区域
+win.region.png() = !winRgnPng.
+!winRgnPng.restore() = 恢复最后一次设置绘图区域的窗口到默认值
+!winRgnPng.delete() = 删除对象\n不需要调用此函数
+!winRgnPng.updateWindow(.(窗体句柄,是否重绘,是否备份HRGN) = 设置为窗体的绘图区域,该函数不可重复调用\n如果创建区域时指定了窗体,可以省略参数1,\n参数2为可选参数,默认为true\n\n默认此函数执行后HRGN交由窗体管理生存期,并清空HRGN句柄,\n如果需要设置多个窗口,必须指定第3个参数为true
+end intellisense**/

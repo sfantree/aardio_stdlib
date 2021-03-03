@@ -1,0 +1,35 @@
+﻿//aasdl 生成器
+import web.json;
+namespace string;
+
+class aasdl{
+	ctor(external){
+		return ..web.json.stringify( strip(external) );
+	};
+}
+
+namespace aasdl{
+    
+    strip = function(external,p){
+		if(!p) p = {};
+		elseif(p[external]) return;
+		else p[external] = 1;
+	
+    	var r  = {};
+		for(k,v in external){
+			if(v==owner) continue ;
+			if(type(v)== type.function){
+				r[k] = 1;
+			}
+			elseif(type(v)== type.table){
+				r[k] = strip(v,p);
+			}
+		} 
+		return r;	
+    } 
+}
+
+/**intellisense()
+string.aasdl(.(external) = 转换external对象为aasdl格式JSON文本
+end intellisense**/
+

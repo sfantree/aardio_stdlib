@@ -1,0 +1,38 @@
+//智能提示列表
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="智能提示";right=600;bottom=400)
+winform.add(
+edit={cls="edit";left=190;top=301;right=525;bottom=327;db=1;dl=1;dr=1;edge=1;multiline=1;z=1}
+)
+/*}}*/
+
+import web.rest.jsonLiteClient;
+var http = web.rest.jsonLiteClient();
+var suggestion = http.api("http://suggestion.baidu.com/su?cb=&wd={0}"); 
+//{0}会替换为请求关键字并以UTF8编码,这个API返回数据是GBK编码
+
+/*
+listbox以orphanWindow模式显示时不能再响应事件,
+这时候我们把listbox放在一个custom控件里，再把custom控件显示为orphanWindow，
+因为custom是一个win.form对象,所以listbox可以响应事件了。
+细节请查看win.ui.listPopup源码,
+*/
+import win.ui.listPopup;
+var listPopup = win.ui.listPopup(winform.edit);
+listPopup.onGetItems = function(){
+	var items =  suggestion[ winform.edit.text ].get().s;
+	if(!#items) return;
+	
+	var selIndex = 1;
+	reduce(items,function(prev,next,index){ 
+		if( #next < #prev ) { selIndex = index; return next };
+		return prev
+	})
+	 
+	return items,selIndex;
+}
+
+winform.show(true)
+ 
+win.loopMessage(); 

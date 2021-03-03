@@ -1,0 +1,46 @@
+//免注册调用远程桌面
+import win.ui;
+/*DSG{{*/
+var winform = win.form(text="远程桌面客户端";right=599;bottom=799)
+winform.add()
+/*}}*/
+
+//禁止窗体绘制默认背景,避免不必要的闪烁
+winform.onEraseBkgnd  = function(hwnd,message,wParam,lParam){
+    return 0;
+}
+ 
+import com.lite;
+var rdpClient = com.lite("MsTscAx.dll").createEmbed(winform,"{7cacbd7b-0d99-468f-ac33-22e495c0afe5}")
+var msTscAx = rdpClient._object;//获取控件对象
+ 
+//响应远程桌面事件
+rdpClient.OnDisconnected = function(discReason){  
+    select (discReason)  {  
+        case 2{
+            winform.msgbox("已注销登录");  
+        }
+        else{
+            winform.msgbox("远程连接失败");  
+        } 
+    } 
+}  
+  
+//设置远程登录参数
+msTscAx.Server = "服务器地址"; 
+msTscAx.UserName = "登录用户名"; 
+msTscAx.AdvancedSettings2.ClearTextPassword = "登录密码"
+msTscAx.AdvancedSettings2.RDPPort = 3389; //端口
+msTscAx.AdvancedSettings2.RedirectPrinters = false; //取消共享打印
+msTscAx.AdvancedSettings2.RedirectDrives = true; //允许共享磁盘
+msTscAx.AdvancedSettings2.SmartSizing = true; //自动调整大小
+msTscAx.DesktopWidth = "800" //桌面宽度
+msTscAx.DesktopHeight = "600"; //桌面高度
+msTscAx.FullScreen = false;//是否全屏
+msTscAx.FullScreenTitle = winform.text;//全屏标题
+msTscAx.ColorDepth = 32;//32位颜色
+msTscAx.ConnectingText = "正在连接......"
+msTscAx.Connect(); //连接
+ 
+winform.show() 
+win.loopMessage();

@@ -1,0 +1,69 @@
+//round 圆角无边框窗口
+import gdi;
+import win.region;
+import win.ui.minmax;
+namespace win.region; 
+
+class round { 
+    ctor(winform,minX,minY,wEllipse,hEllipse){   
+		this = winform
+		var maxminInfo = ..win.ui.minmax(winform,minX,minY);
+		 
+		roundRectRgn(winform,wEllipse,hEllipse);
+		winform.adjust = function(cx,cy,wParam){
+			if(  wEllipse <=0  || hEllipse <=0 ) return;
+			
+			if( wParam != 0x2/*_SIZE_MAXIMIZED*/ ){ 
+				roundRectRgn(winform, wEllipse,hEllipse);
+			}
+			else {
+				::SetWindowRgn( winform.hwnd,  , true );
+			} 
+		}; 
+		
+		if( ! ( winform._layout || winform.hasBackground ) ){
+			winform.onEraseBkgnd = function(hwnd,message,wParam,lParam){
+    			return 0;
+			};
+		};
+    };
+    setEllipse = function(w,h){ 
+    	if( w > 0 && h > 0 ){
+    		wEllipse,hEllipse = w,h;
+    		roundRectRgn(winform, wEllipse,hEllipse);
+    	}
+    	else {
+    		wEllipse,hEllipse = w,h;
+			::SetWindowRgn( winform.hwnd,  , true );
+		} 
+    };
+    setMinTrackSize = function(minX,minY){ 
+    	with maxminInfo.minTrackSize{
+    		x = minX;
+    		y = minY;
+    	} 
+    }; 
+}
+
+namespace round{ 
+	roundRectRgn = function (winform,wEllipse=4,hEllipse=4) {
+		if( ! (wEllipse && hEllipse) ) return;
+		var rc = winform.getRect();
+		var hRgn = ::CreateRoundRectRgn(
+			0, 0, 
+			rc.right - rc.left + 1, 
+			rc.bottom - rc.top + 1,
+			wEllipse, hEllipse
+		);
+		::SetWindowRgn( winform.hwnd, hRgn, 1 );
+	}; 
+}
+
+/**intellisense()
+win.region.round( = 创建一个圆角无边框窗口\n最大化自动取消圆角
+win.region.round(.(winform,窗体最小宽度,高度,圆角宽度,高度)  =  除第一个参数以外,其他参数可选,\n默认取窗体当前大小为最小大小,\n圆角宽高默认都是4个像素
+win.region.round() = !roundform.
+!roundform.setMinTrackSize(.(窗体最小宽度,高度) = 设置窗体最小宽度,高度
+!roundform.setEllipse(.(圆角宽度,圆角高度) = 重新设置圆角大小
+win.region.round = 圆角无边框窗口支持库
+end intellisense**/

@@ -1,0 +1,24 @@
+//用剪贴板发送文本
+
+import process
+import winex;
+ 
+
+//打开写字板
+process.executeWaitInput("wordpad.exe");
+h,richedit = winex.waitActive(,,"WordPadClass","RICHEDIT50W");
+
+import key
+import win.clip
+function shift_insert(str){
+	win.clip.write(str)
+	key.combine("SHIFT","INS")
+}
+
+function ctrl_v(str){
+	win.clip.write(str)
+	key.combine("CTRL","V")	
+}
+
+shift_insert("测试用shift+insert键发送字符串")
+shift_insert("测试用ctrl+v发送字符串")

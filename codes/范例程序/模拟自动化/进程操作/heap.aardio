@@ -1,0 +1,14 @@
+//列出进程堆信息
+import fsys
+import process.heap;
+import console;
+
+console.log("列出堆信息")
+for heapList in process.heap.eachList() { 
+   for heapEntry in process.heap.each(heapList) { 
+    	io.print( heapEntry.dwAddress,fsys.formatSize(heapEntry.dwBlockSize ) )
+   }
+   io.print( heapList.th32HeapID )
+} 
+ 
+console.pause();

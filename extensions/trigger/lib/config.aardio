@@ -1,0 +1,8 @@
+//config 配置文件
+
+import fsys.config;
+config  = ..fsys.config("/res/config/"); 
+
+/**intellisense(config)
+publish.chkLostFocusClose = 发布EXE后弹出的完成对话框\n是否在失去焦点时自动关闭
+end intellisense**/

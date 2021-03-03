@@ -1,0 +1,35 @@
+//5、获取Java版本号
+import java;
+import console;
+
+/**
+创建Java虚拟机,aardio将在以下位置查找jre运行库
+
+1. aardio开发环境根目录/java
+2. aardio开发环境根目录/java/jre
+3. 工程目录(发布后则为exe目录)/java
+4. 工程目录(发布后则为exe目录)/java/jre
+5. 环境变量JRE_HOME指定的JRE
+6. 环境变量JAVA_HOME指定的JDK
+7. 系统安装的32位jre(在注册表中查找)
+
+aardio自动查找以下jar文件,并添加到classpath目录
+1. aardio开发环境根目录/java/*.jar 
+2. 工程目录(发布后则为exe目录)/java/*.jar
+
+如果有多个使用Java虚拟机的工程,建议启动多个aardio进程打开工程. 
+在一个进程中,Java虚拟机仅初始化设定一次.
+**/
+jvm = java(); 
+
+/*
+JNI_VERSION_1_6 即 JAVA 6.0( 开发版本号即为 1.6 )
+注意根据JAVA官方文档,JAVA 7 GetVersion()返回的版本号仍为JNI_VERSION_1_6
+*/
+console.log("JRE版本是否1.6?",jvm.env.GetVersion() == java.JNI_VERSION_1_6 ) 
+
+console.log("JRE目录",java.getJvmPath() )
+
+console.log("JDK目录",java.getJavaHome() )
+
+console.pause();

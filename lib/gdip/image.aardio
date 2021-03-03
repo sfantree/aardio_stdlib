@@ -1,0 +1,579 @@
+//image 图像对象 
+import gdip.core;
+import com.picture; //已经导入了win,gdi,并定义了LOGFONT
+import win.guid; 
+
+namespace gdip 
+
+class image {
+	ctor(arg,...){{
+		var tArg = type(arg);
+		if(tArg == type.string){
+			var len = #arg; 
+			if(len<= 0x410/*_MAX_PATH_U8*/){
+				if(!len)error("参数不能是空字符串",2);
+				this.path = ..io.exist( arg) 
+				if( this.path ){
+					 this.pImage = gdip.assert2( gdip.LoadImageFromFile (this.path  )  )    
+				}
+				elseif( ..io.localpath(arg) ) {
+					arg = ..string.load(arg);
+					if(!arg) return null,"文件路径错误";
+				}
+			}
+			if(!this.pImage)
+				this.pImage = gdip.assert2( gdip.loadImageFromString (arg )  )   
+			
+		}
+		elseif( tArg == type.buffer ){
+			this.pImage = gdip.assert2( gdip.loadImageFromString (arg )  )   
+		}
+		
+		if(!this.pImage)
+			error("参数必须是字符串(图片文件路径或内容)",2)
+		
+		this.activeFrame = 1;	
+		..table.gc(this,"dispose"); 
+	} } 
+	@_metaProperty
+}
+
+namespace image {
+
+	self.gdip = ..gdip;
+	var gdip = gdip;
+	 
+	var box = function(p){
+		return ..table.gc( {
+			pImage = p; 
+			activeFrame = 1;
+			@_metaProperty
+		},"dispose" );	 
+	}
+	self.box = box;
+	
+	_metaProperty = ..util.metaProperty(
+		isValid = function(){
+			return !!owner[["pImage"]];
+		};
+		graphics =  {
+			_get = function(ownerCall){
+				return owner.getGraphics();
+			}  	
+		};  
+    	getGraphics = function(){ 
+    		var graphics = owner.graphics__
+    		if( graphics && graphics.pGraphics )
+    			return graphics;
+    		
+    		if(!gdip.graphics) error("未导入gdip.graphics",2)	
+			graphics = gdip.graphics.fromImage(owner); 
+			owner.graphics__ = graphics;
+			return graphics;
+		};
+		origWidth = {
+			_get = function(){ 
+				owner[["origWidth"]] = owner.width;
+				return owner[["origWidth"]]; 
+			}  	
+		}; 
+		origHeight = {
+			_get = function(){ 
+				owner[["origHeight"]] = owner.height;
+				return owner[["origHeight"]]; 
+			}  	
+		};
+		width = {
+			_get = function(){ 
+				return gdip.assert2(  gdip.GetImageWidth(owner[["pImage"]], 0)) ; 
+			}  	
+		}; 
+		height = {
+			_get = function(){ 
+				return gdip.assert2( gdip.GetImageHeight(owner[["pImage"]], 0)) ; 
+			}  	
+		}; 
+		getPixelFormat = function(){
+			var e,f = gdip.GetImagePixelFormat(owner[["pImage"]], 0);
+			if( e ) return null,gdip.errMsg[e];
+			return f;
+		};
+    	getFrameDimensionsList = function(){ 
+			var e,len = gdip.ImageGetFrameDimensionsCount(owner[["pImage"]], 0);
+			if( e ) return null,gdip.errMsg[e]; 
+			
+			var list = ..raw.toarray( len,"struct","array" );
+			list.array = { ..win.guid() }; 
+			e = ..gdip.ImageGetFrameDimensionsList(owner[["pImage"]], list, len);
+			if( e ) return null,gdip.errMsg[e];
+			owner[["frameDimension"]] = list.array[1];
+			return list.array;
+		};  
+		totalFrames  = {
+			_get = function( dimension ){ 
+				if( !owner[["pImage"]] ) return 0;
+				dimension = dimension  : owner[["frameDimension"]] : owner.getFrameDimensionsList()[[1]];
+				if( dimension ){
+					var e,count = ..gdip.ImageGetFrameCount(owner[["pImage"]],dimension, 0);
+					if( !e ) return count;
+				}
+				return 1;
+			}; 
+		};  
+		selectActiveFrame = function(f=1,dimension){ 
+			dimension = dimension  : owner[["frameDimension"]] : owner.getFrameDimensionsList()[[1]];
+			if( dimension ){
+				var e = gdip.ImageSelectActiveFrame(owner[["pImage"]],dimension,f-1)
+				if( e ) return null,gdip.errMsg[e]; 
+				owner.activeFrame = f;
+				return true;
+			}
+		}; 
+		getFrameDelays = function(){ 
+			var p  = owner.getPropertyItem(0x5100/*PropertyTagFrameDelay*/);
+			if( p ) return p.value.array;
+		};  
+		setFrameDelays = function(arr){ 
+			owner.setPropertyItem({
+				int propId=0x5100/*PropertyTagFrameDelay*/;
+				int length=#arr*4;
+				word type=4;
+				struct value={INT arr[]=arr};
+			})	 
+		};
+		getLoopCount = function(){ 
+			var p  = owner.getPropertyItem(0x5101/*PropertyTagLoopCount*/);
+			if( p ) return p.number;
+		}; 
+		eachFrame = function(){
+			var delays = owner.getFrameDelays();
+			var total = #delays;
+			if( total <= 1 ) return;
+			 
+			var dimension = owner.getFrameDimensionsList()[[1]];
+			var loop = owner.getLoopCount();
+			var cur = 0; 
+			var this = owner;
+			return function(){  
+				if( loop < 0  ) return 0;
+				cur = ( cur + 1 ) % total; 		
+				if( !cur ){ 
+					if( loop > 0 ) {
+						loop--;
+						if( loop == 0 ) loop = -1;
+					}
+					this.selectActiveFrame(total,dimension);
+					return delays[total];
+				} 
+				this.selectActiveFrame(cur,dimension);
+				return delays[cur];
+			} 
+		};
+		stopAnimation = function(){ 
+			if( owner.animationCtrl ? owner.animationId ) {
+				owner.animationCtrl.clearInterval( owner.animationId ); 
+				return true;
+			}
+		};
+		createAnimation = function(ctrl,callback){
+			var nextFrameDelay = owner.eachFrame(); 
+			if ( nextFrameDelay  ) {
+			 	if( owner.animationCtrl ? owner.animationId ) {
+					owner.animationCtrl.clearInterval( owner.animationId ); 
+				};
+
+				var this = owner;
+				if(!ctrl) ctrl = owner.animationCtrl;
+				if(!ctrl) error("请在参数@1指定显示动画的控件对象",2);
+				if(!callback) callback = ctrl.redrawTransparent;
+				
+				var tmId = ctrl.setInterval( 
+					nextFrameDelay() * 10 , 
+					function (hwnd,msg,id,tick) {
+						if( !this.isValid() ) return 0;
+						var delay = nextFrameDelay();
+						invoke(callback,ctrl);
+						if( delay === 0 ) return 1;//延时为0,但不是停止动画
+						return delay * 10 ;
+					} 
+				); 
+				owner.animationCtrl = ctrl;
+				owner.animationId = tmId; 
+				return tmId;
+			}
+		};
+		eachProperty = function(){
+			var ids = owner.getPropertyIds();
+			var i,id = 0;
+			var __owner = owner;
+			return function(){
+				i++; id = ids[i]
+				if(id) return id,__owner.getPropertyItem(id);
+			} 
+		};
+		getPropertyIds = function(){
+			var e,count = gdip.GetPropertyCount(owner[["pImage"]],0);
+			if( e ) return null,gdip.errMsg[e];
+			if(!count ) return {};
+			var e,list = gdip.GetPropertyIdList(owner[["pImage"]],count,..raw.toarray(count,"int" ) );
+			if( e ) return null,gdip.errMsg[e]; 
+			return list.array;
+		}; 
+		getPropertyItem = function(id){
+			var e,size = gdip.GetPropertyItemSize(owner[["pImage"]],id,0);
+			if( e ) return null,gdip.errMsg[e];
+			
+			var e,buffer = gdip.GetPropertyItem(owner[["pImage"]],id,size,size);
+			if( e ) return null,gdip.errMsg[e];
+				
+			var item = ..raw.convert(buffer,{int propId;int length;word type;BYTE value[]={0}});
+			var convert = convertPropertyValue[item.type];
+			if(!convert)return; 
+			
+			return convert( item,buffer,size-item.length,item.length );  
+		};
+		removePropertyItem = function(id){
+			var e = gdip.RemovePropertyItem(owner[["pImage"]],id);
+			if( e ) return null,gdip.errMsg[e];
+			return true;
+		}; 
+		setPropertyItem = function(item){
+			if(!(  item[["_struct"]] ) ) error("无效参数",2); 
+			if( type(item.value) == type.string ){
+				item = ..table.assign( {int propId;int length;word type;string value},item);
+			}
+			else {
+				if( !item.value[["_struct"]] ) error("value字段必须是一个结构体",2);
+				item = ..table.assign( {int propId;int length;word type;pointer value},item);
+				item.value = ..raw.buffer(item.value);
+			}
+			item.length = #item.value;
+			
+			owner.removePropertyItem(item.propId);
+			var ok,e = call(gdip.SetPropertyItem,gdip,owner[["pImage"]],item);
+			if(!ok) error(e,2);
+			if( e ) return null,gdip.errMsg[e];
+		}; 
+		clone = function(){
+			var e,p = gdip.CloneImage(owner[["pImage"]]);
+			if( e ) return null,gdip.errMsg[e];
+			return p? box(p)
+		};
+		getThumbnail = function(w,h,constRatio){
+			var width = owner.width;
+			var height = owner.height; 
+			if( w < 1 ) w = width * w;
+			if( h < 1 ) h = height * h;
+			
+			if( constRatio ){
+				if ( w / width < h / height ) {
+					h = w * height / width;
+				}
+				else {
+					w = h * width / height;
+				}
+			}
+	
+			var hBmp = gdip.assert2( gdip.GetImageThumbnail(owner[["pImage"]], w,h) );
+			return hBmp? box(hBmp)
+		};
+		dispose = function(){
+			if( owner[["pImage"]] ){
+				if( owner.graphics__ ){
+					owner.graphics__.delete();
+				}
+				::Gdiplus.GdipDisposeImage(owner[["pImage"]])
+				owner[["pImage"]] = null;//让其他的函数都用不了
+			}
+		};
+		rotateFlip = function(refType){
+			gdip.ImageRotateFlip(owner[["pImage"]],refType)
+		}; 
+		getResolution = function(){
+			var pImg = owner[["pImage"]]
+			var e,v = gdip.GetImageVerticalResolution(pImg,0);
+			if(e) return;
+			
+			var e,h = gdip.GetImageHorizontalResolution(pImg,0);
+			if(e) return;
+			return h,v;
+		};
+		saveAdd = function(path,flags=0x15/*_EncoderValueFrameDimensionTime*/,params2){
+			var params = {int count;struct arr[] = {0};}  
+			if(params2) table.append(params.arr,params2);
+			params.count = #params.arr;
+			 
+			if( type(path) == type.string ){
+				params.arr[1] =  gdip.encoder.parameter("SaveFlag",{ int v = 0x12/*_EncoderValueMultiFrame*/})
+				return owner.save(path,,params);
+			}
+			else{
+				params.arr[1] =  gdip.encoder.parameter("SaveFlag",{ int v = flags}); 
+				if(path[["pImage"]])::Gdiplus.GdipSaveAddImage(owner[["pImage"]],path,params);
+				else ::Gdiplus.GdipSaveAdd(owner[["pImage"]],params);
+			} 
+		};
+		saveFlush = function(){
+			return owner.saveAdd(null,0x14/*_EncoderValueFlush*/);
+		};
+		save = function(path,quality,params){
+			var ext = path ? ..string.match(path,"\.(\w+)$");
+			if(!ext) error("参数@1请指定正确的文件路径（包含正确的后缀名）",2);
+			
+			if(!owner[["pImage"]]) return;
+			if( params === null ){ 
+				if(quality && (..string.cmp("jpg",ext) == 0 )  ){ 
+					params = {
+						int count = 1;
+						struct p = gdip.encoder.parameter("Quality",{ int v = quality } );
+					}
+				}
+				else params = {}; 
+			}
+			elseif(!params.count) {
+				params = {int count=#params;struct ps=params};
+			}
+			
+    		var e = gdip.SaveImageToFile( owner[["pImage"]],
+    			..io.fullpath(path),gdip.encoder.imageGuid(ext),params );
+    			
+    		if( e ) return null,gdip.errMsg[e];
+    		return true;
+		};
+		saveToStream = function(stream,path="*.jpg",quality,params)  {
+			if( (type.rget(stream)!="fsys.stream") && (type(stream)!= type.pointer) ) error("参数@1请指定fsys.stream流对象",2);
+			var pImg = owner[["pImage"]] if(!pImg) return;
+			
+			var ext = path ? ..string.match(path,"\.(\w+)$");
+			if(!ext) error("参数@1请指定正确的文件路径（包含正确的后缀名）",2);
+			
+			if( params === null ){
+				if(quality && (..string.cmp("jpg",ext) == 0 )  ){ 
+					params = {
+						int count = 1;
+						struct p = gdip.encoder.parameter("Quality",{ int v = quality} );
+					}
+				}
+				else params = {};
+			}
+			elseif(!params.count) {
+				params = {int count=#params;struct ps=params};
+			}
+			
+    		var e = gdip.SaveImageToStream( pImg ,stream ,gdip.encoder.imageGuid(ext) ,params : {} ) 
+    		if( e ) return null,gdip.errMsg[e]; 
+    		return stream;
+		};
+		saveToBuffer = function(path,quality,params){
+			var hr,pSteam = ::CreateStreamOnHGlobal( , true );  
+			owner.saveToStream(pSteam, path,quality,params);  
+			var hr,handle = ::GetHGlobalFromStream(pSteam);    
+			var size = ::GlobalSize(handle);
+			var ptr = ::GlobalLock(handle); 
+			var bytes = ..raw.buffer(size,ptr); 
+			..com.Release(pSteam);
+			return bytes;
+		};
+		_topointer = function(){
+			return owner[["pImage"]];
+		}
+	)
+	
+	
+	convertPropertyValue = {
+		[1] = function(i,b,of,len){
+			i.value = ..string.right(b,len);
+			i.text = i.value;
+			return i;
+		}
+		[2] = function(i,b,of,len){
+			i.value = ..string.str( ..string.right(b,len) );
+			i.text = i.value;
+			return i;
+		}
+		[3] = function(i,b,of,len){
+			i.value = ..raw.convert(b, ..raw.toarray( len/2,"WORD"),of );  
+			i.text = ..string.join(i.value.array,","); 
+			i.number = i.value.array[1];
+			return i; 
+		} 
+		[4] = function(i,b,of,len){
+			i.value = ..raw.convert(b, ..raw.toarray( len/4,"INT"),of )  
+			i.text = ..string.join(i.value.array,","); 
+			i.number = i.value.array[1];
+			return i; 
+		}
+		[5] = function(i,b,of,len){
+			var s = ..raw.toarray( len/8,"struct");
+			s.array = { {INT numerator;INT denominator} };
+			i.value = ..raw.convert(b,s,of );  
+			
+			var v = i.value.array[1];
+			i.text = ..string.format("%u/%u",v.numerator,v.denominator )
+			i.number = v.numerator / v.denominator;
+			return i; 
+		} 
+		[7] = function(i,b,of,len){
+			i.value = ..string.right(b,len);
+			i.text = i.value;
+			return i;
+		}
+		[9] = function(i,b,of,len){
+			i.value = ..raw.convert(b, ..raw.toarray( len/4,"int"),of )  
+			i.text = ..string.join(i.value.array,","); 
+			i.number = i.value.array[1];
+			return i; 
+		}
+		[10] = function(i,b,of,len){
+			var s = ..raw.toarray( len/8,"struct");
+			s.array = { {int numerator;int denominator} };
+			i.value = ..raw.convert(b,s,of );  
+			
+			var v = i.value.array[1];
+			i.text = ..string.format("%d/%d",v.numerator,v.denominator )
+			i.number = v.numerator / v.denominator;
+			return i; 
+		}
+	}  
+}
+
+var $ = _dll; //http://msdn.microsoft.com/en-us/library/ms534041(v=vs.85).aspx
+/*intellisense(gdip)*/
+LoadImageFromFile = $.api("GdipLoadImageFromFile","int(ustring FileName,pointer& Image)")
+LoadImageFromStream = $.api("GdipLoadImageFromStream","int(POINTER stream,pointer& Image)")
+GetImageWidth = $.api("GdipGetImageWidth","int(PTR img,int& Width)")
+GetImageHeight = $.api("GdipGetImageHeight","int(PTR img,int& Height)")
+ImageGetFrameDimensionsCount = $.api("GdipImageGetFrameDimensionsCount","int(PTR img,int& count)")
+ImageGetFrameDimensionsList = $.api("GdipImageGetFrameDimensionsList","int(PTR img,struct& dimensionIDs,int count)")
+ImageGetFrameCount = $.api("GdipImageGetFrameCount","int(PTR img,struct dimensionID,INT& count)")
+ImageSelectActiveFrame = $.api("GdipImageSelectActiveFrame","int(PTR img,struct& dimensionID,int frameIndex)")
+SetPropertyItem = $.api("GdipSetPropertyItem","int(PTR img,struct& Item)")
+GetPropertyCount = $.api("GdipGetPropertyCount","int(PTR img,int& numOfProperty)")
+GetPropertyIdList = $.api("GdipGetPropertyIdList","int(PTR img,int numOfProperty,struct& list)")
+GetPropertyItemSize = $.api("GdipGetPropertyItemSize","int(PTR img,int propId,int& size)")
+GetPropertyItem = $.api("GdipGetPropertyItem","int(PTR img,int propId,int propSize,string& buffer)")
+GetPropertySize = $.api("GdipGetPropertySize","int(PTR img,int& totalBufferSize,int& numProperties)")
+GetAllPropertyItems = $.api("GdipGetAllPropertyItems","int(PTR img,int totalBufferSize,int numProperties,struct& allItems)")
+RemovePropertyItem = $.api("GdipRemovePropertyItem","int(PTR img,int propId)")	
+GetImageThumbnail = $.api("GdipGetImageThumbnail","int(PTR img,int w,int h,pointer& thumb,pointer callback,pointer callbackData )")
+ImageRotateFlip = $.api("GdipImageRotateFlip","int(PTR img,int rfType)")
+CloneImage = $.api("GdipCloneImage","int(PTR img,ptr& cloneImage)")
+SaveImageToFile = $.api("GdipSaveImageToFile","int(PTR img,ustring FileName,struct clsidEncoder,struct encoderParams)")
+SaveImageToStream = $.api("GdipSaveImageToStream","int(PTR img,PTR stream,struct clsidEncoder,struct encoderParams)")
+GetImageHorizontalResolution = $.api("GdipGetImageHorizontalResolution","int(PTR img,float& resolution)")
+GetImageVerticalResolution = $.api("GdipGetImageVerticalResolution","int(PTR img,float& resolution)")
+GetImagePixelFormat = $.api("GdipGetImagePixelFormat","int(PTR img,int& PixelFormat)")
+/*end intellisense*/
+
+loadImageFromString = function(bin){
+	var len = #bin;
+	if(!len) return 2;
+	
+	var hImageMemory= ::GlobalAlloc( 0x2 /*_GMEM_MOVEABLE*/, len);
+	var pImageMemory=::GlobalLock(hImageMemory);
+	::CopyMemory(pImageMemory,bin,#bin);
+	::GlobalUnlock(hImageMemory); 
+	
+	var re,pIStream = ::CreateStreamOnHGlobal(pImageMemory, true/*GlobalFree*/);
+	var re, img = LoadImageFromStream(pIStream) ; 
+	
+	..com.Release(pIStream); 
+	return re,img;
+};
+
+namespace encoder {
+	Compression      = "{E09D739D-CCD4-44EE-8EBA-3FBF8BE4FC58}";
+	ColorDepth       = "{66087055-AD66-4C7C-9A18-38A2310B8337}";
+	ScanMethod       = "{3A4E2661-3109-4E56-8536-42C156E7DCFA}";
+	Version          = "{24D18C76-814A-41A4-BF53-1C219CCCF797}";
+	RenderMethod     = "{6D42C53A-229A-4825-8BB7-5C99E2B9A8B8}";
+	Quality          = "{1D5BE4B5-FA4A-452D-9CDD-5DB35105E7EB}";
+	Transformation   = "{8D0EB2D1-A58E-4EA8-AA14-108074B7B6F9}";
+	LuminanceTable   = "{EDB33BCE-0266-4A77-B904-27216099E717}";
+	ChrominanceTable = "{F2E455DC-09B3-4316-8260-676ADA32481C}";
+	SaveFlag         = "{292266FC-AC40-47BF-8CFC-A85B89A655DE}";
+	
+	parameter = function(encoder,value,t=4){
+		return {
+			struct guid = ..win.guid.fromString(self[encoder]);
+			INT numberOfValues = 1; 
+			INT type = t;
+			pointer value = ..raw.buffer(value);
+		}
+	};					
+	
+	image = {
+		BMP = "{557CF400-1A04-11D3-9A73-0000F81EF32E}";
+		JPG = "{557CF401-1A04-11D3-9A73-0000F81EF32E}";
+		GIF = "{557CF402-1A04-11D3-9A73-0000F81EF32E}";
+		EMF = "{557CF403-1A04-11D3-9A73-0000F81EF32E}";
+		WMF = "{557CF404-1A04-11D3-9A73-0000F81EF32E}";
+		TIF = "{557CF405-1A04-11D3-9A73-0000F81EF32E}";
+		PNG = "{557CF406-1A04-11D3-9A73-0000F81EF32E}";
+		ICO = "{557CF407-1A04-11D3-9A73-0000F81EF32E}";
+	}; 
+	
+	imageGuid = function(ext){
+		var guid = image[ ..string.upper(ext) ] : image.BMP;
+		return ..win.guid.fromString( guid );
+	}
+};
+
+
+/**intellisense()
+gdip.image("__/*请输入文件路径\n或图片数据*/") = 创建GDI+L图片对象
+!gdipimage.getResolution() = 返回分辨率xdpi,ydpi
+!gdipimage.isValid() = 图像是否有效\ndispose函数释放以后返回false
+!gdipimage.clone() = 复制图像\n!gdipimage.
+!gdipimage.getGraphics()  = 从图像获取画布\n!gdipgraphics.
+!gdipimage.width = 宽度,
+!gdipimage.height = 高度
+!gdipimage.origWidth = 原始宽度，\n缩放绘制 ico 格式图标会导致此值不会发生变化
+!gdipimage.origHeight = 原始高度，\n缩放绘制 ico 格式图标会导致此值不会发生变化
+!gdipimage.getPixelFormat() = 返回像素格式
+!gdipimage.getThumbnail(.(宽度,高度,是否保持比例) = 获取缩略图,\n返回 gdip.image 对象.\n宽度,高度指定新的像素大小,也可以用小于1大于0的小数指定缩放百分比.
+!gdipimage.getThumbnail() = !gdipimage.
+!gdipimage.rotateFlip(_GdipRotate__/*指定翻转选项*/) = 翻转图片
+!gdipimage.saveToStream() = !fsys_stream.
+!gdipimage.saveToStream( = 保存到内存流对象\n该函数成功返回值为流对象
+!gdipimage.saveToStream(.(流对象,后缀名,输出质量) = 流对象请使用 fsys.stream 创建\n后缀名默认为"*.jpg",质量默认为100,\n可选在参数@4使用gdip.encoder.parameter数组指定保存参数	
+!gdipimage.saveToBuffer(.(后缀名,输出质量) = 保存图像到内存缓冲区,返回缓冲区(buffer),\n后缀名默认为"*.jpg",质量默认为100,\n可选在参数@3使用gdip.encoder.parameter数组指定保存参数	
+!gdipimage.save("__/*请输入文件路径*/") = 保存图像\n使用参数指定的文件路径或加载图片时的路径\n根据后缀名自动设定格式,\n可选在参数@3使用gdip.encoder.parameter数组指定保存参数	
+!gdipimage.save("__/*请输入文件路径*/",80) = 保存图像\n使用参数指定的文件路径或加载图片时的路径\n根据后缀名自动设定格式\njpg文件可使用第二个参数指定图像质量,\n可选在参数@3使用gdip.encoder.parameter数组指定保存参数	
+!gdipimage.saveAdd(.(图像路径) = 创建多帧图像,参数指定保存路径,\n使用saveAdd添加帧，添加帧参数@1不能指定路径,\n添加所有帧以后调用saveFlush函数即可
+!gdipimage.saveAdd(.() = 添加当前图像到多帧图像
+!gdipimage.saveAdd(.(图像) = 添加其他gdip.image或gdip.bitmap对象到多帧图像,\n可选使用参数2指定saveFlag，可选在参数@3使用gdip.encoder.parameter数组指定保存参数		
+!gdipimage.dispose() = 释放图像\n此对象支持自动释放,不必手工调用此函数
+!gdipimage.getFrameDimensionsList() = 图像帧分辨率列表\n该值是GUID数组 
+!gdipimage.frameDimension = 当前分辨率GUID
+!gdipimage.totalFrames = 动画帧总数\n不是动画返回1
+!gdipimage.activeFrame = 当前帧索引\n修改该属性请使用SelectActiveFrame函数
+!gdipimage.getLoopCount() = 动画循环次数\n0为一直循环
+!gdipimage.getFrameDelays() = 返回多帧图像每帧延时数值组成的数组,\n延时单位为厘秒,即0.01秒
+!gdipimage.setFrameDelays(__) = 修改多帧图像每帧延时数值\n参数必须是由数值组成的非空数组,\n延时单位为厘秒,即0.01秒\n必须在调用saveAdd以前设置
+!gdipimage.selectActiveFrame(.(帧序号) = 设置当前动画帧
+!gdipimage.eachFrame() = 如果图像支持动画,则返回一个帧迭代器\n每次调用帧迭代器切换到下一帧并返回当前帧所需延时\n动画完成返回0
+!gdipimage.createAnimation( = 如果图像是一个动画,创建定时器执行动画\n注意每个图像同时只能在一个窗口上创建动画\n创建动画前自动删除之前创建的动画定时器\n如果图像不是动画,此函数不执行任何操作\n成功返回定时器ID
+!gdipimage.createAnimation(.(窗口对象,回调函数) = 在窗口上创建定时器,\n每帧动画触发回调函数,\n回调函数owner参数被设为参数@1指定的窗口对象\n\n如果不指定控件,则默认指定为上次创建动画的控件,\n如果不指定回调函数,则默认指定为控件的redrawTransparent函数	
+!gdipimage.stopAnimation() = 如果此图像已运行动画，则停止动画
+!gdipimage.getPropertyIds() = 返回所有属性ID数组
+!gdipimage.getPropertyItem(.(属性ID) = 返回字段
+!gdipimage.removePropertyItem(__/*属性ID*/) = 移除字段
+!gdipimage.setPropertyItem(.(字段结构体) = 修改字段
+!gdipimage.getPropertyItem() = !gdip_exif_item.
+!gdipimage.eachProperty = @for( id,propertyItem in ??.eachProperty() ){
+	 propertyItem.__
+}
+!gdipimage.eachProperty() = !gdip_exif_item.
+!gdip_exif_item.propId = 属性ID
+!gdip_exif_item.length = 数据长度
+!gdip_exif_item.type = 数据类型 
+!gdip_exif_item.value = 数据值\n可值可能为文本、或一个结构体\n如果是结构体,则数组值放在array字段里\n如果value为文本则number字段为空
+!gdip_exif_item.value.array = 数组值
+!gdip_exif_item.text = 尝试转换为文本格式的值
+!gdip_exif_item.number = 数值格式\n如果是数组仅显示第一个数值\n如果value为文本则number字段为空
+!gdip_exif_item.tagName = 标记名   
+gdip.image() = !gdipimage.
+gdip.loadImageFromString(__/*请输入图片数据*/) = 从内存字符串直接创建图像
+gdip.encoder.parameter("SaveFlag",{int v}) = 创建保存图像参数,用法参考函数源码
+end intellisense**/

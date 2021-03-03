@@ -1,0 +1,23 @@
+//读写gzip文件
+
+import zlib;
+
+//创建只写gzip文件
+gz = zlib.gzFile("/路径.gz","wb")
+gz.write( {
+	int data=1234; //可以压缩结构体,并写入gzip文件
+	} ) 
+gz.write("字符串")//写入字符串 
+gz.close();//关闭文件句柄
+
+//创建只读gzip文件
+gz = zlib.gzFile("/路径.gz","rb")
+var struct = gz.read( {
+	int data=1234; //可以自gzip文件解压读取结构体
+	} ) 
+var str = gz.read(-1) //解压并读取所有字符串 
+gz.close();//关闭文件句柄
+
+io.open()
+io.print( struct.data,str )
+execute("pause")

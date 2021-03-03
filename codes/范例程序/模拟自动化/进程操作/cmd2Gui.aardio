@@ -1,0 +1,230 @@
+//命令行窗口化
+import win.ui;
+import win.ui.menu;
+import process.popen;
+/*DSG{{*/
+var winform = win.form(text="DOS命令行窗口化工具";right=760;bottom=595;bgcolor=16777215;parent=...)
+winform.add(
+btnCls={cls="button";text="清屏";left=560;top=564;right=634;bottom=588;db=1;dr=1;font=LOGFONT(name='宋体');z=5};
+button={cls="button";text="运行";left=481;top=564;right=555;bottom=588;db=1;dr=1;font=LOGFONT(name='宋体');z=1};
+editCmd={cls="edit";text="dir c:\";left=233;top=564;right=465;bottom=588;db=1;dl=1;dr=1;edge=1;font=LOGFONT(name='宋体');z=4};
+editCon={cls="edit";left=11;top=9;right=748;bottom=553;bgcolor=0;color=16777215;db=1;dl=1;dr=1;dt=1;edge=1;font=LOGFONT(name='宋体');hscroll=1;link=1;multiline=1;vscroll=1;z=2};
+static={cls="static";text="命令：";left=180;top=568;right=227;bottom=584;align="center";db=1;dl=1;font=LOGFONT(h=-14;name='宋体');transparent=1;z=3}
+)
+/*}}*/
+
+onMenu = function(id){
+    var str = winform.menu.getString(id,0x0/*_MF_BYCOMMAND*/);
+    str = string.replace(str,"\S+\s*$","")
+    winform.editCmd.text = str;
+} 
+  
+var menu = win.ui.menu(winform);//创建主菜单  
+menu.add( "DOS命令",{
+    { "ver 显示版本信息";onMenu  };  
+    { "regedit /s 注册表文件名 导入注册表";onMenu  }; 
+    { "regedit /e 注册表文件名 导出注册表";onMenu  }; 
+    { "cacls 文件名 查看文件的访问用户权限列表 ";onMenu  };
+    { "set 环境变量名称=要指派的值 设置环境变量 ";onMenu  };
+    { "set 显示当前所有的环境变量";onMenu  }; 
+    { "set p 显示出当前以字符p开头的所有环境变量";onMenu  };  
+    { "echo 信息 在屏幕上显示出信息";onMenu  }; 
+} )
+menu.add( "网络命令", {
+        { "net"; {
+            { "use"; {
+                {"use \\ip\ipc$ "" "" /user:"" "" 建立IPC空链接";onMenu  };
+                {"use \\ip\ipc$ ""密码"" /user:""用户名"" 建立IPC非空链接";onMenu  };
+                {"use h: \\ip\c$ ""密码"" /user:""用户名"" 直接登陆后映射对方C：到本地为H:";onMenu  };
+                {"use h: \\ip\c$ 登陆后映射对方C：到本地为H:";onMenu  };
+                {"use \\ip\ipc$ /del 删除IPC链接";onMenu  };
+                {"use h: /del 删除映射对方到本地的为H:的映射";onMenu  };
+            } }
+            
+            {"账户"; {
+                {"password 密码 更改系统登陆密码";onMenu  };
+                {"user guest 12345 用guest用户登陆后用将密码改为12345";onMenu  };
+                {"user 用户名 密码 /add 建立用户";onMenu  };
+                {"user guest /active:yes 激活guest用户";onMenu  };
+                {"user 查看有哪些用户";onMenu  };
+                {"user 帐户名 查看帐户的属性";onMenu  };
+                {"localgroup administrators 用户名 /add 把“用户”添加到管理员中使其具有管理员权限";onMenu  };
+            } }
+            
+            {"共享"; {
+                {"share 查看本地开启的共享";onMenu  };
+                {"share ipc$ 开启ipc$共享";onMenu  };
+                {"share ipc$ /del 删除ipc$共享";onMenu  };
+                {"share c$ /del 删除C：共享";onMenu  };
+                {"view 查看本地局域网内开启了哪些共享 ";onMenu  }; 
+                {"view \\ip 查看对方局域网内开启了哪些共享";onMenu  }; 
+                {"logoff 断开连接的共享";onMenu  };
+            } }
+            
+            {"NT服务"; {
+                {"start 查看开启了哪些服务";onMenu  };
+                {"start 服务名  开启服务";onMenu  }; 
+                {"stop 服务名 停止某服务";onMenu  };  
+                {"pause 服务名 暂停某服务";onMenu  }; 
+            } }
+            
+            {"时间"; {
+            {"time \\目标ip 查看对方时间";onMenu  }; 
+            {"time \\目标ip /set 同步时间";onMenu  }; 
+            {"time \\目标ip /set /yes 同步时间并取消确认";onMenu  }; 
+             
+            } }
+        }}
+        {"netstat"; {
+            {"netstat -a 查看开启了哪些端口";onMenu  };
+            {"netstat -n 查看端口的网络连接情况,";onMenu  };
+            {"netstat -an 查看端口";onMenu  };
+            {"netstat -v 查看正在进行的工作";onMenu  };
+            {"netstat -p 协议名 查看某协议使用情况";onMenu  };
+            {"netstat -p tcq/ip 查看tcp/ip协议使用情况";onMenu  } 
+            {"netstat -s 查看正在使用的所有协议使用情况";onMenu  } 
+            {"nbtstat -A ip 看对方最近登陆的用户名";onMenu  }
+        } }
+        {"nbtstat"; {  
+            {"nbtstat -A ip 看对方最近登陆的用户名";onMenu  }
+        } }
+        {"tracert -参数 ip 跟踪路由";onMenu }
+        {"ping ip(或域名) 向对方主机发送默认大小为32字节的数据";onMenu  }
+        {"ipconfig /all 显示全部网卡配置信息";onMenu  };
+        {"telnet ip 端口 远程登陆服务器";onMenu  } 
+        {"netsh 查看或更改本地网络配置情况";onMenu  }
+        {"arp -a 查看全部ARP缓存";onMenu  }
+} )
+menu.add( "文件命令", {
+        {"dir 查看文件";onMenu  }
+        {"dir /Q 显示文件及目录属系统哪个用户";onMenu  }
+        {"dir /T:C 显示文件创建时间,";onMenu  }
+        {"dir /T:A 显示文件上次被访问时间,";onMenu  }
+        {"dir /T:W 上次被修改时间 ";onMenu  }
+        {"attrib 文件名(目录名) 查看某文件(目录)的属性 ";onMenu  } 
+        {"attrib 文件名 -A -R -S -H H 去掉某文件的存档,只读,系统,隐藏属性";onMenu  }
+        {"attrib 文件名 +A +R +S +H 添加某文件的存档,只读,系统,隐藏属性";onMenu  }
+        {"del -F 文件名 加-F参数后就可删除只读文件";onMenu  }
+        {"del -F 文件名 /AR、/AH、/AS、/AA分别表示删除只读、隐藏、系统、存档文件";onMenu  }
+        {"del -F /A-R、/A-H、/A-S、/A-A表示删除除只读、隐藏、系统、存档以外的文件";onMenu  } 
+        {"DEL/A-S *.*  删除当前目录下除系统文件以外的所有文件";onMenu  }
+        {"del /S /Q 目录 删除目录及目录下的所有子目录和文件";onMenu  }
+        {"rmdir /s /Q 目录 /S 删除目录及目录下的所有子目录和文件 ";onMenu  } 
+        {"move 要移动的文件名 存放移动文件的路径 移动文件 ";onMenu  }
+        {"fc one.txt two.txt > 3st.txt 对比二个文件并把不同之处输出到3st.txt文件中 ";onMenu  }
+        {"copy 路径\文件名1 路径\文件名2 /y 复制文件1到指定的目录为文件2";onMenu  } 
+        {"copy c:\srv.exe \\ip\admin$ 复制本地c:\srv.exe到对方的admin下 ";onMenu  }
+        {"cppy 1st.jpg/b+2st.txt/a 3st.jpg 将2st.txt的内容藏身到1st.jpg中生成3st.jpg新的文件";onMenu  } 
+        {"copy \\ip\admin$\*.* c:\   复制对方admini$共享下的所有文件至本地C： ";onMenu  }
+        {"xcopy 要复制的文件或目录 ";onMenu  }
+        {"for 对一组文件中的每一个文件执行某个特定命令 ";onMenu  }
+        {"findstr ""Hello"" aa.txt 在aa.txt文件中寻找字符串hello";onMenu  } 
+        {"find 文件名 查找某文件 ";onMenu  }
+        {"format 盘符 /FS:类型 格式化磁盘";onMenu  } 
+        {"md 目录名 创建目录 ";onMenu  }
+        {"replace 源文件 要替换文件的目录 替换文件 ";onMenu  }
+        {"ren 原文件名 新文件名 重命名文件名";onMenu  } 
+        {"tree 以树形结构显示出目录 ";onMenu  }
+        {"tree -f 将列出第个文件夹中文件名称 ";onMenu  }
+        {"type 文件名 显示文本文件的内容";onMenu  } 
+        {"more 文件名 逐屏显示输出文件";onMenu  } 
+} )
+menu.add( "IIS服务命令", { 
+        {"iisreset /reboot 重启win2k";onMenu  }  
+        {"iisreset /start 启动Internet服务";onMenu  } 
+        {"iisreset /start 停止Internet服务";onMenu  } 
+        {"iisreset /restart 重新启动Internet服务";onMenu  } 
+        {"iisreset /status 显示Internet服务状态 ";onMenu  } 
+        {"iisreset /enable  启用Internet服务的重新启动";onMenu  } 
+        {"iisreset /disable 禁用Internet服务的重新启动";onMenu  }
+        {"iisreset /rebootonerror 当启动、停止或重新启动Internet服务时,若发生错误将重新开机 ";onMenu  } 
+        {"iisreset /noforce 若无法停止Internet服务,将不会强制终止Internet服务 ";onMenu  }  
+} )
+menu.add( "设置", { 
+    {"自动清屏";
+        function(id){
+            winform.autoCls = !winform.menu.checked(id,0)
+            winform.menu.check(id,winform.autoCls,0) 
+        }
+    }    
+} )
+ 
+import win.path;
+import string.cmdline;
+//生成命令行参数
+getCmdParameters = function(){
+    var cmd = string.trim( winform.editCmd.text ) ;
+    if( ( string.endWith( cmd,".exe",true) && string.endWith( cmd,".com",true) ) )
+        return cmd;
+        
+    //下面我们创建进程 
+   return null,cmd;
+  
+}
+ 
+//输入字符到子进程 
+winform.editCon.wndproc = function(hwnd,message,wParam,lParam){ 
+    if( message == 0x102/*_WM_CHAR*/){
+        if( winform.process ){
+        	
+        	if( winform.editCon.mbc ){
+        		table.push( winform.editCon.mbc,wParam & 0xFF )
+        		 
+        		winform.process.write( string.pack( winform.editCon.mbc  ) ); 
+        		winform.editCon.mbc = null;
+        		return;
+        	}
+        	
+        	if( wParam <= 0x80 ){ 
+        		if( wParam == 13 ){
+        			winform.process.write('\r\n');
+        		}
+        		elseif( wParam >= 32 && wParam <= 126 ){ //可打印字符
+        			winform.process.write( string.pack( wParam & 0xFF  )  );
+        		} 
+        	}
+        	else {
+        		winform.editCon.mbc = { wParam & 0xFF  };
+        	} 
+        }
+    } 
+}
+ 
+winform.button.oncommand = function(id,event){ 
+    if( winform.autoCls ){
+        winform.btnCls.oncommand();
+    } 
+    
+    if( winform.process ){
+    	winform.process.process.terminate();
+        winform.process.close();
+    }
+    
+    winform.editCon.setFocus()
+    
+    var cmdline = winform.editCmd.text; 
+    winform.process = process.popen.cmd(cmdline) // 创建进程 
+    
+    if(!winform.process){
+        winform.editCon.print('错误的命令行或参数');
+        winform.editCmd.selectAll();
+        return;
+    }
+    winform.process.logResponse(winform.editCon);
+}
+
+winform.btnCls.oncommand = function(id,event){ 
+    winform.editCon.text = "" 
+}
+
+winform.editCmd.onOk = function(){
+    winform.button.oncommand();
+    return true; 	
+}
+
+winform.onOk = winform.editCmd.onOk
+
+winform.show() 
+win.loopMessage();
+
+

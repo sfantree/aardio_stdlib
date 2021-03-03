@@ -1,0 +1,76 @@
+//B)其他Python语法 
+
+import console;
+console.open()
+
+import py;
+ 
+//python里格式化字符串用 %符号:
+py.exec(  "print( '字符串:%s 数值: %d!' % ('hello', 2015) )"  ); //运行python代码
+
+//等价的aardio代码如下:
+io.print( string.format('字符串:%s 数值: %d!','hello', 2015 )  );
+
+//=====================================================
+
+//有趣的是python的for语句可以直接用在表达式里生成数组（映射列表）
+py.exec(  "print( [ '%d: %d' % (i, i*2) for i in range(10)]  )"  );
+/*
+上面的代码实际上可以按书写顺序反过来理解。
+python通常宣扬不太需要循环语句 - 本质上还是把循环语句内外顺序反过来写的语法糖。
+*/
+
+//这个映射列表里的for语句后面还可以接if语句(过滤列表)，如下:
+py.exec(  "print( [ '%d: %d' % (i, i*2) for i in range(10) if i > 5 ] )"  );
+
+//在aardio里没有这种语法糖，只能按正常逻辑顺序写，等价的代码如下:
+var list = {}
+for( i=0;9;1 ){
+	if( i > 5 ){
+		table.push( list, string.format("%d: %d",i,i*2 ) )
+	}
+}
+console.dump(list);
+
+//=====================================================
+
+//python里重复字符串用 * 符号 (实际上数组也可以这样重复)
+py.exec(  "print( 'hello'*2  )"  ); //运行python代码
+
+//等价的aardio代码如下:
+io.print(  string.repeat( 2,'hello' )  );
+
+//=====================================================
+ 
+//python里切片用 [begin:end]
+
+py.exec(  "print( [1,2,3,4][2:4]  )"  ); //运行python代码
+
+//等价的aardio代码如下(注意aardio的索引自1开始,切片包含结束位置,python索引自0开始,切片不包含结束位置):
+console.dump(  table.slice( ({1;2;3;4}),3,4 )  );
+
+//=====================================================
+ 
+//u放在引号前面在python里表示unicode字符串
+py.exec(  'print( u"a" ) '  ); //运行python代码
+
+//而在aardio中，u要放在单引号括起来的字符串后面表示unicode字符串
+console.dump( 'a' )
+
+//=====================================================
+
+//r放在引号前面在python里表示原始字符串
+py.exec(  'print( r"a" ) '  ); //运行python代码
+
+//等价的aardio代码如下(不需要在双引号前加r):
+console.dump( "a" )
+
+//=====================================================
+
+//pythone用is,is not来进行引用比较,判断对象是否同一个引用
+py.exec( 'print( [] is [] )' ) 
+
+//aardio里对象默认就是按引用比较,而数值、字符串等默认按值比较
+io.print( {} == {}, 2 == "2",2 === "2" )
+
+console.pause()
